@@ -30,6 +30,6 @@ np.seterr(all='raise')
 import common_utils as utils
 # import utils
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device("mps") if torch.backends.mps.is_available() else torch.device('cpu')
 print('IMPORTANT IMPORTED!', utils.common.now())
 print(f'device={device}')

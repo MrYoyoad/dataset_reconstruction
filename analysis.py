@@ -6,6 +6,27 @@ import common_utils
 from common_utils.image import get_ssim_all, get_ssim_pairs_kornia
 from evaluations import l2_dist, ncc_dist, normalize_batch, transform_vmin_vmax_batch
 
+import torch.nn.functional as F
+
+def _downscale_by(t: torch.Tensor, factor: int) -> torch.Tensor:
+    """
+    Downscale NCHW by `factor` (2 or 4).
+    On MPS: use avg_pool2d (works on MPS). Else: bicubic interpolate (original behavior).
+    """
+    assert factor in (2, 4), "factor must be 2 or 4"
+    if t.device.type == "mps":
+        # MPS doesn't support bicubic; also ensure supported dtype
+        t = t.to(torch.float32)
+        if t.ndim != 4:
+            # Fallback: do resize on CPU then return to MPS
+            t_cpu = t.to("cpu")
+            t_small = F.interpolate(t_cpu, scale_factor=1.0/factor, mode="bicubic", align_corners=False)
+            return t_small.to("mps")
+        return F.avg_pool2d(t, kernel_size=factor, stride=factor)
+    else:
+        return F.interpolate(t, scale_factor=1.0/factor, mode="bicubic", align_corners=False)
+
+
 
 @torch.no_grad()
 def get_dists(x, y, search, use_bb):
@@ -42,23 +63,42 @@ def find_nearest_neighbour(X, x0, search='ncc', vote='mean', use_bb=True, nn_thr
     xxx = X.clone()
     yyy = x0.clone()
 
+    # Ensure MPS-safe dtype if needed
+    if xxx.device.type == "mps":
+        xxx = xxx.to(torch.float32)
+        yyy = yyy.to(torch.float32)
+
     # Search Real --> Extracted
     if search == 'l2':
         D = l2_dist(yyy, xxx, div_dim=True)
     if search == 'ncc':
         D = ncc_dist(yyy, xxx, div_dim=True)
+
     elif search == 'ncc2':
-        x2search = torch.nn.functional.interpolate(xxx, scale_factor=1 / 2, mode='bicubic', align_corners=False)
-        y2search = torch.nn.functional.interpolate(yyy, scale_factor=1 / 2, mode='bicubic', align_corners=False)
-        D = ncc_dist(y2search, x2search, div_dim=True)
+        x2search = _downscale_by(xxx, 2)
+        y2search = _downscale_by(yyy, 2)
+        # --- CPU fallback for ncc on MPS to avoid einsum bug ---
+        if x2search.device.type == "mps":
+            D = ncc_dist(y2search.to("cpu").contiguous(),
+                         x2search.to("cpu").contiguous(),
+                         div_dim=True).to("mps")
+        else:
+            D = ncc_dist(y2search, x2search, div_dim=True)
+
     elif search == 'ncc4':
-        x2search = torch.nn.functional.interpolate(xxx, scale_factor=1/4, mode='bicubic', align_corners=False)
-        y2search = torch.nn.functional.interpolate(yyy, scale_factor=1/4, mode='bicubic', align_corners=False)
-        D = ncc_dist(y2search, x2search, div_dim=True)
+        x2search = _downscale_by(xxx, 4)
+        y2search = _downscale_by(yyy, 4)
+        # --- CPU fallback for ncc on MPS to avoid einsum bug ---
+        if x2search.device.type == "mps":
+            D = ncc_dist(y2search.to("cpu").contiguous(),
+                         x2search.to("cpu").contiguous(),
+                         div_dim=True).to("mps")
+        else:
+            D = ncc_dist(y2search, x2search, div_dim=True)
+
     elif search == 'dssim':
         D_ssim = get_ssim_all(yyy, xxx)
-        D_dssim = (1 - D_ssim)/2
-        D = D_dssim
+        D = (1 - D_ssim) / 2
 
     # Only consider Best-Bodies
     if use_bb:
@@ -68,13 +108,11 @@ def find_nearest_neighbour(X, x0, search='ncc', vote='mean', use_bb=True, nn_thr
 
     dists, idxs = D.sort(dim=1, descending=False)
 
-    # yy = yyy
     if vote == 'min' or vote is None:
         xx = xxx[idxs[:, 0]]
     else:
-        # Ignore distant nearest-neighbours
         if nn_threshold is None:
-            xs_idxs = idxs[:, :int(0.01*x0.shape[0])]
+            xs_idxs = idxs[:, :int(0.01 * x0.shape[0])]
         else:
             xs_idxs = []
             for i in range(dists.shape[0]):
@@ -86,7 +124,6 @@ def find_nearest_neighbour(X, x0, search='ncc', vote='mean', use_bb=True, nn_thr
                         break
                 xs_idxs.append(x_idxs)
 
-        # Voting
         xs = []
         for x_idxs in xs_idxs:
             if vote == 'min':
@@ -104,23 +141,44 @@ def find_nearest_neighbour(X, x0, search='ncc', vote='mean', use_bb=True, nn_thr
 
     if ret_idxs:
         return xx, idxs[:, 0]
-
     return xx
 
 
 @torch.no_grad()
 def scale(xx, x0, ds_mean, xx_add_ds_mean=True):
-    xx = xx.clone()
-    x0 = x0.clone()
-    ds_mean = ds_mean.clone()
-    # Scale to images
-    yy = x0 + ds_mean
-    if xx_add_ds_mean:
-        xx = transform_vmin_vmax_batch(xx + ds_mean)
-    else:
-        xx = transform_vmin_vmax_batch(xx)
+    dev = xx.device
 
-    return xx, yy
+    def _to_cpu64(t: torch.Tensor) -> torch.Tensor:
+        # First move device, then cast dtype (avoids MPS fp64 path)
+        if t.device.type == "mps":
+            t_cpu = t.detach().to("cpu")          # keep original dtype
+            return t_cpu.to(torch.float64)        # cast on CPU
+        else:
+            return t.detach().to(dtype=torch.float64)
+
+    # Do numerically sensitive ops on CPU/float64
+    xx_cpu = _to_cpu64(xx)
+    x0_cpu = _to_cpu64(x0)
+    dm_cpu = _to_cpu64(ds_mean)
+
+    yy_cpu = x0_cpu + dm_cpu
+    if xx_add_ds_mean:
+        xx_cpu = transform_vmin_vmax_batch(xx_cpu + dm_cpu)
+    else:
+        xx_cpu = transform_vmin_vmax_batch(xx_cpu)
+
+    # Move results back to the original device
+    if dev.type == "mps":
+        xx_out = xx_cpu.to(dev, dtype=torch.float32)
+        yy_out = yy_cpu.to(dev, dtype=torch.float32)
+    else:
+        xx_out = xx_cpu.to(dev, dtype=xx.dtype)
+        yy_out = yy_cpu.to(dev, dtype=x0.dtype)
+
+    return xx_out, yy_out
+
+
+
 
 
 @torch.no_grad()
