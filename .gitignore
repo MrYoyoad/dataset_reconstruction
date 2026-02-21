@@ -148,3 +148,23 @@ cython_debug/
 # vscode
 .vscode/
 settings.py
+
+# Data files (large, downloaded at runtime)
+data/
+
+# macOS
+.DS_Store
+*.dmg
+Miniforge3-*.sh
+
+# WEXAC runtime files (created by wexac_connect.sh on the cluster)
+wexac_jupyter_info.txt
+wexac_jupyter_log.txt
+wexac_gpu_jupyter.sh
+wexac_bsub_out.txt
+wexac_bsub_err.txt
+
+# Model outputs and reconstructions (large files)
+reconstructions/*.pt
+reconstructions/*.png
+models/*.pt
