@@ -1,0 +1,288 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\newcommand{\grad}{\nabla}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cossim}{\mathrm{cos\_sim}}
+
+\tcbuselibrary{skins,breakable}
+\newtcolorbox{keybox}[1][]{
+  colback=blue!5!white,
+  colframe=blue!50!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+\newtcolorbox{warnbox}[1][]{
+  colback=red!5!white,
+  colframe=red!50!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\title{\textbf{What You Need to Know from R2F} \\[0.5em]
+\large Recover-to-Forget: Gradient Reconstruction from LoRA \\
+(Liu et al., NeurIPS 2025 Workshop) \\[0.5em]
+\normalsize A Supervisor's Step-by-Step Guide for the Thesis}
+\author{}
+\date{February 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%----------------------------------------------------------------------
+\section{Step 1: The Core Observation — Why R2F Works At All}
+%----------------------------------------------------------------------
+
+The foundational insight is deceptively simple. When you fine-tune with LoRA, you are not learning arbitrary matrices $A$ and $B$. You are learning matrices whose product $BA$ approximates a \textbf{low-rank projection of the full gradient} $\grad_W \mathcal{L}$.
+
+Concretely, the LoRA gradient relationships are:
+
+\begin{keybox}[LoRA Gradient Identities]
+\begin{align}
+\grad_A \mathcal{L} &= B^\top \cdot \grad_W \mathcal{L} \label{eq:grad_A}\\[6pt]
+\grad_B \mathcal{L} &= (\grad_W \mathcal{L}) \cdot A^\top \label{eq:grad_B}
+\end{align}
+\end{keybox}
+
+\noindent So $A$ and $B$ are trained by signals that are \textbf{linear projections} of the full gradient. The product $BA$ is therefore a rank-$r$ approximation of the full gradient update that \emph{would have been} applied to $W$ under full fine-tuning:
+\begin{equation}
+\Delta W_{\text{LoRA}} = BA \;\approx\; \text{rank-}r\;\text{projection of}\;\Delta W_{\text{full}} = -\eta\,\grad_W \mathcal{L}
+\end{equation}
+
+\begin{keybox}[Why This Matters for Your Thesis]
+This is not a heuristic — it is a mathematical identity. The decoder is not learning some arbitrary mapping; it is learning to \textbf{invert a well-structured linear projection} with nonlinear corrections.
+\end{keybox}
+
+\paragraph{What you should be able to explain in your defense:}
+\begin{quote}
+``The LoRA update $BA$ lives in a rank-$r$ subspace of the full gradient. The decoder learns to lift it back to the full-rank space. This is learnable because the projection is structured (not random) — it is determined by the optimization trajectory.''
+\end{quote}
+
+
+%----------------------------------------------------------------------
+\section{Step 2: The Gradient Decoder Architecture}
+%----------------------------------------------------------------------
+
+This corresponds to Section~3 of the R2F paper.
+
+\subsection{Input/Output Specification}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+& \textbf{Shape} & \textbf{Description} \\
+\midrule
+\textbf{Input} & $BA \in \R^{d_{\text{out}} \times d_{\text{in}}}$ & Flattened LoRA product (or $A$, $B$ concatenated) \\
+\textbf{Output} & $\hat{G} \in \R^{d_{\text{out}} \times d_{\text{in}}}$ & Predicted full-rank gradient $\widehat{\grad_W \mathcal{L}}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Same dimensionality in and out. The decoder is learning to ``fill in'' the missing rank-$(d - r)$ components.
+
+\subsection{Network}
+
+\begin{itemize}[leftmargin=1.5em]
+\item A small MLP — a few hidden layers, nothing large.
+\item \textbf{One decoder per layer} of the base model. The query projection decoder is different from the value projection decoder is different from the MLP up-projection decoder. Each weight matrix $W_\ell$ gets its own decoder $f_{\phi_\ell}$ because the gradient geometry differs per layer.
+\item For structured gradients (2D weight matrices), they also explore U-Net-style decoders, but the MLP baseline already works.
+\end{itemize}
+
+\subsection{Training Loss}
+
+\begin{keybox}[Decoder Loss Function]
+\begin{equation}
+\mathcal{L}_{\text{decoder}} = 1 - \cossim\!\Big(f_\phi(BA),\;\grad_W \mathcal{L}\Big)
+\label{eq:decoder_loss}
+\end{equation}
+where $\displaystyle\cossim(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|\,\|\mathbf{v}\|}$
+\end{keybox}
+
+\noindent \textbf{Why cosine similarity, not MSE?} Gradient inversion algorithms care about \textbf{direction} more than magnitude. A gradient that points the right way but has wrong scale will still reconstruct the correct image. MSE would waste capacity matching the scale.
+
+\subsection{Vision-Specific Dimensionality Note}
+
+For ViT-B/16, a query projection is $768 \times 768 = 590\text{K}$ parameters. For Llama-7B, the same projection is $4096 \times 4096 = 16.8\text{M}$. Your decoders will be significantly smaller and potentially easier to train. This is favorable for you.
+
+
+%----------------------------------------------------------------------
+\section{Step 3: Training Data Generation (The ``Proxy Data'' Trick)}
+%----------------------------------------------------------------------
+
+This is the most clever part of R2F and the part most students get wrong. Here is the exact procedure:
+
+\begin{keybox}[Decoder Training Data Generation]
+\begin{enumerate}[leftmargin=1.5em]
+\item Take a \textbf{proxy dataset} $\mathcal{D}_{\text{proxy}}$ (public data, does NOT need to match the victim's private data).
+\item Take the \textbf{same base model architecture} (e.g., ViT-B/16).
+\item For each of $\sim$50,000 iterations:
+\begin{enumerate}[label=(\alph*)]
+\item Sample a mini-batch $(x, y) \sim \mathcal{D}_{\text{proxy}}$.
+\item Compute the full gradient: $G = \grad_W \mathcal{L}(W_0 + BA;\, x, y)$.
+\item Do \textbf{one step} of LoRA SGD. Record $A_1, B_1$ after the step.
+\item Store the training pair: $(B_1 A_1,\; G)$.
+\item \textbf{Reset} $A, B$ back to initialization.
+\end{enumerate}
+\item You now have 50K pairs for training each per-layer decoder.
+\end{enumerate}
+\end{keybox}
+
+\subsection{Critical Subtleties}
+
+\paragraph{1. Single-step only.} Each training example is one gradient step, not a converged adapter. The decoder learns the \emph{local} relationship between $BA$ and $\grad_W \mathcal{L}$ at a single optimization step.
+
+\paragraph{2. The proxy data doesn't need to match.} The decoder is learning the \textbf{geometry of the projection} — how information distributes across singular values of the gradient — not the data semantics. CIFAR-100 can proxy for faces; WikiText can proxy for clinical notes. This is what makes the attack practical: you do not need to know what the victim trained on.
+
+\paragraph{3. Reset after each step.} You are not training LoRA to convergence and then reading off $BA$. You are sampling individual gradient steps from the same initialization. This keeps the pairs i.i.d.\ and prevents the decoder from overfitting to a specific optimization trajectory.
+
+\subsection{Handling Multi-Step Adapters (The Real Attack Scenario)}
+
+When the victim has trained LoRA for $T$ steps, the final adapter is an accumulation:
+\begin{equation}
+B_T A_T \;\approx\; \sum_{t=1}^{T} \eta_t\, \grad_W \mathcal{L}_t
+\end{equation}
+R2F handles this by treating the final $BA$ as approximately proportional to the \textbf{average gradient}:
+\begin{equation}
+B_T A_T \;\propto\; \frac{1}{T}\sum_{t=1}^{T} \grad_W \mathcal{L}_t
+\end{equation}
+
+\begin{warnbox}[Ablation Required]
+This is an approximation that degrades with training length $T$. Your thesis should ablate over $T$: how does reconstruction quality degrade as the victim trains for more steps?
+\end{warnbox}
+
+
+%----------------------------------------------------------------------
+\section{Step 4: Cross-Model Transfer (Proposition 1)}
+%----------------------------------------------------------------------
+
+R2F's Proposition 1 provides a theoretical bound for when you can train the decoder on one model (proxy) and apply it to another (target). The key conditions:
+
+\begin{enumerate}[leftmargin=1.5em]
+\item The two models share the same architecture (or at least the same layer dimensions).
+\item The gradient distributions are ``close'' in a distributional sense (domain adaptation bound).
+\end{enumerate}
+
+The bound takes the form:
+\begin{equation}
+\mathcal{L}_{\text{target}}(f_\phi) \;\leq\; \mathcal{L}_{\text{proxy}}(f_\phi) + d_{\mathcal{H}}(\mathcal{P}_{\text{proxy}},\, \mathcal{P}_{\text{target}}) + \lambda
+\end{equation}
+where $d_{\mathcal{H}}$ is the $\mathcal{H}$-divergence between gradient distributions and $\lambda$ is the combined optimal error.
+
+\begin{keybox}[Relevance to Your Thesis]
+This is less critical in the image domain because you will likely train and attack on the \textbf{same architecture} (e.g., ViT-B/16). But it is worth mentioning in your thesis because it shows the decoder is not memorizing model-specific quirks — it is learning something \textbf{structural} about the rank-$r \to$ full-rank mapping.
+\end{keybox}
+
+
+%----------------------------------------------------------------------
+\section{Step 5: Where R2F Stops and Your Thesis Begins}
+%----------------------------------------------------------------------
+
+R2F recovers full-rank gradients and then does \textbf{gradient ascent} for unlearning. That is their downstream application. Your thesis diverges here completely.
+
+\subsection{Your Pipeline}
+
+\begin{equation*}
+\boxed{BA_{\text{victim}}}
+\;\xrightarrow{\text{Gradient Decoder } f_\phi}\;
+\boxed{\hat{G} \approx \grad_W \mathcal{L}}
+\;\xrightarrow{\text{Gradient Inversion}}\;
+\boxed{\hat{x} \approx x_{\text{train}}}
+\;\xrightarrow[\text{(optional)}]{\text{SDS Prior}}\;
+\boxed{\hat{x}_{\text{enhanced}}}
+\end{equation*}
+
+\subsection{Quality Requirements: Unlearning vs.\ Reconstruction}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+& \textbf{R2F (Unlearning)} & \textbf{Your Thesis (Reconstruction)} \\
+\midrule
+Gradient use & Gradient ascent & Gradient inversion \\
+Tolerance to noise & High & \textbf{Low} \\
+What matters & Direction (roughly) & Direction \textbf{and} magnitude \\
+Output & Model behavior change & Pixel-level images \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{warnbox}[Key Implication]
+Unlearning is tolerant of noisy gradients — you just need the gradient to approximately point in the right direction. Gradient inversion for pixel-level image reconstruction is \textbf{far more demanding}. Small errors in the decoded gradient will produce visible artifacts. This is precisely why you need the generative prior (Direction~3 of your thesis: SDS from a frozen diffusion model).
+\end{warnbox}
+
+
+%----------------------------------------------------------------------
+\section{Step 6: What R2F Does NOT Tell You (Gaps You Must Fill)}
+%----------------------------------------------------------------------
+
+\begin{enumerate}[leftmargin=1.5em]
+
+\item \textbf{Vision-specific gradient structure.} R2F works on LLMs. Gradients of vision models have spatial structure (feature maps, patch embeddings) that LLM gradients lack. Your decoder might benefit from \textbf{convolutional architectures} rather than pure MLPs.
+
+\item \textbf{Batch size sensitivity.} R2F assumes single-sample gradients for unlearning. If the victim fine-tuned with batch size $B > 1$, the gradient is an average over the batch:
+\begin{equation}
+\grad_W \mathcal{L} = \frac{1}{B}\sum_{i=1}^{B} \grad_W \ell(W;\, x_i, y_i)
+\end{equation}
+Inverting an averaged gradient to recover all $B$ individual images is a known hard problem. You need to figure out the practical batch size limit.
+
+\item \textbf{Which LoRA layers to decode.} R2F decodes all layers. For gradient inversion, not all layers carry equal information about the input. Early layers (close to the input) are more informative for pixel reconstruction. You need to determine which layers to prioritize.
+
+\item \textbf{The cosine similarity $\to$ inversion quality relationship.} R2F reports $> 0.9$ cosine similarity between predicted and true gradients. But what cosine similarity do you \emph{need} for gradient inversion to work? This is an open empirical question.
+
+\begin{keybox}[Phase 0 Answers This]
+Your Phase~0 experiment (perfect gradient $\to$ inversion) establishes the \textbf{upper bound}. If perfect gradients do not produce recognizable images on your chosen architecture, then the entire Gradient Bridge direction collapses regardless of decoder quality.
+\end{keybox}
+
+\end{enumerate}
+
+
+%----------------------------------------------------------------------
+\section{Step 7: Reading List (Priority Order)}
+%----------------------------------------------------------------------
+
+\begin{enumerate}[leftmargin=1.5em]
+
+\item \textbf{Geiping et al., ``Inverting Gradients'' (NeurIPS 2020)} — The attack engine that converts gradients back to inputs. You cannot build the pipeline without understanding this. Focus on:
+\begin{itemize}
+\item The cosine similarity loss for inversion (same spirit as the decoder loss in Eq.~\ref{eq:decoder_loss})
+\item The total variation regularizer
+\item How they handle batch reconstruction
+\end{itemize}
+
+\item \textbf{R2F Section 3 in full detail} — Read the actual equations and the decoder training loop pseudocode. Do not rely solely on summaries.
+
+\item \textbf{Jang et al.\ (2024) on LoRA in the NTK regime} — This justifies Direction~2 of your thesis: when LoRA rank $r \gtrsim N$ (number of data points), you can skip the decoder entirely and apply KKT conditions directly to the LoRA weights.
+
+\end{enumerate}
+
+
+%----------------------------------------------------------------------
+\section{The Bottom Line}
+%----------------------------------------------------------------------
+
+R2F gives you exactly one thing: a \textbf{learnable bridge from LoRA space to gradient space}. Everything else — the inversion, the generative prior, the vision-specific adaptations — is \emph{your contribution}.
+
+The key insight to internalize:
+
+\begin{keybox}[Core Takeaway]
+LoRA updates are not opaque compression artifacts. They are \textbf{structured, invertible measurements} of the full gradient, and the inversion is learnable from proxy data alone.
+\end{keybox}
+
+Your Phase~0 experiment is the most important thing to do first. If perfect gradients do not invert to recognizable images on your chosen architecture, then the entire Gradient Bridge direction collapses regardless of how good the decoder is.
+
+\textbf{Start there.}
+
+\end{document}

@@ -1,0 +1,380 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black}
+
+\newcommand{\grad}{\nabla}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cossim}{\mathrm{cos\_sim}}
+\newcommand{\TV}{\mathrm{TV}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\tcbuselibrary{skins,breakable}
+\newtcolorbox{keybox}[1][]{
+  colback=blue!5!white,
+  colframe=blue!50!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+\newtcolorbox{warnbox}[1][]{
+  colback=red!5!white,
+  colframe=red!50!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+\newtcolorbox{greenbox}[1][]{
+  colback=green!5!white,
+  colframe=green!50!black,
+  fonttitle=\bfseries,
+  title=#1,
+  breakable
+}
+
+\title{\textbf{Feasibility Analysis: Gradient Inversion \\from Decoded LoRA Adapters} \\[0.5em]
+\large How Difficult Is It Really? \\
+And What Does the ``Newer Paper'' Actually Do? \\[0.5em]
+\normalsize Supervisor Notes for Thesis Planning}
+\author{}
+\date{February 2026}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%======================================================================
+\section{The ``Newer Paper'' Is NOT What You Think}
+%======================================================================
+
+The paper is \textbf{ImpMIA} (Golbari, Wasserman, Vardi \& Irani, Weizmann, October 2025): ``\emph{Leveraging Implicit Bias for Membership Inference Attack under Realistic Scenarios}.'' It comes from \textbf{your own lab} (Michal Irani + Gal Vardi are co-authors on both papers), but it solves a \textbf{fundamentally different problem}.
+
+\subsection{Haim et al.\ vs.\ ImpMIA: Side-by-Side}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{>{\raggedright}p{3cm} p{5.5cm} p{5.5cm}}
+\toprule
+& \textbf{Haim et al.\ (2022)} & \textbf{ImpMIA (2025)} \\
+\midrule
+\textbf{Goal} & Reconstruct unknown training images from weights & Identify which \emph{known} candidates were in the training set \\
+\textbf{Unknowns} & Both $x$ (pixels) \emph{and} $\lambda$ (coefficients) & Only $\lambda$ --- the images are \textbf{given} \\
+\textbf{Task type} & Data reconstruction & Membership inference attack \\
+\textbf{Architecture} & MLPs only & ResNet-18 \\
+\textbf{Scale} & Dozens of samples & 25K training, 50--250K candidate pool \\
+\textbf{Loss} & $\|\grad \mathcal{L}(x,\lambda) - w\|^2$ & $1 - \cossim(A\lambda,\, \theta)$ \\
+\textbf{Classification} & Binary & Multiclass (margin-based) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{warnbox}[Key Distinction]
+ImpMIA never reconstructs a single pixel. They take a candidate pool of images, solve the KKT system for $\lambda$ only (with $x$ fixed), and use the $\lambda$ coefficients as a membership score. High $\lambda_i$ means ``sample $x_i$ was likely in the training set.''
+\end{warnbox}
+
+\subsection{The ImpMIA Pipeline in Detail}
+
+Their method works as follows:
+
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{Pre-filter:} For each candidate $(x_i, y_i)$ in the superset $X_{\text{sup}}$, compute the logit margin:
+\begin{equation}
+\Delta_i = \Phi_{y_i}(\theta;\, x_i) - \max_{j \neq y_i} \Phi_j(\theta;\, x_i)
+\end{equation}
+Discard misclassified samples ($\Delta_i < 0$).
+
+\item \textbf{Block partition:} Split the model parameters $\theta$ into blocks of $\sim$150K parameters each, grouped by layer.
+
+\item \textbf{Per-block gradient matrix:} For each block $b$, compute the per-sample margin gradient:
+\begin{equation}
+g_i^{(b)} = \grad_{\theta^{(b)}} \Big[\Phi_{y_i}(\theta;\, x_i) - \max_{j \neq y_i} \Phi_j(\theta;\, x_i)\Big]
+\end{equation}
+Stack as columns: $A^{(b)} = [g_1^{(b)} \mid \cdots \mid g_M^{(b)}] \in \R^{p_b \times M}$.
+
+\item \textbf{Solve for $\lambda$:} For each block, minimize:
+\begin{equation}
+\mathcal{L} = 1 - \cossim\!\big(A^{(b)} \lambda^{(b)},\; \theta^{(b)}\big) + \alpha\, \mathcal{L}_{\text{neg}} + \beta\, \mathcal{L}_{\text{marg}}
+\end{equation}
+where $\mathcal{L}_{\text{neg}}$ penalizes negative $\lambda$ entries (KKT complementary slackness) and $\mathcal{L}_{\text{marg}}$ down-weights high-margin samples.
+
+\item \textbf{Aggregate:} Collect $\{\lambda_i^{(b)}\}$ across all blocks. Compute trimmed mean and SNR (mean/std across blocks) as robust composite scores.
+
+\item \textbf{Post-process:} Apply margin-based boosting and distance scaling. Rank by final score; threshold at desired FPR.
+\end{enumerate}
+
+\subsection{What IS Useful from ImpMIA for Your Thesis}
+
+Despite solving a different problem, three takeaways are genuinely relevant:
+
+\begin{greenbox}[Takeaway 1: KKT Conditions Work on ResNet-18]
+Haim et al.\ only showed MLPs. ImpMIA shows the implicit bias framework survives batch normalization, skip connections, and non-homogeneity. This is evidence (not proof) that extending to ViTs is plausible.
+\end{greenbox}
+
+\begin{greenbox}[Takeaway 2: Scaling Engineering]
+Block-wise parameter partitioning ($\sim$150K per block), cosine similarity loss instead of L2, gradient normalization, and trimmed-mean aggregation. If you apply KKT conditions directly to a ViT (Direction~2), you will need exactly this machinery.
+\end{greenbox}
+
+\begin{greenbox}[Takeaway 3: Weight Decay Doesn't Break the Theory]
+Appendix~D shows that with weight decay $\lambda_{\text{WD}}$, the stationarity condition becomes:
+\begin{equation}
+\theta = \sum_i \ell_i' \cdot \grad_\theta \Phi(x_i;\, \theta), \quad \text{where } \ell_i' = -\frac{1}{\lambda_{\text{WD}}} \frac{\partial \ell}{\partial \Phi_i}
+\end{equation}
+Same structural form. This matters because every real fine-tuning run uses weight decay.
+\end{greenbox}
+
+\subsection{What ImpMIA Does NOT Address}
+
+\begin{itemize}[leftmargin=1.5em]
+\item[$\times$] LoRA, PEFT, adapters, or foundation models --- zero mention
+\item[$\times$] Data reconstruction --- never recovers pixel content
+\item[$\times$] Gradient inversion --- does not optimize in input space
+\item[$\times$] Architectures beyond ResNet-18 --- no ViTs, no large CNNs
+\item[$\times$] High-resolution images --- only 32$\times$32 (CIFAR)
+\end{itemize}
+
+
+%======================================================================
+\section{How Difficult Is Gradient Inversion Given Noise?}
+\label{sec:difficulty}
+%======================================================================
+
+This is the central risk assessment for the thesis. The answer is: \textbf{it depends sharply on the noise level, and nobody has systematically studied this.}
+
+\subsection{The Error Pipeline}
+
+Your Gradient Bridge pipeline has three stages, each introducing error:
+
+\begin{equation*}
+\underbrace{BA_{\text{victim}}}_{\text{LoRA adapter}}
+\;\xrightarrow[\text{error } \epsilon_1]{\text{Gradient Decoder } f_\phi}\;
+\underbrace{\hat{G} \approx \grad_W \mathcal{L}}_{\text{approx.\ gradient}}
+\;\xrightarrow[\text{error } \epsilon_2]{\text{Gradient Inversion}}\;
+\underbrace{\hat{x} \approx x_{\text{train}}}_{\text{reconstructed image}}
+\end{equation*}
+
+The total error $\epsilon = \epsilon_1 + \epsilon_2$ compounds. Even if each stage introduces moderate error, the cascade can be catastrophic.
+
+\subsection{Stage 1: Decoder Error}
+
+R2F reports $> 0.9$ cosine similarity between decoded and true gradients. This sounds impressive, but consider what it means geometrically.
+
+\begin{keybox}[Cosine Similarity in High Dimensions]
+For two vectors $\hat{G}, G \in \R^d$ with $\cossim(\hat{G}, G) = c$, we can decompose:
+\begin{equation}
+\hat{G} = c\,\frac{\|{\hat{G}}\|}{\|G\|}\, G + \sqrt{1 - c^2}\,\frac{\|{\hat{G}}\|}{\|G\|}\, G_\perp
+\end{equation}
+where $G_\perp$ is a unit vector orthogonal to $G$. The \textbf{fraction of variance} in the error direction is $1 - c^2$:
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{cc}
+\toprule
+$\cossim$ & Error fraction ($1 - c^2$) \\
+\midrule
+0.99 & 2\% \\
+0.95 & 9.75\% \\
+0.90 & 19\% \\
+0.85 & 27.75\% \\
+0.80 & 36\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{keybox}
+
+For a ViT-B/16 query projection ($d = 768 \times 768 = 589{,}824$), a cosine similarity of 0.90 means the error component has $0.19 \times 589{,}824 \approx 112{,}000$ effective dimensions of noise. That is enormous.
+
+\subsection{Stage 2: Inversion Sensitivity}
+
+Gradient inversion (Geiping et al., 2020) solves:
+\begin{equation}
+\hat{x} = \argmin_{x} \Big[1 - \cossim\!\big(\grad_W \mathcal{L}(W;\, x),\; G_{\text{target}}\big) + \alpha \cdot \TV(x)\Big]
+\label{eq:inversion}
+\end{equation}
+where $\TV(x) = \sum_{i,j} |x_{i+1,j} - x_{i,j}| + |x_{i,j+1} - x_{i,j}|$ is the total variation regularizer.
+
+\begin{warnbox}[The Fundamental Problem]
+Equation~\eqref{eq:inversion} is a \textbf{non-convex} optimization in pixel space. It works well when $G_{\text{target}}$ is the \textbf{exact} gradient. But as noise is added:
+\begin{itemize}
+\item The loss landscape develops spurious local minima that ``explain'' the noise
+\item The optimizer can reconstruct an image that matches the \emph{noisy} gradient but bears no resemblance to the true training image
+\item The TV regularizer fights noise but also destroys fine detail
+\end{itemize}
+\end{warnbox}
+
+\subsection{What the Literature Says About Noise Tolerance}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{>{\raggedright}p{4.5cm} p{9cm}}
+\toprule
+\textbf{Paper} & \textbf{What They Show} \\
+\midrule
+Geiping et al.\ (2020) & Works with exact single-image gradients on ImageNet-scale ResNets. Quality degrades with batch size $>1$. \textbf{Never tested with approximate gradients.} \\
+Zhu et al.\ (DLG, 2019) & Extremely sensitive to initialization and noise. Fails on models deeper than a few layers even with exact gradients. \\
+Yin et al.\ (GradInversion, 2021) & Uses BN statistics as extra signal. More robust, but still assumes exact gradients. \\
+Wei et al.\ (2020) & Shows differential privacy noise ($\sigma \geq 10^{-3}$) effectively kills gradient inversion. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{warnbox}[Critical Gap]
+\textbf{Nobody in the gradient inversion literature has systematically studied what happens when gradients are approximate} (as opposed to exact + DP noise). This is both a gap and an opportunity --- but it means you are walking into unknown territory.
+\end{warnbox}
+
+
+%======================================================================
+\section{Difficulty Assessment by Scenario}
+%======================================================================
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{>{\raggedright}p{6cm} c c}
+\toprule
+\textbf{Scenario} & \textbf{Difficulty} & \textbf{Feasibility} \\
+\midrule
+Perfect gradient, 1 image, small model & Easy & Known to work \\
+Perfect gradient, 1 image, ViT & Medium & Likely works (untested) \\
+Decoded gradient ($\cossim \geq 0.95$), 1 image & Hard & \textbf{Unknown --- Phase 0 answers this} \\
+Decoded gradient ($\cossim \in [0.85, 0.95)$), 1 image & Very Hard & Likely needs SDS prior \\
+Decoded gradient, batch $> 1$ & Extremely Hard & May not be feasible without strong priors \\
+Multi-step adapter $\to$ decoded avg.\ gradient & Extremely Hard & Multiple compounding approximations \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+%======================================================================
+\section{The Core Tension: Single-Step vs.\ Multi-Step}
+\label{sec:tension}
+%======================================================================
+
+This is the issue that should keep you up at night.
+
+R2F trains its decoder on \textbf{single-step} LoRA updates. But in a real attack scenario, the victim has trained for $T$ steps. The final adapter is an accumulation:
+\begin{equation}
+B_T A_T \;\approx\; \sum_{t=1}^{T} \eta_t \cdot \grad_W \mathcal{L}(W_t;\, x_{b_t}, y_{b_t})
+\label{eq:accumulation}
+\end{equation}
+where $(x_{b_t}, y_{b_t})$ is the mini-batch at step $t$.
+
+Even if you decode this perfectly into a full-rank gradient, what you recover is an \textbf{averaged gradient} --- not the gradient at any single training example.
+
+\subsection{Why Averaged Gradients Are Harder to Invert}
+
+Consider the simplest case: $T = 1$, batch size $B$. The gradient is:
+\begin{equation}
+\grad_W \mathcal{L} = \frac{1}{B}\sum_{i=1}^{B} \grad_W \ell(W;\, x_i, y_i)
+\end{equation}
+
+Inverting this to recover all $B$ individual images requires solving:
+\begin{equation}
+\hat{x}_1, \ldots, \hat{x}_B = \argmin_{x_1,\ldots,x_B} \left[1 - \cossim\!\left(\frac{1}{B}\sum_{i=1}^{B} \grad_W \ell(W;\, x_i, y_i),\; G_{\text{target}}\right) + \alpha \sum_{i=1}^{B} \TV(x_i)\right]
+\end{equation}
+
+This has $B \times d_{\text{image}}$ unknowns but the constraint comes from a single gradient vector of dimension $d_{\text{params}}$. For $B > 1$, the system is massively underdetermined in the image domain, even though $d_{\text{params}} \gg d_{\text{image}}$.
+
+\begin{warnbox}[Compounding Over Training Steps]
+For $T$ steps with batch size $B$, the total number of unknown images is potentially $T \times B$, but all information is compressed into a single rank-$r$ adapter. The information bottleneck is severe.
+\end{warnbox}
+
+
+%======================================================================
+\section{Phase 0: The Experiments That Resolve the Uncertainty}
+\label{sec:phase0}
+%======================================================================
+
+Before building the decoder, you must establish the ceiling. Three experiments, in order:
+
+\subsection{Experiment 1: The ``Cheat'' Experiment (Upper Bound)}
+
+\begin{greenbox}[Setup]
+\begin{enumerate}[leftmargin=1.5em]
+\item Fine-tune ViT-B/16 with LoRA on a \textbf{single image} for \textbf{one step}
+\item Record the \textbf{exact} full-rank gradient $\grad_W \mathcal{L}$
+\item Feed it into Inverting Gradients (Geiping et al.\ 2020)
+\item Measure: SSIM, PSNR, LPIPS between $\hat{x}$ and $x_{\text{train}}$
+\end{enumerate}
+\textbf{Question answered:} Can gradient inversion work on ViT at all? If this fails, the entire Gradient Bridge direction is dead regardless of decoder quality.
+\end{greenbox}
+
+\subsection{Experiment 2: Noise Tolerance Curve (Transfer Function)}
+
+\begin{greenbox}[Setup]
+\begin{enumerate}[leftmargin=1.5em]
+\item Take the exact gradient from Experiment~1
+\item Add structured noise at varying levels to achieve target cosine similarities:
+\begin{equation}
+G_{\text{noisy}} = G + \sigma \cdot \epsilon, \quad \epsilon \sim \mathcal{N}(0, I), \quad \sigma \text{ chosen so } \cossim(G_{\text{noisy}}, G) \in \{0.99, 0.95, 0.90, 0.85, 0.80\}
+\end{equation}
+\item Run inversion at each noise level
+\item Plot: reconstruction quality (SSIM, PSNR, LPIPS) vs.\ cosine similarity
+\end{enumerate}
+\textbf{Question answered:} What cosine similarity does the decoder \emph{need} to achieve for inversion to work? This gives you the spec for the decoder.
+\end{greenbox}
+
+\subsection{Experiment 3: Batch Size / Averaging Limit}
+
+\begin{greenbox}[Setup]
+\begin{enumerate}[leftmargin=1.5em]
+\item Compute exact gradients for $N \in \{1, 2, 4, 8, 16\}$ images
+\item Average them: $\bar{G} = \frac{1}{N}\sum_{i=1}^{N} \grad_W \ell(W;\, x_i, y_i)$
+\item Attempt to invert $\bar{G}$ to recover individual images
+\item Measure: can you recover \emph{any} of the $N$ images? At what quality?
+\end{enumerate}
+\textbf{Question answered:} What is the practical batch size limit? Beyond what $N$ does reconstruction collapse to a ``ghost blend''?
+\end{greenbox}
+
+
+%======================================================================
+\section{Overall Risk Assessment}
+%======================================================================
+
+\subsection{Probability of Success by Direction}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{>{\raggedright}p{6cm} c p{5.5cm}}
+\toprule
+\textbf{Direction} & \textbf{P(positive results)} & \textbf{Rationale} \\
+\midrule
+Gradient Bridge: single image, single step, on ViT & 40--60\% & Untested architecture for inversion; decoder noise may be tolerable \\
+Gradient Bridge: realistic (multi-step, batch $> 1$) & 15--25\% & Multiple compounding errors; information bottleneck is severe \\
+LoRA in NTK regime (Direction~2) & 50--70\% & Bypasses decoder entirely; but requires $r \gtrsim N$, limiting practical applicability \\
+SDS generative prior (Direction~3) & 60--80\% & Diffusion models are powerful priors; but contribution becomes ``we added a prior,'' which is incremental \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{The Silver Lining}
+
+\begin{keybox}[Even Negative Results Are Publishable]
+A paper that rigorously characterizes \emph{when} LoRA adapters leak training data and \emph{when they don't} is a perfectly valid contribution. The noise tolerance curve (Experiment~2) would be novel and useful to the privacy community regardless of whether the final reconstruction looks good.
+
+Specifically, a result like: ``Gradient inversion from decoded LoRA adapters succeeds for $\cossim \geq 0.95$ but fails catastrophically below 0.90, implying that LoRA rank $r \geq 8$ is necessary for the attack to succeed on ViT-B/16'' --- that is a publishable finding.
+\end{keybox}
+
+\subsection{Recommendation}
+
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{Do Phase~0 first.} It takes two weeks and tells you everything.
+\item \textbf{Don't try to make all three directions work simultaneously.} You are spreading too thin.
+\item \textbf{Let Phase~0 results guide your bet:}
+\begin{itemize}
+\item If Experiment~1 succeeds $\Rightarrow$ Direction~1 (Gradient Bridge) is viable. Proceed to decoder.
+\item If Experiment~1 fails $\Rightarrow$ Pivot to Direction~2 (NTK regime) or Direction~3 (SDS).
+\item If Experiment~2 shows graceful degradation $\Rightarrow$ Direction~1 has room for decoder imperfection.
+\item If Experiment~2 shows cliff-edge failure $\Rightarrow$ You need the generative prior (Direction~3) no matter what.
+\end{itemize}
+\item \textbf{Frame the thesis around the characterization}, not just the attack. ``Under what conditions do LoRA adapters leak training data?'' is a stronger framing than ``we reconstruct training data from LoRA.''
+\end{enumerate}
+
+\end{document}

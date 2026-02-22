@@ -1,0 +1,481 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+
+\hypersetup{colorlinks=true, linkcolor=blue!60!black, urlcolor=blue!60!black, citecolor=blue!60!black}
+
+\newcommand{\grad}{\nabla}
+\newcommand{\R}{\mathbb{R}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\tcbuselibrary{skins,breakable}
+\newtcolorbox{keybox}[1][]{colback=blue!5!white, colframe=blue!50!black, fonttitle=\bfseries, title=#1, breakable}
+\newtcolorbox{warnbox}[1][]{colback=red!5!white, colframe=red!50!black, fonttitle=\bfseries, title=#1, breakable}
+\newtcolorbox{greenbox}[1][]{colback=green!5!white, colframe=green!50!black, fonttitle=\bfseries, title=#1, breakable}
+
+\title{\textbf{Thesis Direction Analysis} \\[0.3em]
+\large KKT-Based Privacy Attacks on LoRA Adapters \\[0.3em]
+\normalsize Competitive Landscape, Theoretical Lineage, and Proposed Contributions \\
+February 2026}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+%======================================================================
+\section{The Gap in One Sentence}
+%======================================================================
+
+\begin{keybox}[Core Claim]
+\textbf{Nobody has applied the KKT/implicit bias reconstruction framework to LoRA adapters.} This enables a unique threat model (weight-only, passive, undetectable) that no existing attack addresses, and yields a testable phase transition prediction.
+\end{keybox}
+
+
+%======================================================================
+\section{Theoretical Lineage: From Implicit Bias to LoRA}
+\label{sec:lineage}
+%======================================================================
+
+Your thesis sits at the end of a clear research arc. Each paper in this chain proves one piece; your thesis supplies the missing final link.
+
+\subsection{The Chain}
+
+\begin{enumerate}[leftmargin=1.5em]
+
+\item \textbf{Haim, Vardi, Yehudai, Shamir \& Irani (NeurIPS 2022)}~\cite{haim2022}. \\
+Foundational paper. For homogeneous networks trained with GD on binary cross-entropy, the weights converge to the KKT point of the max-margin problem:
+\begin{equation}
+\theta^* \;\propto\; \sum_{i=1}^{N} \lambda_i\, y_i\, \grad_\theta \Phi(\theta^*;\, x_i)
+\label{eq:kkt_haim}
+\end{equation}
+Optimizing $(x, \lambda)$ to satisfy this condition reconstructs training images from weights. \\
+\textit{Setting:} Full model, full training, small MLPs.
+
+\item \textbf{Smorodinsky, Vardi \& Safran (October 2024)}~\cite{smorodinsky2024}. \\
+First \textbf{provable} guarantees for implicit-bias privacy attacks. For 2-layer ReLU networks, they prove $\geq 25\%$ of training data is recoverable in 1D, and near-perfect membership inference in high dimensions. This puts the KKT attack on rigorous theoretical ground. \\
+\textit{Open questions stated:} Deeper networks, broader settings, defenses.
+
+\item \textbf{Oz, Yehudai, Vardi, Antebi, Irani \& Haim (July 2024)}~\cite{oz2024}. \\
+Extends reconstruction to \textbf{real-world transfer learning}: frozen backbone (ViT / DINO / CLIP) + trained MLP head. Two-stage pipeline: (i) reconstruct embeddings via KKT on the MLP head, (ii) invert embeddings back to images. \\
+\textit{Key limitation:} Only handles a \textbf{full MLP head} trained from scratch. Does \textbf{not} address LoRA fine-tuning of the backbone.
+
+\item \textbf{Gronich \& Vardi (February 2026)}~\cite{gronich2026}. \\
+Shows Adam and Muon converge to $\ell_\infty$ KKT points (not $\ell_2$ like SGD). Their conclusion explicitly poses:
+\begin{quote}
+\textit{``Are training-data reconstruction attacks based on satisfaction of KKT conditions\ldots feasible for Adam and Muon?''}
+\end{quote}
+Since most LoRA training uses Adam, this is a \textbf{directly stated open question} that your thesis can address.
+
+\item \textbf{ImpMIA --- Golbari, Wasserman, Vardi \& Irani (October 2025)}~\cite{impmia2025}. \\
+From \textbf{your lab}. Membership inference via KKT $\lambda$ optimization on full ResNet-18 weights. First to show KKT works on non-homogeneous architectures at scale (25K training samples). \\
+\textit{Key limitation:} Full model weights, not LoRA adapters.
+
+\end{enumerate}
+
+\subsection{Where Your Thesis Fits}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{>{\raggedright}p{4.5cm} >{\raggedright}p{3cm} >{\raggedright}p{2.5cm} p{2.5cm}}
+\toprule
+\textbf{Paper} & \textbf{Model} & \textbf{What's Attacked} & \textbf{Task} \\
+\midrule
+Haim et al.\ 2022 & Small MLP & Full weights & Reconstruction \\
+Smorodinsky et al.\ 2024 & 2-layer ReLU & Full weights & Provable recon. \\
+Oz et al.\ 2024 & Frozen ViT + MLP & MLP head only & Reconstruction \\
+ImpMIA 2025 & ResNet-18 & Full weights & Membership \\
+Gronich \& Vardi 2026 & Theory (Adam) & Full weights & Open question \\
+\midrule
+\cellcolor{green!10}\textbf{Your Thesis} & \cellcolor{green!10}\textbf{Frozen ViT + LoRA} & \cellcolor{green!10}\textbf{LoRA adapter} & \cellcolor{green!10}\textbf{Recon.\ + Memb.} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{keybox}[The Missing Link]
+Oz et al.\ showed KKT reconstruction works on \emph{frozen backbone + trained MLP head}. You replace ``trained MLP head'' with ``LoRA adapter'' --- the setting people actually use and share publicly. This is the natural next step.
+\end{keybox}
+
+
+%======================================================================
+\section{Competitive Landscape (Non-KKT Papers)}
+\label{sec:landscape}
+%======================================================================
+
+Beyond the KKT lineage, several papers attack LoRA privacy from other angles. None occupies your cell.
+
+\renewcommand{\arraystretch}{1.3}
+\begin{center}
+\small
+\begin{tabular}{>{\raggedright}p{2.5cm} >{\raggedright}p{2.2cm} >{\raggedright}p{2.2cm} >{\raggedright}p{1.5cm} >{\raggedright}p{1.5cm} p{1.8cm}}
+\toprule
+\textbf{Paper} & \textbf{Access} & \textbf{Method} & \textbf{Goal} & \textbf{Domain} & \textbf{KKT?} \\
+\midrule
+PEFTLeak (CVPR'25)~\cite{peftleak} & Training-time (FL) & Grad.\ inversion + poisoning & Recon. & Vision & No \\
+LoRA-Leak (2024)~\cite{loraleak} & Inference (queries) & Output-based MIA & Memb. & Text & No \\
+Hu et al.\ (2026)~\cite{hu2026} & Theoretical & DP analysis & Bounds & Both & No \\
+R2F (NeurIPS'25)~\cite{r2f} & Proxy data & Gradient decoder & Unlearn & Text & No \\
+DP-LoRA (ICCV'25)~\cite{dplora} & --- & DP mechanism & Defense & Vision & No \\
+CMU Report (2024)~\cite{cmu2024} & Inference (prompt) & Generation probe & Memor. & Text & No \\
+\midrule
+\cellcolor{green!10}\textbf{Yours} & \cellcolor{green!10}\textbf{Weight-only} & \cellcolor{green!10}\textbf{KKT optim.} & \cellcolor{green!10}\textbf{Recon.+M.} & \cellcolor{green!10}\textbf{Vision} & \cellcolor{green!10}\textbf{Yes} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Key differentiators.}
+\begin{itemize}[leftmargin=1.5em]
+\item \textbf{PEFTLeak} requires training-time gradient interception + active poisoning. You need only the published adapter file.
+\item \textbf{LoRA-Leak / Hu et al.} require inference queries. You never touch the model.
+\item \textbf{R2F} trains a decoder on proxy data to recover gradients. You skip the decoder entirely and work directly on the final weights.
+\item \textbf{CMU Report} found ``rank has no clear effect on memorization'' --- but used weak probing. If your phase diagram shows a sharp transition, you directly contradict this with a stronger method.
+\end{itemize}
+
+
+%======================================================================
+\section{Proposed Contributions}
+\label{sec:contributions}
+%======================================================================
+
+\subsection{Contribution 1: LoRA KKT Framework and Weight-Only Attack}
+
+For a LoRA-adapted model with frozen base $\theta_0$ and adapter $\Delta W = BA$, the KKT stationarity gives:
+\begin{equation}
+\boxed{BA = \sum_{i=1}^{N} \lambda_i\, y_i\, \grad_\theta \Phi(\theta_0 + BA;\; x_i) \;-\; \theta_0}
+\label{eq:kkt_lora}
+\end{equation}
+
+Reconstruct by optimizing:
+\begin{equation}
+\hat{x}, \hat{\lambda} = \argmin_{x \in [-1,1]^d,\; \lambda \geq 0} \left\| BA - \left(\sum_{i=1}^{N} \lambda_i\, y_i\, \grad_\theta \Phi(\theta_0 + BA;\; x_i) - \theta_0\right) \right\|^2
+\label{eq:recon}
+\end{equation}
+
+\paragraph{Threat model.} The attacker downloads a \texttt{.safetensors} file. No model access, no queries, no training-time interception. Passive, offline, undetectable, scalable to thousands of public adapters.
+
+\paragraph{Overdetermination insight.} The low-rank constraint makes reconstruction \emph{tighter}: the RHS of Eq.~\eqref{eq:kkt_lora} must equal a rank-$r$ matrix, eliminating spurious solutions that satisfy KKT but produce full-rank residuals.
+
+
+\subsection{Contribution 2: Phase Transition at $r^*$}
+
+Parameter counting on the KKT system yields:
+\begin{equation}
+\boxed{r^* \;\approx\; \frac{N \times d_\text{input}}{d_\text{in} + d_\text{out}}}
+\label{eq:rstar}
+\end{equation}
+
+\textbf{Prediction:} Reconstruction succeeds for $r > r^*$ and fails for $r < r^*$. This is directly testable.
+
+\paragraph{Example.} $N = 10$ CIFAR-10 images, layer with $d_\text{in} = d_\text{out} = 768$: $r^* \approx 10 \times 3072 / 1536 = 20$.
+
+\paragraph{Main result figure.} A 2D heatmap with $r$ vs.\ $N$, colored by reconstruction quality (SSIM), with the $r^*$ curve overlaid. If theory matches experiment, that is a paper.
+
+\paragraph{Practical guideline.} ``To safely publish a LoRA adapter trained on $N$ private images, ensure $r < r^*(N)$.'' No existing paper provides this.
+
+
+\subsection{Contribution 3: Data Provenance Verification}
+
+Fix $x$ to a candidate image, optimize only $\lambda$:
+\begin{equation}
+\hat{\lambda} = \argmin_{\lambda \geq 0} \left\| BA - \left(\sum_{i=1}^{M} \lambda_i\, y_i\, \grad_\theta \Phi(\theta_0 + BA;\; x_i) - \theta_0 \right) \right\|^2
+\end{equation}
+High $\hat{\lambda}_i \Rightarrow$ membership. This is a \textbf{weight-only MIA} --- no inference, no queries.
+
+\paragraph{Killer application.} A photographer suspects their images trained a Stable Diffusion LoRA. They download the \texttt{.safetensors} file and get a membership score. No API calls, no model deployment.
+
+\paragraph{Feasibility.} Very high. Optimizing $\lambda$ alone (with fixed $x$) is convex-like and far easier than joint $(x, \lambda)$ reconstruction. ImpMIA (from your lab) provides engineering patterns.
+
+
+\subsection{Contribution 4 (Extension): Adam/Muon KKT Reconstruction}
+
+Gronich \& Vardi~\cite{gronich2026} show Adam converges to $\ell_\infty$ margin KKT points and explicitly ask whether reconstruction is feasible. Since most LoRA training uses Adam:
+
+\begin{itemize}[leftmargin=1.5em]
+\item Replace the $\ell_2$ KKT loss with $\ell_\infty$ KKT conditions
+\item Test whether reconstruction quality differs under Adam vs.\ SGD training
+\item This directly answers an open question from the Vardi group
+\end{itemize}
+
+This is a stretch goal --- not required for the thesis, but would strengthen it significantly.
+
+
+%======================================================================
+\section{The Strong Framing}
+\label{sec:framing}
+%======================================================================
+
+\begin{warnbox}[Weak (Method-Centric)]
+``We apply KKT reconstruction to LoRA adapters for the first time.''
+
+\textit{Reviewer:} ``So what? Is it better? Why should I care?''
+\end{warnbox}
+
+\begin{greenbox}[Strong (Insight-Centric)]
+``LoRA adapters at rank $r > r^*$ are vulnerable to a passive, weight-only attack that requires no model access. We derive $r^*$ analytically and validate it experimentally, providing the first privacy guideline for safe LoRA deployment.''
+\end{greenbox}
+
+Three claims that stand independently of the method:
+\begin{enumerate}[leftmargin=1.5em]
+\item A new threat model exists (weight-only, passive, undetectable)
+\item There is a sharp phase transition at $r^*$
+\item The theory predicts the experiments
+\end{enumerate}
+KKT is the tool. The \textbf{findings} are the contribution.
+
+\paragraph{What KKT uniquely reveals.}
+\begin{itemize}[leftmargin=1.5em]
+\item \textbf{Which data leaks:} The KKT conditions encode support vectors --- the hardest, most atypical (often most private) training examples. Generic data near the centroid has $\lambda_i \approx 0$ and cannot be reconstructed.
+\item \textbf{When data leaks:} The $r^*$ formula gives a precise, falsifiable prediction.
+\item \textbf{The threat is invisible:} No queries, no API calls, no interaction with the model owner.
+\end{itemize}
+
+
+%======================================================================
+\section{Robustness: Why This Thesis Produces Results Either Way}
+\label{sec:robustness}
+%======================================================================
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{>{\raggedright}p{5cm} p{3.5cm} p{3cm}}
+\toprule
+\textbf{Outcome} & \textbf{What You Get} & \textbf{Strength} \\
+\midrule
+Reconstruction works above $r^*$ & Attack + privacy guideline & Strong \\
+$r^*$ prediction matches experiments & Validated theory + guideline & Very strong \\
+Provenance verification competitive AUC & Practical tool + threat model & Strong \\
+Reconstruction fails even above $r^*$ & Positive privacy result & Moderate \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{keybox}[Minimum Viable Thesis]
+Even if reconstruction fails entirely: the LoRA KKT derivation, the $r^*$ formula, the negative result (``optimization landscape, not information content, is the bottleneck''), and the empirical $(r, N)$ characterization are sufficient for a Master's thesis. Combined with provenance verification, it reaches a workshop paper.
+\end{keybox}
+
+
+%======================================================================
+\section{Comparison to Original Plan}
+%======================================================================
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{>{\raggedright}p{3.5cm} >{\raggedright}p{4.5cm} p{3.5cm}}
+\toprule
+\textbf{Original Direction} & \textbf{Problem} & \textbf{Status} \\
+\midrule
+Gradient Bridge (R2F decoder $\to$ inversion) & Noise cascade; PEFTLeak overlap; decoder adds complexity & \textbf{Replaced} by direct KKT \\
+LoRA in NTK regime & Requires impractically high $r$ & \textbf{Absorbed} into $r^*$ analysis \\
+Generative priors (SDS) & Incremental (``we added a regularizer'') & \textbf{Dropped} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+%======================================================================
+\section{Roadmap to a Top-Venue Paper}
+\label{sec:roadmap}
+%======================================================================
+
+A good thesis answers a question. A strong \emph{paper} tells a complete story: phenomenon, theory, attack, defense. This section lays out what it takes to go from ``MSc thesis'' to ``ICML/NeurIPS submission.''
+
+\subsection{The Five Components}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{c >{\raggedright}p{3.2cm} >{\raggedright}p{5cm} >{\raggedright}p{2.5cm}}
+\toprule
+\textbf{\#} & \textbf{Component} & \textbf{What It Delivers} & \textbf{Effort} \\
+\midrule
+1 & Theorem (linear case) & Turns the $r^*$ heuristic into a provable result & 2--3 weeks \\
+2 & Phase transition figure & The ``main result'' --- theory predicts experiments & 1--2 weeks \\
+3 & Real-world demo & Reconstruction from public HuggingFace/CivitAI adapters & 2--3 weeks \\
+4 & Defense + tradeoff & SVD truncation closes the attack; utility cost measured & 1 week \\
+5 & Provenance tool & Weight-only MIA with AUC evaluation & 1 week \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Each component is described below with the standard it must meet.
+
+%----------------------------------------------------------------------
+\subsection{Component 1: Prove $r^*$ for the Linear Case}
+
+The $r^*$ formula (Eq.~\ref{eq:rstar}) is currently a parameter-counting argument. A reviewer at a top venue will call it a heuristic. To elevate it:
+
+\begin{keybox}[Target Theorem]
+\textbf{Theorem (informal).} Consider a linear model $f(x; W) = Wx$ with LoRA parameterization $W = W_0 + BA$, trained on $N$ samples $(x_i, y_i)$ with binary cross-entropy via gradient descent. If $r \geq r^* = N \cdot d_{\mathrm{input}} / (d_{\mathrm{in}} + d_{\mathrm{out}})$, the KKT system has a unique solution and reconstruction succeeds. If $r < r^*$, the system is underdetermined and reconstruction is information-theoretically impossible.
+\end{keybox}
+
+\paragraph{Why this is tractable.} For linear models, the KKT system becomes a system of linear equations. The rank condition for unique solvability reduces to a standard linear algebra argument (rank of the Jacobian matrix). Smorodinsky et al.~\cite{smorodinsky2024} proved reconstruction for 2-layer ReLU --- the linear case is strictly easier.
+
+\paragraph{Why this matters.} Even a theorem for the simplest case gives you:
+\begin{itemize}[leftmargin=1.5em]
+\item A \textbf{provable lower bound}: ``below $r^*$, \emph{no algorithm} can reconstruct'' (information-theoretic, not method-specific)
+\item \textbf{Credibility}: the empirical $r^*$ on nonlinear models is then a ``conjecture validated by experiment,'' which is the standard pattern in deep learning theory
+\item A direct comparison to Smorodinsky et al.\ (they prove recovery for full models; you prove recovery for LoRA)
+\end{itemize}
+
+%----------------------------------------------------------------------
+\subsection{Component 2: The Phase Transition Figure}
+
+This is the centerpiece of the paper --- the figure reviewers will remember.
+
+\paragraph{Experiment.} Train LoRA adapters at every $(r, N)$ pair:
+\begin{itemize}[leftmargin=1.5em]
+\item $r \in \{2, 4, 8, 16, 32, 64, 128\}$, \quad $N \in \{5, 10, 25, 50, 100\}$
+\item Architecture: MLP (where theorem holds), then ViT + LoRA (practical setting)
+\item Run KKT reconstruction on each; measure SSIM, PSNR, LPIPS
+\end{itemize}
+
+\paragraph{The figure.} A 2D heatmap: $x$-axis = rank $r$, $y$-axis = dataset size $N$, color = reconstruction quality. Overlay the theoretical curve $r^* = N \cdot d / (d_\mathrm{in} + d_\mathrm{out})$.
+
+\paragraph{What makes it strong.}
+\begin{itemize}[leftmargin=1.5em]
+\item If the empirical boundary matches the theoretical curve $\Rightarrow$ validated theory
+\item Directly contradicts CMU Report~\cite{cmu2024} (``rank has no effect'') with a sharper method
+\item Produces an actionable guideline: ``keep $r < r^*(N)$ to prevent leakage''
+\end{itemize}
+
+%----------------------------------------------------------------------
+\subsection{Component 3: Real-World Demonstration}
+
+Theory and controlled experiments are necessary but not sufficient. The result that makes the paper \emph{matter}:
+
+\begin{greenbox}[The ``Holy Shit'' Figure]
+Download 5 public LoRA adapters from HuggingFace or CivitAI (face LoRAs, style LoRAs, character LoRAs). Run your attack. Show reconstructed training images next to the originals (or, if originals are unknown, show recognizable faces/content recovered from the adapter alone).
+\end{greenbox}
+
+\paragraph{Why this is essential.} A controlled experiment on CIFAR-10 proves a scientific point. Reconstructing real faces from a public adapter proves a \textbf{societal point} --- one that policymakers, journalists, and practitioners understand immediately.
+
+\paragraph{Fallback.} If real adapters are too hard (architecture mismatch, too many training steps), create a realistic simulation: fine-tune ViT-B/16 with LoRA on a private face dataset, publish the adapter, and attack it. This is one step removed from ``in the wild'' but still compelling.
+
+%----------------------------------------------------------------------
+\subsection{Component 4: Defense and Utility Tradeoff}
+
+An attack paper without a defense discussion is incomplete. The natural defense:
+
+\paragraph{SVD truncation.} Before publishing an adapter $BA$, compute $\mathrm{SVD}(BA) = U \Sigma V^\top$ and truncate to rank $r' < r^*$. This provably defeats the attack (by your own theorem) while preserving the dominant directions of the adapter.
+
+\paragraph{Experiment.}
+\begin{itemize}[leftmargin=1.5em]
+\item Measure task accuracy (on the fine-tuning task) as a function of truncation rank $r'$
+\item Measure attack success (SSIM of reconstructed images) as a function of $r'$
+\item Plot both on the same axes: the \textbf{privacy--utility tradeoff curve}
+\item Identify the sweet spot where accuracy is preserved but reconstruction fails
+\end{itemize}
+
+\paragraph{Why this closes the loop.} The paper now tells a complete story:
+\begin{enumerate}[leftmargin=1.5em]
+\item Here is the attack (KKT reconstruction from LoRA)
+\item Here is when it works ($r > r^*$)
+\item Here is how to prevent it (truncate to $r < r^*$)
+\item Here is what it costs (utility drop of $X$\%)
+\end{enumerate}
+
+%----------------------------------------------------------------------
+\subsection{Component 5: Provenance Verification}
+
+The membership inference variant (Contribution~3, Section~\ref{sec:contributions}) serves as:
+\begin{itemize}[leftmargin=1.5em]
+\item \textbf{Insurance}: if full reconstruction fails, MIA still works (lower bar)
+\item \textbf{Practical tool}: copyright verification from weights alone
+\item \textbf{Comparison point}: benchmark against LoRA-Leak~\cite{loraleak} (output-based) and ImpMIA~\cite{impmia2025} (full weights) to show the weight-only LoRA setting is both feasible and different
+\end{itemize}
+
+%----------------------------------------------------------------------
+\subsection{What Separates ``Good Thesis'' from ``Strong Paper''}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{>{\raggedright}p{4cm} c c}
+\toprule
+\textbf{Element} & \textbf{Good Thesis} & \textbf{Top Venue Paper} \\
+\midrule
+KKT derivation for LoRA & \checkmark & \checkmark \\
+$r^*$ formula (heuristic) & \checkmark & \checkmark \\
+Phase transition heatmap & \checkmark & \checkmark \\
+Provenance verification & \checkmark & \checkmark \\
+\midrule
+$r^*$ theorem (linear case) & --- & \checkmark \\
+Real-world adapter demo & --- & \checkmark \\
+Defense + utility tradeoff & --- & \checkmark \\
+Contradicts CMU finding & --- & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The bottom four rows are what separate a solid thesis from a submission that reviewers take seriously. Each one independently strengthens the paper; together they make it airtight.
+
+
+%----------------------------------------------------------------------
+\subsection{Execution Order}
+
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{Phase 0 (1--2 days):} Gate experiment. KKT reconstruction on MLP + LoRA, $r > r^*$, $N \leq 10$. If this fails, the attack direction collapses --- pivot to provenance-only thesis.
+
+\item \textbf{Phase 1 (2 weeks):} Phase transition sweep on MLPs. Produce the heatmap figure. Validate or falsify $r^*$.
+
+\item \textbf{Phase 2 (2--3 weeks):} Prove the linear-case theorem. This can run in parallel with Phase~1 (theory + experiments simultaneously).
+
+\item \textbf{Phase 3 (2 weeks):} Scale to ViT + LoRA. Repeat the phase transition on a real architecture. Implement provenance verification.
+
+\item \textbf{Phase 4 (1--2 weeks):} Real-world demo. Download public adapters, run the attack. Implement SVD truncation defense and measure the tradeoff.
+
+\item \textbf{Phase 5 (1 week):} Write-up. With all results in hand, the paper writes itself: the story is already structured.
+\end{enumerate}
+
+\begin{keybox}[Total Timeline]
+\textbf{8--10 weeks} from Phase~0 to submission-ready draft. This is aggressive but realistic if Phase~0 succeeds. The proof (Phase~2) is the main risk --- budget extra time or drop it for the thesis version and add it for the conference submission.
+\end{keybox}
+
+
+%======================================================================
+\section{Next Step: Phase 0}
+%======================================================================
+
+Before any of this matters, one experiment must succeed:
+
+\begin{warnbox}[Phase 0: The Gate Experiment]
+Run Haim et al.'s reconstruction on a small MLP + LoRA adapter with $r > r^*$ and $N \leq 10$. If this does not produce recognizable images, the KKT approach on LoRA collapses entirely.
+
+\textbf{This takes 1--2 days. Do it first.}
+\end{warnbox}
+
+
+%======================================================================
+\begin{thebibliography}{99}
+\bibitem{haim2022} N.\ Haim, G.\ Vardi, G.\ Yehudai, O.\ Shamir, M.\ Irani. ``Reconstructing Training Data from Trained Neural Networks.'' NeurIPS, 2022.
+
+\bibitem{smorodinsky2024} D.\ Smorodinsky, G.\ Vardi, O.\ Safran. ``Provable Privacy Attacks on Trained Shallow Neural Networks.'' arXiv:2410.15002, October 2024.
+
+\bibitem{oz2024} N.\ Oz, G.\ Yehudai, G.\ Vardi, I.\ Antebi, M.\ Irani, N.\ Haim. ``Reconstructing Training Data From Real-World Models Trained with Transfer Learning.'' arXiv:2407.15845, July 2024.
+
+\bibitem{gronich2026} E.\ Gronich, G.\ Vardi. ``The Implicit Bias of Adam and Muon on Smooth Homogeneous Neural Networks.'' arXiv:2602.16340, February 2026.
+
+\bibitem{impmia2025} Y.\ Golbari, N.\ Wasserman, G.\ Vardi, M.\ Irani. ``ImpMIA: Leveraging Implicit Bias for Membership Inference Attack under Realistic Scenarios.'' arXiv:2510.10625, October 2025.
+
+\bibitem{peftleak} H.U.\ Sami et al. ``Gradient Inversion Attacks on Parameter-Efficient Fine-Tuning.'' CVPR, 2025.
+
+\bibitem{loraleak} D.\ Ran et al. ``LoRA-Leak: Membership Inference Attacks Against LoRA Fine-tuned Language Models.'' arXiv, 2024.
+
+\bibitem{hu2026} Y.\ Hu, J.\ D\"ungler, B.\ Sch\"olkopf, A.\ Sanyal. ``LoRA and Privacy: When Random Projections Help (and When They Don't).'' arXiv:2601.21719, January 2026.
+
+\bibitem{r2f} Liu et al. ``Recover-to-Forget: Gradient Reconstruction from LoRA for Efficient LLM Unlearning.'' NeurIPS Workshop, 2025.
+
+\bibitem{dplora} Y.-L.\ Tsai et al. ``Differentially Private Fine-Tuning of Diffusion Models.'' ICCV, 2025.
+
+\bibitem{cmu2024} ``Extraction of Training Data from Fine-Tuned Large Language Models.'' CMU Technical Report, 2024.
+\end{thebibliography}
+
+\end{document}

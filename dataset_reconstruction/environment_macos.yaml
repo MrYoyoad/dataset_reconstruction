@@ -1,0 +1,42 @@
+# ───────────────────────────────────────────────────────────────
+# environment_macos.yml  –  Apple-silicon, no CUDA needed
+# ───────────────────────────────────────────────────────────────
+name: rec
+
+channels:                # conda-forge has the ARM packages first
+  - conda-forge
+
+dependencies:
+  # — Core language/runtime —
+  - python=3.8
+  - pip
+
+  # — Jupyter / REPL —
+  - ipython
+  - jupyterlab
+
+  # — Scientific stack —
+  - numpy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - pillow
+  - tqdm
+
+  # — Misc utilities you used before —
+  - pyyaml
+  - requests
+  - attrs
+  - beautifulsoup4
+  - click
+  - typing_extensions
+
+  # — Everything the conda-forge channel can’t supply (or lags on) —
+  #   goes here; pip will pull the universal Apple wheels.
+  - pip:
+      # PyTorch 2.x wheels ship with the Metal (MPS) backend on macOS
+      - torch==2.2.2
+      - torchvision==0.17.2
+      - torchaudio==2.2.2
+      - kornia==0.7.0
+      - wandb
