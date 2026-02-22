@@ -47,16 +47,19 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ## NTK Regime & High-Rank LoRA
 
-*(Fill in as you go)*
-
 ### Key Realizations
--
+- **Start from pre-trained weights, not random init.** The original Experiment B design used random init with `init_scale=0.0001`, which put ALL pre-activations within ±0.002 of the ReLU kink. After 1 SGD step, ~half the neurons flipped on↔off, destroying NTK feature stability (cosine similarity 0.39 instead of >0.99). The NTK approximation was completely invalid, and all reconstructions were noise (SSIM ~0.35).
+  - **Root cause**: `init_scale=0.0001` was inherited from the convergence/max-margin pipeline (Experiment A / Haim et al.), where tiny init helps the implicit bias theory. But for NTK, you need pre-activations AWAY from the ReLU kink. The pre-trained model (`weights-mnist_odd_even_d250`) has layer 0 std=0.004 (40× larger), giving pre-activation std=0.25 — well away from zero.
+  - **Fix**: Load pre-trained weights as θ₀ and fine-tune on **held-out data** (MNIST test set, not the 250/class training data). With pre-trained weights, feature stability = 1.000 at T=1.
+  - **The correct attack scenario**: Pre-trained model + LoRA fine-tuning on private data → attacker reconstructs private data from ΔW = BA. This matches real-world LoRA usage.
+- **Fine-tuning data must not overlap with pre-training data.** The pre-trained model was trained on first 250 even + first 250 odd digits (sequential, no shuffle from MNIST train set). If you fine-tune on samples already in the training set, the gradient is essentially zero (coefficients ≈ 1e-18) because the model already converged on them. Use MNIST test set or clearly held-out indices.
+- **The pre-training data selection is deterministic**: `shuffle=False, start=0, end=50000` in `mnist_odd_even.py`, so the exact 250/class samples are reproducible.
 
 ### What Worked
 -
 
 ### What Didn't Work
--
+- Random init with init_scale=0.0001 for NTK experiments → all pre-activations at ReLU kink → destroyed NTK feature stability → noisy reconstructions
 
 ---
 

@@ -9,6 +9,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 DATASET_RECON_DIR = os.path.join(PROJECT_ROOT, 'dataset_reconstruction')
 DATASETS_DIR = os.path.join(DATASET_RECON_DIR, 'data')
 MODELS_DIR = os.path.join(DATASET_RECON_DIR, 'models')
+PRETRAINED_MNIST_PATH = os.path.join(MODELS_DIR, 'weights-mnist_odd_even_d250_mnist_odd_even.pth')
 RESULTS_DIR = os.path.join(PROJECT_ROOT, 'results')
 FIGURES_DIR = os.path.join(PROJECT_ROOT, 'figures')
 

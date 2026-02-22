@@ -1,7 +1,8 @@
-"""Experiment B: Multi-Step NTK Reconstruction.
+"""Experiment B: Multi-Step NTK Reconstruction from Pre-Trained Weights.
 
-Start with T gradient steps from random init, reconstruct using NTK loss
-with known coefficients, and track NTK diagnostics as T increases.
+Attack scenario: pre-trained model (θ₀) is fine-tuned on private data
+for T gradient steps. Attacker observes ΔW = θ_T - θ₀ and reconstructs
+the private fine-tuning data using the NTK loss with known coefficients.
 
 Usage:
     conda run -n rec python -m experiments.run_experiment_b --n_steps 1 --rank 8 --n_per_class 1
@@ -10,7 +11,6 @@ Usage:
 import sys
 import os
 import argparse
-import copy
 import torch
 import torch.nn as nn
 
@@ -19,11 +19,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'dataset_recons
 from CreateModel import NeuralNetwork
 
 from experiments.configs import (
-    INPUT_DIM, OUTPUT_DIM, MODEL_HIDDEN_LIST, MODEL_INIT_LIST,
+    INPUT_DIM, OUTPUT_DIM, MODEL_HIDDEN_LIST,
     EXTRACTION_EPOCHS, EXTRACTION_EVAL_EVERY, RESULTS_DIR, TRAIN_LR,
+    PRETRAINED_MNIST_PATH,
 )
 from experiments.data_utils import (
-    get_few_shot_mnist, get_control_images_in_distribution,
+    get_finetuning_data, get_control_images_in_distribution,
 )
 from experiments.ntk_steps import compute_multi_step_update, compute_multi_step_update_lora
 from experiments.ntk_extraction import run_ntk_extraction
@@ -31,101 +32,78 @@ from experiments.ntk_verification import verify_ntk_at_step
 from experiments.metrics import compute_all_metrics
 
 
-def create_fresh_model(init_scale=None, device='cpu', activation_type='softplus'):
-    """Create a NeuralNetwork matching the MNIST architecture.
-
-    Args:
-        init_scale: initialization scale for first layer
-        device: computation device
-        activation_type: 'relu', 'softplus', or 'gelu'. Default 'softplus' for
-            NTK experiments (smooth activations preserve feature stability).
-    """
-    if activation_type == 'softplus':
-        activation = nn.Softplus(beta=10)  # sharp but smooth approx of ReLU
-    elif activation_type == 'gelu':
-        activation = nn.GELU()
-    elif activation_type == 'relu':
-        activation = nn.ReLU()
-    else:
-        raise ValueError(f"Unknown activation: {activation_type}")
-
+def create_model(device='cpu'):
+    """Create a NeuralNetwork matching the MNIST architecture (ReLU, no bias)."""
     model = NeuralNetwork(
         input_dim=INPUT_DIM,
         hidden_dim_list=MODEL_HIDDEN_LIST,
         output_dim=OUTPUT_DIM,
-        activation=activation,
+        activation=nn.ReLU(),
         use_bias=False,
     )
-    model = model.to(device)
-    if init_scale is not None:
-        model.layers[0].weight.data.normal_().mul_(init_scale)
-        if model.layers[0].bias is not None:
-            model.layers[0].bias.data.normal_().mul_(init_scale)
-    torch.set_default_dtype(torch.float64)
+    return model.to(device).double()
+
+
+def load_pretrained(device='cpu', pretrained_path=None):
+    """Load the pre-trained MNIST odd/even model as θ₀."""
+    path = pretrained_path or PRETRAINED_MNIST_PATH
+    checkpoint = torch.load(path, map_location=device, weights_only=False)
+    model = create_model(device=device)
+    model.load_state_dict(checkpoint['state_dict'])
     return model
 
 
 def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
-                      lr=TRAIN_LR, init_scale=None, run_baseline=True,
+                      lr=TRAIN_LR, pretrained_path=None,
                       extraction_epochs=EXTRACTION_EPOCHS,
-                      extraction_lr=None, extraction_optimizer='adam',
-                      activation_type='softplus',
+                      run_baseline=True,
                       device='cpu', verbose=True):
     """Run Experiment B for one (n_steps, rank) configuration.
 
-    If rank is None, runs full-model (no LoRA) only.
+    Loads pre-trained weights as θ₀, fine-tunes on held-out MNIST test
+    samples, then reconstructs using NTK loss.
 
-    Args:
-        activation_type: 'softplus' (default, smooth for NTK), 'relu', or 'gelu'
-        extraction_optimizer: 'adam' (default) or 'sgd'
-        extraction_lr: learning rate for reconstruction (default: 0.001 for Adam)
+    If rank is None, runs full-model (no LoRA) only.
 
     Returns dict with all results and metrics.
     """
-    if init_scale is None:
-        init_scale = MODEL_INIT_LIST[0]
-
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
 
-    # Load data
-    x_train, y_train, digits, indices = get_few_shot_mnist(
+    # Load held-out fine-tuning data (from MNIST TEST set, not train)
+    x_ft, y_ft, digits, indices = get_finetuning_data(
         n_per_class, seed=seed, device=device
     )
     if verbose:
-        print(f"Training digits: {digits}, n_steps={n_steps}, rank={rank}, "
-              f"activation={activation_type}, extract_opt={extraction_optimizer}")
+        print(f"Fine-tuning digits: {digits}, indices: {indices}")
+        print(f"n_steps={n_steps}, rank={rank}, lr={lr}")
 
     results = {'n_steps': n_steps, 'rank': rank, 'n_per_class': n_per_class,
-               'seed': seed, 'digits': digits, 'activation': activation_type}
+               'seed': seed, 'digits': digits}
 
     # --- Full model (no LoRA) baseline ---
     if run_baseline:
         if verbose:
-            print(f"\n--- Full model, T={n_steps} steps ---")
+            print(f"\n--- Full model fine-tuning, T={n_steps} steps ---")
 
-        model_full = create_fresh_model(init_scale=init_scale, device=device,
-                                        activation_type=activation_type)
+        model_full = load_pretrained(device=device, pretrained_path=pretrained_path)
         update_result = compute_multi_step_update(
-            model_full, x_train.clone(), y_train.clone(), lr=lr, n_steps=n_steps,
+            model_full, x_ft.clone(), y_ft.clone(), lr=lr, n_steps=n_steps,
         )
 
-        # Create a fresh model for NTK features (frozen at θ₀)
-        model_theta0 = create_fresh_model(init_scale=init_scale, device=device,
-                                          activation_type=activation_type)
-        model_theta0.load_state_dict(update_result['theta_0'])
+        # Create model at θ₀ for NTK features
+        model_theta0 = load_pretrained(device=device, pretrained_path=pretrained_path)
         model_theta0.eval()
 
         # NTK verification
         def _make_model():
-            m = create_fresh_model(device=device, activation_type=activation_type)
-            return m
+            return create_model(device=device)
 
-        x_centered = x_train - update_result['ds_mean'] if update_result['ds_mean'] is not None else x_train
+        x_centered = x_ft - update_result['ds_mean'] if update_result['ds_mean'] is not None else x_ft
 
         diagnostics = verify_ntk_at_step(
             update_result['theta_0'], update_result['theta_T'],
-            _make_model, x_centered, y_train,
+            _make_model, x_centered, y_ft,
         )
         results['full_diagnostics'] = {
             'weight_change': diagnostics['weight_change']['overall'],
@@ -143,10 +121,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
             model_theta0, update_result['delta_w'],
             update_result['coefficients_at_init'],
             lr_train=lr, n_steps=n_steps, n_per_class=n_per_class,
-            extraction_epochs=extraction_epochs,
-            extraction_lr=extraction_lr,
-            optimizer_type=extraction_optimizer,
-            device=device, verbose=verbose,
+            extraction_epochs=extraction_epochs, device=device, verbose=verbose,
         )
 
         metrics_full = compute_all_metrics(x_recon_full, x_centered, update_result['ds_mean'])
@@ -160,30 +135,24 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
         if verbose:
             print(f"\n--- LoRA rank={rank}, T={n_steps} steps ---")
 
-        model_lora = create_fresh_model(init_scale=init_scale, device=device,
-                                        activation_type=activation_type)
+        model_lora = load_pretrained(device=device, pretrained_path=pretrained_path)
         update_result_lora = compute_multi_step_update_lora(
-            model_lora, x_train.clone(), y_train.clone(), lr=lr,
+            model_lora, x_ft.clone(), y_ft.clone(), lr=lr,
             n_steps=n_steps, rank=rank,
         )
 
-        # For NTK features, use a fresh model at θ₀
-        model_theta0_lora = create_fresh_model(init_scale=init_scale, device=device,
-                                               activation_type=activation_type)
-        model_theta0_lora.load_state_dict(update_result_lora['theta_0'])
+        # Model at θ₀ for NTK features
+        model_theta0_lora = load_pretrained(device=device, pretrained_path=pretrained_path)
         model_theta0_lora.eval()
 
-        x_centered = x_train - update_result_lora['ds_mean'] if update_result_lora['ds_mean'] is not None else x_train
+        x_centered = x_ft - update_result_lora['ds_mean'] if update_result_lora['ds_mean'] is not None else x_ft
 
         # NTK reconstruction
         x_recon_lora, extract_res_lora = run_ntk_extraction(
             model_theta0_lora, update_result_lora['delta_w'],
             update_result_lora['coefficients_at_init'],
             lr_train=lr, n_steps=n_steps, n_per_class=n_per_class,
-            extraction_epochs=extraction_epochs,
-            extraction_lr=extraction_lr,
-            optimizer_type=extraction_optimizer,
-            device=device, verbose=verbose,
+            extraction_epochs=extraction_epochs, device=device, verbose=verbose,
         )
 
         metrics_lora = compute_all_metrics(x_recon_lora, x_centered, update_result_lora['ds_mean'])
@@ -202,7 +171,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
         metrics_ctrl = compute_all_metrics(recon_for_ctrl, x_ctrl_centered, ds_mean)
         results['control_metrics'] = {k: v['mean'] for k, v in metrics_ctrl.items()}
 
-    results['x_train'] = x_train
+    results['x_train'] = x_ft
     results['x_ctrl'] = x_ctrl
     results['ds_mean'] = ds_mean
 
@@ -215,6 +184,7 @@ if __name__ == '__main__':
     parser.add_argument('--rank', type=int, default=None)
     parser.add_argument('--n_per_class', type=int, default=1)
     parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--lr', type=float, default=TRAIN_LR)
     parser.add_argument('--no_baseline', action='store_true')
     args = parser.parse_args()
 
@@ -223,6 +193,7 @@ if __name__ == '__main__':
         rank=args.rank,
         n_per_class=args.n_per_class,
         seed=args.seed,
+        lr=args.lr,
         run_baseline=not args.no_baseline,
     )
 

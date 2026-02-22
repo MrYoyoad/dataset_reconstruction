@@ -16,15 +16,16 @@ Last updated: **2026-02-22**
 - Rank sweep: r ∈ {1,2,4,8,16,32,64}
 - Compare to full fine-tuning baseline
 
-**Experiment B — Multi-Step NTK Reconstruction**:
-- Take T gradient steps from random init (T ∈ {1,2,5,10,20,50,100,500,1000})
+**Experiment B — Multi-Step NTK Reconstruction from Pre-Trained Weights**:
+- Load pre-trained MNIST model as θ₀, fine-tune on held-out test data (T ∈ {1,2,5,10,20,50,100,500,1000})
 - Reconstruct using modified KKT loss with known coefficients, features frozen at θ₀
 - Track NTK diagnostics at each T to determine *why* reconstruction degrades
 - Rank sweep at each step count
+- **Design change (2026-02-22):** Switched from random init to pre-trained weights after discovering random init destroys NTK feature stability (see LESSONS_LEARNED.md)
 
 **Deliverables**: 6 figures, LaTeX write-up, supervisor email with results.
 
-**Status**: Infrastructure code complete (all 12 modules + 5 test files). Not yet run on real data — next step is end-to-end validation on WEXAC.
+**Status**: Infrastructure code complete and debugged. Experiment B redesigned to use pre-trained weights + held-out fine-tuning data. Ready for full sweep on WEXAC.
 
 ---
 
@@ -162,7 +163,8 @@ After establishing rank threshold and NTK step-count analysis on FCN:
 - **Untracked large file**: `Miniforge3-MacOSX-arm64.sh` (51 MB installer) in `dataset_reconstruction/` — already .gitignored there
 - ~~**Corrupted/duplicate PDFs** in `papers/`~~ — **FIXED** (2026-02-22): removed `2407.15845` and `Djdj .15845`, kept properly named `Oz_et_al_2024_Reconstruction_Transfer_Learning.pdf`
 - **No `runs/` directory** yet — gets created at runtime by Main.py
-- **Experiment code untested on real data** — all Sprint 1 modules are written but need end-to-end validation on WEXAC
+- **Experiment B tested locally** — ran first attempt, hit NTK stability bug, fixed by switching to pre-trained weights. Full sweep pending on WEXAC
+- **Experiment A not yet tested** — infrastructure ready but no runs attempted
 
 ---
 
