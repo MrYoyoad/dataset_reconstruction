@@ -1,0 +1,26 @@
+{
+  "lora_metrics": {
+    "ssim": NaN,
+    "dssim": NaN,
+    "ncc": NaN,
+    "l2": NaN
+  },
+  "full_ft_metrics": {
+    "ssim": NaN,
+    "dssim": NaN,
+    "ncc": NaN,
+    "l2": NaN
+  },
+  "control_metrics": {
+    "ssim": NaN,
+    "dssim": NaN,
+    "ncc": NaN,
+    "l2": NaN
+  },
+  "lora_train": {
+    "final_loss": 7.219177050821949e-08,
+    "epochs": 1000000,
+    "converged": false,
+    "lora_param_count": 38280
+  }
+}

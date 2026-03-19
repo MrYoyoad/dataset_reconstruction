@@ -1,0 +1,287 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{listings}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  language=Python,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  backgroundcolor=\color{gray!5}
+}
+
+\pagestyle{fancy}
+\fancyhead[L]{Thesis Working Notes}
+\fancyhead[R]{March 19, 2026}
+
+\title{%
+  \textbf{Reconstruction from Fine-Tuning:\\Catalog of Approaches and Next Steps}\\[0.5em]
+  \large Thesis Working Notes — Returning After 3-Week Break
+}
+\author{}
+\date{March 19, 2026}
+
+\begin{document}
+\maketitle
+
+%----------------------------------------------------------------------
+\section{Context: Where We Left Off}
+%----------------------------------------------------------------------
+
+This document picks up the thesis after a \textbf{3-week pause}. Below is a summary of what was done before the break, why we're pivoting, and a catalog of promising approaches for the next phase.
+
+\subsection{Previous Results}
+
+\begin{itemize}
+  \item \textbf{Experiment A (KKT on composed weights):} \emph{Failed.}
+    The original Haim et al.\ KKT reconstruction was applied to $\theta_{\mathrm{fine}} = \theta_{\mathrm{base}} + BA$, assuming $N=2$ fine-tuning samples.
+    Root cause: the composed model satisfies KKT over \emph{all} ${\sim}502$ samples (500 pre-training + 2 fine-tuning).
+    The KKT loss plateaued at ${\sim}460$, essentially $\|\theta_{\mathrm{base}}\|^2$ — the pre-training residual that 2 images cannot explain.
+
+  \item \textbf{Experiment B (NTK / linear gradient approximation):} \emph{Succeeded.}
+    Used the weight difference $\Delta\theta = \theta_{\mathrm{fine}} - \theta_{\mathrm{base}}$ as a single-step gradient signal:
+    \[
+      \Delta\theta \;\approx\; -\eta \sum_i c_i \,\nabla_\theta f(\theta_{\mathrm{base}};\, x_i)
+    \]
+    Achieved SSIM $\sim$0.80--0.99 on MNIST (full model); $\sim$0.80 with LoRA.
+    Limitation: only theoretically exact for $T=1$ step.
+\end{itemize}
+
+\subsection{Why New Approaches?}
+
+Experiment B works, but it relies on a \textbf{single-step linear approximation}. Real fine-tuning runs for many steps ($T \gg 1$), where the linear assumption breaks down — $\theta$ changes at every step, shifting the gradient landscape. We need methods that handle multi-step fine-tuning and work on harder data (CIFAR-10, not just MNIST).
+
+The original plan was also to try the ``fine-tune + reconstruct from $\Delta\theta$'' idea on CIFAR-10 (32$\times$32 color images), which would be a stronger thesis result than MNIST alone.
+
+%----------------------------------------------------------------------
+\section{Problem Statement}
+%----------------------------------------------------------------------
+
+\textbf{Given:}
+\begin{itemize}
+  \item $\theta_{\mathrm{base}}$ — pre-trained model weights (known to the attacker)
+  \item $\theta_{\mathrm{fine}}$ — fine-tuned model weights (known to the attacker)
+  \item Possibly: learning rate $\eta$, number of steps $T$, labels $y$
+\end{itemize}
+
+\textbf{Goal:} Recover the fine-tuning images $x_1, \dots, x_N$.
+
+%----------------------------------------------------------------------
+\section{Catalog of Approaches}
+%----------------------------------------------------------------------
+
+%--- A ---
+\subsection{Approach A: KKT on Absolute Weights (Haim et al.)}
+
+\paragraph{Idea.} The fine-tuned model satisfies KKT stationarity over all training data:
+\[
+  \theta_{\mathrm{fine}} \;\propto\; \sum_i \lambda_i \, y_i \,\nabla_\theta \Phi(\theta_{\mathrm{fine}};\, x_i)
+\]
+Run the standard extraction (optimize $x$ and $\lambda$).
+
+\paragraph{Problem.} The sum includes all $N_{\mathrm{base}} + N_{\mathrm{fine}}$ samples. With $N_{\mathrm{base}}=500$, the base data dominates; extraction cannot isolate the fine-tuning signal.
+
+\paragraph{Status.} \colorbox{red!15}{Tested, failed.} KKT loss $\sim$460, reconstructions are noise.
+
+%--- B ---
+\subsection{Approach B: NTK / Linear Gradient Approximation}
+
+\paragraph{Idea.} For a single SGD step ($T=1$):
+\[
+  \Delta\theta = -\eta \sum_i c_i \,\nabla_\theta f(\theta_{\mathrm{base}};\, x_i),
+  \qquad c_i = \frac{\sigma\!\bigl(f(\theta_{\mathrm{base}}; x_i)\bigr) - y_i}{N}
+\]
+Gradients evaluated at $\theta_{\mathrm{base}}$ (known, fixed). Invert to find $x$.
+
+\paragraph{Limitation.} Only exact for $T=1$. For $T>1$, $\theta$ shifts each step and the linearization accumulates error.
+
+\paragraph{Status.} \colorbox{green!15}{Tested, works.} SSIM 0.80--0.99 on MNIST.
+
+%--- C ---
+\subsection{Approach C: KKT on $\Delta\theta$ (Speculative)}
+
+\paragraph{Idea.} Treat the weight difference as a standalone model:
+\[
+  \Delta\theta \;\propto\; \sum_i \lambda_i \, y_i \,\nabla_\theta \Phi(\Delta\theta;\, x_i)
+\]
+Load $\Delta\theta$ into a \texttt{NeuralNetwork} and run the standard \texttt{extraction.py}.
+
+\paragraph{Why it might work.} If $\theta_{\mathrm{base}}$ is small relative to the update, $\Delta\theta \approx \theta_{\mathrm{fine}}$.
+
+\paragraph{Why it probably won't.} $\Delta\theta$ is not a ``trained model.'' The KKT condition arises from max-margin convergence of gradient descent — there is no reason a weight \emph{difference} should satisfy it.
+
+\paragraph{Status.} \colorbox{yellow!30}{Not tested.} Cheap experiment — worth a quick try.
+
+%--- D ---
+\subsection{Approach D: Gradient Inversion on $\Delta\theta$}
+
+\paragraph{Idea.} For small $\eta$, $\Delta\theta \approx -\eta \times \text{gradient}$. Apply gradient inversion methods (Geiping et al., ``Inverting Gradients'') that reconstruct data from observed gradients. These use cosine similarity loss, total variation regularization, and other tricks from the federated learning attack literature.
+
+\paragraph{Differs from B.} Gradient inversion uses domain-specific priors and losses; Experiment B uses raw MSE on weight differences.
+
+\paragraph{Limitations.} Designed for single-batch gradients. Multi-step $\Delta\theta$ is accumulated and nonlinear.
+
+\paragraph{Status.} \colorbox{yellow!30}{Not tested.}
+
+%--- E ---
+\subsection{Approach E: Influence Functions}
+
+\paragraph{Idea.} The relationship between fine-tuning data and weight change involves the Hessian:
+\[
+  \Delta\theta \;\approx\; -H^{-1}\,\nabla_\theta L(\theta_{\mathrm{base}};\, x_{\mathrm{fine}})
+\]
+Multiply both sides by $H$:
+\[
+  H\,\Delta\theta \;\approx\; -\nabla_\theta L(\theta_{\mathrm{base}};\, x_{\mathrm{fine}})
+\]
+This recovers a \emph{curvature-corrected} gradient, then invert.
+
+\paragraph{Differs from B.} Experiment B treats $\Delta\theta$ as a raw gradient. Influence functions correct for the inverse-Hessian scaling of SGD. The diagonal Fisher approximation to $H$ is cheap for MLPs.
+
+\paragraph{Status.} \colorbox{yellow!30}{Not tested.}
+
+%--- F ---
+\subsection{Approach F: Output Divergence Search}
+
+\paragraph{Idea.} The fine-tuning data is what the two models \emph{disagree on most}. Optimize directly in input space:
+\[
+  x^* = \arg\max_x \;\bigl\|f(\theta_{\mathrm{fine}};\, x) - f(\theta_{\mathrm{base}};\, x)\bigr\|^2
+\]
+No weight-space math. Just find inputs where the model changed its mind.
+
+\paragraph{Pros.} Model-agnostic. No assumptions about $\eta$, $T$, or training procedure.
+
+\paragraph{Cons.} May converge to adversarial-like inputs rather than natural images. Needs regularization (TV norm, image prior).
+
+\paragraph{Status.} \colorbox{yellow!30}{Not tested.} Trivial to implement — good sanity check / initialization for other methods.
+
+%--- G ---
+\subsection{Approach G: Differentiable Unrolling (MAML-style) \texorpdfstring{$\bigstar$}{*}}
+
+\paragraph{Idea.} Simulate the entire fine-tuning process \emph{differentiably}. Find $x$ such that $T$ SGD steps on $x$, starting from $\theta_{\mathrm{base}}$, land at $\theta_{\mathrm{fine}}$:
+\begin{align}
+  \theta_0 &= \theta_{\mathrm{base}} \notag\\
+  \theta_{t+1} &= \theta_t - \eta\,\nabla_\theta L(\theta_t;\, x) \qquad \text{for } t = 0,\dots,T{-}1 \label{eq:inner}\\[4pt]
+  \mathcal{L}_{\mathrm{outer}} &= \|\theta_T - \theta_{\mathrm{fine}}\|^2 \notag
+\end{align}
+Backpropagate $\partial\mathcal{L}_{\mathrm{outer}}/\partial x$ through all $T$ steps (using \texttt{create\_graph=True} in PyTorch).
+
+\paragraph{Why \texttt{create\_graph=True}?}
+Normal \texttt{autograd.grad} computes gradients but discards the computation graph. With \texttt{create\_graph=True}, PyTorch builds a \emph{graph of the gradient computation itself}, enabling differentiation \emph{through} the SGD steps. This is the same trick used in MAML (Finn et al., 2017).
+
+\paragraph{The computation chain.}
+\[
+  x \;\longrightarrow\; f(\theta_0, x) \;\longrightarrow\; \nabla L \;\longrightarrow\; \theta_1 \;\longrightarrow\; f(\theta_1, x) \;\longrightarrow\; \nabla L \;\longrightarrow\; \theta_2 \;\longrightarrow\; \cdots \;\longrightarrow\; \theta_T
+\]
+$x$ feeds into \emph{every} step — both the forward pass and the gradient update.
+
+\paragraph{Pseudocode.}
+
+\begin{lstlisting}
+theta_base = load_state_dict("base.pth")
+theta_fine = load_state_dict("fine.pth")
+eta = 0.01   # must match actual fine-tuning LR
+T = 50       # must match actual fine-tuning steps
+
+x = torch.randn(N, 3, 32, 32, requires_grad=True)
+y = torch.tensor([...])  # assumed known
+
+opt = torch.optim.Adam([x], lr=0.001)
+
+for outer_step in range(1000):
+    # --- Inner loop: simulate T fine-tuning steps ---
+    theta = {k: v.clone() for k, v in theta_base.items()}
+    for t in range(T):
+        out = functional_forward(theta, x)
+        loss_inner = F.binary_cross_entropy_with_logits(out, y)
+        grads = torch.autograd.grad(
+            loss_inner, theta.values(), create_graph=True
+        )
+        theta = {k: v - eta * g
+                 for (k, v), g in zip(theta.items(), grads)}
+
+    # --- Outer loss: did we arrive at theta_fine? ---
+    outer_loss = sum(
+        ((theta[k] - theta_fine[k]) ** 2).sum()
+        for k in theta
+    )
+    outer_loss.backward()
+    opt.step()
+    opt.zero_grad()
+    x.data.clamp_(-1, 1)
+\end{lstlisting}
+
+\paragraph{Properties.}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Property} & \textbf{Detail} \\
+\midrule
+Exact for $T$ steps & No linearization; full nonlinear trajectory \\
+Reduces to B for $T{=}1$ & $\|\theta_1 - \theta_{\mathrm{fine}}\|^2 = \|\Delta\theta + \eta\nabla L(\theta_0; x)\|^2$ \\
+Memory & Stores $T$ computation graphs. MLP with $T{\leq}100$: fine. $T{=}10000$: OOM \\
+Must know $\eta, T$ & Attacker needs fine-tuning hyperparameters; can sweep if unknown \\
+Local minima & Non-convex in $x$; use multiple random restarts \\
+Labels & Must be known, or optimized jointly as continuous variables \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Gradient checkpointing.} For large $T$, use \texttt{torch.utils.checkpoint} to trade compute for memory (recompute intermediate steps during backward pass).
+
+\paragraph{Why this is the most promising.} It is the natural generalization of Experiment B. For $T{=}1$ it is mathematically equivalent. For $T>1$ it captures the full nonlinear training dynamics that Experiment B approximates away. If Experiment B works at $T{=}1$, this should work at least as well — and extend to the multi-step regime.
+
+%--- H ---
+\subsection{Approach H: Loss-Surface Probing}
+
+\paragraph{Idea.} Fine-tuning data should have \emph{low} loss on $\theta_{\mathrm{fine}}$ but \emph{higher} loss on $\theta_{\mathrm{base}}$:
+\[
+  x^* = \arg\min_x \;\bigl[L(\theta_{\mathrm{fine}};\, x) - L(\theta_{\mathrm{base}};\, x)\bigr]
+\]
+Find inputs where the fine-tuned model improved most. Essentially a differentiable membership inference attack.
+
+\paragraph{Pros.} Simple, principled (membership inference is well-studied).
+
+\paragraph{Cons.} Finds images ``near'' the fine-tuning data, not necessarily exact reconstructions.
+
+\paragraph{Status.} \colorbox{yellow!30}{Not tested.}
+
+%----------------------------------------------------------------------
+\section{Summary and Recommended Order}
+%----------------------------------------------------------------------
+
+\begin{center}
+\begin{tabular}{clccl}
+\toprule
+\textbf{\#} & \textbf{Approach} & \textbf{Theory} & \textbf{Cost} & \textbf{Status} \\
+\midrule
+B & NTK (Experiment B)         & Sound ($T{=}1$)   & Low      & \colorbox{green!15}{Done, works} \\
+G & \textbf{Differentiable Unrolling} & \textbf{Exact (any $T$)} & \textbf{High} & Not tested \\
+F & Output Divergence           & Heuristic         & Very low & Not tested \\
+H & Loss-Surface Probing        & Heuristic         & Low      & Not tested \\
+E & Influence Functions         & Sound             & Medium   & Not tested \\
+D & Gradient Inversion          & Sound ($T{=}1$)   & Medium   & Not tested \\
+C & KKT on $\Delta\theta$      & Weak              & Low      & Not tested \\
+A & KKT on full model           & Sound ($N{=}502$) & High     & \colorbox{red!15}{Failed} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Recommended next steps.}
+\begin{enumerate}
+  \item \textbf{Quick sanity checks:} Implement F (output divergence) and H (loss-surface probing) — each is $<$50 lines, gives intuition about what's recoverable.
+  \item \textbf{Main experiment:} Implement G (differentiable unrolling). Start with $T{=}1$ to verify it matches Experiment B, then increase $T$.
+  \item \textbf{CIFAR-10:} Extend the best-performing method from MNIST to CIFAR-10 (32$\times$32 color, vehicles vs.\ animals).
+  \item \textbf{Refinement:} Try E (influence functions) as an upgrade to the gradient recovery step in B or G.
+\end{enumerate}
+
+\end{document}

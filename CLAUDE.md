@@ -159,25 +159,94 @@ Add a Python file under `problems/` that provides data loading logic and model p
 ## Thesis Directory Structure
 
 ```
-Thesis/                            ← top-level git repo
+/home/projects/galvardi/yoado/     ← WEXAC home dir = top-level git repo
 ├── .gitignore
 ├── CLAUDE.md                      ← this file
 ├── STATUS.md                      ← project status, what's done/pending, known issues
 ├── LESSONS_LEARNED.md             ← running log of insights and pitfalls
-├── papers/                        ← all reference PDFs
+├── STYLE_GUIDE.md                 ← formatting rules for docs, slides, LaTeX, plots
+├── papers/                        ← reference PDFs (most need syncing from Mac)
 ├── figures/                       ← graphs, plots, visualizations
-├── results/                       ← experimental outputs and metrics
-├── notes/                         ← planning docs, theoretical analyses (.tex/.pdf)
+├── results/                       ← experimental outputs and metrics (.csv, .pth)
+├── notes/                         ← planning docs, theoretical analyses (.tex)
+├── scripts/                       ← WEXAC job submission scripts (.sh)
+│   └── wexac_logs/                ← WEXAC job stdout/stderr logs
 ├── experiments/                   ← new experiment code (LoRA bridge, NTK, SDS, etc.)
 │   └── tests/                     ← pytest test suite
-└── dataset_reconstruction/        ← original Haim et al. codebase (separate git repo, excluded from this repo)
+└── dataset_reconstruction/        ← original Haim et al. codebase (has its own .git)
+```
+
+### Mac ↔ WEXAC Sync
+
+The project lives in two places:
+- **Mac (local dev):** `~/Documents/Weizmann/Thesis/`
+- **WEXAC (GPU compute):** `/home/projects/galvardi/yoado/`
+
+Sync code to WEXAC before experiments:
+```bash
+rsync -avz --exclude='__pycache__' experiments/ wexac:~/experiments/
+rsync -avz papers/ wexac:~/papers/
 ```
 
 ## Key Documents
 
 - [STATUS.md](STATUS.md) — current project status: what's done, what's not started, known issues, pending tasks
 - [LESSONS_LEARNED.md](LESSONS_LEARNED.md) — running log of insights, pitfalls, and things to remember
-- [notes/GRADIENT_BRIDGE_PLAN.md](notes/GRADIENT_BRIDGE_PLAN.md) — phased coding roadmap (Phase 0 → 1 → 2) with reading list and timeline
+- [notes/reconstruction_approaches.tex](notes/reconstruction_approaches.tex) — catalog of reconstruction approaches and next steps (March 2026)
+- `notes/GRADIENT_BRIDGE_PLAN.md` — phased coding roadmap (Phase 0 → 1 → 2) — **missing, needs recreation or sync from Mac**
+- [STYLE_GUIDE.md](STYLE_GUIDE.md) — formatting rules for Word docs, PPTX, LaTeX, and plots
+
+### Always Do After Analysis
+
+- After completing any research, analysis, or investigation, **always** update all relevant files (docs, summaries, data files, markdown) with findings — keep updates succinct and factual.
+- After making significant or multi-file changes, **always** git commit with a clear message describing what changed and why.
+
+### Presentation & Document Rules
+
+- When the user gives feedback, remarks, or requests about presentation slides, **always** log the remark in `docs/presentation-remarks-log.md` (create if needed) in addition to executing the requested changes.
+- **Before creating or modifying a docx/pptx/LaTeX generator**, read `STYLE_GUIDE.md` first. Do NOT rely on memory or guessing — always read the file to get exact details.
+- When writing or modifying a docx report generator, follow the style guide's docx conventions (header layout, cover page, TOC, page breaks, logo paths).
+
+### Data Freshness Rules (Critical)
+
+These rules prevent stale numbers from appearing in documents and presentations:
+
+1. **Single source of truth**: All canonical numbers (metrics, thresholds, counts) must be defined in ONE place (this CLAUDE.md or a dedicated data file). Every document/slide references this source.
+2. **Grep after changes**: After changing ANY number or metric, `grep -rn "OLD_VALUE"` across all generator files, markdown, and LaTeX source.
+3. **Regenerate plots**: After modifying data, always re-run the relevant plot generators AND regenerate any presentations/documents that embed those plots.
+4. **Speaker notes**: When slide content changes, review and update speaker notes for that slide too.
+
+### Document Audit Process
+
+When auditing or revising presentations/documents, follow this order:
+1. **Numbers first**: Grep for all instances of stale values across ALL files
+2. **Examples second**: Cross-reference every example against source data
+3. **New content third**: Add new slides, sections, or examples
+4. **Cross-format sync**: Ensure PPTX, Beamer, and docx all match
+5. **Polish last**: Speaker notes, transitions, naming consistency
+6. **Final audit**: Even after all phases, grep for known stale patterns — the first sweep ALWAYS misses some
+
+## Compute Rules
+
+**ALL experiments must run on the WEXAC GPU cluster, NOT on the local MacBook (MPS).** MPS is only for light local dev and debugging. Any real training, reconstruction, or serious compute must be run on WEXAC (NVIDIA L40S, CUDA 12.6). Use `wexac_connect.sh shell` to get a GPU node. When writing or modifying experiment scripts, always assume CUDA — never write MPS-specific code for experiments.
+
+### WEXAC Compatibility
+
+**WEXAC runs PyTorch 1.11** (the local Mac has PyTorch 2.2). All experiment code under `experiments/` must be compatible with PyTorch 1.11:
+- **Do NOT use `weights_only=` in `torch.load()`** — this parameter was added in PyTorch 1.13 and will crash on WEXAC. Use `torch.load(path, map_location=device)` without extra kwargs.
+- Avoid any PyTorch 2.x features (e.g., `torch.compile`, `torch.export`, newer `torch.nn` modules).
+- When submitting experiments to WEXAC, always `rsync` the latest code first: `rsync -avz --exclude='__pycache__' experiments/ wexac:~/experiments/`
+
+## Experiment Output Rules
+
+**Every experiment run must save visual examples, not just numbers.** When running any reconstruction experiment (single config or sweep):
+
+1. **Save image tensors**: Always persist `x_train`, `x_recon_full`, `x_recon_lora`, `x_ctrl`, and `ds_mean` to a `.pth` file so results can be visualized later without re-running extraction.
+2. **Save per-config results in sweeps**: For sweeps, save a `.pth` per configuration (e.g., `results/sweep_<name>/T{T}_r{rank}.pth`) containing both metrics and image tensors.
+3. **Generate visual grids**: After a sweep completes, generate a PNG or PDF grid showing the best and worst reconstructions (by SSIM). Include ground truth, reconstruction, and control side-by-side so quality is immediately visible.
+4. **Include both good and bad examples**: Don't cherry-pick — always show the best *and* worst results from each run. Bad examples are as informative as good ones for understanding failure modes.
+
+This prevents the situation where you have SSIM numbers in a CSV but have to re-run hours of compute just to see what the reconstructions actually look like.
 
 ## Code Hygiene Rules
 
@@ -197,10 +266,14 @@ This ensures the project state is always accurately reflected in docs, not just 
 
 ## Git
 
-The entire `Thesis/` directory is a single git repo. The git root was moved up from `dataset_reconstruction/` on 2026-02-22 so that thesis-level files (experiments, notes, figures, etc.) are all tracked.
+The entire thesis directory (`/home/projects/galvardi/yoado/`) is a git repo, initialized 2026-03-19. The `dataset_reconstruction/` subdirectory has its own separate `.git` (origin: `https://github.com/MrYoyoad/Data_Reconstruciton_server.git`).
 
-### Remotes
+### Top-Level Remotes
 
 - `myfork`: `https://github.com/MrYoyoad/dataset_reconstruction.git` (personal fork — primary push target)
 - `origin`: `git@github.com:ai-hub-weizmann/dataset_reconstruction.git` (Weizmann fork)
 - `upstream`: `https://github.com/nivha/dataset_reconstruction.git` (original Haim et al. repo)
+
+### dataset_reconstruction/ Remote (separate git)
+
+- `origin`: `https://github.com/MrYoyoad/Data_Reconstruciton_server.git`

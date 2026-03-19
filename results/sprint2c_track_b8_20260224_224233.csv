@@ -1,0 +1,45 @@
+activation,box_weight,consistency_weight,control_ssim,error,full_ssim,lora_ssim,lr_schedule,n_steps,optimizer,rank,seed,sub_sweep,track
+leaky_relu,5.0,0.01,0.689563512802124,,0.9914505481719971,,constant,1,sgd,,42,CW_sweep,B8
+leaky_relu,5.0,0.01,0.6510956883430481,,,0.8606001734733582,constant,1,sgd,8,42,CW_sweep,B8
+leaky_relu,5.0,0.01,0.6311185359954834,,0.8450641632080078,,inv_T,10,sgd,,42,CW_sweep,B8
+leaky_relu,5.0,0.01,0.6302136182785034,,,0.8205056190490723,inv_T,10,sgd,8,42,CW_sweep,B8
+,5.0,0.5,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,CW_sweep,B8
+leaky_relu,5.0,0.5,0.6368861198425293,,,0.8303646445274353,constant,1,sgd,8,42,CW_sweep,B8
+,5.0,0.5,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,CW_sweep,B8
+leaky_relu,5.0,0.5,0.6305797100067139,,,0.813286304473877,inv_T,10,sgd,8,42,CW_sweep,B8
+,5.0,2.0,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,CW_sweep,B8
+leaky_relu,5.0,2.0,0.6367529034614563,,,0.8301346302032471,constant,1,sgd,8,42,CW_sweep,B8
+,5.0,2.0,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,CW_sweep,B8
+leaky_relu,5.0,2.0,0.6305268406867981,,,0.8131711483001709,inv_T,10,sgd,8,42,CW_sweep,B8
+,5.0,10.0,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,CW_sweep,B8
+leaky_relu,5.0,10.0,0.6367335319519043,,,0.8300950527191162,constant,1,sgd,8,42,CW_sweep,B8
+,5.0,10.0,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,CW_sweep,B8
+leaky_relu,5.0,10.0,0.630520224571228,,,0.8131588697433472,inv_T,10,sgd,8,42,CW_sweep,B8
+,5.0,100.0,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,CW_sweep,B8
+leaky_relu,5.0,100.0,0.6367261409759521,,,0.8300825357437134,constant,1,sgd,8,42,CW_sweep,B8
+,5.0,100.0,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,CW_sweep,B8
+leaky_relu,5.0,100.0,0.6305187940597534,,,0.8131561279296875,inv_T,10,sgd,8,42,CW_sweep,B8
+,0.0,1.0,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,BW_sweep,B8
+leaky_relu,0.0,1.0,0.6367954015731812,,,0.8302084803581238,constant,1,sgd,8,42,BW_sweep,B8
+,0.0,1.0,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,BW_sweep,B8
+leaky_relu,0.0,1.0,0.6305353045463562,,,0.8131872415542603,inv_T,10,sgd,8,42,BW_sweep,B8
+,0.5,1.0,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,BW_sweep,B8
+leaky_relu,0.5,1.0,0.6367954015731812,,,0.8302084803581238,constant,1,sgd,8,42,BW_sweep,B8
+,0.5,1.0,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,BW_sweep,B8
+leaky_relu,0.5,1.0,0.6305353045463562,,,0.8131872415542603,inv_T,10,sgd,8,42,BW_sweep,B8
+,1.0,1.0,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,BW_sweep,B8
+leaky_relu,1.0,1.0,0.6367954015731812,,,0.8302084803581238,constant,1,sgd,8,42,BW_sweep,B8
+,1.0,1.0,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,BW_sweep,B8
+leaky_relu,1.0,1.0,0.6305353045463562,,,0.8131872415542603,inv_T,10,sgd,8,42,BW_sweep,B8
+,5.0,1.0,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,BW_sweep,B8
+leaky_relu,5.0,1.0,0.6367954015731812,,,0.8302084803581238,constant,1,sgd,8,42,BW_sweep,B8
+,5.0,1.0,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,BW_sweep,B8
+leaky_relu,5.0,1.0,0.6305353045463562,,,0.8131872415542603,inv_T,10,sgd,8,42,BW_sweep,B8
+,20.0,1.0,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,BW_sweep,B8
+leaky_relu,20.0,1.0,0.6367954015731812,,,0.8302084803581238,constant,1,sgd,8,42,BW_sweep,B8
+,20.0,1.0,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,BW_sweep,B8
+leaky_relu,20.0,1.0,0.6305353045463562,,,0.8131872415542603,inv_T,10,sgd,8,42,BW_sweep,B8
+,0.0,0.0,,Nothing to run: rank is None and run_baseline is False,,,,1,,full,,bare,B8
+leaky_relu,0.0,0.0,0.646690309047699,,,0.8548626899719238,constant,1,sgd,8,42,bare,B8
+,0.0,0.0,,Nothing to run: rank is None and run_baseline is False,,,,10,,full,,bare,B8
+leaky_relu,0.0,0.0,0.6508421897888184,,,0.8632069230079651,inv_T,10,sgd,8,42,bare,B8

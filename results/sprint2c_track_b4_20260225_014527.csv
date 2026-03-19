@@ -1,0 +1,9 @@
+error,n_steps,rank,track
+The size of tensor a (4) must match the size of tensor b (2) at non-singleton dimension 0,1,full,B4
+The size of tensor a (4) must match the size of tensor b (2) at non-singleton dimension 0,1,8,B4
+The size of tensor a (4) must match the size of tensor b (2) at non-singleton dimension 0,5,full,B4
+The size of tensor a (4) must match the size of tensor b (2) at non-singleton dimension 0,5,8,B4
+The size of tensor a (4) must match the size of tensor b (2) at non-singleton dimension 0,10,full,B4
+The size of tensor a (4) must match the size of tensor b (2) at non-singleton dimension 0,10,8,B4
+The size of tensor a (4) must match the size of tensor b (2) at non-singleton dimension 0,20,full,B4
+The size of tensor a (4) must match the size of tensor b (2) at non-singleton dimension 0,20,8,B4

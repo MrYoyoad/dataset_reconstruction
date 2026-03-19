@@ -1,7 +1,8 @@
 """Experiment A: Convergence + LoRA → Compose → Existing Reconstruction Pipeline.
 
-Train FCN with LoRA to convergence on few-shot MNIST, compose W = W₀ + BA,
-feed into the UNCHANGED existing reconstruction pipeline.
+Attack scenario: pre-trained model (W₀) is fine-tuned with LoRA on private
+held-out data to convergence. Compose W = W₀ + BA, feed into the UNCHANGED
+existing KKT reconstruction pipeline.
 
 Usage:
     conda run -n rec python -m experiments.run_experiment_a --rank 8 --n_per_class 1
@@ -10,52 +11,52 @@ Usage:
 import sys
 import os
 import argparse
-import copy
 import torch
 import torch.nn as nn
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'dataset_reconstruction'))
 
-from CreateModel import NeuralNetwork, get_activation
-from extraction import get_trainable_params, calc_extraction_loss, evaluate_extraction
-from common_utils.common import load_weights
+from CreateModel import NeuralNetwork, ModifiedRelu
+from extraction import calc_extraction_loss
 
 from experiments.configs import (
-    INPUT_DIM, OUTPUT_DIM, MODEL_HIDDEN_LIST, MODEL_INIT_LIST,
+    INPUT_DIM, OUTPUT_DIM, MODEL_HIDDEN_LIST,
     EXTRACTION_LR, EXTRACTION_LAMBDA_LR, EXTRACTION_INIT_SCALE,
     EXTRACTION_MIN_LAMBDA, EXTRACTION_RELU_ALPHA, EXTRACTION_EPOCHS,
-    EXTRACTION_EVAL_EVERY, RESULTS_DIR,
+    EXTRACTION_EVAL_EVERY, RESULTS_DIR, PRETRAINED_MNIST_PATH,
+    TRAIN_LR, TRAIN_EPOCHS,
 )
 from experiments.data_utils import (
-    get_few_shot_mnist, get_control_images_in_distribution,
+    get_finetuning_data, get_control_images_in_distribution,
 )
 from experiments.train_lora import train_lora, train_full_finetune
 from experiments.lora_wrapper import compose_state_dict, save_composed_weights, get_lora_param_count
 from experiments.metrics import compute_all_metrics
 
 
-def create_fresh_model(init_scale=None, device='cpu'):
-    """Create a NeuralNetwork matching the MNIST architecture with proper init."""
-    activation = nn.ReLU()
+def create_model(device='cpu'):
+    """Create a NeuralNetwork matching the MNIST architecture (ReLU, no bias)."""
     model = NeuralNetwork(
         input_dim=INPUT_DIM,
         hidden_dim_list=MODEL_HIDDEN_LIST,
         output_dim=OUTPUT_DIM,
-        activation=activation,
+        activation=nn.ReLU(),
         use_bias=False,
     )
-    model = model.to(device)
-    if init_scale is not None:
-        model.layers[0].weight.data.normal_().mul_(init_scale)
-        if model.layers[0].bias is not None:
-            model.layers[0].bias.data.normal_().mul_(init_scale)
-    torch.set_default_dtype(torch.float64)
+    return model.to(device).double()
+
+
+def load_pretrained(device='cpu', pretrained_path=None):
+    """Load the pre-trained MNIST odd/even model as W₀."""
+    path = pretrained_path or PRETRAINED_MNIST_PATH
+    checkpoint = torch.load(path, map_location=device)
+    model = create_model(device=device)
+    model.load_state_dict(checkpoint['state_dict'])
     return model
 
 
 def create_extraction_model(device='cpu'):
     """Create model with ModifiedReLU activation for the extraction phase."""
-    from CreateModel import ModifiedRelu
     activation = ModifiedRelu(EXTRACTION_RELU_ALPHA)
     model = NeuralNetwork(
         input_dim=INPUT_DIM,
@@ -64,7 +65,7 @@ def create_extraction_model(device='cpu'):
         activation=activation,
         use_bias=False,
     )
-    return model.to(device)
+    return model.to(device).double()
 
 
 def run_extraction(model, x0, y0, ds_mean, n_per_class,
@@ -108,8 +109,6 @@ def run_extraction(model, x0, y0, ds_mean, n_per_class,
     args = Args()
 
     loss_history = []
-    best_x = None
-    best_score = float('inf')
 
     for epoch in range(extraction_epochs):
         values = model(x).squeeze()
@@ -139,37 +138,52 @@ def run_extraction(model, x0, y0, ds_mean, n_per_class,
 
 
 def run_single_config(rank, n_per_class, seed=42, run_baseline=True,
-                      init_scale=None, device='cpu', verbose=True):
+                      pretrained_path=None, extraction_epochs=EXTRACTION_EPOCHS,
+                      extraction_n_per_class=None, fine_tune_lr=TRAIN_LR,
+                      fine_tune_epochs=TRAIN_EPOCHS,
+                      device='cpu', verbose=True):
     """Run Experiment A for one (rank, N) configuration.
+
+    Loads pre-trained weights as W₀, fine-tunes (LoRA or full) on held-out
+    MNIST test data to convergence, then reconstructs via KKT.
+
+    Args:
+        extraction_n_per_class: N for extraction (default: same as n_per_class).
+            Set differently to test wrong-N hypothesis.
+        fine_tune_lr: learning rate for fine-tuning (default: TRAIN_LR=0.01).
+        fine_tune_epochs: max epochs for fine-tuning (default: TRAIN_EPOCHS=1M).
 
     Returns dict with all results and metrics.
     """
-    if init_scale is None:
-        init_scale = MODEL_INIT_LIST[0]
+    if extraction_n_per_class is None:
+        extraction_n_per_class = n_per_class
 
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
 
-    # Load data
-    x_train, y_train, digits, indices = get_few_shot_mnist(
+    # Load held-out fine-tuning data (MNIST TEST set)
+    x_ft, y_ft, digits, indices = get_finetuning_data(
         n_per_class, seed=seed, device=device
     )
     if verbose:
-        print(f"Training digits: {digits}, indices: {indices}")
-        print(f"x_train shape: {x_train.shape}, y_train: {y_train.tolist()}")
+        print(f"Fine-tuning digits: {digits}, indices: {indices}")
+        print(f"x_ft shape: {x_ft.shape}, y_ft: {y_ft.tolist()}")
 
-    results = {'rank': rank, 'n_per_class': n_per_class, 'seed': seed,
-               'digits': digits, 'indices': indices}
+    results = {'rank': rank, 'n_per_class': n_per_class,
+               'extraction_n_per_class': extraction_n_per_class,
+               'fine_tune_lr': fine_tune_lr, 'fine_tune_epochs': fine_tune_epochs,
+               'seed': seed, 'digits': digits, 'indices': indices}
 
     # --- LoRA training ---
     if verbose:
-        print(f"\n--- Training LoRA rank={rank} ---")
-    model_lora = create_fresh_model(init_scale=init_scale, device=device)
+        print(f"\n--- Training LoRA rank={rank} from pre-trained weights ---")
+    model_lora = load_pretrained(device=device, pretrained_path=pretrained_path)
     # Save init state for reference
     init_sd = {k: v.clone() for k, v in model_lora.state_dict().items()}
 
     train_result = train_lora(
-        model_lora, x_train.clone(), y_train.clone(), rank=rank,
+        model_lora, x_ft.clone(), y_ft.clone(), rank=rank,
+        lr=fine_tune_lr, epochs=fine_tune_epochs,
         verbose=verbose, eval_every=10000,
     )
     results['lora_train'] = {
@@ -195,29 +209,35 @@ def run_single_config(rank, n_per_class, seed=42, run_baseline=True,
     extraction_model.load_state_dict(composed_sd)
     extraction_model.eval()
 
-    x_centered = x_train - ds_mean if ds_mean is not None else x_train
+    x_centered = x_ft - ds_mean if ds_mean is not None else x_ft
     x_recon_lora, extract_res = run_extraction(
-        extraction_model, x_centered, y_train, ds_mean, n_per_class, device=device,
+        extraction_model, x_centered, y_ft, ds_mean, extraction_n_per_class,
+        extraction_epochs=extraction_epochs, device=device,
     )
 
-    # Metrics against training data
-    metrics_lora = compute_all_metrics(x_recon_lora, x_centered, ds_mean)
-    results['lora_metrics'] = {k: v['mean'] for k, v in metrics_lora.items()}
+    # Metrics against fine-tuning data (only when shapes match)
     results['x_recon_lora'] = x_recon_lora
-    if verbose:
-        print(f"LoRA reconstruction: SSIM={metrics_lora['ssim']['mean']:.4f}, "
-              f"DSSIM={metrics_lora['dssim']['mean']:.4f}")
+    results['lora_final_kkt_loss'] = extract_res['loss_history'][-1] if extract_res['loss_history'] else float('inf')
+    if x_recon_lora.shape[0] == x_centered.shape[0]:
+        metrics_lora = compute_all_metrics(x_recon_lora, x_centered, ds_mean)
+        results['lora_metrics'] = {k: v['mean'] for k, v in metrics_lora.items()}
+        if verbose:
+            print(f"LoRA reconstruction: SSIM={metrics_lora['ssim']['mean']:.4f}, "
+                  f"DSSIM={metrics_lora['dssim']['mean']:.4f}")
+    else:
+        if verbose:
+            print(f"LoRA extraction N={extraction_n_per_class} != fine-tune N={n_per_class}, "
+                  f"skipping SSIM. Final KKT loss={results['lora_final_kkt_loss']:.4e}")
 
     # --- Full fine-tuning baseline ---
     if run_baseline:
         if verbose:
             print(f"\n--- Training full fine-tuning baseline ---")
-        model_full = create_fresh_model(init_scale=init_scale, device=device)
-        # Use same init as LoRA model
-        model_full.load_state_dict(init_sd)
+        model_full = load_pretrained(device=device, pretrained_path=pretrained_path)
 
         train_result_full = train_full_finetune(
-            model_full, x_train.clone(), y_train.clone(),
+            model_full, x_ft.clone(), y_ft.clone(),
+            lr=fine_tune_lr, epochs=fine_tune_epochs,
             verbose=verbose, eval_every=10000,
         )
         results['full_ft_train'] = {
@@ -230,54 +250,86 @@ def run_single_config(rank, n_per_class, seed=42, run_baseline=True,
         extraction_model_full.load_state_dict(model_full.state_dict())
         extraction_model_full.eval()
 
-        x_recon_full, _ = run_extraction(
-            extraction_model_full, x_centered, y_train,
-            train_result_full['ds_mean'], n_per_class, device=device,
+        x_recon_full, extract_res_full = run_extraction(
+            extraction_model_full, x_centered, y_ft,
+            train_result_full['ds_mean'], extraction_n_per_class,
+            extraction_epochs=extraction_epochs, device=device,
         )
 
-        metrics_full = compute_all_metrics(
-            x_recon_full, x_centered, train_result_full['ds_mean']
-        )
-        results['full_ft_metrics'] = {k: v['mean'] for k, v in metrics_full.items()}
         results['x_recon_full'] = x_recon_full
+        results['full_final_kkt_loss'] = extract_res_full['loss_history'][-1] if extract_res_full['loss_history'] else float('inf')
+        if x_recon_full.shape[0] == x_centered.shape[0]:
+            metrics_full = compute_all_metrics(
+                x_recon_full, x_centered, train_result_full['ds_mean']
+            )
+            results['full_ft_metrics'] = {k: v['mean'] for k, v in metrics_full.items()}
+            if verbose:
+                print(f"Full FT reconstruction: SSIM={metrics_full['ssim']['mean']:.4f}, "
+                      f"DSSIM={metrics_full['dssim']['mean']:.4f}")
+        else:
+            if verbose:
+                print(f"Full FT extraction N={extraction_n_per_class} != fine-tune N={n_per_class}, "
+                      f"skipping SSIM. Final KKT loss={results['full_final_kkt_loss']:.4e}")
+
+    # --- Control images (only when extraction N matches fine-tuning N) ---
+    if extraction_n_per_class == n_per_class:
+        x_ctrl, y_ctrl, ctrl_digits = get_control_images_in_distribution(
+            digits, device=device
+        )
+        x_ctrl_centered = x_ctrl - ds_mean if ds_mean is not None else x_ctrl
+        metrics_ctrl = compute_all_metrics(x_recon_lora, x_ctrl_centered, ds_mean)
+        results['control_metrics'] = {k: v['mean'] for k, v in metrics_ctrl.items()}
+        results['x_ctrl'] = x_ctrl
         if verbose:
-            print(f"Full FT reconstruction: SSIM={metrics_full['ssim']['mean']:.4f}, "
-                  f"DSSIM={metrics_full['dssim']['mean']:.4f}")
+            print(f"Control comparison: SSIM={metrics_ctrl['ssim']['mean']:.4f}, "
+                  f"DSSIM={metrics_ctrl['dssim']['mean']:.4f}")
 
-    # --- Control images ---
-    x_ctrl, y_ctrl, ctrl_digits = get_control_images_in_distribution(
-        digits, device=device
-    )
-    x_ctrl_centered = x_ctrl - ds_mean if ds_mean is not None else x_ctrl
-    metrics_ctrl = compute_all_metrics(x_recon_lora, x_ctrl_centered, ds_mean)
-    results['control_metrics'] = {k: v['mean'] for k, v in metrics_ctrl.items()}
-    if verbose:
-        print(f"Control comparison: SSIM={metrics_ctrl['ssim']['mean']:.4f}, "
-              f"DSSIM={metrics_ctrl['dssim']['mean']:.4f}")
-
-    results['x_train'] = x_train
-    results['x_ctrl'] = x_ctrl
+    results['x_train'] = x_ft
     results['ds_mean'] = ds_mean
 
     return results
 
 
 if __name__ == '__main__':
+    from experiments.configs import get_device
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--rank', type=int, default=8)
     parser.add_argument('--n_per_class', type=int, default=1)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--no_baseline', action='store_true')
+    parser.add_argument('--extraction_epochs', type=int, default=EXTRACTION_EPOCHS)
+    parser.add_argument('--extraction_n_per_class', type=int, default=None,
+                        help='N for extraction (default: same as n_per_class)')
+    parser.add_argument('--fine_tune_lr', type=float, default=TRAIN_LR,
+                        help='Learning rate for fine-tuning (default: 0.01)')
+    parser.add_argument('--fine_tune_epochs', type=int, default=TRAIN_EPOCHS,
+                        help='Max epochs for fine-tuning (default: 1M)')
+    parser.add_argument('--device', type=str, default=None)
     args = parser.parse_args()
+
+    device = args.device or get_device()
+    print(f"Using device: {device}")
 
     results = run_single_config(
         rank=args.rank,
         n_per_class=args.n_per_class,
         seed=args.seed,
         run_baseline=not args.no_baseline,
+        extraction_epochs=args.extraction_epochs,
+        extraction_n_per_class=args.extraction_n_per_class,
+        fine_tune_lr=args.fine_tune_lr,
+        fine_tune_epochs=args.fine_tune_epochs,
+        device=device,
     )
     print("\n=== Final Results ===")
-    print(f"LoRA (rank={args.rank}): {results['lora_metrics']}")
+    if 'lora_metrics' in results:
+        print(f"LoRA (rank={args.rank}): {results['lora_metrics']}")
+    if 'lora_final_kkt_loss' in results:
+        print(f"LoRA final KKT loss: {results['lora_final_kkt_loss']:.4e}")
     if 'full_ft_metrics' in results:
         print(f"Full FT baseline: {results['full_ft_metrics']}")
-    print(f"Control comparison: {results['control_metrics']}")
+    if 'full_final_kkt_loss' in results:
+        print(f"Full FT final KKT loss: {results['full_final_kkt_loss']:.4e}")
+    if 'control_metrics' in results:
+        print(f"Control comparison: {results['control_metrics']}")

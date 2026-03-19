@@ -1,0 +1,320 @@
+Device: cuda
+Training digits: [6, 7], indices: [37542, 43087]
+x_train shape: torch.Size([2, 1, 28, 28]), y_train: [0.0, 1.0]
+
+--- Training LoRA rank=8 ---
+Epoch 0: loss=6.93e-01, error=0.5000
+Epoch 10000: loss=9.97e-06, error=0.0000
+Epoch 20000: loss=4.38e-06, error=0.0000
+Epoch 30000: loss=2.73e-06, error=0.0000
+Epoch 40000: loss=1.96e-06, error=0.0000
+Epoch 50000: loss=1.51e-06, error=0.0000
+Epoch 60000: loss=1.23e-06, error=0.0000
+Epoch 70000: loss=1.03e-06, error=0.0000
+Epoch 80000: loss=8.82e-07, error=0.0000
+Epoch 90000: loss=7.71e-07, error=0.0000
+Epoch 100000: loss=6.84e-07, error=0.0000
+Epoch 110000: loss=6.14e-07, error=0.0000
+Epoch 120000: loss=5.56e-07, error=0.0000
+Epoch 130000: loss=5.07e-07, error=0.0000
+Epoch 140000: loss=4.67e-07, error=0.0000
+Epoch 150000: loss=4.31e-07, error=0.0000
+Epoch 160000: loss=4.01e-07, error=0.0000
+Epoch 170000: loss=3.74e-07, error=0.0000
+Epoch 180000: loss=3.51e-07, error=0.0000
+Epoch 190000: loss=3.30e-07, error=0.0000
+Epoch 200000: loss=3.12e-07, error=0.0000
+Epoch 210000: loss=2.95e-07, error=0.0000
+Epoch 220000: loss=2.80e-07, error=0.0000
+Epoch 230000: loss=2.66e-07, error=0.0000
+Epoch 240000: loss=2.54e-07, error=0.0000
+Epoch 250000: loss=2.42e-07, error=0.0000
+Epoch 260000: loss=2.32e-07, error=0.0000
+Epoch 270000: loss=2.22e-07, error=0.0000
+Epoch 280000: loss=2.13e-07, error=0.0000
+Epoch 290000: loss=2.05e-07, error=0.0000
+Epoch 300000: loss=1.97e-07, error=0.0000
+Epoch 310000: loss=1.90e-07, error=0.0000
+Epoch 320000: loss=1.83e-07, error=0.0000
+Epoch 330000: loss=1.77e-07, error=0.0000
+Epoch 340000: loss=1.71e-07, error=0.0000
+Epoch 350000: loss=1.66e-07, error=0.0000
+Epoch 360000: loss=1.61e-07, error=0.0000
+Epoch 370000: loss=1.56e-07, error=0.0000
+Epoch 380000: loss=1.51e-07, error=0.0000
+Epoch 390000: loss=1.47e-07, error=0.0000
+Epoch 400000: loss=1.43e-07, error=0.0000
+Epoch 410000: loss=1.39e-07, error=0.0000
+Epoch 420000: loss=1.35e-07, error=0.0000
+Epoch 430000: loss=1.32e-07, error=0.0000
+Epoch 440000: loss=1.28e-07, error=0.0000
+Epoch 450000: loss=1.25e-07, error=0.0000
+Epoch 460000: loss=1.22e-07, error=0.0000
+Epoch 470000: loss=1.19e-07, error=0.0000
+Epoch 480000: loss=1.16e-07, error=0.0000
+Epoch 490000: loss=1.14e-07, error=0.0000
+Epoch 500000: loss=1.11e-07, error=0.0000
+Epoch 510000: loss=1.09e-07, error=0.0000
+Epoch 520000: loss=1.06e-07, error=0.0000
+Epoch 530000: loss=1.04e-07, error=0.0000
+Epoch 540000: loss=1.02e-07, error=0.0000
+Epoch 550000: loss=1.00e-07, error=0.0000
+Epoch 560000: loss=9.80e-08, error=0.0000
+Epoch 570000: loss=9.61e-08, error=0.0000
+Epoch 580000: loss=9.42e-08, error=0.0000
+Epoch 590000: loss=9.24e-08, error=0.0000
+Epoch 600000: loss=9.07e-08, error=0.0000
+Epoch 610000: loss=8.91e-08, error=0.0000
+Epoch 620000: loss=8.75e-08, error=0.0000
+Epoch 630000: loss=8.59e-08, error=0.0000
+Epoch 640000: loss=8.44e-08, error=0.0000
+Epoch 650000: loss=8.30e-08, error=0.0000
+Epoch 660000: loss=8.16e-08, error=0.0000
+Epoch 670000: loss=8.02e-08, error=0.0000
+Epoch 680000: loss=7.89e-08, error=0.0000
+Epoch 690000: loss=7.76e-08, error=0.0000
+Epoch 700000: loss=7.64e-08, error=0.0000
+Epoch 710000: loss=7.52e-08, error=0.0000
+Epoch 720000: loss=7.40e-08, error=0.0000
+Epoch 730000: loss=7.29e-08, error=0.0000
+Epoch 740000: loss=7.18e-08, error=0.0000
+Epoch 750000: loss=7.07e-08, error=0.0000
+Epoch 760000: loss=6.97e-08, error=0.0000
+Epoch 770000: loss=6.87e-08, error=0.0000
+Epoch 780000: loss=6.77e-08, error=0.0000
+Epoch 790000: loss=6.67e-08, error=0.0000
+Epoch 800000: loss=6.58e-08, error=0.0000
+Epoch 810000: loss=6.49e-08, error=0.0000
+Epoch 820000: loss=6.40e-08, error=0.0000
+Epoch 830000: loss=6.32e-08, error=0.0000
+Epoch 840000: loss=6.23e-08, error=0.0000
+Epoch 850000: loss=6.15e-08, error=0.0000
+Epoch 860000: loss=6.07e-08, error=0.0000
+Epoch 870000: loss=5.99e-08, error=0.0000
+Epoch 880000: loss=5.92e-08, error=0.0000
+Epoch 890000: loss=5.84e-08, error=0.0000
+Epoch 900000: loss=5.77e-08, error=0.0000
+Epoch 910000: loss=5.70e-08, error=0.0000
+Epoch 920000: loss=5.63e-08, error=0.0000
+Epoch 930000: loss=5.57e-08, error=0.0000
+Epoch 940000: loss=5.50e-08, error=0.0000
+Epoch 950000: loss=5.44e-08, error=0.0000
+Epoch 960000: loss=5.37e-08, error=0.0000
+Epoch 970000: loss=5.31e-08, error=0.0000
+Epoch 980000: loss=5.25e-08, error=0.0000
+Epoch 990000: loss=5.19e-08, error=0.0000
+Did not converge after 1000000 epochs: loss=5.13e-08
+Saved composed weights to /home/projects/galvardi/yoado/results/lora_r8_n1_s42_composed.pth
+  Extraction epoch 0: kkt=3.7623e+02 verify=0.0000e+00
+  Extraction epoch 1000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 2000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 3000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 4000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 5000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 6000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 7000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 8000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 9000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 10000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 11000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 12000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 13000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 14000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 15000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 16000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 17000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 18000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 19000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 20000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 21000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 22000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 23000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 24000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 25000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 26000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 27000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 28000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 29000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 30000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 31000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 32000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 33000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 34000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 35000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 36000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 37000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 38000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 39000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 40000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 41000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 42000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 43000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 44000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 45000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 46000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 47000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 48000: kkt=3.7383e+02 verify=1.0232e-03
+  Extraction epoch 49000: kkt=3.7383e+02 verify=1.0232e-03
+LoRA reconstruction: SSIM=0.6975, DSSIM=0.1513
+
+--- Training full fine-tuning baseline ---
+Epoch 0: loss=6.93e-01, error=0.5000
+Epoch 10000: loss=1.17e-04, error=0.0000
+Epoch 20000: loss=5.04e-05, error=0.0000
+Epoch 30000: loss=3.12e-05, error=0.0000
+Epoch 40000: loss=2.22e-05, error=0.0000
+Epoch 50000: loss=1.71e-05, error=0.0000
+Epoch 60000: loss=1.39e-05, error=0.0000
+Epoch 70000: loss=1.16e-05, error=0.0000
+Epoch 80000: loss=9.94e-06, error=0.0000
+Epoch 90000: loss=8.68e-06, error=0.0000
+Epoch 100000: loss=7.69e-06, error=0.0000
+Epoch 110000: loss=6.90e-06, error=0.0000
+Epoch 120000: loss=6.24e-06, error=0.0000
+Epoch 130000: loss=5.70e-06, error=0.0000
+Epoch 140000: loss=5.23e-06, error=0.0000
+Epoch 150000: loss=4.84e-06, error=0.0000
+Epoch 160000: loss=4.50e-06, error=0.0000
+Epoch 170000: loss=4.20e-06, error=0.0000
+Epoch 180000: loss=3.93e-06, error=0.0000
+Epoch 190000: loss=3.70e-06, error=0.0000
+Epoch 200000: loss=3.49e-06, error=0.0000
+Epoch 210000: loss=3.30e-06, error=0.0000
+Epoch 220000: loss=3.13e-06, error=0.0000
+Epoch 230000: loss=2.98e-06, error=0.0000
+Epoch 240000: loss=2.84e-06, error=0.0000
+Epoch 250000: loss=2.71e-06, error=0.0000
+Epoch 260000: loss=2.59e-06, error=0.0000
+Epoch 270000: loss=2.48e-06, error=0.0000
+Epoch 280000: loss=2.38e-06, error=0.0000
+Epoch 290000: loss=2.29e-06, error=0.0000
+Epoch 300000: loss=2.21e-06, error=0.0000
+Epoch 310000: loss=2.13e-06, error=0.0000
+Epoch 320000: loss=2.05e-06, error=0.0000
+Epoch 330000: loss=1.98e-06, error=0.0000
+Epoch 340000: loss=1.92e-06, error=0.0000
+Epoch 350000: loss=1.85e-06, error=0.0000
+Epoch 360000: loss=1.80e-06, error=0.0000
+Epoch 370000: loss=1.74e-06, error=0.0000
+Epoch 380000: loss=1.69e-06, error=0.0000
+Epoch 390000: loss=1.64e-06, error=0.0000
+Epoch 400000: loss=1.60e-06, error=0.0000
+Epoch 410000: loss=1.55e-06, error=0.0000
+Epoch 420000: loss=1.51e-06, error=0.0000
+Epoch 430000: loss=1.47e-06, error=0.0000
+Epoch 440000: loss=1.43e-06, error=0.0000
+Epoch 450000: loss=1.40e-06, error=0.0000
+Epoch 460000: loss=1.36e-06, error=0.0000
+Epoch 470000: loss=1.33e-06, error=0.0000
+Epoch 480000: loss=1.30e-06, error=0.0000
+Epoch 490000: loss=1.27e-06, error=0.0000
+Epoch 500000: loss=1.24e-06, error=0.0000
+Epoch 510000: loss=1.22e-06, error=0.0000
+Epoch 520000: loss=1.19e-06, error=0.0000
+Epoch 530000: loss=1.16e-06, error=0.0000
+Epoch 540000: loss=1.14e-06, error=0.0000
+Epoch 550000: loss=1.12e-06, error=0.0000
+Epoch 560000: loss=1.09e-06, error=0.0000
+Epoch 570000: loss=1.07e-06, error=0.0000
+Epoch 580000: loss=1.05e-06, error=0.0000
+Epoch 590000: loss=1.03e-06, error=0.0000
+Epoch 600000: loss=1.01e-06, error=0.0000
+Epoch 610000: loss=9.94e-07, error=0.0000
+Epoch 620000: loss=9.76e-07, error=0.0000
+Epoch 630000: loss=9.59e-07, error=0.0000
+Epoch 640000: loss=9.42e-07, error=0.0000
+Epoch 650000: loss=9.26e-07, error=0.0000
+Epoch 660000: loss=9.11e-07, error=0.0000
+Epoch 670000: loss=8.95e-07, error=0.0000
+Epoch 680000: loss=8.81e-07, error=0.0000
+Epoch 690000: loss=8.66e-07, error=0.0000
+Epoch 700000: loss=8.53e-07, error=0.0000
+Epoch 710000: loss=8.39e-07, error=0.0000
+Epoch 720000: loss=8.26e-07, error=0.0000
+Epoch 730000: loss=8.14e-07, error=0.0000
+Epoch 740000: loss=8.01e-07, error=0.0000
+Epoch 750000: loss=7.89e-07, error=0.0000
+Epoch 760000: loss=7.78e-07, error=0.0000
+Epoch 770000: loss=7.67e-07, error=0.0000
+Epoch 780000: loss=7.56e-07, error=0.0000
+Epoch 790000: loss=7.45e-07, error=0.0000
+Epoch 800000: loss=7.35e-07, error=0.0000
+Epoch 810000: loss=7.24e-07, error=0.0000
+Epoch 820000: loss=7.15e-07, error=0.0000
+Epoch 830000: loss=7.05e-07, error=0.0000
+Epoch 840000: loss=6.96e-07, error=0.0000
+Epoch 850000: loss=6.87e-07, error=0.0000
+Epoch 860000: loss=6.78e-07, error=0.0000
+Epoch 870000: loss=6.69e-07, error=0.0000
+Epoch 880000: loss=6.61e-07, error=0.0000
+Epoch 890000: loss=6.52e-07, error=0.0000
+Epoch 900000: loss=6.44e-07, error=0.0000
+Epoch 910000: loss=6.36e-07, error=0.0000
+Epoch 920000: loss=6.29e-07, error=0.0000
+Epoch 930000: loss=6.21e-07, error=0.0000
+Epoch 940000: loss=6.14e-07, error=0.0000
+Epoch 950000: loss=6.07e-07, error=0.0000
+Epoch 960000: loss=6.00e-07, error=0.0000
+Epoch 970000: loss=5.93e-07, error=0.0000
+Epoch 980000: loss=5.86e-07, error=0.0000
+Epoch 990000: loss=5.79e-07, error=0.0000
+Did not converge after 1000000 epochs: loss=5.73e-07
+  Extraction epoch 0: kkt=3.4296e+02 verify=4.1734e-02
+  Extraction epoch 1000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 2000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 3000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 4000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 5000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 6000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 7000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 8000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 9000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 10000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 11000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 12000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 13000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 14000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 15000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 16000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 17000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 18000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 19000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 20000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 21000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 22000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 23000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 24000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 25000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 26000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 27000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 28000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 29000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 30000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 31000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 32000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 33000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 34000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 35000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 36000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 37000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 38000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 39000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 40000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 41000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 42000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 43000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 44000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 45000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 46000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 47000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 48000: kkt=3.3326e+02 verify=1.0895e-02
+  Extraction epoch 49000: kkt=3.3326e+02 verify=1.0895e-02
+Full FT reconstruction: SSIM=0.7819, DSSIM=0.1091
+Control comparison: SSIM=0.4908, DSSIM=0.2546
+
+=== EXPERIMENT A RESULTS ===
+LoRA (rank=8): {'ssim': 0.6974776387214661, 'dssim': 0.15126118063926697, 'ncc': 0.50909423828125, 'l2': 6.377834796905518}
+Full FT baseline: {'ssim': 0.7818517684936523, 'dssim': 0.10907411575317383, 'ncc': 0.01800537109375, 'l2': 3.401986837387085}
+Control comparison: {'ssim': 0.4908459186553955, 'dssim': 0.25457704067230225, 'ncc': 1264.39794921875, 'l2': 8.26699447631836}
+
+Results saved to /home/projects/galvardi/yoado/results/experiment_a_r8_n1.json

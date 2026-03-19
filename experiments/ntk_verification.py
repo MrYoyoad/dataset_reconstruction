@@ -4,10 +4,17 @@ Verifies whether the NTK approximation holds at a given step count T:
 1. Relative weight change: ||θ_T - θ₀|| / ||θ₀|| (want < 0.01)
 2. Feature cosine similarity: cos(∇_θ f(θ₀; x), ∇_θ f(θ_T; x)) (want > 0.99)
 3. Coefficient drift: how much c_i changed from step 0 to step T
+
+Additional diagnostics (logged but don't block execution):
+- ΔW effective rank (expect ≤ N under NTK)
+- NTK Gram matrix condition number (high = numerically unstable)
+- Numerical health (NaN/Inf detection)
 """
 
 import torch
 import torch.nn.functional as F
+
+from experiments.configs import NTK_WEIGHT_CHANGE_THRESHOLD, NTK_FEATURE_COS_THRESHOLD
 
 
 def _get_per_sample_gradients(model, x):
@@ -174,3 +181,205 @@ def verify_ntk_at_step(theta_0, theta_T, model_class_fn, x, y):
         'feature_stability': feature_stability,
         'coefficient_drift': coefficient_drift,
     }
+
+
+def check_numerical_health(delta_w, coefficients=None, label=""):
+    """Check for NaN/Inf in ΔW and coefficients. Returns True if healthy."""
+    prefix = f"  [{label}] " if label else "  "
+    healthy = True
+    for key, val in delta_w.items():
+        if torch.isnan(val).any():
+            print(f"{prefix}ERROR: NaN detected in delta_w['{key}']!")
+            healthy = False
+        if torch.isinf(val).any():
+            print(f"{prefix}ERROR: Inf detected in delta_w['{key}']!")
+            healthy = False
+    if coefficients is not None:
+        if torch.isnan(coefficients).any():
+            print(f"{prefix}ERROR: NaN detected in coefficients!")
+            healthy = False
+        if torch.isinf(coefficients).any():
+            print(f"{prefix}ERROR: Inf detected in coefficients!")
+            healthy = False
+    return healthy
+
+
+def compute_delta_w_effective_rank(delta_w, n_samples, verbose=True):
+    """Compute effective rank of each layer's ΔW. Under NTK, expect rank ≤ N.
+
+    For NTK: ΔW_l = -lr*T * Σ c_i ∇_{W_l} f(θ₀;x_i) is a sum of N rank-1
+    matrices, so each layer should have rank ≤ N. Reports per-layer ranks.
+
+    Returns:
+        dict with 'effective_rank' (max across layers), 'n_samples'
+    """
+    max_rank = 0
+    for key in sorted(delta_w.keys()):
+        v = delta_w[key]
+        if v.dim() >= 2:
+            sv = torch.linalg.svdvals(v.float())
+            layer_rank = (sv > sv[0] * 1e-6).sum().item()
+            max_rank = max(max_rank, layer_rank)
+            if verbose and layer_rank > n_samples:
+                print(f"    ΔW[{key}] rank={layer_rank} > N={n_samples}")
+
+    if verbose:
+        print(f"  ΔW max layer rank: {max_rank} (expect ≤ N={n_samples})")
+        if max_rank > n_samples * 2:
+            print(f"    NOTE: rank >> N — NTK approximation may be poor")
+
+    return {'effective_rank': max_rank, 'n_samples': n_samples}
+
+
+def compute_gram_condition_number(model_at_theta0, x, verbose=True):
+    """Compute condition number of the NTK Gram matrix K.
+
+    K_{ij} = <∇f(θ₀;x_i), ∇f(θ₀;x_j)>
+
+    High condition number means numerically unstable reconstruction.
+
+    Returns:
+        dict with 'condition_number', 'gram_matrix'
+    """
+    _, flat_grads = _get_per_sample_gradients(model_at_theta0, x)
+    K = flat_grads @ flat_grads.T  # [N, N]
+    cond_K = torch.linalg.cond(K.float()).item()
+
+    if verbose:
+        print(f"  NTK Gram cond number: {cond_K:.2e}")
+        if cond_K > 1e6:
+            print(f"    NOTE: High condition number — reconstruction may be numerically unstable")
+
+    return {'condition_number': cond_K, 'gram_matrix': K.cpu()}
+
+
+def compute_linearization_error(model_at_theta0, delta_w, x, y, lr, n_steps):
+    """Compute the NTK linearization error using oracle data.
+
+    Measures: ||ΔW_actual - ΔW_predicted|| / ||ΔW_actual||
+    where ΔW_predicted = -lr * T * Σ c_i ∇f(θ₀; x_i)
+
+    This is the ground truth NTK approximation quality — independent
+    of the reconstruction optimizer. If this is high, the NTK approximation
+    itself is failing, not just the extraction.
+
+    Args:
+        model_at_theta0: model loaded with θ₀ weights
+        delta_w: dict of actual weight changes (θ_T - θ₀)
+        x: [N, C, H, W] true training data
+        y: [N] true labels
+        lr: learning rate used during fine-tuning
+        n_steps: number of gradient steps T
+
+    Returns:
+        dict with:
+            'relative_error': ||ΔW - ΔW_pred|| / ||ΔW|| (overall)
+            'per_layer': dict mapping key → relative error per layer
+            'absolute_error': ||ΔW - ΔW_pred|| (overall)
+    """
+    from experiments.ntk_steps import compute_known_coefficients
+
+    model_at_theta0.eval()
+    c = compute_known_coefficients(model_at_theta0, x, y)
+
+    # Compute predicted ΔW = -lr * T * Σ c_i ∇f(θ₀; x_i)
+    # Forward pass with coefficient weighting
+    values = model_at_theta0(x).squeeze()
+    output = (values * c).sum()
+
+    params = list(model_at_theta0.parameters())
+    grad = torch.autograd.grad(outputs=output, inputs=params,
+                                create_graph=False, retain_graph=False)
+
+    per_layer = {}
+    total_err_sq = 0.0
+    total_dw_sq = 0.0
+
+    for (name, param), g in zip(model_at_theta0.named_parameters(), grad):
+        if name in delta_w:
+            predicted = -lr * n_steps * g
+            actual = delta_w[name]
+            err = (actual - predicted).pow(2).sum().item()
+            dw_norm_sq = actual.pow(2).sum().item()
+
+            total_err_sq += err
+            total_dw_sq += dw_norm_sq
+
+            if dw_norm_sq > 0:
+                per_layer[name] = (err ** 0.5) / (dw_norm_sq ** 0.5)
+            else:
+                per_layer[name] = 0.0
+
+    overall_err = total_err_sq ** 0.5
+    overall_dw = total_dw_sq ** 0.5
+    relative = overall_err / overall_dw if overall_dw > 0 else 0.0
+
+    return {
+        'relative_error': relative,
+        'per_layer': per_layer,
+        'absolute_error': overall_err,
+    }
+
+
+def ntk_smoke_test(theta_0, theta_T, model_class_fn, x, y, delta_w=None,
+                   verbose=True, label=""):
+    """Comprehensive NTK regime check before extraction.
+
+    Runs:
+    1. NTK regime check (feature stability + weight change) — PASS/FAIL
+    2. Numerical health (NaN/Inf) — flags errors
+    3. ΔW effective rank — logged
+    4. Gram matrix condition number — logged
+
+    Does NOT abort — just prints warnings so we can decide.
+
+    Returns:
+        passed: bool (NTK regime satisfied)
+        diagnostics: dict with all measurements
+    """
+    prefix = f"[{label}] " if label else ""
+
+    # 1. Full NTK verification (weight change, feature stability, coeff drift)
+    diag = verify_ntk_at_step(theta_0, theta_T, model_class_fn, x, y)
+    wc = diag['weight_change']['overall']
+    fs = diag['feature_stability']['mean']
+    cd = diag['coefficient_drift']['mean_abs_drift']
+
+    passed = (wc < NTK_WEIGHT_CHANGE_THRESHOLD and fs > NTK_FEATURE_COS_THRESHOLD)
+
+    if verbose:
+        status = "PASS" if passed else "FAIL"
+        print(f"  {prefix}NTK smoke test: {status}")
+        print(f"    weight_change={wc:.6f} (threshold <{NTK_WEIGHT_CHANGE_THRESHOLD})")
+        print(f"    feature_cos={fs:.6f} (threshold >{NTK_FEATURE_COS_THRESHOLD})")
+        print(f"    coeff_drift={cd:.6f}")
+        if not passed:
+            print(f"    WARNING: NTK regime NOT satisfied. Results may be unreliable.")
+
+    diagnostics = {
+        'weight_change': wc,
+        'feature_stability': fs,
+        'coefficient_drift': cd,
+        'ntk_passed': passed,
+    }
+
+    # 2. Numerical health
+    if delta_w is not None:
+        coeffs = diag['coefficient_drift']['c_init']
+        healthy = check_numerical_health(delta_w, coeffs, label=label)
+        diagnostics['numerical_healthy'] = healthy
+
+    # 3. ΔW effective rank
+    if delta_w is not None:
+        n_samples = x.shape[0]
+        rank_info = compute_delta_w_effective_rank(delta_w, n_samples, verbose=verbose)
+        diagnostics['delta_w_effective_rank'] = rank_info['effective_rank']
+
+    # 4. Gram matrix condition number
+    model_0 = model_class_fn()
+    model_0.load_state_dict(theta_0)
+    model_0.eval()
+    gram_info = compute_gram_condition_number(model_0, x, verbose=verbose)
+    diagnostics['gram_condition_number'] = gram_info['condition_number']
+
+    return passed, diagnostics

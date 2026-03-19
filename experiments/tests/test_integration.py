@@ -9,13 +9,13 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'dataset_reconstruction'))
 
 from experiments.run_experiment_a import (
-    create_fresh_model, create_extraction_model, run_extraction, run_single_config,
+    create_model, create_extraction_model, run_extraction, run_single_config,
 )
 from experiments.train_lora import train_lora, train_full_finetune
 from experiments.lora_wrapper import compose_state_dict, save_composed_weights
 from experiments.data_utils import get_few_shot_mnist
 from experiments.metrics import compute_all_metrics
-from experiments.configs import MODEL_INIT_LIST
+from experiments.configs import INPUT_DIM, OUTPUT_DIM, MODEL_HIDDEN_LIST
 
 torch.set_default_dtype(torch.float64)
 
@@ -23,7 +23,7 @@ torch.set_default_dtype(torch.float64)
 class TestComposeLoadRoundtrip:
     def test_save_load_matches_output(self, tmp_path):
         """Save composed weights → load into fresh model → output matches."""
-        model = create_fresh_model(init_scale=MODEL_INIT_LIST[0])
+        model = create_model()
         x, y, _, _ = get_few_shot_mnist(1, seed=42)
         train_lora(model, x.clone(), y.clone(), rank=8,
                    epochs=200, threshold=0, verbose=False)
@@ -37,9 +37,9 @@ class TestComposeLoadRoundtrip:
         path = str(tmp_path / 'test.pth')
         save_composed_weights(model, path)
 
-        fresh = create_fresh_model()
-        from common_utils.common import load_weights
-        load_weights(fresh, path, device='cpu')
+        fresh = create_model()
+        checkpoint = torch.load(path, map_location='cpu')
+        fresh.load_state_dict(checkpoint['state_dict'])
         fresh.eval()
         out_fresh = fresh(x_test).detach()
 
@@ -49,7 +49,7 @@ class TestComposeLoadRoundtrip:
 class TestFullPipelineSmoke:
     def test_no_crashes(self):
         """Train LoRA → compose → load → extract (short) → no crashes, finite loss."""
-        model = create_fresh_model(init_scale=MODEL_INIT_LIST[0])
+        model = create_model()
         x, y, _, _ = get_few_shot_mnist(1, seed=42)
 
         result = train_lora(

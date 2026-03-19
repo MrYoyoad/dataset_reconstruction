@@ -89,7 +89,14 @@ def run_experiment_a_sweep(ranks=None, ns=None, seed=42, device='cpu',
 
 
 def run_experiment_b_sweep(ranks=None, steps=None, seed=42, device='cpu',
-                           extraction_epochs=EXTRACTION_EPOCHS):
+                           extraction_epochs=EXTRACTION_EPOCHS,
+                           free_coefficients=False,
+                           coeff_consistency_weight=0.0,
+                           optimizer_type='lbfgs',
+                           verify_weight=1.0,
+                           finetune_activation=None,
+                           lr_schedule='constant',
+                           save_per_config=False):
     """Run Experiment B across rank × step count grid."""
     from experiments.run_experiment_b import run_single_config
 
@@ -97,10 +104,17 @@ def run_experiment_b_sweep(ranks=None, steps=None, seed=42, device='cpu',
     steps = steps or STEP_SWEEP
 
     results_list = []
-    csv_path = os.path.join(RESULTS_DIR, f'experiment_b_sweep_{datetime.now():%Y%m%d_%H%M%S}.csv')
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    act_tag = f"_{finetune_activation}" if finetune_activation else ""
+    csv_path = os.path.join(RESULTS_DIR, f'experiment_b_sweep{act_tag}_{ts}.csv')
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
     print(f"=== Experiment B Sweep: {len(ranks)} ranks × {len(steps)} step counts ===")
+    if finetune_activation:
+        print(f"  Activation: {finetune_activation}")
+    if free_coefficients:
+        print(f"  Free-coefficient mode, consistency_weight={coeff_consistency_weight}")
+    print(f"  Optimizer: {optimizer_type}, LR schedule: {lr_schedule}")
 
     for n_steps in steps:
         for rank in [None] + ranks:  # None = full model baseline
@@ -111,6 +125,12 @@ def run_experiment_b_sweep(ranks=None, steps=None, seed=42, device='cpu',
                     n_steps=n_steps, rank=rank, n_per_class=1, seed=seed,
                     run_baseline=(rank is None or rank == ranks[0]),
                     extraction_epochs=extraction_epochs,
+                    free_coefficients=free_coefficients,
+                    coeff_consistency_weight=coeff_consistency_weight,
+                    optimizer_type=optimizer_type,
+                    verify_weight=verify_weight,
+                    finetune_activation=finetune_activation,
+                    lr_schedule=lr_schedule,
                     device=device, verbose=True,
                 )
 
@@ -118,6 +138,9 @@ def run_experiment_b_sweep(ranks=None, steps=None, seed=42, device='cpu',
                     'n_steps': n_steps,
                     'rank': rank if rank is not None else 'full',
                     'seed': seed,
+                    'activation': finetune_activation or 'relu',
+                    'optimizer': optimizer_type,
+                    'lr_schedule': lr_schedule,
                 }
 
                 if 'full_metrics' in results:
@@ -133,11 +156,30 @@ def run_experiment_b_sweep(ranks=None, steps=None, seed=42, device='cpu',
                     row['feature_stability'] = results['full_diagnostics'].get('feature_stability', None)
                     row['coefficient_drift'] = results['full_diagnostics'].get('coefficient_drift', None)
 
+                # Linearization error (Sprint 2b)
+                if 'full_linearization_error' in results:
+                    row['full_linearization_error'] = results['full_linearization_error']
+                if 'lora_linearization_error' in results:
+                    row['lora_linearization_error'] = results['lora_linearization_error']
+
                 if 'control_metrics' in results:
                     row['control_ssim'] = results['control_metrics'].get('ssim', None)
                     row['control_dssim'] = results['control_metrics'].get('dssim', None)
 
                 results_list.append(row)
+
+                # Save per-config .pth if requested
+                if save_per_config:
+                    rk_str = f"r{rank}" if rank is not None else "full"
+                    pth_name = f"sprint2b_T{n_steps}_{rk_str}{act_tag}_{ts}.pth"
+                    pth_path = os.path.join(RESULTS_DIR, pth_name)
+                    save_dict = {}
+                    for k in ['x_recon_full', 'x_recon_lora', 'x_train', 'ds_mean',
+                              'full_metrics', 'lora_metrics']:
+                        if k in results:
+                            v = results[k]
+                            save_dict[k] = v.cpu() if hasattr(v, 'cpu') else v
+                    torch.save(save_dict, pth_path)
 
             except Exception as e:
                 print(f"  FAILED: {e}")
@@ -160,16 +202,23 @@ def run_experiment_b_sweep(ranks=None, steps=None, seed=42, device='cpu',
 
 
 if __name__ == '__main__':
+    from experiments.configs import get_device
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--experiment', choices=['a', 'b', 'both'], default='both')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--extraction_epochs', type=int, default=EXTRACTION_EPOCHS)
+    parser.add_argument('--device', type=str, default=None, help='cpu/cuda/mps (auto-detect if omitted)')
     args = parser.parse_args()
 
+    device = args.device or get_device()
+    print(f"Using device: {device}")
     torch.set_default_dtype(torch.float64)
 
     if args.experiment in ('a', 'both'):
-        run_experiment_a_sweep(seed=args.seed, extraction_epochs=args.extraction_epochs)
+        run_experiment_a_sweep(seed=args.seed, device=device,
+                               extraction_epochs=args.extraction_epochs)
 
     if args.experiment in ('b', 'both'):
-        run_experiment_b_sweep(seed=args.seed, extraction_epochs=args.extraction_epochs)
+        run_experiment_b_sweep(seed=args.seed, device=device,
+                               extraction_epochs=args.extraction_epochs)

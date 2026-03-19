@@ -1,0 +1,57 @@
+Device: cuda
+Training digits: [6, 7], n_steps=1, rank=8
+
+--- Full model, T=1 steps ---
+  NTK diag: weight_change=0.000215, feature_cos=0.391375, coeff_drift=0.000251
+  NTK extraction epoch 0: ntk=1.5816e-05 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=1.5815e-05 verify=0.0000e+00
+  NTK extraction epoch 2000: ntk=1.5814e-05 verify=0.0000e+00
+  NTK extraction epoch 3000: ntk=1.5813e-05 verify=0.0000e+00
+  NTK extraction epoch 4000: ntk=1.5812e-05 verify=0.0000e+00
+  NTK extraction epoch 5000: ntk=1.5811e-05 verify=0.0000e+00
+  NTK extraction epoch 6000: ntk=1.5809e-05 verify=0.0000e+00
+  NTK extraction epoch 7000: ntk=1.5808e-05 verify=0.0000e+00
+  NTK extraction epoch 8000: ntk=1.5807e-05 verify=0.0000e+00
+  NTK extraction epoch 9000: ntk=1.5805e-05 verify=0.0000e+00
+  NTK extraction epoch 10000: ntk=1.5804e-05 verify=0.0000e+00
+  NTK extraction epoch 11000: ntk=1.5803e-05 verify=0.0000e+00
+  NTK extraction epoch 12000: ntk=1.5801e-05 verify=0.0000e+00
+  NTK extraction epoch 13000: ntk=1.5800e-05 verify=0.0000e+00
+  NTK extraction epoch 14000: ntk=1.5796e-05 verify=0.0000e+00
+  NTK extraction epoch 15000: ntk=1.5795e-05 verify=0.0000e+00
+  NTK extraction epoch 16000: ntk=1.5793e-05 verify=0.0000e+00
+  NTK extraction epoch 17000: ntk=1.5792e-05 verify=0.0000e+00
+  NTK extraction epoch 18000: ntk=1.5791e-05 verify=0.0000e+00
+  NTK extraction epoch 19000: ntk=1.5790e-05 verify=0.0000e+00
+  Full model reconstruction: SSIM=0.3496
+
+--- LoRA rank=8, T=1 steps ---
+  NTK extraction epoch 0: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 2000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 3000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 4000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 5000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 6000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 7000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 8000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 9000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 10000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 11000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 12000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 13000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 14000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 15000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 16000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 17000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 18000: ntk=1.9461e-04 verify=0.0000e+00
+  NTK extraction epoch 19000: ntk=1.9461e-04 verify=0.0000e+00
+  LoRA reconstruction: SSIM=0.3545
+
+=== EXPERIMENT B RESULTS (T=1) ===
+Full model (T=1): {'ssim': 0.3495555520057678, 'dssim': 0.3252221941947937, 'ncc': 1537.4093017578125, 'l2': 7.034814357757568}
+LoRA rank=8 (T=1): {'ssim': 0.35451266169548035, 'dssim': 0.32274365425109863, 'ncc': 1537.071044921875, 'l2': 7.032271862030029}
+NTK diagnostics: {'weight_change': 0.0002148597697464137, 'feature_stability': 0.39137467821586813, 'coefficient_drift': 0.0002506818128050342}
+Control: {'ssim': 0.18314701318740845, 'dssim': 0.4084264934062958, 'ncc': 1521.706787109375, 'l2': 8.41399097442627}
+
+Results saved to /home/projects/galvardi/yoado/results/experiment_b_t1.json

@@ -114,24 +114,25 @@ def get_control_images_in_distribution(training_digits, seed=99, root=None, devi
     rng = torch.Generator().manual_seed(seed)
     perm = torch.randperm(len(dataset), generator=rng)
 
-    x_list, y_list, digit_list = [], [], []
-    needed = {d: 1 for d in training_digits}  # one control per training digit
-    found = {d: 0 for d in training_digits}
+    # Collect one control per unique digit
+    unique_digits = set(training_digits)
+    digit_to_img = {}
 
     for idx in perm.tolist():
         img, digit = dataset[idx]
         digit = int(digit)
-        if digit in needed and found[digit] < needed[digit]:
-            found[digit] += 1
-            x_list.append(img)
-            y_list.append(_get_binary_label(digit))
-            digit_list.append(digit)
-        if all(found[d] >= needed[d] for d in needed):
+        if digit in unique_digits and digit not in digit_to_img:
+            digit_to_img[digit] = img
+        if len(digit_to_img) == len(unique_digits):
             break
+
+    # Return in the SAME ORDER as training_digits (critical for paired metrics)
+    x_list = [digit_to_img[d] for d in training_digits]
+    y_list = [_get_binary_label(d) for d in training_digits]
 
     x_control = torch.stack(x_list).to(torch.float64).to(device)
     y_control = torch.tensor(y_list, dtype=torch.float64, device=device)
-    return x_control, y_control, digit_list
+    return x_control, y_control, list(training_digits)
 
 
 def get_control_images_ood(training_digits, seed=99, root=None, device='cpu'):

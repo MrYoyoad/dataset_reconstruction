@@ -1,0 +1,61 @@
+activation,coeff_init,coeff_sign_weight,config_name,control_ssim,error,full_coeff_error,full_ssim,lora_coeff_error,lora_ssim,loss_type,min_coeff,n_per_class,n_steps,rank,seed,task
+leaky_relu,zeros,0.0,baseline,0.6926798224449158,,6.689093723366568e-15,0.9999916553497314,,,l2,0.0,1,1,,42,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.6367954015731812,,,,0.022292351991587966,0.8302084803581238,l2,0.0,1,1,8,42,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,7,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.3184922933578491,,,,0.2360439423097754,0.527492880821228,l2,0.0,1,1,8,7,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,123,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.40047550201416016,,,,0.25235491516276504,0.5469100475311279,l2,0.0,1,1,8,123,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,999,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.3938175141811371,,,,0.2661907291365066,0.5157309174537659,l2,0.0,1,1,8,999,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,2026,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.37685832381248474,,,,0.24039443486883436,0.5267879962921143,l2,0.0,1,1,8,2026,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,1,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.3969815969467163,,,,0.24697216328600363,0.5632339715957642,l2,0.0,1,1,8,1,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,13,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.359233021736145,,,,0.2299747154977858,0.5688049793243408,l2,0.0,1,1,8,13,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,37,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.3984982967376709,,,,0.23529806550054197,0.5401051044464111,l2,0.0,1,1,8,37,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,77,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.3489222526550293,,,,0.24898599089783657,0.4966023564338684,l2,0.0,1,1,8,77,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,256,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.41456684470176697,,,,0.2552264662336125,0.5858572721481323,l2,0.0,1,1,8,256,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,314,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.39281368255615234,,,,0.2326467578163784,0.5628264546394348,l2,0.0,1,1,8,314,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,500,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.4456055462360382,,,,0.2288135619123641,0.5465039014816284,l2,0.0,1,1,8,500,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,777,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.3417292535305023,,,,0.24066719218178723,0.515991747379303,l2,0.0,1,1,8,777,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,1234,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.41209614276885986,,,,0.2595048267921091,0.5483315587043762,l2,0.0,1,1,8,1234,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,2025,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.39705291390419006,,,,0.2496287746207238,0.5749578475952148,l2,0.0,1,1,8,2025,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,42,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.6367953419685364,,,,0.022292406167229967,0.8302083015441895,l2,0.0,1,1,8,42,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,7,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.3197897672653198,,,,0.23646641964741022,0.5288881063461304,l2,0.0,1,1,8,7,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,123,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.401896595954895,,,,0.253685373768043,0.5486228466033936,l2,0.0,1,1,8,123,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,999,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.3963332772254944,,,,0.26639517010474995,0.5182003974914551,l2,0.0,1,1,8,999,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,2026,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.3803211450576782,,,,0.23912859719732402,0.5306003093719482,l2,0.0,1,1,8,2026,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,1,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.39845454692840576,,,,0.24722951165136975,0.5646460056304932,l2,0.0,1,1,8,1,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,13,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.36099421977996826,,,,0.2299157247103141,0.5707560777664185,l2,0.0,1,1,8,13,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,37,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.399869441986084,,,,0.23489015447765765,0.5417181849479675,l2,0.0,1,1,8,37,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,77,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.35080835223197937,,,,0.2481289108493489,0.49873459339141846,l2,0.0,1,1,8,77,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,256,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.4163524806499481,,,,0.25617371456059385,0.5878093838691711,l2,0.0,1,1,8,256,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,314,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.39451149106025696,,,,0.23242129560742647,0.5645813345909119,l2,0.0,1,1,8,314,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,500,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.44755080342292786,,,,0.22853958233296004,0.5485515594482422,l2,0.0,1,1,8,500,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,777,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.34337082505226135,,,,0.241079289580595,0.5178191661834717,l2,0.0,1,1,8,777,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,1234,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.41496095061302185,,,,0.2580542011968855,0.5512329339981079,l2,0.0,1,1,8,1234,seed_fix_ablation
+,sign_aware,0.0,sign_init_only,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,2025,seed_fix_ablation
+leaky_relu,sign_aware,0.0,sign_init_only,0.3993043899536133,,,,0.24912503522655607,0.5772151947021484,l2,0.0,1,1,8,2025,seed_fix_ablation

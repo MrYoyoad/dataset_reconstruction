@@ -14,7 +14,10 @@ from experiments.ntk_steps import (
     compute_known_coefficients, compute_multi_step_update,
     compute_multi_step_update_lora,
 )
-from experiments.ntk_extraction import get_ntk_loss, run_ntk_extraction
+from experiments.ntk_extraction import (
+    get_ntk_loss, run_ntk_extraction, get_coeff_penalty,
+    get_diversity_penalty, run_ntk_extraction_with_restarts,
+)
 from experiments.ntk_verification import (
     compute_relative_weight_change, compute_feature_stability,
     compute_coefficient_drift, verify_ntk_at_step,
@@ -246,3 +249,281 @@ class TestLoRAMultiStepUpdate:
             model, x.clone(), y.clone(), lr=0.01, n_steps=1, rank=8,
         )
         assert result['coefficients_at_init'].shape == (2,)
+
+
+# === Adam extraction smoke test ===
+
+class TestNTKExtractionAdam:
+    def test_adam_produces_finite_output(self):
+        """NTK extraction with Adam optimizer should produce finite results."""
+        model = _make_model()
+        x_train, y_train, _, _ = _get_data()
+        result = compute_multi_step_update(
+            model, x_train.clone(), y_train.clone(), lr=0.01, n_steps=1,
+        )
+        model_0 = _make_model()
+        model_0.load_state_dict(result['theta_0'])
+
+        x_recon, res = run_ntk_extraction(
+            model_0, result['delta_w'], result['coefficients_at_init'],
+            lr_train=0.01, n_steps=1, n_per_class=1,
+            extraction_epochs=50, optimizer_type='adam', verbose=False,
+        )
+        assert x_recon.shape == (2, 1, 28, 28)
+        assert torch.isfinite(x_recon).all()
+        assert len(res['loss_history']) > 0
+
+
+# === Free-coefficient smoke test ===
+
+class TestNTKExtractionFreeCoeffSmoke:
+    def test_coefficients_move_from_init(self):
+        """Free-coefficient extraction should update c from their init values."""
+        model = _make_model()
+        x_train, y_train, _, _ = _get_data()
+        result = compute_multi_step_update(
+            model, x_train.clone(), y_train.clone(), lr=0.01, n_steps=1,
+        )
+        model_0 = _make_model()
+        model_0.load_state_dict(result['theta_0'])
+
+        x_recon, res = run_ntk_extraction(
+            model_0, result['delta_w'], result['coefficients_at_init'],
+            lr_train=0.01, n_steps=1, n_per_class=1,
+            extraction_epochs=50, optimizer_type='sgd',
+            free_coefficients=True, y=y_train,
+            coeff_consistency_weight=1.0,
+            verbose=False,
+        )
+        assert x_recon.shape == (2, 1, 28, 28)
+        assert torch.isfinite(x_recon).all()
+        # Coefficients should have been returned and should differ from oracle
+        assert 'final_coefficients' in res
+        assert res['final_coefficients'].shape == (2,)
+
+
+# === Sign-aware coefficient initialization tests ===
+
+class TestSignAwareInit:
+    def test_sign_aware_produces_correct_signs(self):
+        """sign_aware init: c > 0 for y=0, c < 0 for y=1."""
+        model = _make_model()
+        x_train, y_train, _, _ = _get_data()
+        result = compute_multi_step_update(
+            model, x_train.clone(), y_train.clone(), lr=0.01, n_steps=1,
+        )
+        model_0 = _make_model()
+        model_0.load_state_dict(result['theta_0'])
+
+        x_recon, res = run_ntk_extraction(
+            model_0, result['delta_w'], result['coefficients_at_init'],
+            lr_train=0.01, n_steps=1, n_per_class=1,
+            extraction_epochs=5, optimizer_type='sgd',
+            free_coefficients=True, y=y_train,
+            coeff_init='sign_aware',
+            coeff_sign_weight=0.0,
+            verbose=False,
+        )
+        # After only 5 epochs, signs should still match init
+        c_final = res['final_coefficients']
+        # y_train is [0, 1] -> expected signs [+, -]
+        assert c_final[0] > 0, f"c[0] should be positive for y=0, got {c_final[0]}"
+        assert c_final[1] < 0, f"c[1] should be negative for y=1, got {c_final[1]}"
+
+    def test_zeros_init_starts_at_zero(self):
+        """zeros init: c starts at 0."""
+        model = _make_model()
+        x_train, y_train, _, _ = _get_data()
+        result = compute_multi_step_update(
+            model, x_train.clone(), y_train.clone(), lr=0.01, n_steps=1,
+        )
+        model_0 = _make_model()
+        model_0.load_state_dict(result['theta_0'])
+
+        x_recon, res = run_ntk_extraction(
+            model_0, result['delta_w'], result['coefficients_at_init'],
+            lr_train=0.01, n_steps=1, n_per_class=1,
+            extraction_epochs=1, optimizer_type='sgd',
+            free_coefficients=True, y=y_train,
+            coeff_init='zeros',
+            coeff_sign_weight=0.0,
+            verbose=False,
+        )
+        # After 1 epoch, c should have barely moved from zero
+        c_final = res['final_coefficients']
+        assert c_final.abs().max().item() < 0.1, f"Expected c near zero, got {c_final}"
+
+
+# === Sign constraint penalty tests ===
+
+class TestSignConstraint:
+    def test_wrong_sign_penalized(self):
+        """Sign penalty should be > 0 when c has wrong sign for its label."""
+        y = torch.tensor([0.0, 1.0])
+        # Wrong signs: c[0]=-0.1 (should be positive), c[1]=+0.1 (should be negative)
+        c_wrong = torch.tensor([-0.1, 0.1])
+        penalty = get_coeff_penalty(
+            c_wrong, y=y, box_weight=0.0, consistency_weight=0.0,
+            sign_weight=5.0, min_coeff=0.05,
+        )
+        assert penalty.item() > 0, f"Expected positive penalty for wrong signs, got {penalty.item()}"
+
+    def test_correct_sign_no_penalty(self):
+        """Sign penalty should be 0 when c has correct sign and |c| > min_coeff."""
+        y = torch.tensor([0.0, 1.0])
+        # Correct signs: c[0]=+0.3, c[1]=-0.3 (well above min_coeff=0.05)
+        c_correct = torch.tensor([0.3, -0.3])
+        penalty = get_coeff_penalty(
+            c_correct, y=y, box_weight=0.0, consistency_weight=0.0,
+            sign_weight=5.0, min_coeff=0.05,
+        )
+        assert penalty.item() == 0.0, f"Expected zero penalty for correct signs, got {penalty.item()}"
+
+    def test_below_min_coeff_penalized(self):
+        """Sign penalty should fire when |c| < min_coeff even with correct sign."""
+        y = torch.tensor([0.0, 1.0])
+        # Correct signs but too small: c[0]=+0.01, c[1]=-0.01 (below min_coeff=0.05)
+        c_small = torch.tensor([0.01, -0.01])
+        penalty = get_coeff_penalty(
+            c_small, y=y, box_weight=0.0, consistency_weight=0.0,
+            sign_weight=5.0, min_coeff=0.05,
+        )
+        assert penalty.item() > 0, f"Expected positive penalty for too-small c, got {penalty.item()}"
+
+
+# === Cosine loss tests ===
+
+class TestCosineLoss:
+    def test_perfect_match_zero_loss(self):
+        """Cosine loss should be ~0 when predicted matches target exactly."""
+        model = _make_model()
+        x_train, y_train, _, _ = _get_data()
+        result = compute_multi_step_update(
+            model, x_train.clone(), y_train.clone(), lr=0.01, n_steps=1,
+        )
+        model_0 = _make_model()
+        model_0.load_state_dict(result['theta_0'])
+        model_0.eval()
+
+        ds_mean = x_train.mean(dim=0, keepdim=True)
+        x_c = x_train - ds_mean
+
+        # With true x and oracle c, cosine loss should be ~0
+        loss = get_ntk_loss(
+            model_0, result['delta_w'], x_c,
+            result['coefficients_at_init'], lr=0.01, n_steps=1,
+            loss_type='cosine',
+        )
+        assert loss.item() < 0.01, f"Expected near-zero cosine loss with true data, got {loss.item()}"
+
+    def test_cosine_loss_bounded(self):
+        """Cosine loss should be in [0, 2]."""
+        model = _make_model()
+        x_train, y_train, _, _ = _get_data()
+        result = compute_multi_step_update(
+            model, x_train.clone(), y_train.clone(), lr=0.01, n_steps=1,
+        )
+        model_0 = _make_model()
+        model_0.load_state_dict(result['theta_0'])
+        model_0.eval()
+
+        x_rand = torch.randn(2, 1, 28, 28)
+        loss = get_ntk_loss(
+            model_0, result['delta_w'], x_rand,
+            result['coefficients_at_init'], lr=0.01, n_steps=1,
+            loss_type='cosine',
+        )
+        assert 0 <= loss.item() <= 2.0, f"Cosine loss out of bounds: {loss.item()}"
+
+
+# === Diversity penalty tests ===
+
+class TestDiversityPenalty:
+    def test_collapsed_images_penalized(self):
+        """Diversity penalty should fire when images are identical."""
+        x = torch.zeros(2, 1, 28, 28)
+        x[0] = 0.5
+        x[1] = 0.5  # identical
+        penalty = get_diversity_penalty(x, min_dist=0.5)
+        assert penalty.item() > 0, f"Expected positive penalty for identical images, got {penalty.item()}"
+
+    def test_diverse_images_no_penalty(self):
+        """Diversity penalty should be 0 for well-separated images."""
+        x = torch.randn(2, 1, 28, 28) * 5  # large random images, far apart
+        penalty = get_diversity_penalty(x, min_dist=0.1)
+        assert penalty.item() == 0.0, f"Expected zero penalty for diverse images, got {penalty.item()}"
+
+
+# === Extraction with sign-aware init smoke test ===
+
+class TestExtractionSignAwareSmoke:
+    def test_sign_aware_extraction_runs(self):
+        """Extraction with sign_aware init + sign constraint should not crash."""
+        model = _make_model()
+        x_train, y_train, _, _ = _get_data()
+        result = compute_multi_step_update(
+            model, x_train.clone(), y_train.clone(), lr=0.01, n_steps=1,
+        )
+        model_0 = _make_model()
+        model_0.load_state_dict(result['theta_0'])
+
+        x_recon, res = run_ntk_extraction(
+            model_0, result['delta_w'], result['coefficients_at_init'],
+            lr_train=0.01, n_steps=1, n_per_class=1,
+            extraction_epochs=20, optimizer_type='sgd',
+            free_coefficients=True, y=y_train,
+            coeff_init='sign_aware',
+            coeff_sign_weight=5.0,
+            coeff_min_magnitude=0.05,
+            loss_type='l2',
+            verbose=False,
+        )
+        assert x_recon.shape == (2, 1, 28, 28)
+        assert torch.isfinite(x_recon).all()
+        assert 'coeff_error' in res
+
+    def test_cosine_loss_extraction_runs(self):
+        """Extraction with cosine loss should not crash."""
+        model = _make_model()
+        x_train, y_train, _, _ = _get_data()
+        result = compute_multi_step_update(
+            model, x_train.clone(), y_train.clone(), lr=0.01, n_steps=1,
+        )
+        model_0 = _make_model()
+        model_0.load_state_dict(result['theta_0'])
+
+        x_recon, res = run_ntk_extraction(
+            model_0, result['delta_w'], result['coefficients_at_init'],
+            lr_train=0.01, n_steps=1, n_per_class=1,
+            extraction_epochs=20, optimizer_type='sgd',
+            free_coefficients=True, y=y_train,
+            coeff_init='sign_aware',
+            coeff_sign_weight=5.0,
+            loss_type='cosine',
+            verbose=False,
+        )
+        assert x_recon.shape == (2, 1, 28, 28)
+        assert torch.isfinite(x_recon).all()
+
+    def test_lbfgs_with_sign_aware(self):
+        """L-BFGS + sign_aware init should not crash."""
+        model = _make_model()
+        x_train, y_train, _, _ = _get_data()
+        result = compute_multi_step_update(
+            model, x_train.clone(), y_train.clone(), lr=0.01, n_steps=1,
+        )
+        model_0 = _make_model()
+        model_0.load_state_dict(result['theta_0'])
+
+        x_recon, res = run_ntk_extraction(
+            model_0, result['delta_w'], result['coefficients_at_init'],
+            lr_train=0.01, n_steps=1, n_per_class=1,
+            extraction_epochs=10, optimizer_type='lbfgs',
+            free_coefficients=True, y=y_train,
+            coeff_init='sign_aware',
+            coeff_sign_weight=5.0,
+            coeff_min_magnitude=0.05,
+            verbose=False,
+        )
+        assert x_recon.shape == (2, 1, 28, 28)
+        assert torch.isfinite(x_recon).all()

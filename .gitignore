@@ -1,4 +1,8 @@
-# === Python ===
+# ============================================================
+# Top-level .gitignore for Thesis repo
+# ============================================================
+
+# --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
@@ -9,58 +13,97 @@ dist/
 build/
 .eggs/
 
-# === Environments ===
+# --- Environments ---
 .env
 .venv
 env/
 venv/
 
-# === LaTeX build artifacts ===
-*.aux
-*.log
-*.out
-*.toc
-*.bbl
-*.blg
-*.fdb_latexmk
-*.fls
-*.synctex.gz
-
-# === Jupyter ===
-.ipynb_checkpoints/
-
-# === macOS ===
-.DS_Store
-*.dmg
-
-# === IDE ===
+# --- IDE ---
 .idea/
 .vscode/
+.vscode-server/
 *.swp
 *.swo
 
-# === W&B ===
-wandb/
+# --- Jupyter ---
+.ipynb_checkpoints/
 
-# === pytest ===
+# --- macOS ---
+.DS_Store
+
+# --- Data files (large, downloaded at runtime) ---
+data/
+datasets/
+dataset_reconstruction/data/
+
+# --- Model weights (large binary files) ---
+models/*.pth
+dataset_reconstruction/models/*.pth
+dataset_reconstruction/models/*.pt
+results/*.pth
+
+# --- Dataset reconstruction artifacts ---
+dataset_reconstruction/reconstructions/*.pt
+dataset_reconstruction/reconstructions/*.png
+dataset_reconstruction/Miniforge3-*.sh
+
+# --- WEXAC job logs (ephemeral cluster output) ---
+*.err
+*.out
+exp_*_gpu_err.txt
+exp_*_gpu_out.txt
+exp_*_log.txt
+rank_sweep_*.txt
+wexac_jupyter_info.txt
+wexac_jupyter_log.txt
+wexac_gpu_jupyter.sh
+wexac_bsub_out.txt
+wexac_bsub_err.txt
+wexac_gpu_mode.txt
+
+# --- Claude Code workspace (local state, not shared) ---
+.claude/
+.claude.json
+.claude.json.backup
+
+# --- Git credentials (NEVER commit) ---
+.git-credentials
+
+# --- System / user home dotfiles ---
+.bash_history
+.bash_logout
+.bash_profile
+.bashrc
+.conda/
+.cache/
+.config/
+.dotnet/
+.ipython/
+.jupyter/
+.local/
+.nv/
+.ssh/
+.wexac_jlab/
+
+# --- Misc binaries ---
+code
+vscode_cli.tar.gz
+*.tar.gz
+
+# --- Empty dirs ---
+envs/
+
+# --- Test/coverage ---
 .pytest_cache/
 .coverage
 htmlcov/
+.tox/
+.nox/
 
-# === Large binary outputs ===
-results/**/*.pth
-results/**/*.pt
+# --- Papers (PDFs tracked selectively — see papers/) ---
+# Large PDFs in dataset_reconstruction/ are not tracked
+dataset_reconstruction/THE_PAPER.pdf
 
-# === Claude Code (user-specific config) ===
-.claude/
-
-# === dataset_reconstruction specific ===
-dataset_reconstruction/data/
-dataset_reconstruction/runs/
-dataset_reconstruction/settings.py
-dataset_reconstruction/Miniforge3-*.sh
-dataset_reconstruction/wexac_jupyter_info.txt
-dataset_reconstruction/wexac_jupyter_log.txt
-dataset_reconstruction/wexac_gpu_jupyter.sh
-dataset_reconstruction/wexac_bsub_out.txt
-dataset_reconstruction/wexac_bsub_err.txt
+# --- WandB ---
+wandb/

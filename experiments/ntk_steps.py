@@ -5,8 +5,43 @@ and extract the known coefficients c_i = (σ(f(θ₀; x_i)) - y_i) / N.
 """
 
 import copy
+import math
 import torch
 import torch.nn.functional as F
+
+
+WARMUP_FRACTION = 0.1  # 10% warmup, matching HuggingFace default
+
+
+def get_step_lr(lr, step, n_steps, schedule):
+    """Compute per-step learning rate for a given schedule.
+
+    Args:
+        lr: base (peak) learning rate
+        step: current step index (0-based)
+        n_steps: total number of steps
+        schedule: one of 'constant', 'cosine', 'linear', 'cosine_warmup'
+
+    Returns:
+        learning rate for this step
+    """
+    if schedule == 'constant':
+        return lr
+    elif schedule == 'cosine':
+        return lr * 0.5 * (1 + math.cos(math.pi * step / max(n_steps, 1)))
+    elif schedule == 'linear':
+        return lr * (1 - step / max(n_steps, 1))
+    elif schedule == 'cosine_warmup':
+        if n_steps <= 1:
+            return lr  # no warmup possible with 1 step
+        warmup_steps = max(1, int(n_steps * WARMUP_FRACTION))
+        if step < warmup_steps:
+            return lr * (step + 1) / (warmup_steps + 1)
+        else:
+            progress = (step - warmup_steps) / max(n_steps - warmup_steps, 1)
+            return lr * 0.5 * (1 + math.cos(math.pi * progress))
+    else:
+        return lr
 
 
 def compute_known_coefficients(model, x, y):
@@ -34,16 +69,54 @@ def compute_known_coefficients(model, x, y):
     return coefficients
 
 
-def compute_multi_step_update(model, x, y, lr, n_steps, reduce_mean=True):
-    """Take n_steps full-batch SGD steps and compute the weight change.
+FINETUNE_OPTIMIZER_CHOICES = ['sgd', 'adamw']
+
+
+def _make_finetune_optimizer(params, lr, finetune_optimizer='sgd',
+                              weight_decay=0.01):
+    """Create the optimizer used for the fine-tuning (forward) step.
+
+    Args:
+        params: iterable of parameters to optimize
+        lr: learning rate
+        finetune_optimizer: 'sgd' or 'adamw'
+        weight_decay: weight decay for AdamW (ignored for SGD)
+
+    Returns:
+        torch.optim.Optimizer
+    """
+    if finetune_optimizer == 'sgd':
+        return torch.optim.SGD(params, lr=lr)
+    elif finetune_optimizer == 'adamw':
+        return torch.optim.AdamW(params, lr=lr, weight_decay=weight_decay)
+    else:
+        raise ValueError(f"Unknown finetune_optimizer: {finetune_optimizer}. "
+                         f"Choose from {FINETUNE_OPTIMIZER_CHOICES}")
+
+
+def compute_multi_step_update(model, x, y, lr, n_steps, reduce_mean=True,
+                               activation_name=None, relu_alpha=None,
+                               lr_schedule='constant',
+                               finetune_optimizer='sgd',
+                               weight_decay=0.01):
+    """Take n_steps full-batch gradient steps and compute the weight change.
 
     Args:
         model: NeuralNetwork (will be modified in-place)
         x: [N, C, H, W] training data
         y: [N] binary labels
-        lr: learning rate
+        lr: learning rate (base LR; for decaying schedules, this is the peak LR)
         n_steps: number of gradient steps
         reduce_mean: whether to subtract dataset mean
+        activation_name: if provided, swap model activation before training.
+            One of 'relu', 'leaky_relu', 'modified_relu'.
+        relu_alpha: alpha for ModifiedRelu (only used if activation_name='modified_relu')
+        lr_schedule: one of 'constant', 'cosine', 'linear', 'cosine_warmup'.
+            See get_step_lr() for formulas.
+        finetune_optimizer: 'sgd' (default) or 'adamw'. Controls which optimizer
+            is used for the fine-tuning step. SGD is required by implicit bias
+            theory; AdamW tests generalization to real-world LoRA practice.
+        weight_decay: weight decay for AdamW (default 0.01, ignored for SGD).
 
     Returns:
         dict with:
@@ -54,6 +127,10 @@ def compute_multi_step_update(model, x, y, lr, n_steps, reduce_mean=True):
             'ds_mean': dataset mean (or None)
             'loss_history': list of loss values per step
     """
+    # Optionally swap activation for ablation
+    if activation_name is not None:
+        from experiments.run_experiment_b import make_activation
+        model.activation = make_activation(activation_name, relu_alpha or 149.87)
     # Mean subtraction
     ds_mean = None
     if reduce_mean:
@@ -66,12 +143,19 @@ def compute_multi_step_update(model, x, y, lr, n_steps, reduce_mean=True):
     # Compute coefficients at init
     coefficients_at_init = compute_known_coefficients(model, x, y)
 
-    # Run T steps of full-batch SGD
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+    # Run T steps of full-batch optimization
+    optimizer = _make_finetune_optimizer(model.parameters(), lr,
+                                         finetune_optimizer, weight_decay)
     loss_history = []
 
     model.train()
     for step in range(n_steps):
+        # Per-step LR scheduling
+        if lr_schedule != 'constant':
+            step_lr = get_step_lr(lr, step, n_steps, lr_schedule)
+            for pg in optimizer.param_groups:
+                pg['lr'] = step_lr
+
         logits = model(x).view(-1)
         loss = F.binary_cross_entropy_with_logits(logits, y)
 
@@ -100,12 +184,27 @@ def compute_multi_step_update(model, x, y, lr, n_steps, reduce_mean=True):
 
 
 def compute_multi_step_update_lora(model, x, y, lr, n_steps, rank=8,
-                                    alpha=None, reduce_mean=True):
+                                    alpha=None, reduce_mean=True,
+                                    activation_name=None, relu_alpha=None,
+                                    lr_schedule='constant',
+                                    finetune_optimizer='sgd',
+                                    weight_decay=0.01):
     """Same as compute_multi_step_update but trains only LoRA parameters.
 
     Returns the same dict plus the composed delta_w (effective weight change
     from LoRA composition).
+
+    Args:
+        lr_schedule: one of 'constant', 'cosine', 'linear', 'cosine_warmup'.
+            See get_step_lr() for formulas.
+        finetune_optimizer: 'sgd' (default) or 'adamw'. Controls which optimizer
+            is used for the fine-tuning step.
+        weight_decay: weight decay for AdamW (default 0.01, ignored for SGD).
     """
+    # Optionally swap activation for ablation
+    if activation_name is not None:
+        from experiments.run_experiment_b import make_activation
+        model.activation = make_activation(activation_name, relu_alpha or 149.87)
     from experiments.lora_wrapper import apply_lora, compose_state_dict
 
     # Mean subtraction
@@ -120,15 +219,32 @@ def compute_multi_step_update_lora(model, x, y, lr, n_steps, rank=8,
     # Apply LoRA
     lora_params = apply_lora(model, rank=rank, alpha=alpha)
 
+    # Save B₀ matrices (at init) for optional projection in NTK loss.
+    # The LoRA update ΔW = B₀A₁ lives in the column space of B₀.
+    # Projecting the NTK loss into this subspace removes the irreducible
+    # residual from full-rank gradient components outside col(B₀).
+    from experiments.lora_wrapper import LoRALinear
+    lora_B0 = {}
+    for i, layer in enumerate(model.layers):
+        if isinstance(layer, LoRALinear):
+            lora_B0[f'layers.{i}.weight'] = layer.lora_B.data.clone()
+
     # Compute coefficients at init (LoRA starts at W₀ since A=0)
     coefficients_at_init = compute_known_coefficients(model, x, y)
 
-    # Run T steps of LoRA SGD
-    optimizer = torch.optim.SGD(lora_params, lr=lr)
+    # Run T steps of LoRA optimization
+    optimizer = _make_finetune_optimizer(lora_params, lr,
+                                         finetune_optimizer, weight_decay)
     loss_history = []
 
     model.train()
     for step in range(n_steps):
+        # Per-step LR scheduling
+        if lr_schedule != 'constant':
+            step_lr = get_step_lr(lr, step, n_steps, lr_schedule)
+            for pg in optimizer.param_groups:
+                pg['lr'] = step_lr
+
         logits = model(x).view(-1)
         loss = F.binary_cross_entropy_with_logits(logits, y)
 
@@ -154,4 +270,5 @@ def compute_multi_step_update_lora(model, x, y, lr, n_steps, rank=8,
         'coefficients_at_init': coefficients_at_init,
         'ds_mean': ds_mean,
         'loss_history': loss_history,
+        'lora_B0': lora_B0,
     }

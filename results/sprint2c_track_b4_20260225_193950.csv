@@ -1,0 +1,9 @@
+activation,control_ssim,error,full_n_sweep_losses,full_n_sweep_winner,full_ssim,lora_n_sweep_losses,lora_n_sweep_winner,lora_ssim,n_steps,optimizer,rank,seed,track
+leaky_relu,0.5820849537849426,,"{1: 6.108846137673499e-28, 2: 0.0009231575402876594, 3: 0.0008278939935389637, 4: 0.0010481472318055703, 5: 0.003518570128366876}",1,0.6089491844177246,,,,1,sgd,,42,B4
+leaky_relu,0.5987963676452637,,,,,"{1: 4.6920803612118105, 2: 4.694357718132588, 3: 4.694107807575235, 4: 4.692747921834444, 5: 4.694791124573946}",1,0.6798371076583862,1,sgd,8,42,B4
+,,"img1 and img2 shapes must be the same. Got: torch.Size([10, 1, 28, 28]) and torch.Size([2, 1, 28, 28])",,,,,,,5,,full,,B4
+leaky_relu,0.6099263429641724,,,,,"{1: 8.899761940255395, 2: 8.918285642094636, 3: 8.939217828467289, 4: 8.920667300189399, 5: 8.921382871962502}",1,0.7310391068458557,5,sgd,8,42,B4
+,,"img1 and img2 shapes must be the same. Got: torch.Size([10, 1, 28, 28]) and torch.Size([2, 1, 28, 28])",,,,,,,10,,full,,B4
+,,"img1 and img2 shapes must be the same. Got: torch.Size([4, 1, 28, 28]) and torch.Size([2, 1, 28, 28])",,,,,,,10,,8,,B4
+,,"img1 and img2 shapes must be the same. Got: torch.Size([10, 1, 28, 28]) and torch.Size([2, 1, 28, 28])",,,,,,,20,,full,,B4
+,,"img1 and img2 shapes must be the same. Got: torch.Size([4, 1, 28, 28]) and torch.Size([2, 1, 28, 28])",,,,,,,20,,8,,B4

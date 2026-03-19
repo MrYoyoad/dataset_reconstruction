@@ -1,0 +1,11 @@
+activation,coeff_init,coeff_sign_weight,config_name,control_ssim,error,full_coeff_error,full_ssim,lora_coeff_error,lora_ssim,loss_type,min_coeff,n_per_class,n_steps,rank,seed,task
+leaky_relu,zeros,0.0,baseline,0.6926798224449158,,6.689093723366568e-15,0.9999916553497314,,,l2,0.0,1,1,,42,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.6367954015731812,,,,0.022292351991587966,0.8302084803581238,l2,0.0,1,1,8,42,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,7,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.3184922933578491,,,,0.2360439423097754,0.527492880821228,l2,0.0,1,1,8,7,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,123,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.40047550201416016,,,,0.25235491516276504,0.5469100475311279,l2,0.0,1,1,8,123,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,999,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.3938175141811371,,,,0.2661907291365066,0.5157309174537659,l2,0.0,1,1,8,999,seed_fix_ablation
+,zeros,0.0,baseline,,Nothing to run: rank is None and run_baseline is False,,,,,l2,0.0,,,full,2026,seed_fix_ablation
+leaky_relu,zeros,0.0,baseline,0.37685832381248474,,,,0.24039443486883436,0.5267879962921143,l2,0.0,1,1,8,2026,seed_fix_ablation
