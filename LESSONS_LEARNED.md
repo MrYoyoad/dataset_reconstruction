@@ -7,20 +7,22 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 ## Infrastructure & Data Loss (2026-03-19)
 
 ### The Git Repo That Never Was
-On 2026-02-22, STATUS.md and CLAUDE.md were updated to claim the git root had been moved up to the thesis level. **This never actually happened.** Only `dataset_reconstruction/` had a `.git`. All thesis-level files (experiments, notes, figures, results, papers, custom commands) were untracked for a month. When something cleaned up old files, they were gone with no way to recover.
+The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the WEXAC working directory lost its connection to the remote. The `.git` was either deleted during a reprovisioning or never properly set up on WEXAC. The WEXAC copy had newer experiment code/results (Sprint 2+) that were never pushed, while GitHub had all the papers, notes, and figures.
 
-**What was lost:**
+**What was actually lost:**
 - All Claude Code conversation history from Jan 15 – Mar 18
-- 10 custom Claude Code skills
-- 3 reference papers (only on Mac, never synced to WEXAC)
-- 5+ generated figures
-- 4 notes/*.tex documents (GRADIENT_BRIDGE_PLAN.md, R2F_Guide, Inversion_Feasibility, Thesis_Direction)
+- 10 custom Claude Code skills (8 still need recreation)
+- Some generated figures not on GitHub (`multi_seed_analysis.png`, `sprint1_summary.png`, etc.)
+
+**What was recovered from GitHub:**
+- All 18 papers, 7 notes files, 4 figures, full experiment infrastructure
 
 **Lessons:**
-1. **Always verify git operations actually succeeded.** `git init` + `git add` + `git commit` — check `git status` after each. Don't update docs claiming it's done until you confirm.
-2. **Git is the only reliable persistence on WEXAC.** Home directories can be reprovisioned. If it's not committed, it doesn't exist.
-3. **Sync papers/notes from Mac to WEXAC immediately** — don't assume they're safe on one machine.
-4. **Claude Code conversation history is ephemeral.** Important findings must go into STATUS.md / LESSONS_LEARNED.md, not just conversation.
+1. **Always verify git operations actually succeeded.** `git init` + `git add` + `git commit` — check `git status` after each.
+2. **Push to GitHub after every significant commit.** The remote saved everything this time.
+3. **WEXAC home dirs can lose local state.** Untracked files are unprotected files.
+4. **Claude Code conversation history is ephemeral.** Important findings must go into STATUS.md / LESSONS_LEARNED.md.
+5. **Don't have nested .git repos.** `dataset_reconstruction/` having its own git caused confusion. The top-level repo now tracks it as regular files.
 
 ---
 

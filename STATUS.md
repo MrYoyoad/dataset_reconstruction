@@ -7,32 +7,25 @@ Last updated: **2026-03-19** (Recovery & reorganization after data loss)
 ## Recovery (2026-03-19)
 
 ### What Was Lost
-The top-level git repo was never actually initialized (claimed done 2026-02-22 but wasn't). All conversation history from Feb-Mar was lost. Many files referenced in docs were never synced to WEXAC or were lost:
+The WEXAC home directory lost its connection to the GitHub repo. Conversation history from Jan–Mar was lost. Claude Code custom skills were deleted.
 
-**Missing files (need sync from Mac `~/Documents/Weizmann/Thesis/`):**
-- `papers/NEWER_2025_Paper.pdf`
-- `papers/Gradient Bridge_ PEFT Privacy Attack.pdf`
-- `papers/Thesis Ideas_ LoRA, NTK, Reconstruction.pdf`
-- `notes/GRADIENT_BRIDGE_PLAN.md`
-- `notes/R2F_Guide.tex/.pdf`
-- `notes/Inversion_Feasibility_Analysis.tex/.pdf`
-- `notes/Thesis_Direction_Analysis.tex/.pdf`
-- `figures/parameters_as_function_of_epoch*.png` (3 files)
-- `figures/experiment_b_grid_r32.png`
-- `figures/rank_sweep_sprint1.png`
-- `figures/sprint1_summary.png`
-- `figures/multi_seed_analysis.png`
-- 10 custom Claude Code skills (`/review`, `/supervisor`, `/experiment`, `/debug`, `/figure`, `/paper`, `/write`, `/lesson`, `/status`, `/project-manager`)
+**Still missing:**
+- `figures/experiment_b_grid_r32.png`, `figures/rank_sweep_sprint1.png`, `figures/sprint1_summary.png`, `figures/multi_seed_analysis.png` (not on GitHub — may need regeneration from saved .pth tensors)
+- 10 custom Claude Code skills (8 still need recreation: `/review`, `/supervisor`, `/experiment`, `/debug`, `/figure`, `/paper`, `/write`, `/lesson`, `/status`)
+
+**Recovered from GitHub (`myfork/main`):**
+- All 18 papers in `papers/`
+- All 7 notes files (GRADIENT_BRIDGE_PLAN.md, R2F_Guide, Inversion_Feasibility, Thesis_Direction)
+- 4 figures (parameter_as_function_of_epoch variants)
+- Full git history (15 commits)
 
 **What was fixed (2026-03-19):**
-- Initialized top-level git repo at `/home/projects/galvardi/yoado/`
-- Created `.gitignore` with proper exclusions
-- Set up 3 remotes (myfork, origin, upstream)
-- Created `papers/` directory with THE_PAPER.pdf and README listing what to sync
-- Moved WEXAC log files from repo root to `scripts/wexac_logs/`
-- Moved WEXAC job scripts from repo root to `scripts/`
+- Rebased WEXAC state onto `myfork/main` history — all files restored
+- Added Sprint 2 results (87 CSVs), WEXAC scripts, new experiment code
+- Moved WEXAC job scripts to `scripts/`, logs to `scripts/wexac_logs/`
 - Recreated `/research` and `/project-manager` Claude Code commands
-- Updated CLAUDE.md to reflect actual state (Mac ↔ WEXAC sync, dual git repos)
+- Updated CLAUDE.md, STATUS.md, LESSONS_LEARNED.md
+- Pushed to `myfork` via SSH
 
 ---
 

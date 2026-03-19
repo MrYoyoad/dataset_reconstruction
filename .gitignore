@@ -107,3 +107,52 @@ dataset_reconstruction/THE_PAPER.pdf
 
 # --- WandB ---
 wandb/
+
+# --- Shared home dir junk (WEXAC artifacts from other users/projects) ---
+dataset_reconstruction/.*.clientCache.*
+dataset_reconstruction/.lsb*
+dataset_reconstruction/claude-*
+dataset_reconstruction/claude/
+dataset_reconstruction/cursor-*
+dataset_reconstruction/matlabls_*/
+dataset_reconstruction/python-languageserver-cancellation/
+dataset_reconstruction/vscode-ssh-auth-sock-*
+dataset_reconstruction/install-tl-*/
+dataset_reconstruction/*.mps
+dataset_reconstruction/lior/
+dataset_reconstruction/oxoG_test/
+dataset_reconstruction/generally_useful/
+
+# --- Other user's files that leaked into this dir ---
+dataset_reconstruction/ruth_thesis*
+dataset_reconstruction/*.R
+dataset_reconstruction/*.tsv
+dataset_reconstruction/*.pdb
+dataset_reconstruction/*.md
+dataset_reconstruction/gff
+dataset_reconstruction/gff3
+dataset_reconstruction/nextflow
+dataset_reconstruction/1
+dataset_reconstruction/2
+dataset_reconstruction/*.png
+dataset_reconstruction/*.jpg
+dataset_reconstruction/*.txt
+dataset_reconstruction/!dataset_reconstruction/README.md
+
+# --- LaTeX build artifacts ---
+notes/*.aux
+notes/*.log
+notes/*.out
+notes/*.pdf
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.bbl
+*.blg
+
+# --- Misc ---
+.python_history
+.wget-hsts
+Untitled.ipynb
+dataset_reconstruction/claude_permission_email_last_sent
+dataset_reconstruction/tmp_read_resource_*
