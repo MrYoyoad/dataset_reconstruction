@@ -64,6 +64,7 @@ wexac_gpu_mode.txt
 
 # --- Claude Code workspace (local state, not shared) ---
 .claude/
+!.claude/commands/
 .claude.json
 .claude.json.backup
 
