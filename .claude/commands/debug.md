@@ -1,5 +1,5 @@
 ---
-description: Debug experiment failures, code errors, or unexpected results
+description: Debug experiment failures, code errors, or unexpected results — systematic root cause analysis
 ---
 
 ## Recent changes
@@ -10,16 +10,25 @@ description: Debug experiment failures, code errors, or unexpected results
 $ARGUMENTS
 
 ## Process
-1. **Reproduce** — understand exactly what fails and how. Read error messages carefully.
-2. **Check the obvious** — wrong paths, missing files, device mismatch (CUDA vs MPS vs CPU), PyTorch version issues.
+1. **Reproduce** — understand exactly what fails. Read error messages word by word.
+2. **Check the obvious** — wrong paths, missing files, device mismatch, PyTorch version.
 3. **Read the code** — don't guess. Read the actual function that's failing.
-4. **Trace the data flow** — for reconstruction issues, check: model loading → weight shapes → KKT loss computation → gradient flow.
-5. **Test incrementally** — fix one thing at a time, verify each fix.
-6. **Document the fix** — log the root cause and fix in LESSONS_LEARNED.md if it's a non-obvious pitfall.
+4. **Form hypotheses** — list 2-3 possible causes ranked by likelihood.
+5. **Verify the top hypothesis** — add prints, check shapes, inspect tensors. One change at a time.
+6. **Apply the fix** — minimal change. Don't refactor surrounding code.
+
+## Solution tiers (from wshobson/smart-debug)
+- **Quick fix** — minimal patch to unblock, with risk assessment
+- **Proper fix** — correct long-term solution with tests
+- **Prevention** — what pattern/check would have caught this earlier?
 
 ## Common pitfalls in this project
-- PyTorch 1.11 (WEXAC) vs 2.2 (Mac) incompatibilities
-- `weights_only=True` crashes on WEXAC (use `torch.load(path, map_location=device)`)
+- PyTorch 1.11 (WEXAC) vs 2.2 (Mac) — `weights_only=True` crashes on WEXAC
+- dtype mismatch — extraction needs float64, not float32
+- Pre-trained vs random init confusion — always use pre-trained for NTK experiments
+- NaN from ReLU at high T — use LeakyReLU for multi-step
+- Device mismatches — tensors on different devices after model.to()
 - LoRA rank mismatch between config and saved weights
-- Device mismatches (tensors on different devices)
-- WEXAC conda env not activated (`conda activate rec`)
+
+## After fixing
+- Log non-obvious bugs in LESSONS_LEARNED.md

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: **2026-03-19** (Recovery & reorganization after data loss)
+Last updated: **2026-03-26**
 
 ---
 
@@ -10,8 +10,12 @@ Last updated: **2026-03-19** (Recovery & reorganization after data loss)
 The WEXAC home directory lost its connection to the GitHub repo. Conversation history from Jan–Mar was lost. Claude Code custom skills were deleted.
 
 **Still missing:**
-- `figures/experiment_b_grid_r32.png`, `figures/rank_sweep_sprint1.png`, `figures/sprint1_summary.png`, `figures/multi_seed_analysis.png` (not on GitHub — may need regeneration from saved .pth tensors)
-- 10 custom Claude Code skills (8 still need recreation: `/review`, `/supervisor`, `/experiment`, `/debug`, `/figure`, `/paper`, `/write`, `/lesson`, `/status`)
+- 3 custom Claude Code skills still need recreation: `/write`, `/lesson`, `/project-manager`
+- `multi_seed_analysis.png` was regenerated from a 15-seed run (original was 200-seed; would need re-running the 200-seed sweep to reproduce)
+
+**Recovered (2026-03-24):**
+- All 5 missing figures regenerated from saved .pth tensors: `experiment_b_grid_r32.png`, `rank_sweep_sprint1.png`, `sprint1_summary.png`, `multi_seed_analysis.png`, `t_sweep_examples.pdf`
+- 8 Claude Code commands recreated: `/review`, `/supervisor`, `/experiment`, `/debug`, `/figure`, `/paper`, `/research`, `/status`
 
 **Recovered from GitHub (`myfork/main`):**
 - All 18 papers in `papers/`
@@ -31,24 +35,33 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
-### Sprint 2c: KKT & NTK Reconstruction Ablations — PLANNED
+### Sprint 2c: KKT & NTK Reconstruction Ablations — MOSTLY DONE
 
-Comprehensive ablation study across two tracks. Code changes implemented, awaiting WEXAC submission.
+Comprehensive ablation study across two tracks. 148 configs completed, 2 tracks remaining + Phase 0.
 
-**Track A: Experiment A (KKT) — Fine-Tuning LR × N Sweep**
+**Track A: Experiment A (KKT) — Fine-Tuning LR × N Sweep — PENDING (resubmit)**
 - Testing whether Sprint 1's Experiment A failure was from wrong N (used N=2, correct is N≈502)
-- Also: lower fine-tuning LR + more epochs → better max-margin convergence
-- Grid: fine_tune_lr ∈ {0.001, 0.003, 0.01} × epochs ∈ {1M, 5M} × {full FT, LoRA r=8}
-- N sweep: extraction_n_per_class ∈ {1, 5, 10, 25, 50, 100, 250, 251} (N=502 = correct value)
-- 96 configs total
+- First attempt (job 691143) killed by timeout on short-gpu queue
+- Fix: new script `scripts/run_sprint2c_track_a_split.sh` uses long-gpu queue with 48h wall time
+- Grid: fine_tune_lr ∈ {0.001, 0.003, 0.01} × epochs ∈ {1M, 5M} × N sweep — 48 configs
 
 **Track B: Experiment B (NTK) — Ablations**
-- B1: Re-run killed Phase 3+4 (LR scheduling + warm-start) — 45 configs
-- B2: Loss ratio ablation (verify_weight ∈ {0.01, 0.1, 1.0, 10.0}) — 16 configs
-- B3: Optimizer × activation for LoRA (including Adam) — 22 configs
-- B4: N sweep (NTK) — 8 configs
+- B1: Phase 3+4 (LR scheduling + warm-start) — **DONE** (results in sprint2b_phase3/4 CSVs)
+- B2: Loss ratio ablation (verify_weight) — **DONE** (16 configs, results/sprint2c_track_b2_*.csv)
+- B3a: Optimizer × activation for LoRA — **DONE** (results/sprint2c_track_b3a_*.csv). Winner: **SGD + LeakyReLU** (SSIM 0.830 for both r=8 and r=32)
+- B3b: Scale best combo across T — **DONE** (SGD+LeakyReLU matches L-BFGS for T≤20, NaN at T=100)
+- B4: N sweep (NTK) — **DONE** (results/sprint2c_track_b4_*.csv)
+- B5-B8: Additional ablations — **DONE** (results in sprint2c_track_b5/b6/b7/b8 CSVs)
 
-Total: ~187 configs, ~74 GPU-hours. See plan at `.claude/plans/cheerful-munching-salamander.md`.
+### Phase 0: ViT Gradient Inversion Gate — PENDING
+
+Critical gate experiment: can gradient inversion reconstruct images from exact ViT-B/16 gradients?
+
+- **Phase 0**: Exact gradient inversion on ViT-B/16 (pretrained, CIFAR-10 sample). If SSIM < 0.5, all gradient-based directions are blocked.
+- **Phase 0b**: Noise tolerance sweep — add Gaussian noise to exact gradient, measure SSIM vs cosine similarity at {1.0, 0.99, 0.95, 0.90, 0.85, 0.80}. Determines accuracy requirement for gradient decoder.
+- Code: `experiments/phase0_vit_inversion.py`
+- Uses `rec` conda env (PyTorch 2.4.1 + timm 0.9.12 + peft 0.7.1)
+- WEXAC script: `scripts/run_phase0_wexac.sh`
 
 ### Sprint 2 Track 2: LoRA Free-Coefficient Extraction — IN PROGRESS
 
@@ -62,9 +75,9 @@ Total: ~187 configs, ~74 GPU-hours. See plan at `.claude/plans/cheerful-munching
 | 32   | 0.697       | 0.415       | 0.310       | 0.28 | Needs work |
 | 64   | 0.714       | 0.635       | 0.019       | 0.08 | Great |
 
-### Sprint 2b: Multi-Step NTK Sweep — Phases 0-2 DONE, Phases 3-4 pending
+### Sprint 2b: Multi-Step NTK Sweep — COMPLETE
 
-Phases 0-2 completed (WEXAC jobs 669864, 674627). Phases 3-4 killed by WEXAC scheduler — re-running as Sprint 2c Track B1.
+Phases 0-2 completed (WEXAC jobs 669864, 674627). Phases 3-4 completed as Sprint 2c Track B1.
 
 **Phase 0 (activation ablation):** LeakyReLU is dramatically more stable than ReLU at high T. Full model SSIM stays ~0.77-0.80 through T=100 vs ReLU collapsing/NaN'ing at T>=50.
 
@@ -72,7 +85,7 @@ Phases 0-2 completed (WEXAC jobs 669864, 674627). Phases 3-4 killed by WEXAC sch
 
 **Phase 2 (random restarts, LeakyReLU):** LoRA r=8 and r=32 nearly match full model (gap only 0.01-0.03) through T=100. Random restarts show low variance (~0.01).
 
-**Phase 3 (LR scaling)** and **Phase 4 (warm-start):** Not yet run.
+**Phase 3 (LR scaling)** and **Phase 4 (warm-start):** Completed as Sprint 2c Track B1.
 
 ### Few-Shot Threat Model Analysis — In Progress
 
@@ -230,7 +243,7 @@ Four plots in `figures/`:
 ├── papers/                        ← reference PDFs (1 present, 3 need sync from Mac)
 │   ├── THE_PAPER.pdf
 │   └── README.md                  ← lists what to sync
-├── figures/                       ← 2 files (5+ missing, need sync from Mac)
+├── figures/                       ← 9 files (all regenerated)
 ├── results/                       ← 87 files (.csv metrics + .pth tensors from sweeps)
 ├── notes/
 │   └── reconstruction_approaches.tex  ← catalog of approaches (March 2026)
@@ -324,17 +337,24 @@ After establishing rank threshold and NTK step-count analysis on FCN:
 - [x] **Phase 0**: Activation ablation (3 activations × 5 T values)
 - [x] **Phase 1**: SGD + free-c baseline (T × rank sweep)
 - [x] **Phase 2**: Random restarts
-- [ ] **Phase 3**: LR scaling with LeakyReLU
-- [ ] **Phase 4**: Progressive warm-start
+- [x] **Phase 3**: LR scaling with LeakyReLU — done as Sprint 2c B1
+- [x] **Phase 4**: Progressive warm-start — done as Sprint 2c B1
 - [ ] **Multi-seed validation** of LeakyReLU results (20-50 seeds)
 - [ ] **Per-image SSIM + nearest-neighbor matching** (instance vs class-level leakage)
 
 ### Sprint 2c: KKT & NTK Ablations
-- [ ] **Track A**: Experiment A fine-tuning LR × epochs × N sweep (96 configs)
-- [ ] **Track B1**: Complete Phase 3+4 (LR scheduling + warm-start) — 45 configs
-- [ ] **Track B2**: Loss ratio ablation (verify_weight) — 16 configs
-- [ ] **Track B3**: Optimizer × activation for LoRA (including Adam) — 22 configs
-- [ ] **Track B4**: N sweep (NTK) — 8 configs
+- [ ] **Track A**: Experiment A fine-tuning LR × epochs × N sweep (48 configs) — resubmit with long-gpu
+- [x] **Track B1**: Phase 3+4 (LR scheduling + warm-start) — DONE
+- [x] **Track B2**: Loss ratio ablation (verify_weight) — DONE (16 configs)
+- [x] **Track B3a**: Optimizer × activation for LoRA — DONE (winner: SGD + LeakyReLU, SSIM 0.830)
+- [x] **Track B3b**: Scale best combo across T — DONE (SGD+LeakyReLU ≡ L-BFGS for T≤20, NaN at T=100)
+- [x] **Track B4**: N sweep (NTK) — DONE
+- [x] **Track B5-B8**: Additional ablations — DONE
+
+### Phase 0: ViT Gradient Inversion
+- [x] ~~**Setup phase0 conda env**~~ — not needed, `rec` env has timm+peft
+- [ ] **Phase 0**: Exact gradient inversion on ViT-B/16 — gate experiment
+- [ ] **Phase 0b**: Noise tolerance sweep — decoder accuracy requirements
 
 ### Research Backlog
 - [ ] **Design better image-domain prior loss** — current NTK extraction only uses pixel box constraint (x ∈ [-1,1]). Ideas: Total Variation (TV), LPIPS perceptual loss, SDS from frozen diffusion model, manifold constraints (VAE latent space), frequency-domain priors. Low priority for MNIST, critical for ViT/larger images. Connects to Direction 3 (Diffusion Priors).

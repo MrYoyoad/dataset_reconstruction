@@ -1,5 +1,5 @@
 ---
-description: Help write, edit, or review LaTeX content for the thesis — sections, equations, arguments
+description: Write or edit thesis content — LaTeX sections, abstracts, summaries, emails, presentation notes
 disable-model-invocation: true
 ---
 
@@ -10,21 +10,24 @@ disable-model-invocation: true
 $ARGUMENTS
 
 ## Process
-1. **Understand the section** — what argument are we making? What's the reader's context?
-2. **Check existing content** — read relevant `.tex` files in `notes/` and papers in `papers/`.
-3. **Write or edit** — produce clear, precise academic prose with proper LaTeX formatting.
-4. **Equations** — use `align` environments, define notation consistently with existing files.
-5. **References** — cite papers from `papers/` directory using proper academic citation format.
-6. **Save** — write LaTeX source to `notes/`. Compilation happens on Overleaf, not locally.
+1. **Identify audience** — supervisor email? Thesis chapter? Conference abstract? Adapt tone and detail.
+2. **Check existing content** — read relevant `.tex` in `notes/`, papers in `papers/`, STATUS.md.
+3. **Draft** — clear, precise academic prose. Lead with the contribution, not methodology.
+4. **Verify claims** — every claim needs either a citation or experimental evidence from `results/`.
+5. **Save** — LaTeX → `notes/` (compiled on Overleaf). Emails/notes → inline response.
 
-## Key notation conventions
-- $\theta$ = network parameters, $W$ = weight matrix
-- $\Delta W = BA$ = LoRA update (B is d×r, A is r×k)
-- $\lambda_i$ = Lagrange multipliers (KKT)
-- $\Phi(\theta; x)$ = network output
+## Key notation
+- $\theta$ = parameters, $W$ = weight matrix, $\Delta W = BA$ = LoRA update
+- $\lambda_i$ = Lagrange multipliers (KKT), $\Phi(\theta; x)$ = network output
 - $\nabla_W \mathcal{L}$ = gradient w.r.t. weights
 
+## Style rules
+- Read STYLE_GUIDE.md before generating any formatted document
+- Quantify: "SSIM improved from 0.79 to 0.83" not "results improved"
+- Active voice preferred
+- Never fabricate citations — verify every reference exists in `papers/`
+
 ## Thesis structure
-1. LoRA Reconstruction via the "Gradient Bridge" (primary)
+1. LoRA Reconstruction via "Gradient Bridge" (primary)
 2. LoRA in the NTK Regime (supporting theory)
 3. Generative Priors / SDS (extension)

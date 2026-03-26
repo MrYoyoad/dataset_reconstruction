@@ -104,7 +104,7 @@ def create_model(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPH
 def load_pretrained(device='cpu', pretrained_path=None):
     """Load the pre-trained MNIST odd/even model as θ₀."""
     path = pretrained_path or PRETRAINED_MNIST_PATH
-    checkpoint = torch.load(path, map_location=device)
+    checkpoint = torch.load(path, map_location=device, weights_only=False)
     model = create_model(device=device)
     model.load_state_dict(checkpoint['state_dict'])
     return model

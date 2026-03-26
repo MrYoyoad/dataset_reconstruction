@@ -1,0 +1,376 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{caption}
+\usepackage{float}
+
+\definecolor{proven}{HTML}{2E7D32}
+\definecolor{speculated}{HTML}{E65100}
+\definecolor{failed}{HTML}{C62828}
+\definecolor{accentblue}{HTML}{1565C0}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=accentblue,
+    urlcolor=accentblue,
+    citecolor=accentblue
+}
+
+\newcommand{\proven}[1]{\textcolor{proven}{\textbf{#1}}}
+\newcommand{\speculated}[1]{\textcolor{speculated}{\textbf{#1}}}
+\newcommand{\failed}[1]{\textcolor{failed}{\textbf{#1}}}
+
+\title{\textbf{Unified Thesis Direction Analysis}\\[6pt]
+\large Reconciling Three Contradictory Research-Direction Analyses}
+\author{Internal Working Document}
+\date{March 25, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Three independent analyses of the thesis direction produced contradictory recommendations:
+(1)~KKT-LoRA with phase transition formula $r^*$ (70--80\% confidence),
+(2)~NTK reconstruction scaled to ViT (70--85\%),
+(3)~Gradient Bridge via R2F decoder (``clear winner'').
+This report reconciles the disagreement by separating \proven{proven} results from \speculated{speculated} claims, traces each recommendation to the documents it weighted most heavily, and produces a unified plan.
+\textbf{Recommendation:} NTK-LoRA is the primary track (empirically proven, low risk).
+KKT-LoRA is a parallel theoretical contribution.
+Gradient Bridge is deferred pending Phase~0 validation.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%=====================================================================
+\section{Evidence Inventory}
+%=====================================================================
+
+\subsection{Proven Results}
+
+All results below have associated \texttt{.pth} tensor files and/or CSV metrics in \texttt{results/}.
+
+\subsubsection{Experiment B: NTK Reconstruction (T=1, Oracle Coefficients)}
+
+\begin{table}[H]
+\centering
+\caption{Sprint 1 NTK reconstruction results (seed=42, $T=1$, oracle $c_i$).}
+\label{tab:ntk-oracle}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Variant} & \textbf{SSIM} & \textbf{DSSIM} & \textbf{Notes} \\
+\midrule
+Full model         & \proven{0.9999} & $5.2\times10^{-5}$ & Near-perfect reconstruction \\
+LoRA $r\!=\!8$     & \proven{0.797}  & 0.102              & Recognizable digits, blurry \\
+LoRA $r\!=\!16$    & \proven{0.802}  & 0.099              & Slight improvement \\
+LoRA $r\!=\!32$    & \proven{0.826}  & 0.087              & Best LoRA result \\
+Control (same class) & 0.582--0.693  & ---                & Proves instance-specific leakage \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key insight:} The weight \emph{change} $\Delta W = \theta_T - \theta_0$ cancels the pre-trained component, isolating the fine-tuning signal. This is why NTK works where KKT (Experiment~A) fails.
+
+Multi-seed analysis (200 seeds): 22/200 (11\%) produce strong signal ($|\mathbf{c}| > 0.1$). Perfect correlation between model being wrong after centering and strong reconstruction signal.
+
+\subsubsection{Experiment B: Free-Coefficient Extraction (Honest Attack)}
+
+\begin{table}[H]
+\centering
+\caption{Free-coefficient extraction results ($T=1$, seed=42). The attack works without oracle access.}
+\label{tab:free-c}
+\begin{tabular}{llcccl}
+\toprule
+\textbf{Mode} & \textbf{Optimizer} & \textbf{SSIM} & \textbf{Coeff Err} & \textbf{Gap} & \textbf{Notes} \\
+\midrule
+Oracle (cheating)    & L-BFGS & 0.817 & 0     & ---  & Upper bound (L-BFGS) \\
+Free $c$, $\alpha\!=\!1$ & SGD    & \proven{0.997} & 0.0004 & --- & \textbf{Matches oracle} \\
+\midrule
+LoRA $r\!=\!8$ free  & L-BFGS & 0.617 & 0.177 & 0.08 & Good \\
+LoRA $r\!=\!16$ free & L-BFGS & 0.422 & 0.282 & 0.35 & Needs work \\
+LoRA $r\!=\!32$ free & L-BFGS & 0.415 & 0.310 & 0.28 & Needs work \\
+LoRA $r\!=\!64$ free & L-BFGS & 0.635 & 0.019 & 0.08 & Great \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ranks 16 and 32 exhibit stubborn coefficient convergence failure (optimization landscape issue, not information-theoretic limit). Ranks 8 and 64 close to within 0.08 SSIM of oracle.
+
+\subsubsection{Sprint 2b: Multi-Step NTK (Phases 0--2 Complete)}
+
+\begin{itemize}[nosep]
+    \item \textbf{Phase 0 (activation ablation):} LeakyReLU stable through $T\!=\!100$; ReLU produces NaN at $T \geq 50$.
+    \item \textbf{Phase 2 (random restarts, LeakyReLU):} LoRA $r\!=\!8$ and $r\!=\!32$ nearly match full model through $T\!=\!100$ (gap 0.01--0.03). Variance across restarts $\sim$0.01.
+    \item Phases 3--4 (LR scheduling + warm-start): \speculated{killed by WEXAC scheduler}, not yet re-run.
+\end{itemize}
+
+\subsubsection{Experiment A: KKT on Composed Weights --- \failed{FAILED}}
+
+KKT loss plateaued at $\sim$460; extraction NaN'd at epoch 7--8. \textbf{Root cause (structural):} The composed model $W = W_0 + BA$ satisfies KKT with respect to all $\sim$502 samples ($500$ pre-training $+$ $2$ fine-tuning). The extraction assumes $N\!=\!2$, so the KKT loss is essentially $\|W_0\|^2$ --- the unexplained pre-training residual. Even with perfect convergence, 2 images cannot explain weights encoding 502.
+
+%---------------------------------------------------------------------
+\subsection{Speculated Claims (No Experimental Backing)}
+
+\begin{table}[H]
+\centering
+\caption{Claims made across the three analyses that lack experimental validation.}
+\label{tab:speculated}
+\small
+\begin{tabularx}{\textwidth}{Xlll}
+\toprule
+\textbf{Claim} & \textbf{Source} & \textbf{Basis} & \textbf{Status} \\
+\midrule
+KKT-LoRA achieves 70--80\% success &
+    Thesis\_Direction & Parameter counting & \speculated{Speculated} \\
+NTK scales to ViT at 60--75\% SSIM &
+    Recon.\ Approaches & MNIST extrapolation & \speculated{Speculated} \\
+Decoder $>$0.9 cosine sim on vision &
+    Bridge Plan & R2F (LLMs only) & \speculated{Speculated} \\
+0.9 cosine sim sufficient for pixels &
+    Inversion Feasibility & ``enormous noise'' & \speculated{Speculated} \\
+$r^*$ transition is sharp &
+    Thesis\_Direction & Linear algebra & \speculated{Speculated} \\
+Bridge works multi-step &
+    Bridge Plan & Assumption & \speculated{Speculated} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+%=====================================================================
+\section{Why the Three Analyses Disagreed}
+%=====================================================================
+
+\begin{table}[H]
+\centering
+\caption{Timeline and context of each analysis document.}
+\label{tab:timeline}
+\begin{tabularx}{\textwidth}{lllX}
+\toprule
+\textbf{Document} & \textbf{Written} & \textbf{Based On} & \textbf{Recommendation} \\
+\midrule
+Thesis\_Direction\_Analysis & $\sim$Jan 25 & Literature + theory & KKT-LoRA + $r^*$ formula \\
+GRADIENT\_BRIDGE\_PLAN      & $\sim$Jan 20 & R2F blueprint & Full decoder pipeline \\
+Inversion\_Feasibility      & $\sim$Feb 15 & Risk assessment & Phase 0 mandatory; 30--40\% \\
+Reconstruction\_Approaches  & Mar 19       & Sprint 1--2 results & NTK baseline, Approach G \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Key dynamics:}
+\begin{enumerate}[nosep]
+    \item \textbf{Thesis\_Direction\_Analysis} (Jan) weighted theoretical elegance heavily. Written \emph{before} Experiment~A's structural failure proved compose-and-reconstruct fundamentally broken with pre-trained init.
+    \item \textbf{Reconstruction\_Approaches} (Mar) was pragmatic post-Sprint-2, correctly identified NTK as the only empirically validated direction.
+    \item \textbf{Inversion\_Feasibility} (Feb) was risk-aware and called for Phase~0 gate experiments --- which remain pending.
+\end{enumerate}
+
+
+%=====================================================================
+\section{Error Cascade: What the Documents Actually Say}
+%=====================================================================
+
+From \texttt{Inversion\_Feasibility\_Analysis.tex}: for two vectors $\hat{G}, G \in \mathbb{R}^d$ with $\cos(\hat{G}, G) = c$, the fraction of variance in the error direction is $1 - c^2$.
+
+\begin{table}[H]
+\centering
+\caption{Noise analysis for the Gradient Bridge decoder output.}
+\label{tab:noise}
+\begin{tabular}{ccp{6cm}}
+\toprule
+\textbf{Cosine Sim} & \textbf{Error Fraction} & \textbf{Interpretation} \\
+\midrule
+0.99 & 2\%     & Acceptable \\
+0.95 & 9.75\%  & Challenging \\
+0.90 & \textbf{19\%} & Very challenging --- 112K noise dims for ViT-B/16 \\
+0.85 & 27.75\% & Likely fails \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For the ViT-B/16 query projection ($d = 589{,}824$), cosine similarity 0.90 means $\sim$112{,}000 effective dimensions of noise.
+
+\begin{quote}
+\textit{``Nobody in the gradient inversion literature has systematically studied what happens when gradients are approximate (as opposed to exact + DP noise). This is both a gap and an opportunity --- but you are walking into unknown territory.''}
+\hfill --- Inversion\_Feasibility\_Analysis.tex
+\end{quote}
+
+\textbf{Multi-step accumulation:} The decoder is trained on single-step LoRA updates. Real adapters accumulate $T$ steps. For batch size $B$, the gradient is averaged over $B$ images. Inverting to recover all $B$ individual images from a rank-$r$ adapter is ``massively underdetermined.''
+
+
+%=====================================================================
+\section{NTK Scaling: Evidence Assessment}
+%=====================================================================
+
+\textbf{On MNIST (proven):}
+\begin{itemize}[nosep]
+    \item Full model $T\!=\!1$: SSIM $= 0.9999$
+    \item LoRA $r\!=\!8$, $T\!=\!1$: SSIM $= 0.797$
+    \item Multi-step with LeakyReLU: stable through $T\!=\!100$, SSIM $\approx 0.78$--$0.80$
+\end{itemize}
+
+\textbf{On ViT: \speculated{No experimental data.}}
+The ``0.6--0.75 SSIM'' claim from Run~2 has no basis beyond heuristic extrapolation.
+
+\textbf{Scaling concern:} $28\!\times\!28$ MNIST ($784$ pixels) $\to$ $224\!\times\!224\!\times\!3$ ($150{,}528$ pixels) is a $192\times$ increase in search space dimensionality. Inversion optimizer behavior at this scale is unknown.
+
+
+%=====================================================================
+\section{Approach G (Differentiable Unrolling): Role and Priority}
+%=====================================================================
+
+Approach G simulates the entire fine-tuning process differentiably:
+\begin{align}
+    \theta_0 &= \theta_{\text{base}} \notag \\
+    \theta_{t+1} &= \theta_t - \eta\, \nabla_\theta \mathcal{L}(\theta_t;\, x) \quad \text{for } t = 0,\ldots,T\!-\!1 \notag \\
+    \min_x &\;\|\theta_T - \theta_{\text{fine}}\|^2
+\end{align}
+using \texttt{create\_graph=True} to backpropagate through all $T$ SGD steps.
+
+\begin{table}[H]
+\centering
+\caption{Approach G: advantages and disadvantages vs.\ NTK and Gradient Bridge.}
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+& \textbf{Advantage} & \textbf{Disadvantage} \\
+\midrule
+vs.\ NTK & Exact for any $T$ (no linearization) & $T\times$ more memory and compute \\
+vs.\ Bridge & No decoder noise & Must know $\eta$, $T$ exactly \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Verdict:} Secondary priority. Only implement if NTK fails at $T > 100$ on ViT. At $T\!=\!1$, G reduces exactly to NTK, providing a consistency check.
+
+
+%=====================================================================
+\section{Phase Transition ($r^*$): Feasibility}
+%=====================================================================
+
+The predicted critical rank from Thesis\_Direction\_Analysis.tex:
+\begin{equation}
+    r^* \;\approx\; \frac{N \times d_{\text{input}}}{d_{\text{in}} + d_{\text{out}}}
+\end{equation}
+
+\textbf{Example:} $N\!=\!10$ images, layer with $d_{\text{in}} = d_{\text{out}} = 768$ $\Rightarrow$ $r^* \approx 20$.
+
+\textbf{Testability:} Very testable --- sweep $r \times N$, overlay predicted $r^*(N)$, measure SSIM. Requires 1--2 weeks on WEXAC.
+
+\textbf{Complication:} Sprint~2 results show $r\!=\!16$ and $r\!=\!32$ are ``stubbornly bad'' despite being above plausible $r^*$ values. This suggests either:
+\begin{itemize}[nosep]
+    \item The transition is smooth (not sharp),
+    \item Optimization landscape has rank-dependent local minima, or
+    \item The formula needs correction for nonlinear models.
+\end{itemize}
+
+\textbf{Recommendation:} Treat $r^*$ as a secondary theoretical contribution, not the primary attack method.
+
+
+%=====================================================================
+\section{Unified Recommendation}
+%=====================================================================
+
+\subsection{Primary Track: NTK-LoRA (70--80\% Confidence)}
+
+Empirically proven on MNIST with free coefficients.
+Scale to ViT.
+Phase transition heatmap ($r \times N$) for thesis core result.
+
+\subsection{Parallel Track: KKT-LoRA Theory (50--60\% Confidence)}
+
+Prove $r^*$ formula for the linear case.
+Test on MLPs.
+Adds theoretical depth without blocking the primary track.
+
+\subsection{Deferred: Gradient Bridge (30--40\% Confidence)}
+
+Requires Phase~0 gate experiment first. High risk from noise cascade. Only pursue if Phase~0 shows perfect gradients invert well on ViT \emph{and} Phase~0b shows cosine similarity $\geq 0.95$ is achievable.
+
+
+%=====================================================================
+\section{What to Build This Week}
+%=====================================================================
+
+\subsection{Must-Do: Gate Experiments}
+
+\begin{enumerate}
+    \item \textbf{Phase 0} --- \texttt{phase0\_vit\_gradient\_inversion.py}:
+    \begin{itemize}[nosep]
+        \item Load ViT-B/16 (\texttt{timm}), add LoRA $r\!=\!8$ (\texttt{peft})
+        \item Fine-tune on 1 CelebA image for 1 SGD step
+        \item Save exact gradient; run gradient inversion (Geiping et al.)
+        \item Measure SSIM, LPIPS; save reconstruction PNG
+        \item \textbf{Timeline: 3 days}
+    \end{itemize}
+
+    \item \textbf{Phase 0b} --- \texttt{phase0b\_noise\_tolerance.py}:
+    \begin{itemize}[nosep]
+        \item Take exact gradient from Phase~0
+        \item Add Gaussian noise targeting cosine similarities $\{0.99, 0.95, 0.90, 0.85\}$
+        \item Run inversion at each noise level
+        \item Plot SSIM vs.\ cosine similarity (the ``noise tolerance curve'')
+        \item \textbf{Timeline: 3 days}
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Should-Do: Continue Sprint 2}
+
+\begin{enumerate}[resume]
+    \item Complete Sprint 2c Track B (Phase 3--4) on WEXAC
+    \item Update \texttt{run\_experiment\_b.py} for ViT support
+\end{enumerate}
+
+
+%=====================================================================
+\section{Risk Matrix}
+%=====================================================================
+
+\begin{table}[H]
+\centering
+\caption{Risk assessment across all four directions.}
+\label{tab:risk}
+\begin{tabular}{lcll}
+\toprule
+\textbf{Direction} & \textbf{P(Success)} & \textbf{Primary Risk} & \textbf{Time to Results} \\
+\midrule
+NTK-LoRA (Primary)   & 70--80\% & ViT scaling unknown       & 6--8 weeks \\
+KKT-LoRA (Parallel)  & 50--60\% & Formula may not hold nonlinearly & 4--6 weeks \\
+Gradient Bridge       & 30--40\% & Noise cascade; Phase 0 unknown  & 10--12 weeks \\
+Approach G            & 40--50\% & Memory/compute; incremental     & 2--3 weeks \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+%=====================================================================
+\section{Conclusion}
+%=====================================================================
+
+The three analyses were not wrong --- they were written at different stages of the experimental timeline and weighted different evidence.
+
+\begin{itemize}
+    \item \textbf{Thesis\_Direction\_Analysis} (Jan): Optimistic about KKT theory; didn't account for Experiment~A's structural failure.
+    \item \textbf{Reconstruction\_Approaches} (Mar): Pragmatic; correctly identified NTK as the empirically winning direction.
+    \item \textbf{Inversion\_Feasibility} (Feb): Risk-aware; called for Phase~0 validation that remains pending.
+\end{itemize}
+
+\textbf{NTK-LoRA is the primary track} because it is the only direction with empirical proof of concept. KKT-LoRA is a parallel theoretical contribution. The Gradient Bridge requires Phase~0 clearance first.
+
+\bigskip
+\begin{center}
+\fbox{\parbox{0.85\textwidth}{\centering
+\textbf{By running Phase 0 (ViT gradient inversion) this week,\\
+you will know within days whether to invest in all three directions or focus on one.}
+}}
+\end{center}
+
+\end{document}

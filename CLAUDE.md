@@ -232,9 +232,7 @@ When auditing or revising presentations/documents, follow this order:
 
 ### WEXAC Compatibility
 
-**WEXAC runs PyTorch 1.11** (the local Mac has PyTorch 2.2). All experiment code under `experiments/` must be compatible with PyTorch 1.11:
-- **Do NOT use `weights_only=` in `torch.load()`** — this parameter was added in PyTorch 1.13 and will crash on WEXAC. Use `torch.load(path, map_location=device)` without extra kwargs.
-- Avoid any PyTorch 2.x features (e.g., `torch.compile`, `torch.export`, newer `torch.nn` modules).
+**WEXAC `rec` env runs PyTorch 2.4.1+cu121** with timm 0.9.12, peft 0.7.1, torchvision 0.12.0, and kornia 0.7.0. Use `weights_only=False` in `torch.load()` to suppress FutureWarnings.
 - When submitting experiments to WEXAC, always `rsync` the latest code first: `rsync -avz --exclude='__pycache__' experiments/ wexac:~/experiments/`
 
 ## Experiment Output Rules

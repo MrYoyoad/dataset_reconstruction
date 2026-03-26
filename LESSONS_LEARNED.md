@@ -163,7 +163,7 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 - **"The math says it works" vs. "you can make it work"** are different claims. Optimistic theoretical analyses (like the Gradient Bridge feasibility argument) are correct about the information being there, but gloss over engineering gaps and empirical unknowns. Calibrate accordingly: the idea is sound, but the execution is the hard part — which is exactly what makes it a thesis.
 - **De-risk before building**: always run the cheapest experiment that could falsify your approach before investing weeks in the full pipeline.
 - **ALL experiments run on WEXAC GPU, not MPS.** The MacBook's MPS backend is for light local dev/debugging only. Real training, reconstruction, and any serious compute must run on the WEXAC cluster (NVIDIA L40S). MPS is too slow, has dtype limitations, and results won't match CUDA. Always use `wexac_connect.sh shell` to get a GPU node before running experiments.
-- **WEXAC has PyTorch 1.11, local Mac has 2.2.** Never use `weights_only=` in `torch.load()` — it was added in PyTorch 1.13 and crashes on WEXAC. Use plain `torch.load(path, map_location=device)`. In general, test that experiment code runs on PyTorch 1.11 before submitting to WEXAC.
+- **WEXAC `rec` env has PyTorch 2.4.1+cu121** (with timm 0.9.12, peft 0.7.1, torchvision 0.19.1). Use `weights_only=False` in `torch.load()` to suppress FutureWarnings. The old claim of "PyTorch 1.11" was stale documentation.
 
 ---
 
@@ -180,6 +180,8 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 - Relevant files: [experiments/ntk_extraction.py](experiments/ntk_extraction.py) (L-BFGS closure, projection function), [experiments/run_experiment_b.py](experiments/run_experiment_b.py) (LoRA extraction without projection).
 
 **Action:** Use SGD for publication-quality full-model results (SSIM > 0.99). Use L-BFGS for quick preliminary LoRA rank sweeps (same quality in 1/50th the epochs). Do NOT project into LoRA subspace — keep the unprojected loss.
+
+**Update (Sprint 2c B3b, 2026-03-26):** SGD + LeakyReLU matches L-BFGS identically for T ≤ 20 (SSIM within ±0.003), but NaN's at T=100 where L-BFGS still works (0.775-0.809). For multi-step extraction beyond T=20, L-BFGS remains essential. For the realistic few-shot regime (T ≤ 20), SGD is a viable and simpler alternative.
 
 ---
 

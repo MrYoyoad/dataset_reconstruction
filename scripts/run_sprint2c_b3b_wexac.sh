@@ -2,8 +2,8 @@
 #BSUB -q short-gpu
 #BSUB -R "rusage[mem=16384] select[ngpus>0]"
 #BSUB -gpu "num=1"
-#BSUB -o sprint2c_b3b_%J.out
-#BSUB -e sprint2c_b3b_%J.err
+#BSUB -o wexac_logs/sprint2c_b3b_%J.out
+#BSUB -e wexac_logs/sprint2c_b3b_%J.err
 #BSUB -J sprint2c_b3b
 
 # Sprint 2c Track B3b: Scale best LoRA optimizer×activation across T
@@ -22,10 +22,11 @@ echo "=== Starting Sprint 2c B3b (best LoRA combo across T) ==="
 echo "Date: $(date)"
 echo "Host: $(hostname)"
 
-# UPDATE THESE after analyzing B3a results:
+# B3a winner: SGD + LeakyReLU (SSIM 0.830 for r=8 and r=32)
+mkdir -p scripts/wexac_logs
 python -u -m experiments.run_sprint2c_sweep \
     --track B3b \
-    --best_optimizer lbfgs \
+    --best_optimizer sgd \
     --best_activation leaky_relu \
     --device cuda \
     --seed 42
