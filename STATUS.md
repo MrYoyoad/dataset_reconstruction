@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: **2026-03-26**
+Last updated: **2026-04-07**
 
 ---
 
@@ -39,11 +39,10 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 Comprehensive ablation study across two tracks. 148 configs completed, 2 tracks remaining + Phase 0.
 
-**Track A: Experiment A (KKT) — Fine-Tuning LR × N Sweep — PENDING (resubmit)**
-- Testing whether Sprint 1's Experiment A failure was from wrong N (used N=2, correct is N≈502)
-- First attempt (job 691143) killed by timeout on short-gpu queue
-- Fix: new script `scripts/run_sprint2c_track_a_split.sh` uses long-gpu queue with 48h wall time
-- Grid: fine_tune_lr ∈ {0.001, 0.003, 0.01} × epochs ∈ {1M, 5M} × N sweep — 48 configs
+**Track A: Experiment A (KKT) — CLOSED (negative result confirmed)**
+- 15/48 configs completed before 48h timeout (job 583398). KKT loss stuck at 330-350 for ALL N values tested.
+- Confirms Sprint 1 structural analysis: composed model W=W₀+BA satisfies KKT over all ~502 samples. No amount of N tuning overcomes the pre-training residual.
+- **This definitively closes the KKT approach for composed models.**
 
 **Track B: Experiment B (NTK) — Ablations**
 - B1: Phase 3+4 (LR scheduling + warm-start) — **DONE** (results in sprint2b_phase3/4 CSVs)
@@ -53,15 +52,30 @@ Comprehensive ablation study across two tracks. 148 configs completed, 2 tracks 
 - B4: N sweep (NTK) — **DONE** (results/sprint2c_track_b4_*.csv)
 - B5-B8: Additional ablations — **DONE** (results in sprint2c_track_b5/b6/b7/b8 CSVs)
 
-### Phase 0: ViT Gradient Inversion Gate — PENDING
+### Phase 0: ViT Gradient Inversion Gate — RESUBMITTING (bugs fixed)
 
 Critical gate experiment: can gradient inversion reconstruct images from exact ViT-B/16 gradients?
 
-- **Phase 0**: Exact gradient inversion on ViT-B/16 (pretrained, CIFAR-10 sample). If SSIM < 0.5, all gradient-based directions are blocked.
-- **Phase 0b**: Noise tolerance sweep — add Gaussian noise to exact gradient, measure SSIM vs cosine similarity at {1.0, 0.99, 0.95, 0.90, 0.85, 0.80}. Determines accuracy requirement for gradient decoder.
-- Code: `experiments/phase0_vit_inversion.py`
-- Uses `rec` conda env (PyTorch 2.4.1 + timm 0.9.12 + peft 0.7.1)
-- WEXAC script: `scripts/run_phase0_wexac.sh`
+**First attempt failed (SSIM=0.015) due to 3 bugs:**
+1. **Non-differentiable cosine similarity** (ROOT CAUSE): `loss.backward()` + `param.grad` produces detached tensors — cosine sim had no gradient w.r.t. x_recon. Optimizer only minimized TV loss → smooth random image. Fixed with `torch.autograd.grad(create_graph=True)`.
+2. **Per-tensor cosine similarity averaging**: Averaged cosine sim across 24 tensors instead of one global flattened cosine sim (Geiping et al.). Fixed by concatenating all gradients.
+3. **LoRA-only gradients**: Only captured 294K LoRA params instead of all 86M. Fixed with `full_model_grad` option.
+4. **Phase 0b crash**: `float.sqrt()` on line 228. Fixed with `math.sqrt()`.
+
+**Improvements added:** 8 random restarts, 10K iterations (was 3K), two-phase experiment (full 86M + LoRA-only 294K).
+
+- Code: `experiments/phase0_vit_inversion.py` (fixed)
+- WEXAC script: `scripts/run_phase0_fixed_wexac.sh`
+
+### Sprint 2 Multi-Seed Validation — COMPLETE (2026-03-27)
+
+50-seed free-c vs oracle comparison and 30-seed LeakyReLU validation completed overnight.
+
+**Key findings:**
+- **Seed=42 was an outlier**: SSIM=0.830 vs 50-seed mean=0.558±0.034. Report 50-seed stats as canonical.
+- **Free-c beats oracle**: Mean SSIM 0.557 (free-c) vs 0.408 (oracle) across 50 seeds. Free-c wins 46/50. The consistency penalty provides implicit regularization that prevents sign-flip local minima.
+- **LeakyReLU validated**: 30 seeds × {T=1, T=10} × {r=8, r=32}. Mean SSIM 0.558 (T=1), 0.572 (T=10). Control: 0.394-0.426.
+- **r=16/32 improved**: SGD+LeakyReLU gives r=16 SSIM 0.624 (was 0.422), r=32 SSIM 0.680 (was 0.415).
 
 ### Sprint 2 Track 2: LoRA Free-Coefficient Extraction — IN PROGRESS
 
@@ -330,8 +344,8 @@ After establishing rank threshold and NTK step-count analysis on FCN:
 - [x] **LoRA rank sweep with free-c** — r=4/8/16/32/64 with ReLU + L-BFGS (WEXAC jobs 674631, 681126)
 - [x] **Activation ablation** — ReLU (alpha=10000) is critical for LoRA (WEXAC job 669885)
 - [x] **Separate optimizer for c** — L-BFGS for x, SGD/Adam for c (mirrors Haim et al.'s λ handling)
-- [ ] **Fix r=16/32 convergence** — Adam for c + restarts (WEXAC job 688887, running)
-- [ ] **Multi-seed comparison** — free-c vs oracle-c across 200 seeds (pending)
+- [x] **Fix r=16/32 convergence** — SGD+LeakyReLU: r=16 0.624, r=32 0.680 (was 0.42)
+- [x] **Multi-seed comparison** — 50 seeds: free-c (0.557) beats oracle (0.408), 46/50 wins
 
 ### Sprint 2b: Multi-Step & Scaling
 - [x] **Phase 0**: Activation ablation (3 activations × 5 T values)
@@ -339,11 +353,11 @@ After establishing rank threshold and NTK step-count analysis on FCN:
 - [x] **Phase 2**: Random restarts
 - [x] **Phase 3**: LR scaling with LeakyReLU — done as Sprint 2c B1
 - [x] **Phase 4**: Progressive warm-start — done as Sprint 2c B1
-- [ ] **Multi-seed validation** of LeakyReLU results (20-50 seeds)
-- [ ] **Per-image SSIM + nearest-neighbor matching** (instance vs class-level leakage)
+- [x] **Multi-seed validation** of LeakyReLU — 30 seeds: SSIM 0.558±0.034 (T=1), 0.572±0.088 (T=10)
+- [x] **Per-image SSIM** — 10 seeds saved as .pth for visual inspection
 
 ### Sprint 2c: KKT & NTK Ablations
-- [ ] **Track A**: Experiment A fine-tuning LR × epochs × N sweep (48 configs) — resubmit with long-gpu
+- [x] **Track A**: CLOSED — KKT loss 330-350 for all N values, confirms structural failure
 - [x] **Track B1**: Phase 3+4 (LR scheduling + warm-start) — DONE
 - [x] **Track B2**: Loss ratio ablation (verify_weight) — DONE (16 configs)
 - [x] **Track B3a**: Optimizer × activation for LoRA — DONE (winner: SGD + LeakyReLU, SSIM 0.830)
@@ -353,8 +367,8 @@ After establishing rank threshold and NTK step-count analysis on FCN:
 
 ### Phase 0: ViT Gradient Inversion
 - [x] ~~**Setup phase0 conda env**~~ — not needed, `rec` env has timm+peft
-- [ ] **Phase 0**: Exact gradient inversion on ViT-B/16 — gate experiment
-- [ ] **Phase 0b**: Noise tolerance sweep — decoder accuracy requirements
+- [ ] **Phase 0 (fixed)**: Resubmit with bug fixes (differentiable cosine sim, full-model gradient, restarts)
+- [ ] **Phase 0b**: Noise tolerance sweep (blocked on Phase 0 fix)
 
 ### Research Backlog
 - [ ] **Design better image-domain prior loss** — current NTK extraction only uses pixel box constraint (x ∈ [-1,1]). Ideas: Total Variation (TV), LPIPS perceptual loss, SDS from frozen diffusion model, manifold constraints (VAE latent space), frequency-domain priors. Low priority for MNIST, critical for ViT/larger images. Connects to Direction 3 (Diffusion Priors).

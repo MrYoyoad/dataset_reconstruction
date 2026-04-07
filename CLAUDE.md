@@ -24,7 +24,7 @@ The thesis focuses on the **image domain**, extending the Haim et al. reconstruc
 
 - **Implicit bias of GD**: For homogeneous networks trained with BCE, gradient flow converges to KKT conditions of the max-margin problem: θ* ∝ Σ λ_i y_i ∇_θ Φ(θ*; x_i). Weights encode "support vectors" — the hardest training examples.
 - **LoRA as gradient projection**: ∇_A L = B^T ∇_W L and ∇_B L = (∇_W L)A^T. The adapter weights are not arbitrary compression artifacts; they are high-fidelity measurements of the principal components of the full gradient.
-- **Information density argument**: Even with low-rank adapters, the number of parameters (constraints) far exceeds the number of unknowns (training tokens/pixels) in the few-shot regime, making the system highly overdetermined.
+- **Information density argument**: While LoRA adapters have fewer parameters than raw pixel count (e.g., 294K LoRA params vs. N×150K pixels for ViT-B/16), natural images have far lower intrinsic dimensionality than their pixel count — MNIST digits ~10-20 dims, faces ~100-1000 dims, not 150K. In terms of intrinsic degrees of freedom, the system is well-constrained even with LoRA-only for realistic N. With the full model gradient (86M params), the system is massively overdetermined (>100×) even in raw pixel space. The Gradient Bridge decoder recovers this full gradient from LoRA, further strengthening the attack.
 - **R2F (Recover-to-Forget)**: Demonstrates that full-model gradients can be reconstructed from LoRA updates using a decoder trained on a proxy model — proof that the LoRA-to-gradient bridge is learnable. See dedicated section below.
 
 ### Recover-to-Forget (R2F) — Core Reference

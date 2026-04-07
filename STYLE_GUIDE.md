@@ -343,6 +343,12 @@ Never eyeball placement. Use: `arrow_x = target_x + target_w / 2 - arrow_w / 2`.
 **O8 — Rebuilt slides must clear shapes first or use absolute positioning.**
 When rebuilding slide content programmatically, clear existing shapes first. Never rely on "below previous" relative positioning.
 
+**O9 — Table cells must not silently truncate text.**
+`fpdf2.cell()` and similar fixed-width cell methods silently clip text that exceeds the column width — no warning, no wrap, just invisible truncation. Before generating a table: (1) shorten header labels (e.g., "Confidence" → "Conf."), (2) abbreviate long cell values, (3) test the widest value in each column fits at the chosen font size, (4) for 5+ column tables, reduce font to 9pt and use compact headers. Never assume proportional `col_widths` are correct — always verify the rendered output.
+
+**O10 — Reset draw state after colored elements.**
+Callout boxes, warning boxes, and highlighted rects set `draw_color` and `line_width` to custom values. If not explicitly reset afterward, subsequent tables and shapes inherit those colors (e.g., green table borders from a green callout box). Always call `set_draw_color(0,0,0)` and `set_line_width(0.2)` after any element that changes draw state.
+
 ## 5.2 Density Limits (D1-D6)
 
 Overcrowded slides were the second most common remark category.

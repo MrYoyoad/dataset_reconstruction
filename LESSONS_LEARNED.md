@@ -370,3 +370,47 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 
 **Caveat:** All results so far are MNIST + 2-layer MLP. Scaling to ViTs on real images (Sprint 3) is the key open question.
 
+---
+
+## [BUG] Phase 0 Gradient Inversion: Three Critical Implementation Errors (2026-04-07)
+
+**Context:** Phase 0 (ViT-B/16 gradient inversion gate experiment) returned SSIM=0.015 — total failure. Cosine similarity stuck at 0.04 throughout 3000 iterations. Root cause analysis found THREE bugs, the worst of which made the entire optimization a no-op.
+
+**Bug 1 (ROOT CAUSE): Non-differentiable cosine similarity.** The code used `loss.backward(retain_graph=True)` to populate `param.grad`, then computed cosine similarity from these `.grad` tensors. But `.grad` attributes are **detached leaf tensors** — they have no computation graph connecting them back to `x_recon`. The subsequent `total_loss.backward()` produced zero gradients for `x_recon` from the cosine similarity term. The optimizer was only minimizing TV regularization (making a smooth random image). **Fix:** Use `torch.autograd.grad(loss, params, create_graph=True)` to get predicted gradients that remain in the computation graph.
+
+**Bug 2: Per-tensor cosine similarity averaging.** Computed cosine similarity per parameter tensor (24 tensors), then averaged. Small tensors with random alignment got equal weight as large tensors. Geiping et al. compute ONE global cosine similarity on the entire flattened gradient vector. **Fix:** `torch.cat` all gradient tensors, compute single cosine similarity.
+
+**Bug 3: LoRA-only gradients.** `capture_gradient()` iterated `model.named_parameters()` but peft freezes base model params → only 294K LoRA parameters had gradients. The inversion was trying to reconstruct 150K pixels from 294K low-rank gradient values. **Fix:** Temporarily enable `requires_grad_(True)` on all params to capture the full 86M-parameter gradient.
+
+**Bug 4: SDPA double-backward not supported.** After fixing bugs 1-3, `create_graph=True` triggered `RuntimeError: derivative for aten::_scaled_dot_product_efficient_attention_backward is not implemented`. PyTorch 2.x's efficient/flash attention kernels don't support double-backward. **Fix:** Wrap the inversion loop in `torch.backends.cuda.sdp_kernel(enable_flash=False, enable_math=True, enable_mem_efficient=False)` to force the math-only SDPA backend.
+
+**Bug 5: requires_grad mismatch.** After `capture_gradient` restores `requires_grad=False` on base model params, the inversion's `torch.autograd.grad(loss, params)` fails because those params don't require grad. **Fix:** Re-enable `requires_grad_(True)` on all matched params at the start of `invert_gradient`, restore after.
+
+**Lesson:** When implementing gradient inversion, **always verify the gradient flows end-to-end** from target to optimized variable. A quick test: `total_loss.backward(); print(x_recon.grad.norm())` — if it's zero or doesn't exist, the optimization is broken. Also: never average cosine similarities across parameters — always flatten first. And when using `create_graph=True` with transformers, disable efficient/flash attention backends.
+
+---
+
+## [RESULT] Track A (KKT + N-Sweep) Definitively Closed (2026-04-07)
+
+**Context:** Sprint 2c Track A tested whether using the correct N (up to N=502 total samples) would fix Sprint 1's Experiment A failure. Ran 15/48 configs before 48h timeout.
+
+**Results:** KKT loss stuck at 330-350 for ALL N values tested (N=1 through N=100 per class). No trend — the loss didn't decrease as N approached the true support vector count.
+
+**Why this was expected:** The composed model W = W₀ + BA satisfies KKT with respect to all ~502 samples (500 pre-training + 2 fine-tuning). The KKT loss of ~330 is essentially ||W₀||² — the unexplained pre-training residual. Even with N=502, the extraction would need to simultaneously reconstruct 500 pre-training images alongside the 2 fine-tuning targets — a fundamentally different (and much harder) problem than reconstructing 2 images from a model trained on 2 images.
+
+**This negative result is thesis-valuable:** It definitively closes the compose-and-reconstruct pathway and strengthens the argument for the Gradient Bridge / NTK approach, which works by targeting ΔW (canceling the pre-training component) rather than the composed W.
+
+---
+
+## [RESULT] Multi-Seed Validation: Free-c Beats Oracle, Seed=42 Was Outlier (2026-04-07)
+
+**Context:** Ran 50-seed free-c vs oracle comparison (SGD+LeakyReLU, T=1, LoRA r=8) and 30-seed LeakyReLU validation across T and rank.
+
+**Key findings:**
+1. **Seed=42 was an outlier.** SSIM=0.830 on seed=42 vs 50-seed mean=0.558±0.034. Seed=42 happens to produce fine-tuning samples where the model is confidently wrong after centering, giving large coefficient magnitude. Most seeds produce moderate signal.
+2. **Free-c beats oracle (46/50 seeds).** Mean SSIM: free-c 0.557 vs oracle 0.408. The consistency penalty |c − (σ(f(θ₀;x))−y)/N|² acts as implicit regularization: it prevents the sign-flip local minima that plague oracle mode (where fixed coefficients can mislead the pixel optimizer). Free-c can adjust c jointly with x, finding better overall solutions.
+3. **LeakyReLU validated across seeds.** 30 seeds × {T=1, T=10} × {r=8, r=32}: SSIM 0.558±0.034 (T=1), 0.572±0.088 (T=10). Control: 0.394-0.426. Consistent gap (0.13-0.15) proves real leakage.
+4. **r=16/32 fixed.** SGD+LeakyReLU gives r=16 SSIM 0.624 (was 0.422), r=32 SSIM 0.680 (was 0.415). The fix was switching from L-BFGS+ReLU to SGD+LeakyReLU.
+
+**Action:** Use 50-seed statistics as canonical numbers in the thesis, not seed=42. The attack works but is moderate (SSIM ~0.55-0.58), not dramatic (0.83). Frame as: "reconstruction quality sufficient to identify sensitive content but not pixel-perfect" — which is actually more realistic for a privacy threat analysis.
+

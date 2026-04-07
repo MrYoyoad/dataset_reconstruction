@@ -8,24 +8,31 @@ Setup:
     1. Load pre-trained ViT-B/16 from timm
     2. Add LoRA (rank r) via peft
     3. Fine-tune on 1 image for 1 SGD step (binary classification)
-    4. Record exact full-rank gradient during backward pass
+    4. Record exact gradient during backward pass
     5. Run gradient inversion to reconstruct the image from the gradient
     6. (Phase 0b) Add noise to gradient, measure reconstruction vs noise
 
+Modes:
+    --mode full   : Capture gradient from ALL 86M params (ceiling test)
+    --mode lora   : Capture gradient from LoRA params only (294K)
+    --mode both   : Run both sequentially
+
 Usage:
-    python -u -m experiments.phase0_vit_inversion --device cuda
-    python -u -m experiments.phase0_vit_inversion --device cuda --noise_sweep
+    python -u -m experiments.phase0_vit_inversion --device cuda --mode both
+    python -u -m experiments.phase0_vit_inversion --device cuda --noise_sweep --mode full
 """
 
 import os
 import sys
 import argparse
 import csv
+import math
 import time
 import torch
 import torch.nn.functional as F
 import numpy as np
 from datetime import datetime
+
 
 # Lazy imports for optional deps (timm, peft, torchvision)
 def _lazy_imports():
@@ -93,13 +100,25 @@ def get_sample_images(n_images=2, seed=42, device='cuda'):
     return images, labels
 
 
-def capture_gradient(model, images, labels):
-    """Do one forward+backward pass and capture the full gradient."""
+def capture_gradient(model, images, labels, full_model_grad=True):
+    """Do one forward+backward pass and capture the gradient.
+
+    Args:
+        full_model_grad: If True, enable gradients on ALL parameters (86M)
+            to capture the full gradient. If False, only capture gradients
+            from parameters that already require grad (LoRA params).
+    """
+    # Save original requires_grad state and optionally enable all grads
+    orig_requires_grad = {}
+    if full_model_grad:
+        for name, param in model.named_parameters():
+            orig_requires_grad[name] = param.requires_grad
+            param.requires_grad_(True)
+
     model.train()
     model.zero_grad()
 
     logits = model(images)
-    # Binary classification with single output
     if logits.shape[1] == 2:
         loss = F.cross_entropy(logits, labels.squeeze(1).long())
     else:
@@ -107,108 +126,156 @@ def capture_gradient(model, images, labels):
 
     loss.backward()
 
-    # Collect gradients from ALL parameters (not just LoRA)
+    # Collect gradients
     gradients = {}
     for name, param in model.named_parameters():
         if param.grad is not None:
             gradients[name] = param.grad.detach().clone()
 
+    # Restore original requires_grad state
+    if full_model_grad:
+        for name, param in model.named_parameters():
+            param.requires_grad_(orig_requires_grad[name])
+
+    model.zero_grad()
+
     return gradients, loss.item()
 
 
 def invert_gradient(model, gradients, labels, image_shape,
-                    n_iters=3000, lr=0.1, tv_weight=1e-4,
+                    n_iters=10000, n_restarts=8, lr=0.1, tv_weight=1e-4,
                     device='cuda', verbose=True):
     """Reconstruct images from gradients via optimization.
 
     Implements Geiping et al. (2020) style cosine-similarity inversion:
-        max_x cos(nabla L(x), nabla_true)
+        max_x cos(flatten(nabla L(x)), flatten(nabla_true))
 
-    With Total Variation regularization for image smoothness.
+    Uses torch.autograd.grad with create_graph=True so the cosine
+    similarity is differentiable w.r.t. x_recon.
+
+    Multiple random restarts to handle non-convexity.
     """
+    # Disable efficient SDPA — its backward doesn't support create_graph=True
+    # (needed for double-backward through attention in PyTorch 2.x)
+    if hasattr(torch.nn.attention, 'sdpa_kernel'):
+        # PyTorch 2.5+
+        from torch.nn.attention import sdpa_kernel, SDPBackend
+        sdpa_ctx = sdpa_kernel(SDPBackend.MATH)
+    elif hasattr(torch.backends.cuda, 'sdp_kernel'):
+        # PyTorch 2.0-2.4
+        sdpa_ctx = torch.backends.cuda.sdp_kernel(
+            enable_flash=False, enable_math=True, enable_mem_efficient=False
+        )
+    else:
+        sdpa_ctx = None
+
     n_images = labels.shape[0]
 
-    # Initialize random image
-    x_recon = torch.randn(n_images, *image_shape[1:],
-                           device=device, dtype=torch.float32,
-                           requires_grad=True)
+    # Pre-compute flattened true gradient (constant across restarts)
+    param_names_in_grad = [n for n, _ in model.named_parameters() if n in gradients]
+    params_for_grad = [p for n, p in model.named_parameters() if n in gradients]
+    g_true_cat = torch.cat([gradients[n].reshape(-1) for n in param_names_in_grad])
 
-    optimizer = torch.optim.Adam([x_recon], lr=lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, n_iters)
+    # Enable requires_grad on all matched params so autograd.grad works
+    orig_requires_grad = {}
+    for n, p in zip(param_names_in_grad, params_for_grad):
+        orig_requires_grad[n] = p.requires_grad
+        p.requires_grad_(True)
 
-    best_loss = float('inf')
-    best_x = x_recon.detach().clone()
+    best_cos_sim = -1.0
+    best_x = None
 
-    for i in range(n_iters):
-        optimizer.zero_grad()
-        model.zero_grad()
+    # Enter SDPA math-only context if available
+    if sdpa_ctx is not None:
+        sdpa_ctx.__enter__()
 
-        logits = model(x_recon)
-        if logits.shape[1] == 2:
-            loss = F.cross_entropy(logits, labels.squeeze(1).long())
-        else:
-            loss = F.binary_cross_entropy_with_logits(logits, labels)
-        loss.backward(retain_graph=True)
+    for restart in range(n_restarts):
+        # Fresh random init for each restart
+        x_recon = torch.randn(n_images, *image_shape[1:],
+                               device=device, dtype=torch.float32,
+                               requires_grad=True)
 
-        # Compute cosine similarity between current and target gradients
-        cos_sim = 0.0
-        n_params = 0
-        for name, param in model.named_parameters():
-            if name in gradients and param.grad is not None:
-                g_true = gradients[name]
-                g_pred = param.grad
-                # Flatten and compute cosine similarity
-                cos = F.cosine_similarity(
-                    g_pred.reshape(1, -1), g_true.reshape(1, -1)
-                )
-                cos_sim += cos
-                n_params += 1
+        optimizer = torch.optim.Adam([x_recon], lr=lr)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, n_iters)
 
-        if n_params > 0:
-            cos_sim = cos_sim / n_params
+        run_best_cos = -1.0
+        run_best_x = x_recon.detach().clone()
 
-        # Inversion loss: minimize negative cosine similarity
-        inv_loss = -cos_sim
+        for i in range(n_iters):
+            optimizer.zero_grad()
 
-        # Total Variation regularization
-        tv_loss = 0.0
-        if tv_weight > 0:
-            diff_h = (x_recon[:, :, 1:, :] - x_recon[:, :, :-1, :]).pow(2).sum()
-            diff_w = (x_recon[:, :, :, 1:] - x_recon[:, :, :, :-1]).pow(2).sum()
-            tv_loss = tv_weight * (diff_h + diff_w)
+            # Forward pass
+            logits = model(x_recon)
+            if logits.shape[1] == 2:
+                loss = F.cross_entropy(logits, labels.squeeze(1).long())
+            else:
+                loss = F.binary_cross_entropy_with_logits(logits, labels)
 
-        total_loss = inv_loss + tv_loss
+            # Compute predicted gradients with create_graph=True
+            # so cosine similarity is differentiable w.r.t. x_recon
+            grads_pred = torch.autograd.grad(
+                loss, params_for_grad, create_graph=True
+            )
 
-        # Backward on the inversion loss (not the model loss)
-        model.zero_grad()
-        x_recon.grad = None
-        total_loss.backward()
+            # Single global cosine similarity (Geiping et al.)
+            g_pred_cat = torch.cat([g.reshape(-1) for g in grads_pred])
+            cos_sim = F.cosine_similarity(
+                g_pred_cat.unsqueeze(0), g_true_cat.unsqueeze(0)
+            )
 
-        optimizer.step()
-        scheduler.step()
+            # Total Variation regularization
+            tv_loss = 0.0
+            if tv_weight > 0:
+                diff_h = (x_recon[:, :, 1:, :] - x_recon[:, :, :-1, :]).pow(2).sum()
+                diff_w = (x_recon[:, :, :, 1:] - x_recon[:, :, :, :-1]).pow(2).sum()
+                tv_loss = tv_weight * (diff_h + diff_w)
 
-        # Clamp to valid image range (approximately)
-        with torch.no_grad():
-            # ImageNet normalization bounds roughly [-2.1, 2.6]
-            x_recon.clamp_(-3.0, 3.0)
+            # Inversion loss: maximize cosine similarity
+            total_loss = -cos_sim + tv_loss
+            total_loss.backward()
 
-        if total_loss.item() < best_loss:
-            best_loss = total_loss.item()
-            best_x = x_recon.detach().clone()
+            optimizer.step()
+            scheduler.step()
 
-        if verbose and (i % 500 == 0 or i == n_iters - 1):
-            print(f"  iter {i:5d}: cos_sim={cos_sim.item():.4f}, "
-                  f"tv={tv_loss if isinstance(tv_loss, float) else tv_loss.item():.6f}, "
-                  f"total={total_loss.item():.4f}")
+            # Clamp to valid image range
+            with torch.no_grad():
+                x_recon.clamp_(-3.0, 3.0)
+
+            cos_val = cos_sim.item()
+            if cos_val > run_best_cos:
+                run_best_cos = cos_val
+                run_best_x = x_recon.detach().clone()
+
+            if verbose and (i % 2000 == 0 or i == n_iters - 1):
+                tv_val = tv_loss if isinstance(tv_loss, float) else tv_loss.item()
+                print(f"  [restart {restart+1}/{n_restarts}] iter {i:5d}: "
+                      f"cos_sim={cos_val:.4f}, tv={tv_val:.6f}, "
+                      f"total={total_loss.item():.4f}")
+
+        if verbose:
+            print(f"  Restart {restart+1}: best cos_sim={run_best_cos:.4f}")
+
+        if run_best_cos > best_cos_sim:
+            best_cos_sim = run_best_cos
+            best_x = run_best_x.clone()
+
+    # Exit SDPA context
+    if sdpa_ctx is not None:
+        sdpa_ctx.__exit__(None, None, None)
+
+    # Restore original requires_grad state
+    for n, p in zip(param_names_in_grad, params_for_grad):
+        p.requires_grad_(orig_requires_grad[n])
+
+    if verbose:
+        print(f"  Overall best cos_sim={best_cos_sim:.4f} "
+              f"(from {n_restarts} restarts)")
 
     return best_x
 
 
 def add_noise_to_gradient(gradients, target_cosine_sim, seed=42):
-    """Add Gaussian noise to gradients to achieve target cosine similarity.
-
-    Returns noisy gradients dict.
-    """
+    """Add Gaussian noise to gradients to achieve target cosine similarity."""
     torch.manual_seed(seed)
     noisy_grads = {}
 
@@ -216,24 +283,18 @@ def add_noise_to_gradient(gradients, target_cosine_sim, seed=42):
     flat_true = torch.cat([g.reshape(-1) for g in gradients.values()])
     norm_true = flat_true.norm()
 
-    # cos(g, g+noise) = cos(g, g+noise)
-    # For Gaussian noise with std sigma:
-    #   E[cos] ≈ 1 / sqrt(1 + (sigma * sqrt(d) / ||g||)^2)
-    # Solve for sigma given target cos:
-    #   sigma = ||g|| * sqrt(1/cos^2 - 1) / sqrt(d)
+    # sigma = ||g|| * sqrt(1/cos^2 - 1) / sqrt(d)
     d = flat_true.numel()
     if target_cosine_sim >= 0.999:
         sigma = 0.0
     else:
-        sigma = (norm_true * (1.0 / target_cosine_sim**2 - 1.0).sqrt()
+        sigma = (norm_true * math.sqrt(1.0 / target_cosine_sim**2 - 1.0)
                  / (d ** 0.5)).item()
 
     # Add noise to each gradient tensor
-    offset = 0
     for name, g in gradients.items():
         noise = torch.randn_like(g) * sigma
         noisy_grads[name] = g + noise
-        offset += g.numel()
 
     # Verify achieved cosine similarity
     flat_noisy = torch.cat([g.reshape(-1) for g in noisy_grads.values()])
@@ -246,28 +307,17 @@ def add_noise_to_gradient(gradients, target_cosine_sim, seed=42):
 
 def compute_metrics(x_true, x_recon, denorm_mean, denorm_std):
     """Compute reconstruction quality metrics."""
-    # Denormalize both
     mean = torch.tensor(denorm_mean, device=x_true.device).reshape(1, 3, 1, 1)
     std = torch.tensor(denorm_std, device=x_true.device).reshape(1, 3, 1, 1)
 
     x_true_pixel = (x_true * std + mean).clamp(0, 1)
     x_recon_pixel = (x_recon * std + mean).clamp(0, 1)
 
-    # MSE
     mse = F.mse_loss(x_recon_pixel, x_true_pixel).item()
-
-    # PSNR
     psnr = -10.0 * np.log10(mse + 1e-10)
-
-    # Simple SSIM (per-channel mean)
-    # Using a basic implementation compatible with any PyTorch version
     ssim = _simple_ssim(x_true_pixel, x_recon_pixel)
 
-    return {
-        'mse': mse,
-        'psnr': psnr,
-        'ssim': ssim,
-    }
+    return {'mse': mse, 'psnr': psnr, 'ssim': ssim}
 
 
 def _simple_ssim(img1, img2, window_size=11):
@@ -275,7 +325,6 @@ def _simple_ssim(img1, img2, window_size=11):
     C1 = 0.01 ** 2
     C2 = 0.03 ** 2
 
-    # Average over spatial dims
     mu1 = img1.mean(dim=(-2, -1))
     mu2 = img2.mean(dim=(-2, -1))
 
@@ -309,12 +358,10 @@ def save_comparison_image(x_true, x_recon, metrics, save_path,
         axes = axes.reshape(2, 1)
 
     for i in range(n):
-        # Ground truth
         axes[0, i].imshow(x_true_np[i].transpose(1, 2, 0))
         axes[0, i].set_title('Ground Truth')
         axes[0, i].axis('off')
 
-        # Reconstruction
         axes[1, i].imshow(x_recon_np[i].transpose(1, 2, 0))
         ssim = metrics.get('ssim', 0)
         psnr = metrics.get('psnr', 0)
@@ -329,14 +376,16 @@ def save_comparison_image(x_true, x_recon, metrics, save_path,
     print(f"Saved: {save_path}")
 
 
-def run_phase0(rank=8, n_images=1, seed=42, n_iters=3000,
-               device='cuda', verbose=True):
-    """Run Phase 0: exact gradient inversion on ViT."""
-    print("=" * 70)
-    print(f"PHASE 0: ViT Gradient Inversion (rank={rank}, n={n_images})")
-    print("=" * 70)
+def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
+               mode='both', device='cuda', verbose=True):
+    """Run Phase 0: exact gradient inversion on ViT.
 
-    # Load model
+    Args:
+        mode: 'full' (all 86M params), 'lora' (294K LoRA only), or 'both'
+    """
+    modes = [mode] if mode != 'both' else ['full', 'lora']
+
+    # Load model once
     model = load_vit_with_lora(rank=rank, num_classes=2, device=device)
 
     # Get images
@@ -344,84 +393,115 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=3000,
                                         device=device)
     print(f"Image shape: {images.shape}, labels: {labels.squeeze().tolist()}")
 
-    # Capture exact gradient
-    print("Capturing exact gradient...")
-    t0 = time.time()
-    gradients, train_loss = capture_gradient(model, images, labels)
-    t_grad = time.time() - t0
-    n_grad_params = sum(g.numel() for g in gradients.values())
-    print(f"  Gradient captured in {t_grad:.1f}s, "
-          f"{len(gradients)} tensors, {n_grad_params:,} parameters")
-
-    # Invert gradient
-    print("Running gradient inversion...")
-    t0 = time.time()
-    x_recon = invert_gradient(
-        model, gradients, labels, images.shape,
-        n_iters=n_iters, device=device, verbose=verbose
-    )
-    t_inv = time.time() - t0
-    print(f"  Inversion completed in {t_inv:.1f}s")
-
-    # Compute metrics
     denorm_mean = [0.485, 0.456, 0.406]
     denorm_std = [0.229, 0.224, 0.225]
-    metrics = compute_metrics(images, x_recon, denorm_mean, denorm_std)
-    print(f"  SSIM={metrics['ssim']:.4f}, PSNR={metrics['psnr']:.1f}dB, "
-          f"MSE={metrics['mse']:.6f}")
-
-    # Save results
     results_dir = os.path.join(os.path.dirname(__file__), '..', 'results')
     figures_dir = os.path.join(os.path.dirname(__file__), '..', 'figures')
     os.makedirs(results_dir, exist_ok=True)
     os.makedirs(figures_dir, exist_ok=True)
 
-    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    all_metrics = {}
 
-    # Save tensors
-    tensor_path = os.path.join(results_dir, f'phase0_r{rank}_n{n_images}_s{seed}_{ts}.pth')
-    torch.save({
-        'x_true': images.cpu(),
-        'x_recon': x_recon.cpu(),
-        'labels': labels.cpu(),
-        'metrics': metrics,
-        'rank': rank,
-        'n_images': n_images,
-        'seed': seed,
-        'n_iters': n_iters,
-        'train_loss': train_loss,
-        'grad_time': t_grad,
-        'inversion_time': t_inv,
-    }, tensor_path)
-    print(f"Saved tensors: {tensor_path}")
+    for grad_mode in modes:
+        full_grad = (grad_mode == 'full')
+        print("\n" + "=" * 70)
+        print(f"PHASE 0 [{grad_mode.upper()}]: ViT Gradient Inversion "
+              f"(rank={rank}, n={n_images})")
+        print(f"  Gradient source: {'ALL parameters (~86M)' if full_grad else 'LoRA only (~294K)'}")
+        print("=" * 70)
 
-    # Save comparison image
-    fig_path = os.path.join(figures_dir, f'phase0_r{rank}_n{n_images}.png')
-    save_comparison_image(
-        images, x_recon, metrics, fig_path, denorm_mean, denorm_std,
-        title=f'Phase 0: ViT-B/16 + LoRA r={rank}, {n_images} image(s), exact gradient'
-    )
+        # Capture gradient
+        print("Capturing gradient...")
+        t0 = time.time()
+        gradients, train_loss = capture_gradient(
+            model, images, labels, full_model_grad=full_grad
+        )
+        t_grad = time.time() - t0
+        n_grad_params = sum(g.numel() for g in gradients.values())
+        print(f"  Gradient captured in {t_grad:.1f}s, "
+              f"{len(gradients)} tensors, {n_grad_params:,} parameters")
 
-    return metrics, x_recon
+        # Invert gradient
+        print(f"Running gradient inversion ({n_restarts} restarts, {n_iters} iters)...")
+        t0 = time.time()
+        x_recon = invert_gradient(
+            model, gradients, labels, images.shape,
+            n_iters=n_iters, n_restarts=n_restarts,
+            device=device, verbose=verbose
+        )
+        t_inv = time.time() - t0
+        print(f"  Inversion completed in {t_inv:.1f}s")
+
+        # Compute metrics
+        metrics = compute_metrics(images, x_recon, denorm_mean, denorm_std)
+        print(f"  SSIM={metrics['ssim']:.4f}, PSNR={metrics['psnr']:.1f}dB, "
+              f"MSE={metrics['mse']:.6f}")
+        all_metrics[grad_mode] = metrics
+
+        # Save tensors
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        tensor_path = os.path.join(
+            results_dir, f'phase0_{grad_mode}_r{rank}_n{n_images}_s{seed}_{ts}.pth'
+        )
+        torch.save({
+            'x_true': images.cpu(),
+            'x_recon': x_recon.cpu(),
+            'labels': labels.cpu(),
+            'metrics': metrics,
+            'rank': rank,
+            'n_images': n_images,
+            'seed': seed,
+            'n_iters': n_iters,
+            'n_restarts': n_restarts,
+            'grad_mode': grad_mode,
+            'n_grad_params': n_grad_params,
+            'train_loss': train_loss,
+            'grad_time': t_grad,
+            'inversion_time': t_inv,
+        }, tensor_path)
+        print(f"Saved tensors: {tensor_path}")
+
+        # Save comparison image
+        fig_path = os.path.join(
+            figures_dir, f'phase0_{grad_mode}_r{rank}_n{n_images}.png'
+        )
+        save_comparison_image(
+            images, x_recon, metrics, fig_path, denorm_mean, denorm_std,
+            title=(f'Phase 0 [{grad_mode}]: ViT-B/16 + LoRA r={rank}, '
+                   f'{n_images} image, {n_grad_params:,} grad params')
+        )
+
+    # Print summary if both modes ran
+    if len(modes) == 2:
+        print("\n" + "=" * 70)
+        print("PHASE 0 SUMMARY")
+        print("=" * 70)
+        for m in modes:
+            met = all_metrics[m]
+            print(f"  {m:5s}: SSIM={met['ssim']:.4f}, PSNR={met['psnr']:.1f}dB")
+
+    return all_metrics
 
 
-def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=3000,
+def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=10000,
+                             n_restarts=4, mode='full',
                              device='cuda', verbose=True):
-    """Run Phase 0b: gradient inversion with varying noise levels.
-
-    Tests cosine similarities: 0.99, 0.95, 0.90, 0.85, 0.80
-    """
+    """Run Phase 0b: gradient inversion with varying noise levels."""
+    full_grad = (mode == 'full')
     print("=" * 70)
-    print(f"PHASE 0b: Noise Tolerance Sweep (rank={rank}, n={n_images})")
+    print(f"PHASE 0b: Noise Tolerance Sweep (rank={rank}, n={n_images}, "
+          f"mode={mode})")
     print("=" * 70)
 
-    # Load model and get images
     model = load_vit_with_lora(rank=rank, num_classes=2, device=device)
     images, labels = get_sample_images(n_images=n_images, seed=seed,
                                         device=device)
 
-    # Capture exact gradient
-    gradients, train_loss = capture_gradient(model, images, labels)
+    gradients, train_loss = capture_gradient(
+        model, images, labels, full_model_grad=full_grad
+    )
+    n_grad_params = sum(g.numel() for g in gradients.values())
+    print(f"Gradient: {len(gradients)} tensors, {n_grad_params:,} parameters")
 
     denorm_mean = [0.485, 0.456, 0.406]
     denorm_std = [0.229, 0.224, 0.225]
@@ -441,10 +521,10 @@ def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=3000,
             )
         print(f"  Achieved cosine similarity: {actual_cos:.4f}")
 
-        # Invert noisy gradient
         x_recon = invert_gradient(
             model, noisy_grads, labels, images.shape,
-            n_iters=n_iters, device=device, verbose=verbose
+            n_iters=n_iters, n_restarts=n_restarts,
+            device=device, verbose=verbose
         )
 
         metrics = compute_metrics(images, x_recon, denorm_mean, denorm_std)
@@ -459,6 +539,8 @@ def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=3000,
             'rank': rank,
             'n_images': n_images,
             'seed': seed,
+            'grad_mode': mode,
+            'n_grad_params': n_grad_params,
         })
 
     # Save CSV
@@ -473,7 +555,6 @@ def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=3000,
         writer.writerows(results_list)
     print(f"\nNoise sweep results saved: {csv_path}")
 
-    # Plot noise tolerance curve
     _plot_noise_curve(results_list,
                       os.path.join(os.path.dirname(__file__), '..', 'figures'))
 
@@ -522,8 +603,14 @@ if __name__ == '__main__':
     parser.add_argument('--rank', type=int, default=8, help='LoRA rank')
     parser.add_argument('--n_images', type=int, default=1, help='Number of images')
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--n_iters', type=int, default=3000,
-                        help='Inversion iterations')
+    parser.add_argument('--n_iters', type=int, default=10000,
+                        help='Inversion iterations per restart')
+    parser.add_argument('--n_restarts', type=int, default=8,
+                        help='Number of random restarts')
+    parser.add_argument('--mode', type=str, default='both',
+                        choices=['full', 'lora', 'both'],
+                        help='Gradient mode: full (all 86M params), '
+                             'lora (LoRA only), or both')
     parser.add_argument('--noise_sweep', action='store_true',
                         help='Run Phase 0b noise tolerance sweep')
     parser.add_argument('--device', type=str, default='cuda')
@@ -532,10 +619,13 @@ if __name__ == '__main__':
     if args.noise_sweep:
         run_phase0b_noise_sweep(
             rank=args.rank, n_images=args.n_images, seed=args.seed,
-            n_iters=args.n_iters, device=args.device
+            n_iters=args.n_iters, n_restarts=args.n_restarts,
+            mode=args.mode if args.mode != 'both' else 'full',
+            device=args.device
         )
     else:
         run_phase0(
             rank=args.rank, n_images=args.n_images, seed=args.seed,
-            n_iters=args.n_iters, device=args.device
+            n_iters=args.n_iters, n_restarts=args.n_restarts,
+            mode=args.mode, device=args.device
         )

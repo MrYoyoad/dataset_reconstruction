@@ -1,4 +1,6 @@
 #!/bin/bash
+# CLOSED: Negative result confirmed (2026-04-07). KKT loss 330-350 for all N.
+# See LESSONS_LEARNED.md for full analysis. Do NOT resubmit.
 #BSUB -q long-gpu
 #BSUB -R "rusage[mem=16384] select[ngpus>0]"
 #BSUB -gpu "num=1"
