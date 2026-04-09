@@ -214,56 +214,19 @@ def capture_gradient(model, images, labels, full_model_grad=True):
     return gradients, loss.item()
 
 
-def _make_signed_adam(params, lr):
-    """Create a signed Adam optimizer (Geiping et al. 2020).
+def _sign_gradients(x):
+    """Apply sign() to gradients in-place before optimizer step.
 
-    Computes Adam's full update (with momentum and variance tracking),
-    then applies only the SIGN of that update. This preserves Adam's
-    adaptive direction selection while ensuring uniform step magnitude,
-    which Geiping et al. found critical for cosine similarity maximization.
+    This is Geiping et al.'s "signed Adam": quantize the raw gradient to
+    {-1, 0, +1} BEFORE Adam processes it. Adam then applies its momentum
+    and variance tracking on these sign-clipped gradients.
 
-    Previous (buggy) version used sign(raw_gradient) × lr, which ignores
-    Adam's state entirely and produces high-frequency noise.
+    Ref: JonasGeiping/invertinggradients, reconstruction_algorithms.py:
+        if self.config['signed']:
+            x_trial.grad.sign_()
     """
-
-    class SignedAdam(torch.optim.Adam):
-        @torch.no_grad()
-        def step(self, closure=None):
-            for group in self.param_groups:
-                beta1, beta2 = group['betas']
-                for p in group['params']:
-                    if p.grad is None:
-                        continue
-                    grad = p.grad
-                    state = self.state[p]
-
-                    # Initialize state on first call
-                    if len(state) == 0:
-                        state['step'] = 0
-                        state['exp_avg'] = torch.zeros_like(p)
-                        state['exp_avg_sq'] = torch.zeros_like(p)
-
-                    state['step'] += 1
-                    exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
-
-                    # Adam momentum and variance updates
-                    exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
-                    exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
-
-                    # Bias-corrected estimates
-                    bias_correction1 = 1 - beta1 ** state['step']
-                    bias_correction2 = 1 - beta2 ** state['step']
-                    corrected_avg = exp_avg / bias_correction1
-                    corrected_var = exp_avg_sq / bias_correction2
-
-                    # Adam update direction: m / (sqrt(v) + eps)
-                    adam_update = corrected_avg / (corrected_var.sqrt() + group['eps'])
-
-                    # Apply SIGN of the Adam update (Geiping et al.)
-                    p.add_(adam_update.sign(), alpha=-group['lr'])
-            return None
-
-    return SignedAdam(params, lr=lr)
+    if x.grad is not None:
+        x.grad.sign_()
 
 
 # Valid pixel range in ImageNet-normalized space:
@@ -341,8 +304,9 @@ def invert_gradient(model, gradients, labels, image_shape,
                                device=device, dtype=torch.float32,
                                requires_grad=True)
 
-        if optimizer_name.lower() == 'signadam':
-            optimizer = _make_signed_adam([x_recon], lr=lr)
+        use_signed = optimizer_name.lower() == 'signadam'
+        if optimizer_name.lower() in ('signadam', 'adam'):
+            optimizer = torch.optim.Adam([x_recon], lr=lr)
         elif optimizer_name.lower() == 'sgd':
             optimizer = torch.optim.SGD([x_recon], lr=lr, momentum=0.9)
         else:
@@ -390,6 +354,11 @@ def invert_gradient(model, gradients, labels, image_shape,
             total_loss = -cos_sim + tv_loss
             # Only compute gradient w.r.t. x_recon (skip 86M model params)
             total_loss.backward(inputs=[x_recon])
+
+            # Geiping et al. "signed" mode: sign-clip gradient before Adam
+            # Ref: JonasGeiping/invertinggradients, reconstruction_algorithms.py
+            if use_signed:
+                _sign_gradients(x_recon)
 
             optimizer.step()
             scheduler.step()
