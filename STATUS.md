@@ -52,31 +52,32 @@ Comprehensive ablation study across two tracks. 148+ configs completed.
 - B4: N sweep (NTK) — **DONE** (results/sprint2c_track_b4_*.csv)
 - B5-B8: Additional ablations — **DONE** (results in sprint2c_track_b5/b6/b7/b8 CSVs)
 
-### Phase 0: ViT Gradient Inversion Gate — RAN, POOR RESULTS
+### Phase 0: ViT Gradient Inversion Gate — RAN, AWAITING RE-RUN WITH FIXES
 
 Critical gate experiment: can gradient inversion reconstruct images from exact ViT-B/16 gradients?
 
 **First attempt (2026-03-27):** SSIM=0.015. Failed due to 4 bugs (non-differentiable cosine sim, per-tensor averaging, LoRA-only grads, float.sqrt). All fixed.
 
-**Second attempt (2026-04-07, bugs fixed):**
+**Second attempt (2026-04-07, bugs fixed):** Reconstructions showed vague color/shape resemblance (boat outline visible) but were very noisy. SSIM numbers from this run used a **non-standard global-mean SSIM** (not comparable to Sprint 2 or literature) — do not cite the old values.
 
-| Variant | Grad params | SSIM | PSNR | Cos sim achieved |
-|---------|-------------|------|------|-----------------|
-| Full model | 86,095,106 | **0.089** | 11.9 | ~0.3-0.5 (est) |
-| LoRA-only | 294,912 | **0.264** | 12.6 | ~0.3-0.5 (est) |
-
-Reconstructions show vague color/shape resemblance (boat outline visible) but are very noisy. LoRA-only surprisingly outperformed full model — possibly because the lower-dimensional optimization landscape (294K vs 86M) is easier to navigate, even with less gradient information.
+**Code audit (2026-04-09) — 6 issues found and fixed:**
+1. **SSIM was non-standard** (global mean, not windowed). Now uses Kornia `ssim(window_size=3)`, matching Sprint 2 and the literature.
+2. **Wasteful backward**: `total_loss.backward()` computed gradients for all 86M model params. Now uses `backward(inputs=[x_recon])`.
+3. **Missing signed Adam** (Geiping et al. key finding). Added `--optimizer signAdam` option.
+4. **TV not normalized** by pixel count (resolution-dependent weighting). Now normalized. Added `--tv_norm l1` option.
+5. **Loose clamping** [-3, 3] allowed non-physical pixels. Tightened to valid ImageNet-normalized range [-2.2, 2.7].
+6. **LoRA gradient dims misreported** as 294K. Effective dims are ~147K (B matrices only — peft inits B=0 so ∂L/∂A=0).
 
 **Diagnosis — why Phase 0 underperforms:**
-1. **86M-dimensional cosine sim is hard to optimize**: gradient space is enormous; Adam with 10K iters + 8 restarts is insufficient to climb a 86M-dim surface.
+1. **86M-dimensional cosine sim is hard to optimize**: gradient space is enormous; standard Adam (not signed Adam) with 10K iters + 8 restarts is insufficient.
 2. **Weak image prior**: only TV regularization; 224×224 RGB search space is vast without perceptual/generative constraints.
 3. **Attention double-backward**: ViT self-attention through `create_graph=True` is memory-intensive and may produce noisy higher-order gradients.
 4. **Single image, single seed**: no multi-seed statistics yet; this could be an unlucky seed/image pair.
 5. **Hyperparameters not tuned**: lr=0.1, tv_weight=1e-4, Adam — all defaults, no sweep performed.
 
 - Code: `experiments/phase0_vit_inversion.py`
-- WEXAC script: `scripts/run_phase0_fixed_wexac.sh`
-- Results: `results/phase0_{full,lora}_r8_n1_s42_20260407_*.pth`
+- WEXAC script: `scripts/run_phase0_v2_wexac.sh`
+- Previous results: `results/phase0_{full,lora}_r8_n1_s42_20260407_*.pth` (old SSIM — non-standard)
 - Figures: `figures/phase0_{full,lora}_r8_n1.png`
 
 ---

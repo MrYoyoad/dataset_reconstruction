@@ -93,18 +93,19 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 ## ViT Gradient Inversion (Phase 0) — 2026-04-09
 
 ### Key Realizations
-- **ViT gradient inversion is a fundamentally harder optimization problem than MNIST MLP reconstruction.** The gap between MNIST MLP (SSIM=0.997 at T=1) and ViT-B/16 (SSIM=0.089 full, 0.264 LoRA) is not just about fixing bugs — it reflects the jump from 784-dim grayscale to 150K-dim RGB, from 2M-param MLP to 86M-param transformer, and from well-conditioned piecewise-linear activations to attention + GELU.
-- **LoRA-only inversion (294K params) outperformed full-model (86M params): SSIM 0.264 vs 0.089.** This is counterintuitive but makes sense: with fewer gradient dimensions, the cosine similarity optimization landscape is smoother and the optimizer makes better progress. The full-model gradient has more information but the optimizer can't exploit it in 10K iterations. This echoes Sami et al. (CVPR 2025) who showed PEFT dimensionality reduction can make inversion *easier*.
-- **Hyperparameters were never tuned.** The Phase 0 config (lr=0.1, tv_weight=1e-4, Adam, 10K iters) was a one-shot default. The MNIST experiments went through extensive ablation (Sprint 2c: 148 configs). Giving Phase 0 the same treatment could significantly improve results.
+- **ViT gradient inversion is a fundamentally harder optimization problem than MNIST MLP reconstruction.** The gap between MNIST MLP (SSIM=0.997 at T=1) and ViT-B/16 is not just about fixing bugs — it reflects the jump from 784-dim grayscale to 150K-dim RGB, from 2M-param MLP to 86M-param transformer, and from well-conditioned piecewise-linear activations to attention + GELU.
+- **LoRA-only inversion effectively uses ~147K dims, not 294K.** Peft initializes B=0, A=randn. Since ∂L/∂A = B^T · (∂L/∂y) and B=0, the gradient w.r.t. A is identically zero at initialization. Both true and predicted A gradients are zero (model B is never updated during inversion). The matched zeros cancel in cosine similarity. Only B matrix gradients carry signal.
+- **LoRA-only outperformed full-model in early tests.** This is counterintuitive but makes sense: with fewer gradient dimensions (~147K vs 86M), the cosine similarity optimization landscape is smoother. The full-model gradient has more information but the optimizer can't exploit it in 10K iterations. Echoes Sami et al. (CVPR 2025).
+- **Hyperparameters were never tuned.** The Phase 0 config (lr=0.1, tv_weight=1e-4, Adam, 10K iters) was a one-shot default. Sprint 2 required 148+ configs to find optimal settings.
 - **Image priors matter more as dimensionality grows.** MNIST's 784-dim space is small enough that box constraints (x ∈ [-1,1]) suffice. At 150K dims (224×224 RGB), the optimizer needs TV, perceptual, frequency, or generative priors to stay on the natural image manifold.
 
 ### What Worked
-- Bug fixes (create_graph=True, global cosine sim, full-model gradient) raised SSIM from 0.015 to 0.089/0.264. The bugs were real and the fixes were necessary.
+- Bug fixes (create_graph=True, global cosine sim, full-model gradient) raised SSIM from 0.015 to measurable levels. The bugs were real and the fixes were necessary.
 - LoRA-only mode is a viable (and surprisingly effective) simplification for gradient inversion.
 - Reconstructions show correct color palette and vague shape of the boat — real signal exists, just not enough to be useful yet.
 
 ### What Didn't Work
-- 86M-parameter full-model gradient inversion with default hyperparameters (SSIM=0.089).
+- 86M-parameter full-model gradient inversion with default hyperparameters.
 - TV-only prior at 224×224 — too weak to constrain the search space.
 - Single seed/image — no multi-seed statistics to distinguish bad luck from bad method.
 
@@ -112,6 +113,9 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 - **Don't conclude "ViT inversion doesn't work" from one untuned run.** Sprint 2 showed how much hyperparameter tuning matters (seed=42 outlier at SSIM=0.830 vs 50-seed mean 0.558).
 - **Don't skip the dimensionality ladder.** Going from 784-dim MNIST to 150K-dim ImageNet in one jump is asking for trouble. CIFAR-10 (3K dims) is the natural stepping stone.
 - **Attention double-backward is fragile.** Must use SDPA math-only backend (no flash attention). Memory-intensive. Consider whether differentiable unrolling (Approach G) can bypass this entirely.
+- **Use standard metrics.** Early Phase 0 used a non-standard global-mean SSIM instead of windowed SSIM (Kornia/Wang et al. 2004). All reported SSIM values from the first runs were not comparable to Sprint 2 or the literature. Fixed 2026-04-09: now uses `kornia.metrics.ssim(window_size=3)`.
+- **`backward(inputs=[x_recon])` matters for performance.** The default `total_loss.backward()` computes gradients for all 86M model parameters even though only x_recon is optimized. Using `backward(inputs=[x_recon])` avoids this waste.
+- **Geiping et al. use signed Adam, not standard Adam.** The sign of the gradient update was a key finding in their paper. Standard Adam may plateau earlier on cosine similarity maximization. Now available via `--optimizer signAdam`.
 
 ---
 

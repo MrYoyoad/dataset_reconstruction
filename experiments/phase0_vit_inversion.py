@@ -14,12 +14,20 @@ Setup:
 
 Modes:
     --mode full   : Capture gradient from ALL 86M params (ceiling test)
-    --mode lora   : Capture gradient from LoRA params only (294K)
+    --mode lora   : Capture gradient from LoRA params only (~147K effective;
+                    peft inits B=0 so grad_A=0 at init — only B grads carry signal)
     --mode both   : Run both sequentially
+
+Note on LoRA gradient dimensions:
+    peft initializes B=0, A=randn. Since grad_A = B^T @ (dL/dy) = 0 when B=0,
+    the A gradients are identically zero at initialization. Both the true and
+    predicted A gradients are zero (model B is never updated during inversion),
+    so they cancel in cosine similarity. Effective gradient dims = B params only.
 
 Usage:
     python -u -m experiments.phase0_vit_inversion --device cuda --mode both
     python -u -m experiments.phase0_vit_inversion --device cuda --noise_sweep --mode full
+    python -u -m experiments.phase0_vit_inversion --device cuda --optimizer signAdam
 """
 
 import os
@@ -142,8 +150,40 @@ def capture_gradient(model, images, labels, full_model_grad=True):
     return gradients, loss.item()
 
 
+def _make_signed_adam(params, lr):
+    """Create a signed Adam optimizer (Geiping et al. 2020).
+
+    Uses Adam's momentum/variance tracking but applies only the SIGN of
+    the update (like SignSGD with adaptive learning rate). This was found
+    critical for cosine similarity maximization in gradient inversion.
+    """
+
+    class SignedAdam(torch.optim.Adam):
+        @torch.no_grad()
+        def step(self, closure=None):
+            for group in self.param_groups:
+                for p in group['params']:
+                    if p.grad is None:
+                        continue
+                    # Use sign of gradient, scaled by lr
+                    p.add_(p.grad.sign(), alpha=-group['lr'])
+            return None
+
+    return SignedAdam(params, lr=lr)
+
+
+# Valid pixel range in ImageNet-normalized space:
+# channel 0: (0 - 0.485) / 0.229 = -2.118  to  (1 - 0.485) / 0.229 = 2.249
+# channel 1: (0 - 0.456) / 0.224 = -2.036  to  (1 - 0.456) / 0.224 = 2.429
+# channel 2: (0 - 0.406) / 0.225 = -1.804  to  (1 - 0.406) / 0.225 = 2.640
+# Conservative bounds that cover all channels:
+_CLAMP_MIN = -2.2
+_CLAMP_MAX = 2.7
+
+
 def invert_gradient(model, gradients, labels, image_shape,
                     n_iters=10000, n_restarts=8, lr=0.1, tv_weight=1e-4,
+                    tv_norm='l2', optimizer_name='Adam',
                     device='cuda', verbose=True):
     """Reconstruct images from gradients via optimization.
 
@@ -154,6 +194,11 @@ def invert_gradient(model, gradients, labels, image_shape,
     similarity is differentiable w.r.t. x_recon.
 
     Multiple random restarts to handle non-convexity.
+
+    Args:
+        tv_norm: 'l1' (anisotropic, preserves edges) or 'l2' (isotropic).
+        optimizer_name: 'Adam', 'signAdam' (Geiping et al. recommended),
+                        or 'SGD'.
     """
     # Disable efficient SDPA — its backward doesn't support create_graph=True
     # (needed for double-backward through attention in PyTorch 2.x)
@@ -170,11 +215,18 @@ def invert_gradient(model, gradients, labels, image_shape,
         sdpa_ctx = None
 
     n_images = labels.shape[0]
+    # Pixel count for TV normalization (resolution-independent weighting)
+    n_pixels = image_shape[-2] * image_shape[-1]
 
     # Pre-compute flattened true gradient (constant across restarts)
     param_names_in_grad = [n for n, _ in model.named_parameters() if n in gradients]
     params_for_grad = [p for n, p in model.named_parameters() if n in gradients]
     g_true_cat = torch.cat([gradients[n].reshape(-1) for n in param_names_in_grad])
+    n_nonzero = (g_true_cat != 0).sum().item()
+    n_total = g_true_cat.numel()
+    if verbose:
+        print(f"  Gradient vector: {n_total:,} dims, "
+              f"{n_nonzero:,} non-zero ({100*n_nonzero/n_total:.1f}%)")
 
     # Enable requires_grad on all matched params so autograd.grad works
     orig_requires_grad = {}
@@ -195,7 +247,12 @@ def invert_gradient(model, gradients, labels, image_shape,
                                device=device, dtype=torch.float32,
                                requires_grad=True)
 
-        optimizer = torch.optim.Adam([x_recon], lr=lr)
+        if optimizer_name.lower() == 'signadam':
+            optimizer = _make_signed_adam([x_recon], lr=lr)
+        elif optimizer_name.lower() == 'sgd':
+            optimizer = torch.optim.SGD([x_recon], lr=lr, momentum=0.9)
+        else:
+            optimizer = torch.optim.Adam([x_recon], lr=lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, n_iters)
 
         run_best_cos = -1.0
@@ -203,6 +260,7 @@ def invert_gradient(model, gradients, labels, image_shape,
 
         for i in range(n_iters):
             optimizer.zero_grad()
+            model.zero_grad()
 
             # Forward pass
             logits = model(x_recon)
@@ -223,23 +281,28 @@ def invert_gradient(model, gradients, labels, image_shape,
                 g_pred_cat.unsqueeze(0), g_true_cat.unsqueeze(0)
             )
 
-            # Total Variation regularization
+            # Total Variation regularization (normalized by pixel count)
             tv_loss = 0.0
             if tv_weight > 0:
-                diff_h = (x_recon[:, :, 1:, :] - x_recon[:, :, :-1, :]).pow(2).sum()
-                diff_w = (x_recon[:, :, :, 1:] - x_recon[:, :, :, :-1]).pow(2).sum()
-                tv_loss = tv_weight * (diff_h + diff_w)
+                if tv_norm == 'l1':
+                    diff_h = (x_recon[:, :, 1:, :] - x_recon[:, :, :-1, :]).abs().sum()
+                    diff_w = (x_recon[:, :, :, 1:] - x_recon[:, :, :, :-1]).abs().sum()
+                else:
+                    diff_h = (x_recon[:, :, 1:, :] - x_recon[:, :, :-1, :]).pow(2).sum()
+                    diff_w = (x_recon[:, :, :, 1:] - x_recon[:, :, :, :-1]).pow(2).sum()
+                tv_loss = tv_weight * (diff_h + diff_w) / n_pixels
 
             # Inversion loss: maximize cosine similarity
             total_loss = -cos_sim + tv_loss
-            total_loss.backward()
+            # Only compute gradient w.r.t. x_recon (skip 86M model params)
+            total_loss.backward(inputs=[x_recon])
 
             optimizer.step()
             scheduler.step()
 
-            # Clamp to valid image range
+            # Clamp to valid ImageNet-normalized pixel range
             with torch.no_grad():
-                x_recon.clamp_(-3.0, 3.0)
+                x_recon.clamp_(_CLAMP_MIN, _CLAMP_MAX)
 
             cos_val = cos_sim.item()
             if cos_val > run_best_cos:
@@ -306,7 +369,12 @@ def add_noise_to_gradient(gradients, target_cosine_sim, seed=42):
 
 
 def compute_metrics(x_true, x_recon, denorm_mean, denorm_std):
-    """Compute reconstruction quality metrics."""
+    """Compute reconstruction quality metrics using proper windowed SSIM.
+
+    Uses kornia.metrics.ssim (windowed, standard Wang et al. 2004) to match
+    the rest of the codebase and published literature. Previous version used
+    a non-standard global-mean SSIM that was not comparable.
+    """
     mean = torch.tensor(denorm_mean, device=x_true.device).reshape(1, 3, 1, 1)
     std = torch.tensor(denorm_std, device=x_true.device).reshape(1, 3, 1, 1)
 
@@ -315,27 +383,34 @@ def compute_metrics(x_true, x_recon, denorm_mean, denorm_std):
 
     mse = F.mse_loss(x_recon_pixel, x_true_pixel).item()
     psnr = -10.0 * np.log10(mse + 1e-10)
-    ssim = _simple_ssim(x_true_pixel, x_recon_pixel)
+
+    # Windowed SSIM via Kornia (consistent with experiments/metrics.py)
+    try:
+        from kornia import metrics as kmetrics
+        ssim_map = kmetrics.ssim(
+            x_true_pixel.cpu().float(), x_recon_pixel.cpu().float(),
+            window_size=3,
+        )
+        ssim = ssim_map.reshape(x_true.shape[0], -1).mean().item()
+    except ImportError:
+        # Fallback if kornia unavailable (shouldn't happen on WEXAC)
+        ssim = _fallback_ssim(x_true_pixel, x_recon_pixel)
 
     return {'mse': mse, 'psnr': psnr, 'ssim': ssim}
 
 
-def _simple_ssim(img1, img2, window_size=11):
-    """Compute SSIM between two image batches. Simple implementation."""
+def _fallback_ssim(img1, img2):
+    """Global-mean SSIM fallback. NOT standard — use only if kornia unavailable."""
     C1 = 0.01 ** 2
     C2 = 0.03 ** 2
-
     mu1 = img1.mean(dim=(-2, -1))
     mu2 = img2.mean(dim=(-2, -1))
-
     sigma1_sq = ((img1 - mu1.unsqueeze(-1).unsqueeze(-1)) ** 2).mean(dim=(-2, -1))
     sigma2_sq = ((img2 - mu2.unsqueeze(-1).unsqueeze(-1)) ** 2).mean(dim=(-2, -1))
     sigma12 = ((img1 - mu1.unsqueeze(-1).unsqueeze(-1)) *
                (img2 - mu2.unsqueeze(-1).unsqueeze(-1))).mean(dim=(-2, -1))
-
     ssim_map = ((2 * mu1 * mu2 + C1) * (2 * sigma12 + C2)) / \
                ((mu1 ** 2 + mu2 ** 2 + C1) * (sigma1_sq + sigma2_sq + C2))
-
     return ssim_map.mean().item()
 
 
@@ -377,11 +452,13 @@ def save_comparison_image(x_true, x_recon, metrics, save_path,
 
 
 def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
+               lr=0.1, tv_weight=1e-4, tv_norm='l2', optimizer_name='Adam',
                mode='both', device='cuda', verbose=True):
     """Run Phase 0: exact gradient inversion on ViT.
 
     Args:
-        mode: 'full' (all 86M params), 'lora' (294K LoRA only), or 'both'
+        mode: 'full' (all 86M params), 'lora' (~147K effective LoRA B only),
+              or 'both'
     """
     modes = [mode] if mode != 'both' else ['full', 'lora']
 
@@ -392,6 +469,8 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
     images, labels = get_sample_images(n_images=n_images, seed=seed,
                                         device=device)
     print(f"Image shape: {images.shape}, labels: {labels.squeeze().tolist()}")
+    print(f"Config: lr={lr}, tv_weight={tv_weight}, tv_norm={tv_norm}, "
+          f"optimizer={optimizer_name}")
 
     denorm_mean = [0.485, 0.456, 0.406]
     denorm_std = [0.229, 0.224, 0.225]
@@ -407,7 +486,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
         print("\n" + "=" * 70)
         print(f"PHASE 0 [{grad_mode.upper()}]: ViT Gradient Inversion "
               f"(rank={rank}, n={n_images})")
-        print(f"  Gradient source: {'ALL parameters (~86M)' if full_grad else 'LoRA only (~294K)'}")
+        print(f"  Gradient source: {'ALL parameters (~86M)' if full_grad else 'LoRA B only (~147K effective)'}")
         print("=" * 70)
 
         # Capture gradient
@@ -422,11 +501,14 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
               f"{len(gradients)} tensors, {n_grad_params:,} parameters")
 
         # Invert gradient
-        print(f"Running gradient inversion ({n_restarts} restarts, {n_iters} iters)...")
+        print(f"Running gradient inversion ({n_restarts} restarts, "
+              f"{n_iters} iters, optimizer={optimizer_name})...")
         t0 = time.time()
         x_recon = invert_gradient(
             model, gradients, labels, images.shape,
-            n_iters=n_iters, n_restarts=n_restarts,
+            n_iters=n_iters, n_restarts=n_restarts, lr=lr,
+            tv_weight=tv_weight, tv_norm=tv_norm,
+            optimizer_name=optimizer_name,
             device=device, verbose=verbose
         )
         t_inv = time.time() - t0
@@ -453,6 +535,10 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
             'seed': seed,
             'n_iters': n_iters,
             'n_restarts': n_restarts,
+            'lr': lr,
+            'tv_weight': tv_weight,
+            'tv_norm': tv_norm,
+            'optimizer': optimizer_name,
             'grad_mode': grad_mode,
             'n_grad_params': n_grad_params,
             'train_loss': train_loss,
@@ -484,13 +570,14 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
 
 
 def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=10000,
-                             n_restarts=4, mode='full',
-                             device='cuda', verbose=True):
+                             n_restarts=4, lr=0.1, tv_weight=1e-4,
+                             tv_norm='l2', optimizer_name='Adam',
+                             mode='full', device='cuda', verbose=True):
     """Run Phase 0b: gradient inversion with varying noise levels."""
     full_grad = (mode == 'full')
     print("=" * 70)
     print(f"PHASE 0b: Noise Tolerance Sweep (rank={rank}, n={n_images}, "
-          f"mode={mode})")
+          f"mode={mode}, optimizer={optimizer_name})")
     print("=" * 70)
 
     model = load_vit_with_lora(rank=rank, num_classes=2, device=device)
@@ -523,7 +610,9 @@ def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=10000,
 
         x_recon = invert_gradient(
             model, noisy_grads, labels, images.shape,
-            n_iters=n_iters, n_restarts=n_restarts,
+            n_iters=n_iters, n_restarts=n_restarts, lr=lr,
+            tv_weight=tv_weight, tv_norm=tv_norm,
+            optimizer_name=optimizer_name,
             device=device, verbose=verbose
         )
 
@@ -607,10 +696,20 @@ if __name__ == '__main__':
                         help='Inversion iterations per restart')
     parser.add_argument('--n_restarts', type=int, default=8,
                         help='Number of random restarts')
+    parser.add_argument('--lr', type=float, default=0.1,
+                        help='Inversion learning rate')
+    parser.add_argument('--tv_weight', type=float, default=1e-4,
+                        help='Total Variation regularization weight')
+    parser.add_argument('--tv_norm', type=str, default='l2',
+                        choices=['l1', 'l2'],
+                        help='TV norm: l1 (edge-preserving) or l2 (isotropic)')
+    parser.add_argument('--optimizer', type=str, default='Adam',
+                        choices=['Adam', 'signAdam', 'SGD'],
+                        help='Optimizer: Adam, signAdam (Geiping et al.), SGD')
     parser.add_argument('--mode', type=str, default='both',
                         choices=['full', 'lora', 'both'],
                         help='Gradient mode: full (all 86M params), '
-                             'lora (LoRA only), or both')
+                             'lora (LoRA B only ~147K effective), or both')
     parser.add_argument('--noise_sweep', action='store_true',
                         help='Run Phase 0b noise tolerance sweep')
     parser.add_argument('--device', type=str, default='cuda')
@@ -620,6 +719,8 @@ if __name__ == '__main__':
         run_phase0b_noise_sweep(
             rank=args.rank, n_images=args.n_images, seed=args.seed,
             n_iters=args.n_iters, n_restarts=args.n_restarts,
+            lr=args.lr, tv_weight=args.tv_weight, tv_norm=args.tv_norm,
+            optimizer_name=args.optimizer,
             mode=args.mode if args.mode != 'both' else 'full',
             device=args.device
         )
@@ -627,5 +728,7 @@ if __name__ == '__main__':
         run_phase0(
             rank=args.rank, n_images=args.n_images, seed=args.seed,
             n_iters=args.n_iters, n_restarts=args.n_restarts,
+            lr=args.lr, tv_weight=args.tv_weight, tv_norm=args.tv_norm,
+            optimizer_name=args.optimizer,
             mode=args.mode, device=args.device
         )
