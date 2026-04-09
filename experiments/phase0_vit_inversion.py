@@ -217,20 +217,50 @@ def capture_gradient(model, images, labels, full_model_grad=True):
 def _make_signed_adam(params, lr):
     """Create a signed Adam optimizer (Geiping et al. 2020).
 
-    Uses Adam's momentum/variance tracking but applies only the SIGN of
-    the update (like SignSGD with adaptive learning rate). This was found
-    critical for cosine similarity maximization in gradient inversion.
+    Computes Adam's full update (with momentum and variance tracking),
+    then applies only the SIGN of that update. This preserves Adam's
+    adaptive direction selection while ensuring uniform step magnitude,
+    which Geiping et al. found critical for cosine similarity maximization.
+
+    Previous (buggy) version used sign(raw_gradient) × lr, which ignores
+    Adam's state entirely and produces high-frequency noise.
     """
 
     class SignedAdam(torch.optim.Adam):
         @torch.no_grad()
         def step(self, closure=None):
             for group in self.param_groups:
+                beta1, beta2 = group['betas']
                 for p in group['params']:
                     if p.grad is None:
                         continue
-                    # Use sign of gradient, scaled by lr
-                    p.add_(p.grad.sign(), alpha=-group['lr'])
+                    grad = p.grad
+                    state = self.state[p]
+
+                    # Initialize state on first call
+                    if len(state) == 0:
+                        state['step'] = 0
+                        state['exp_avg'] = torch.zeros_like(p)
+                        state['exp_avg_sq'] = torch.zeros_like(p)
+
+                    state['step'] += 1
+                    exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
+
+                    # Adam momentum and variance updates
+                    exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
+                    exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
+
+                    # Bias-corrected estimates
+                    bias_correction1 = 1 - beta1 ** state['step']
+                    bias_correction2 = 1 - beta2 ** state['step']
+                    corrected_avg = exp_avg / bias_correction1
+                    corrected_var = exp_avg_sq / bias_correction2
+
+                    # Adam update direction: m / (sqrt(v) + eps)
+                    adam_update = corrected_avg / (corrected_var.sqrt() + group['eps'])
+
+                    # Apply SIGN of the Adam update (Geiping et al.)
+                    p.add_(adam_update.sign(), alpha=-group['lr'])
             return None
 
     return SignedAdam(params, lr=lr)
