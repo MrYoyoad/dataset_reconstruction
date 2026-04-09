@@ -73,24 +73,87 @@ def load_vit_with_lora(rank=8, num_classes=2, device='cuda'):
     return model
 
 
-def get_sample_images(n_images=2, seed=42, device='cuda'):
+def get_sample_images(n_images=2, seed=42, dataset_name='flowers102',
+                      device='cuda'):
     """Get sample images for fine-tuning.
 
-    Uses CIFAR-10 as a simple source (224x224 resize).
+    Args:
+        dataset_name: 'flowers102' (native ~500px, auto-download, default),
+                      'food101' (native ~512px, auto-download),
+                      'stl10' (native 96px — still upscaled but 9x better than CIFAR),
+                      'imagenet' (native 224+, requires manual download to ./data/imagenet/),
+                      'cifar10' (native 32px — BAD for ViT, only for backward compat).
+
     Returns (images, labels) where images are [N, 3, 224, 224].
     """
     _, torchvision, T, _, _, _ = _lazy_imports()
 
-    transform = T.Compose([
-        T.Resize((224, 224)),
-        T.ToTensor(),
-        T.Normalize(mean=[0.485, 0.456, 0.406],
-                     std=[0.229, 0.224, 0.225]),
-    ])
-
-    dataset = torchvision.datasets.CIFAR10(
-        root='./data', train=False, download=True, transform=transform
-    )
+    # For native high-res datasets: center-crop to 224 (no upscaling artifacts)
+    # For low-res datasets: resize (with warning)
+    if dataset_name == 'cifar10':
+        print("  WARNING: CIFAR-10 is 32x32 — upscaling to 224x224 creates "
+              "blocky artifacts that hurt reconstruction. Use --dataset flowers102.")
+        transform = T.Compose([
+            T.Resize((224, 224)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+        ])
+        dataset = torchvision.datasets.CIFAR10(
+            root='./data', train=False, download=True, transform=transform
+        )
+        n_classes = 10
+    elif dataset_name == 'flowers102':
+        transform = T.Compose([
+            T.Resize(256),
+            T.CenterCrop(224),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+        ])
+        dataset = torchvision.datasets.Flowers102(
+            root='./data', split='test', download=True, transform=transform
+        )
+        n_classes = 102
+    elif dataset_name == 'food101':
+        transform = T.Compose([
+            T.Resize(256),
+            T.CenterCrop(224),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+        ])
+        dataset = torchvision.datasets.Food101(
+            root='./data', split='test', download=True, transform=transform
+        )
+        n_classes = 101
+    elif dataset_name == 'stl10':
+        transform = T.Compose([
+            T.Resize(256),
+            T.CenterCrop(224),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+        ])
+        dataset = torchvision.datasets.STL10(
+            root='./data', split='test', download=True, transform=transform
+        )
+        n_classes = 10
+    elif dataset_name == 'imagenet':
+        transform = T.Compose([
+            T.Resize(256),
+            T.CenterCrop(224),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+        ])
+        dataset = torchvision.datasets.ImageNet(
+            root='./data/imagenet', split='val', transform=transform
+        )
+        n_classes = 1000
+    else:
+        raise ValueError(f"Unknown dataset: {dataset_name}. "
+                         f"Options: flowers102, food101, stl10, imagenet, cifar10")
 
     # Pick n_images with deterministic seed
     rng = torch.Generator().manual_seed(seed)
@@ -105,6 +168,7 @@ def get_sample_images(n_images=2, seed=42, device='cuda'):
 
     images = torch.stack(images).to(device)
     labels = torch.tensor(labels, dtype=torch.float32, device=device).unsqueeze(1)
+    print(f"  Dataset: {dataset_name} ({len(dataset)} images, {n_classes} classes)")
     return images, labels
 
 
@@ -453,12 +517,14 @@ def save_comparison_image(x_true, x_recon, metrics, save_path,
 
 def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
                lr=0.1, tv_weight=1e-4, tv_norm='l2', optimizer_name='Adam',
+               dataset_name='flowers102',
                mode='both', device='cuda', verbose=True):
     """Run Phase 0: exact gradient inversion on ViT.
 
     Args:
         mode: 'full' (all 86M params), 'lora' (~147K effective LoRA B only),
               or 'both'
+        dataset_name: Source dataset for sample images (see get_sample_images).
     """
     modes = [mode] if mode != 'both' else ['full', 'lora']
 
@@ -467,6 +533,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
 
     # Get images
     images, labels = get_sample_images(n_images=n_images, seed=seed,
+                                        dataset_name=dataset_name,
                                         device=device)
     print(f"Image shape: {images.shape}, labels: {labels.squeeze().tolist()}")
     print(f"Config: lr={lr}, tv_weight={tv_weight}, tv_norm={tv_norm}, "
@@ -539,6 +606,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
             'tv_weight': tv_weight,
             'tv_norm': tv_norm,
             'optimizer': optimizer_name,
+            'dataset': dataset_name,
             'grad_mode': grad_mode,
             'n_grad_params': n_grad_params,
             'train_loss': train_loss,
@@ -572,16 +640,18 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
 def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=10000,
                              n_restarts=4, lr=0.1, tv_weight=1e-4,
                              tv_norm='l2', optimizer_name='Adam',
+                             dataset_name='flowers102',
                              mode='full', device='cuda', verbose=True):
     """Run Phase 0b: gradient inversion with varying noise levels."""
     full_grad = (mode == 'full')
     print("=" * 70)
     print(f"PHASE 0b: Noise Tolerance Sweep (rank={rank}, n={n_images}, "
-          f"mode={mode}, optimizer={optimizer_name})")
+          f"mode={mode}, optimizer={optimizer_name}, dataset={dataset_name})")
     print("=" * 70)
 
     model = load_vit_with_lora(rank=rank, num_classes=2, device=device)
     images, labels = get_sample_images(n_images=n_images, seed=seed,
+                                        dataset_name=dataset_name,
                                         device=device)
 
     gradients, train_loss = capture_gradient(
@@ -706,6 +776,11 @@ if __name__ == '__main__':
     parser.add_argument('--optimizer', type=str, default='Adam',
                         choices=['Adam', 'signAdam', 'SGD'],
                         help='Optimizer: Adam, signAdam (Geiping et al.), SGD')
+    parser.add_argument('--dataset', type=str, default='flowers102',
+                        choices=['flowers102', 'food101', 'stl10',
+                                 'imagenet', 'cifar10'],
+                        help='Image source. Use native high-res datasets '
+                             '(flowers102, food101) — NOT cifar10 (32px upscaled)')
     parser.add_argument('--mode', type=str, default='both',
                         choices=['full', 'lora', 'both'],
                         help='Gradient mode: full (all 86M params), '
@@ -720,7 +795,7 @@ if __name__ == '__main__':
             rank=args.rank, n_images=args.n_images, seed=args.seed,
             n_iters=args.n_iters, n_restarts=args.n_restarts,
             lr=args.lr, tv_weight=args.tv_weight, tv_norm=args.tv_norm,
-            optimizer_name=args.optimizer,
+            optimizer_name=args.optimizer, dataset_name=args.dataset,
             mode=args.mode if args.mode != 'both' else 'full',
             device=args.device
         )
@@ -729,6 +804,6 @@ if __name__ == '__main__':
             rank=args.rank, n_images=args.n_images, seed=args.seed,
             n_iters=args.n_iters, n_restarts=args.n_restarts,
             lr=args.lr, tv_weight=args.tv_weight, tv_norm=args.tv_norm,
-            optimizer_name=args.optimizer,
+            optimizer_name=args.optimizer, dataset_name=args.dataset,
             mode=args.mode, device=args.device
         )

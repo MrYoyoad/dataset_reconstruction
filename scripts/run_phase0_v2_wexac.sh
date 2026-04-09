@@ -9,6 +9,7 @@
 
 # Phase 0 v2: ViT gradient inversion with audit fixes
 # Changes from v1:
+#   - Native high-res images (Flowers102, ~500px) instead of upscaled CIFAR-10
 #   - Proper windowed SSIM (Kornia) instead of global-mean SSIM
 #   - backward(inputs=[x_recon]) for faster iterations
 #   - Signed Adam optimizer (Geiping et al. 2020 recommendation)
@@ -32,9 +33,10 @@ echo "Date: $(date)"
 echo "Host: $(hostname)"
 
 # Phase 0: both full-model (86M params) and LoRA-only (~147K effective)
-# Using signAdam (Geiping et al. recommended) instead of standard Adam
+# Using signAdam (Geiping et al. recommended) and native high-res images
 python -u -m experiments.phase0_vit_inversion \
     --mode both \
+    --dataset flowers102 \
     --n_iters 10000 \
     --n_restarts 8 \
     --optimizer signAdam \
@@ -50,6 +52,7 @@ echo "=== Phase 0b: Noise Tolerance Sweep (full-model gradient) ==="
 python -u -m experiments.phase0_vit_inversion \
     --noise_sweep \
     --mode full \
+    --dataset flowers102 \
     --n_iters 10000 \
     --n_restarts 4 \
     --optimizer signAdam \

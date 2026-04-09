@@ -116,6 +116,7 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 - **Use standard metrics.** Early Phase 0 used a non-standard global-mean SSIM instead of windowed SSIM (Kornia/Wang et al. 2004). All reported SSIM values from the first runs were not comparable to Sprint 2 or the literature. Fixed 2026-04-09: now uses `kornia.metrics.ssim(window_size=3)`.
 - **`backward(inputs=[x_recon])` matters for performance.** The default `total_loss.backward()` computes gradients for all 86M model parameters even though only x_recon is optimized. Using `backward(inputs=[x_recon])` avoids this waste.
 - **Geiping et al. use signed Adam, not standard Adam.** The sign of the gradient update was a key finding in their paper. Standard Adam may plateau earlier on cosine similarity maximization. Now available via `--optimizer signAdam`.
+- **Never upscale low-res images for ViT inversion.** CIFAR-10 (32×32) upscaled to 224×224 creates blocky, unnatural images. The gradient encodes the upscaling artifact, not natural image structure. TV regularization fights the block artifacts. Always use datasets with native high-res images (Flowers102 ~500px, Food101 ~512px, ImageNet) and center-crop to 224. Default changed from `cifar10` to `flowers102`.
 
 ---
 
@@ -398,6 +399,26 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 - This thesis: reconstructs from adapter weights via NTK/Gradient Bridge — the few-shot regime is where the attack is most potent and the threat model is most realistic
 
 **Caveat:** All results so far are MNIST + 2-layer MLP. Scaling to ViTs on real images (Sprint 3) is the key open question.
+
+---
+
+## [BUG] Phase 0 Used Bilinear-Upscaled CIFAR-10 as ViT Input — Methodological Error (2026-04-09)
+
+**Context:** Phase 0 (ViT gradient inversion) used a CIFAR-10 image (32×32) bilinearly upscaled to 224×224 as input to ViT-B/16. The ground truth image looked blurry and blocky — each original pixel became a ~7×7 smeared blob.
+
+**Why this is wrong (not just ugly):**
+1. **Wasted information**: ViT-B/16 creates (224/16)²=196 patches, but only (32/16)²=4 patches worth of real information exists. 192 patches encode interpolation artifacts, not image content.
+2. **Artificially harder inversion**: The reconstruction target is 150K pixel values that contain only 3K real degrees of freedom (32×32×3). The optimizer wastes capacity matching interpolation artifacts.
+3. **Misleading gradients**: Patch embeddings learn features from blurry blobs, not real image structure. The gradient signal is spread across 196 patches but concentrated in ~4.
+4. **No serious paper does this**: Gradient inversion papers using ViT use ImageNet at native 224×224 (Geiping et al., GradInversion, Sami et al. CVPR 2025). Papers using CIFAR-10 use small-patch ViTs (patch_size=4, img_size=32).
+
+**Fix (two legitimate options):**
+1. **Small-patch ViT for CIFAR-10**: Use `vit_small_patch4_32` or configure ViT with `img_size=32, patch_size=4` → 64 patches at native resolution. Good for quick validation.
+2. **Native 224×224 dataset with ViT-B/16**: Use ImageNet (or a 100-class subset) or CelebA at 224×224. This matches the real-world LoRA threat model (foundation model + adapter) and aligns with what PEFT gradient inversion papers use.
+
+**Impact on Phase 0 results:** The SSIM=0.089 (full) / 0.264 (LoRA-only) numbers are partially explained by this error. The inversion was fighting a 49×-inflated search space filled with interpolation artifacts. Re-running with the correct setup (either option) may yield substantially better results.
+
+**Lesson:** Always verify that the input pipeline matches how the model was trained and how the evaluation literature uses the same model. ViT-B/16 was trained on 224×224 ImageNet — use that, or use a ViT variant designed for your resolution.
 
 ---
 
