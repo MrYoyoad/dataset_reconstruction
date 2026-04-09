@@ -90,6 +90,31 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 
 ---
 
+## ViT Gradient Inversion (Phase 0) — 2026-04-09
+
+### Key Realizations
+- **ViT gradient inversion is a fundamentally harder optimization problem than MNIST MLP reconstruction.** The gap between MNIST MLP (SSIM=0.997 at T=1) and ViT-B/16 (SSIM=0.089 full, 0.264 LoRA) is not just about fixing bugs — it reflects the jump from 784-dim grayscale to 150K-dim RGB, from 2M-param MLP to 86M-param transformer, and from well-conditioned piecewise-linear activations to attention + GELU.
+- **LoRA-only inversion (294K params) outperformed full-model (86M params): SSIM 0.264 vs 0.089.** This is counterintuitive but makes sense: with fewer gradient dimensions, the cosine similarity optimization landscape is smoother and the optimizer makes better progress. The full-model gradient has more information but the optimizer can't exploit it in 10K iterations. This echoes Sami et al. (CVPR 2025) who showed PEFT dimensionality reduction can make inversion *easier*.
+- **Hyperparameters were never tuned.** The Phase 0 config (lr=0.1, tv_weight=1e-4, Adam, 10K iters) was a one-shot default. The MNIST experiments went through extensive ablation (Sprint 2c: 148 configs). Giving Phase 0 the same treatment could significantly improve results.
+- **Image priors matter more as dimensionality grows.** MNIST's 784-dim space is small enough that box constraints (x ∈ [-1,1]) suffice. At 150K dims (224×224 RGB), the optimizer needs TV, perceptual, frequency, or generative priors to stay on the natural image manifold.
+
+### What Worked
+- Bug fixes (create_graph=True, global cosine sim, full-model gradient) raised SSIM from 0.015 to 0.089/0.264. The bugs were real and the fixes were necessary.
+- LoRA-only mode is a viable (and surprisingly effective) simplification for gradient inversion.
+- Reconstructions show correct color palette and vague shape of the boat — real signal exists, just not enough to be useful yet.
+
+### What Didn't Work
+- 86M-parameter full-model gradient inversion with default hyperparameters (SSIM=0.089).
+- TV-only prior at 224×224 — too weak to constrain the search space.
+- Single seed/image — no multi-seed statistics to distinguish bad luck from bad method.
+
+### Pitfalls to Avoid
+- **Don't conclude "ViT inversion doesn't work" from one untuned run.** Sprint 2 showed how much hyperparameter tuning matters (seed=42 outlier at SSIM=0.830 vs 50-seed mean 0.558).
+- **Don't skip the dimensionality ladder.** Going from 784-dim MNIST to 150K-dim ImageNet in one jump is asking for trouble. CIFAR-10 (3K dims) is the natural stepping stone.
+- **Attention double-backward is fragile.** Must use SDPA math-only backend (no flash attention). Memory-intensive. Consider whether differentiable unrolling (Approach G) can bypass this entirely.
+
+---
+
 ## Discrete Sequence Reconstruction (LLMs)
 
 *(Fill in as you go)*
@@ -397,6 +422,51 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 **Results:** KKT loss stuck at 330-350 for ALL N values tested (N=1 through N=100 per class). No trend — the loss didn't decrease as N approached the true support vector count.
 
 **Why this was expected:** The composed model W = W₀ + BA satisfies KKT with respect to all ~502 samples (500 pre-training + 2 fine-tuning). The KKT loss of ~330 is essentially ||W₀||² — the unexplained pre-training residual. Even with N=502, the extraction would need to simultaneously reconstruct 500 pre-training images alongside the 2 fine-tuning targets — a fundamentally different (and much harder) problem than reconstructing 2 images from a model trained on 2 images.
+
+---
+
+## [INSIGHT] N>1 Reconstructions Are Superpositions — Decomposition Strategies (2026-04-07)
+
+**Context:** When reconstructing N=2 images from NTK extraction, each reconstructed image visually looks like a ghostly superposition (blend) of BOTH training images. The NTK loss is a linear combination in gradient space: ΔW = -η Σᵢ cᵢ J(xᵢ), and nothing prevents the optimizer from distributing information across image slots. SSIM is ~0.5-0.6 when it should be higher — the information is there, just mixed.
+
+**Root cause:** The NTK loss `‖ΔW + η Σ cᵢ ∇f(θ₀; xᵢ)‖²` has a **permutation and mixing symmetry** — any linear recombination of the per-sample contributions that sums to the same total gradient gives the same loss. The optimizer finds a blended local minimum rather than the clean separation.
+
+**Key insight — linearity enables analytical separation:** Because the NTK regime linearizes the model, the weight gradient matrix for each FC layer has a special structure: each ROW is a different linear mixture of the N source images, with mixing coefficients from the loss gradients. With layer width 1000, this gives 1000 independent observations of the N-way mixture. This is exactly the setup for ICA (Independent Component Analysis).
+
+**Approaches for general N (prioritized):**
+
+1. **Cross-gradient orthogonality penalty (N=2-10):** Add `cos_sim(∇f(θ₀; x₁), ∇f(θ₀; x₂))` to the loss. Forces images to produce orthogonal gradients, directly attacking the superposition mechanism. Most theoretically principled for small N.
+
+2. **Label-based grouping (any N, binary classification):** Coefficients cᵢ have opposite signs for the two classes (cᵢ>0 for class 0, cᵢ<0 for class 1). Separate the positive and negative gradient contributions first, then decompose within each class. Halves the effective problem size for free.
+
+3. **ICA on weight gradient matrix — "Cocktail Party Attack" (N=10-1000):** Each row of the FC layer gradient is a linear mixture of the N source images. Apply FastICA with n_components=N to the weight gradient matrix. Scales to N ≤ layer width. Reference: Cocktail Party Attack (Kariyappa et al., ICML 2023).
+
+4. **Sequential peeling with joint refinement (N=5-20):** Reconstruct images one at a time from the residual (matching pursuit), then jointly optimize all N using the greedy solutions as warm start. Each sub-problem is N=1 where the pipeline is strong.
+
+5. **Overcomplete slots + clustering (any N):** Optimize for N'=2N image slots, then cluster similar results by SSIM. Redundancy helps coverage; extra slots absorb garbage solutions.
+
+6. **Post-hoc NMF/ICA (N=2, quick experiment):** Apply `sklearn.decomposition.NMF(n_components=2)` to the two blended reconstructions. NMF is ideal for MNIST (non-negative, sparse pixels). Zero-code-change experiment.
+
+**Phase transition:** Theoretical limit is N < network width (1000 for our MLP). SPEAR (NeurIPS 2024) achieves exact recovery up to N=25 on FC+ReLU networks using SVD + activation sparsity. The Cocktail Party Attack scales to N=1024 with ICA on the FC gradient matrix. Practical optimization-based limit is N~50-100.
+
+**Critical existing code:** `get_diversity_penalty()` in `ntk_extraction.py` (lines 439-461) is already implemented but NOT wired into the extraction loop. Connecting it with a tunable weight is the lowest-hanging fruit.
+
+**Key references:**
+- Cocktail Party Attack (Kariyappa et al., ICML 2023) — ICA on FC gradient rows, scales to N=1024
+- SPEAR (NeurIPS 2024) — exact batch recovery via SVD + ReLU sparsity filtering, N≤25
+- ARES (2025) — sparse recovery in DCT basis, N≤384
+- GradInversion (Yin et al., CVPR 2021) — group consistency + label recovery, N≤48
+- Gradient Inversion on PEFT (Sami et al., CVPR 2025) — PEFT dimensionality reduction *focuses* gradient info, making inversion easier; N≤128 on CIFAR-100
+- ReCIT (2025) — reconstruct private data from PEFT gradients
+- Deep Adversarial Decomposition (Zou et al., CVPR 2020) — learned superimposed image separation
+- Cold Diffusion for Superimposed Image Decomposition (IEEE 2025)
+- MAGIA (2025) — alternating subset gradient matching for federated learning
+
+**Action:**
+1. Quick win: wire `get_diversity_penalty` + cosine repulsion into extraction loop for N≥2
+2. Quick experiment: post-hoc NMF on existing N=2 blended results
+3. Medium-term: implement ICA on weight gradient matrix (Cocktail Party style)
+4. For thesis: characterize the N vs. SSIM curve to find the practical phase transition
 
 **This negative result is thesis-valuable:** It definitively closes the compose-and-reconstruct pathway and strengthens the argument for the Gradient Bridge / NTK approach, which works by targeting ΔW (canceling the pre-training component) rather than the composed W.
 

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: **2026-04-07**
+Last updated: **2026-04-09**
 
 ---
 
@@ -35,9 +35,9 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
-### Sprint 2c: KKT & NTK Reconstruction Ablations — MOSTLY DONE
+### Sprint 2c: KKT & NTK Reconstruction Ablations — COMPLETE
 
-Comprehensive ablation study across two tracks. 148 configs completed, 2 tracks remaining + Phase 0.
+Comprehensive ablation study across two tracks. 148+ configs completed.
 
 **Track A: Experiment A (KKT) — CLOSED (negative result confirmed)**
 - 15/48 configs completed before 48h timeout (job 583398). KKT loss stuck at 330-350 for ALL N values tested.
@@ -52,20 +52,211 @@ Comprehensive ablation study across two tracks. 148 configs completed, 2 tracks 
 - B4: N sweep (NTK) — **DONE** (results/sprint2c_track_b4_*.csv)
 - B5-B8: Additional ablations — **DONE** (results in sprint2c_track_b5/b6/b7/b8 CSVs)
 
-### Phase 0: ViT Gradient Inversion Gate — RESUBMITTING (bugs fixed)
+### Phase 0: ViT Gradient Inversion Gate — RAN, POOR RESULTS
 
 Critical gate experiment: can gradient inversion reconstruct images from exact ViT-B/16 gradients?
 
-**First attempt failed (SSIM=0.015) due to 3 bugs:**
-1. **Non-differentiable cosine similarity** (ROOT CAUSE): `loss.backward()` + `param.grad` produces detached tensors — cosine sim had no gradient w.r.t. x_recon. Optimizer only minimized TV loss → smooth random image. Fixed with `torch.autograd.grad(create_graph=True)`.
-2. **Per-tensor cosine similarity averaging**: Averaged cosine sim across 24 tensors instead of one global flattened cosine sim (Geiping et al.). Fixed by concatenating all gradients.
-3. **LoRA-only gradients**: Only captured 294K LoRA params instead of all 86M. Fixed with `full_model_grad` option.
-4. **Phase 0b crash**: `float.sqrt()` on line 228. Fixed with `math.sqrt()`.
+**First attempt (2026-03-27):** SSIM=0.015. Failed due to 4 bugs (non-differentiable cosine sim, per-tensor averaging, LoRA-only grads, float.sqrt). All fixed.
 
-**Improvements added:** 8 random restarts, 10K iterations (was 3K), two-phase experiment (full 86M + LoRA-only 294K).
+**Second attempt (2026-04-07, bugs fixed):**
 
-- Code: `experiments/phase0_vit_inversion.py` (fixed)
+| Variant | Grad params | SSIM | PSNR | Cos sim achieved |
+|---------|-------------|------|------|-----------------|
+| Full model | 86,095,106 | **0.089** | 11.9 | ~0.3-0.5 (est) |
+| LoRA-only | 294,912 | **0.264** | 12.6 | ~0.3-0.5 (est) |
+
+Reconstructions show vague color/shape resemblance (boat outline visible) but are very noisy. LoRA-only surprisingly outperformed full model — possibly because the lower-dimensional optimization landscape (294K vs 86M) is easier to navigate, even with less gradient information.
+
+**Diagnosis — why Phase 0 underperforms:**
+1. **86M-dimensional cosine sim is hard to optimize**: gradient space is enormous; Adam with 10K iters + 8 restarts is insufficient to climb a 86M-dim surface.
+2. **Weak image prior**: only TV regularization; 224×224 RGB search space is vast without perceptual/generative constraints.
+3. **Attention double-backward**: ViT self-attention through `create_graph=True` is memory-intensive and may produce noisy higher-order gradients.
+4. **Single image, single seed**: no multi-seed statistics yet; this could be an unlucky seed/image pair.
+5. **Hyperparameters not tuned**: lr=0.1, tv_weight=1e-4, Adam — all defaults, no sweep performed.
+
+- Code: `experiments/phase0_vit_inversion.py`
 - WEXAC script: `scripts/run_phase0_fixed_wexac.sh`
+- Results: `results/phase0_{full,lora}_r8_n1_s42_20260407_*.pth`
+- Figures: `figures/phase0_{full,lora}_r8_n1.png`
+
+---
+
+### Sprint 3: Scaling Beyond MNIST — PLANNED
+
+**Goal**: Establish gradient-based reconstruction on realistic (non-MNIST) data. Sprint 2 proved the NTK attack works on MNIST MLPs (SSIM=0.997 full, 0.557 LoRA free-c). Sprint 3 bridges to ViT-scale by progressively relaxing conditions.
+
+**Strategy**: Don't jump straight to ViT-B/16 on ImageNet-scale images. Instead, isolate the two hard dimensions (architecture complexity × image complexity) and tackle them separately:
+- **S3.1**: Fix Phase 0 hyperparameters (same ViT, same images, better optimization)
+- **S3.2**: Shrink reconstruction space (optimize in 32×32 or frequency domain, upsample to 224×224)
+- **S3.3**: Shrink architecture (ResNet-18 and CNN on CIFAR-10)
+- **S3.4**: Differentiable unrolling (bypass NTK approximation entirely)
+- **S3.5**: Add stronger image priors (LPIPS, frequency, SDS)
+
+Each sub-sprint has a clear **go/no-go gate** so we don't waste time on dead ends.
+
+#### S3.1: Phase 0 Hyperparameter Sweep (1-2 days)
+
+**Hypothesis**: Phase 0's poor SSIM is primarily due to untuned hyperparameters, not a fundamental ViT limitation. The current config (lr=0.1, tv_weight=1e-4, Adam, 10K iters, 8 restarts) was never swept.
+
+**Design**:
+- Independent variable: lr × tv_weight × n_iters × optimizer
+- Grid:
+  - `lr`: [0.01, 0.05, 0.1, 0.5, 1.0]
+  - `tv_weight`: [0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2]
+  - `n_iters`: [10000, 30000]
+  - `optimizer`: [Adam, SGD+momentum, L-BFGS]
+- Fixed: rank=8, n_images=1, seed=42, mode=full, n_restarts=4 (reduced for speed)
+- Total: 5 × 6 × 2 × 3 = 180 configs (but use early stopping + parallel restarts)
+- **Practical reduction**: run a 2-stage sweep — first stage: coarse lr × tv_weight (30 configs, 4 restarts, 10K iters). Second stage: top-5 configs with 30K iters, 8 restarts.
+- Metrics: SSIM, PSNR, final cosine similarity, wall time
+- Output: `results/sprint3_s1_phase0_sweep_*.csv`, best config `.pth`
+
+**Go/no-go gate**: If best SSIM > 0.3 (full model), proceed to S3.5 (priors). If SSIM < 0.15 for all configs, the bottleneck is architectural → proceed to S3.2/S3.3.
+
+**Code**: Extend `phase0_vit_inversion.py` with `--sweep` mode.
+**Script**: `scripts/run_sprint3_s1_phase0_sweep.sh`
+
+#### S3.2: Low-Dimensional Reconstruction Space (1-2 days)
+
+**Note**: Phase 0 already uses CIFAR-10 images resized to 224×224 (see `get_sample_images()` in `phase0_vit_inversion.py`). The data isn't the issue — the 224×224 *search space* is.
+
+**Hypothesis**: Optimizing x_recon in 224×224 pixel space (150K dims) is wasteful when the source image is 32×32 CIFAR-10 (3K dims of actual information). Reconstructing in a lower-dimensional space and upsampling should dramatically improve convergence.
+
+**Design**:
+- **Variant A — 32×32 reconstruction**: Optimize x_recon in 32×32 space, bilinear-upsample to 224×224 before feeding to ViT. Reduces search space 49×.
+- **Variant B — Fourier-truncated reconstruction**: Parameterize x_recon in frequency domain, zero out high-frequency components (>32×32 bandwidth). Smoother optimization landscape.
+- **Variant C — Patch-aware reconstruction**: ViT-B/16 uses 14×14 = 196 patches of 16×16 pixels. Reconstruct per-patch means + low-rank structure (196 × ~50 dims = 9.8K parameters).
+- Compare all variants against baseline (full 224×224 pixel space)
+- Fixed: rank=8, seed=42, mode={full, lora}, best hyperparams from S3.1
+- Seeds: 5 seeds for quick validation, 20 seeds if promising
+
+**Go/no-go gate**: Any variant SSIM > 0.3 → search space was the bottleneck, proceed to S3.5 (priors). All variants SSIM < 0.15 → ViT gradient signal itself is too weak → proceed to S3.3.
+
+**Code**: Extend `phase0_vit_inversion.py` with `--recon_space {pixel, lowres, fourier, patch}` flag.
+**Script**: `scripts/run_sprint3_s2_lowdim.sh`
+
+#### S3.3: Simpler Architectures on CIFAR-10 (2-4 days)
+
+**Hypothesis**: ViT's 86M parameters + attention double-backward make gradient inversion intrinsically harder than CNNs/ResNets. Testing simpler architectures isolates whether the bottleneck is the model or the data.
+
+**S3.3a: Small CNN on CIFAR-10** (1-2 days)
+- Architecture: Conv(3→32, 3×3) → ReLU → MaxPool → Conv(32→64, 3×3) → ReLU → MaxPool → FC(64×8×8→128) → FC(128→1)
+- ~200K parameters (comparable to LoRA param count)
+- Train from scratch on CIFAR-10 binary (vehicles vs animals, matching Haim et al.)
+- Fine-tune on 1-2 held-out images, T=1 SGD step
+- Run NTK reconstruction (Experiment B style) from ΔW
+- Run gradient inversion (Phase 0 style) from exact gradient
+- Compare both methods on same model
+
+**S3.3b: ResNet-18 on CIFAR-10** (1-2 days)
+- Load pretrained ResNet-18 from torchvision (11M params)
+- Apply LoRA (r=8, 16) to conv layers via peft
+- Fine-tune on 1-2 held-out CIFAR-10 images
+- Run gradient inversion from exact gradient
+- Compare to ViT results — ResNet's skip connections stabilize gradient flow
+
+**S3.3c: DeiT-Tiny on CIFAR-10** (1 day, parallel with S3.3b)
+- Load DeiT-Tiny from timm (5.7M params, same ViT architecture but 15× smaller than ViT-B)
+- Apply LoRA (r=8)
+- Fine-tune + invert
+- Tests whether ViT architecture itself is the issue, or just its scale
+
+**Go/no-go gate**:
+- CNN SSIM > 0.4 + ViT SSIM < 0.2 → architecture is the bottleneck; thesis focuses on CNN/ResNet LoRA reconstruction
+- Both SSIM > 0.3 → method works across architectures; proceed to scale up
+- Both SSIM < 0.15 → gradient inversion on color images is fundamentally harder; consider differentiable unrolling (S3.4)
+
+**Code**: `experiments/phase0_cnn_cifar.py`, `experiments/phase0_resnet_cifar.py`, `experiments/phase0_deit_cifar.py`
+**Script**: `scripts/run_sprint3_s3_arch_comparison.sh`
+
+#### S3.4: Differentiable Unrolling — Approach G (3-5 days)
+
+**Hypothesis**: The NTK approximation (ΔW ≈ -η Σ cᵢ ∇f(θ₀; xᵢ)) is a first-order linearization that breaks at T>1. Gradient inversion (Phase 0) requires brittle `create_graph=True` double-backward through attention. **Differentiable unrolling** avoids both problems: simulate the actual fine-tuning steps differentiably and match the resulting weights to the observed weights.
+
+**Method**:
+```
+# Outer optimization over x_recon
+for outer_iter in range(N_outer):
+    # Inner loop: simulate T fine-tuning steps
+    θ = θ_base.clone()
+    for t in range(T):
+        loss = L(θ; x_recon)
+        grads = autograd.grad(loss, θ, create_graph=True)
+        θ = θ - η * grads  # differentiable SGD step
+
+    # Outer loss: match simulated weights to observed weights
+    outer_loss = ||θ - θ_observed||²
+    outer_loss.backward()  # backprop through all T inner steps
+    optimizer_x.step()
+```
+
+**Design**:
+- Phase 1: Validate on MNIST MLP (should reproduce Experiment B at T=1: SSIM≈0.997)
+- Phase 2: Test T=1,2,5,10,20 on MNIST MLP, compare to NTK results
+- Phase 3: Apply to CNN/ResNet on CIFAR-10 (if S3.3 identifies a working architecture)
+- Phase 4: Apply to ViT on CIFAR-10 (if memory permits — T steps of ViT forward/backward)
+- Memory management: gradient checkpointing for T>10
+
+**Key advantages over NTK**:
+- Exact for any T (no linearization error)
+- No coefficient estimation needed (no cᵢ unknowns)
+- Reduces to Experiment B at T=1 (validation check)
+- Works with any architecture (no NTK assumptions)
+
+**Key risks**:
+- Memory: O(T) computation graphs (mitigated by gradient checkpointing)
+- Must know exact lr and T (can sweep if unknown — realistic attacker may not know these)
+- Non-convex outer optimization — needs restarts
+
+**Go/no-go gate**: T=1 on MNIST reproduces SSIM>0.99 → validates implementation. T=10 beats NTK SSIM → publish as improvement. T=1 fails → implementation bug, debug before proceeding.
+
+**Code**: `experiments/differentiable_unrolling.py`
+**Script**: `scripts/run_sprint3_s4_unrolling.sh`
+
+#### S3.5: Stronger Image Priors (2-4 days, after S3.1/S3.2 gate)
+
+**Hypothesis**: Even with correct gradient signal, 224×224 RGB reconstruction requires priors beyond TV to converge. Natural images occupy a tiny manifold in pixel space.
+
+**Prior hierarchy** (implement in order of complexity):
+1. **Frequency-domain prior** (0.5 day): Penalize high-frequency Fourier components. Natural images have most energy in low frequencies. `freq_loss = ||FFT(x)[high_freq]||²`. Nearly free to implement.
+2. **LPIPS perceptual loss** (1 day): Use frozen DINO or ResNet50 features. `lpips_loss = ||F(x_recon) - F(x_recon_smoothed)||²` (self-regularization) or compare to a "natural image" centroid. Requires `lpips` package.
+3. **Batch normalization statistics prior** (0.5 day): If model has BN layers, match running mean/var of reconstruction to the BN statistics. Free signal from the model itself. (Only applicable to ResNet/CNN, not ViT.)
+4. **Score Distillation Sampling (SDS)** (2-3 days): Frozen diffusion model (Stable Diffusion) guides reconstruction toward natural images. `sds_loss = E_t,ε[w(t)(ε_θ(x_t, t) - ε) ∂x_t/∂x]`. Most powerful but most complex. Requires diffusion model on same GPU.
+5. **Latent-space reconstruction** (1-2 days): Instead of optimizing in pixel space, optimize in the latent space of a frozen VAE (from Stable Diffusion). Decode to pixel space for the gradient matching loss. Reduces search space from 150K to ~4K dims.
+
+**Design**: Add priors as composable loss terms in `invert_gradient()`. Each prior has a weight hyperparameter. Sweep prior weights on the best Phase 0 config.
+
+**Code**: `experiments/image_priors.py` (prior loss functions), integrated into `phase0_vit_inversion.py` via `--prior` flag.
+**Script**: `scripts/run_sprint3_s5_priors.sh`
+
+#### Sprint 3 Summary Table
+
+| Sub-sprint | What | Architecture | Data | Time | Depends on |
+|------------|------|-------------|------|------|------------|
+| **S3.1** | Phase 0 hyperparam sweep | ViT-B/16 | CIFAR-10 224×224 | 1-2d | — |
+| **S3.2** | Low-dim recon space | ViT-B/16 | CIFAR-10 (32→224) | 1-2d | — |
+| **S3.3a** | CNN baseline | Conv2+FC | CIFAR-10 32×32 | 1-2d | — |
+| **S3.3b** | ResNet-18 + LoRA | ResNet-18 | CIFAR-10 32×32 | 1-2d | — |
+| **S3.3c** | Small ViT | DeiT-Tiny | CIFAR-10 32×32 | 1d | — |
+| **S3.4** | Diff. unrolling | MNIST MLP first | MNIST → CIFAR | 3-5d | — |
+| **S3.5** | Image priors | Best from above | Same | 2-4d | S3.1 or S3.2 |
+
+**Parallelism**: S3.1, S3.2, S3.3a-c, S3.4 Phase 1 can all run independently. S3.5 depends on having a working baseline to improve.
+
+**Priority ordering** (Gradient Bridge > NTK > Priors):
+1. **Week 1, batch 1** (parallel, cheapest first):
+   - S3.1: Phase 0 hyperparam sweep — quick diagnostic, clarifies if tuning alone helps (1 WEXAC job)
+   - S3.4 Phase 1: Unrolling on MNIST — validates the approach on known-working data (local or 1 WEXAC job)
+2. **Week 1, batch 2** (parallel, informed by batch 1 results):
+   - S3.2: Low-dim reconstruction space — if S3.1 shows ViT signal exists, this amplifies it
+   - S3.3a: CNN on CIFAR-10 — architecture isolation test, independent of ViT results
+3. **Week 2** (depends on Week 1 gates):
+   - S3.4 Phase 2: Unrolling T-sweep on MNIST — if Phase 1 validates
+   - S3.3b or S3.3c: whichever architecture shows most promise
+4. **Week 2-3**: S3.5 priors on best-performing config from above
+5. **Week 3+**: S3.4 Phase 3-4 (unrolling on CIFAR-10 architecture)
+
+**Critical path**: S3.4 (unrolling) feeds directly into the Gradient Bridge pipeline (Tier 1 of thesis roadmap). If unrolling works on MNIST and scales to CIFAR-10, it becomes the inversion engine for the full attack. S3.1-S3.3 are supporting experiments that de-risk the architecture choice.
 
 ### Sprint 2 Multi-Seed Validation — COMPLETE (2026-03-27)
 
@@ -77,17 +268,17 @@ Critical gate experiment: can gradient inversion reconstruct images from exact V
 - **LeakyReLU validated**: 30 seeds × {T=1, T=10} × {r=8, r=32}. Mean SSIM 0.558 (T=1), 0.572 (T=10). Control: 0.394-0.426.
 - **r=16/32 improved**: SGD+LeakyReLU gives r=16 SSIM 0.624 (was 0.422), r=32 SSIM 0.680 (was 0.415).
 
-### Sprint 2 Track 2: LoRA Free-Coefficient Extraction — IN PROGRESS
+### Sprint 2 Track 2: LoRA Free-Coefficient Extraction — COMPLETE
 
-**Current best results (ReLU, L-BFGS, separate SGD for c, 5000ep):**
+**Final results (best config per rank — SGD+LeakyReLU fixes r=16/32):**
 
-| Rank | Oracle SSIM | Free-c SSIM | Coeff Error | Gap | Status |
+| Rank | Oracle SSIM | Free-c SSIM | Coeff Error | Gap | Method |
 |------|-------------|-------------|-------------|-----|--------|
-| 4    | 0.615       | 0.509       | 0.192       | 0.11 | OK |
-| 8    | 0.692       | 0.617       | 0.177       | 0.08 | Good |
-| 16   | 0.769       | 0.422       | 0.282       | 0.35 | Needs work |
-| 32   | 0.697       | 0.415       | 0.310       | 0.28 | Needs work |
-| 64   | 0.714       | 0.635       | 0.019       | 0.08 | Great |
+| 4    | 0.615       | 0.509       | 0.192       | 0.11 | ReLU+L-BFGS |
+| 8    | 0.692       | 0.617       | 0.177       | 0.08 | ReLU+L-BFGS |
+| 16   | 0.769       | **0.624**   | —           | 0.15 | **SGD+LeakyReLU** (was 0.422) |
+| 32   | 0.697       | **0.680**   | —           | 0.02 | **SGD+LeakyReLU** (was 0.415) |
+| 64   | 0.714       | 0.635       | 0.019       | 0.08 | ReLU+L-BFGS |
 
 ### Sprint 2b: Multi-Step NTK Sweep — COMPLETE
 
@@ -101,9 +292,9 @@ Phases 0-2 completed (WEXAC jobs 669864, 674627). Phases 3-4 completed as Sprint
 
 **Phase 3 (LR scaling)** and **Phase 4 (warm-start):** Completed as Sprint 2c Track B1.
 
-### Few-Shot Threat Model Analysis — In Progress
+### Few-Shot Threat Model Analysis — Documented
 
-Documenting the few-shot threat model: when LoRA fine-tuning uses very few samples, the number of adapter parameters far exceeds the number of unknowns, making the system highly overdetermined and reconstruction theoretically feasible.
+The few-shot threat model is documented in CLAUDE.md (information density argument): when LoRA fine-tuning uses very few samples, the number of adapter parameters far exceeds the number of unknowns, making the system highly overdetermined and reconstruction theoretically feasible.
 
 ---
 
@@ -245,7 +436,7 @@ Four plots in `figures/`:
 
 ---
 
-## Current Folder Structure (as of 2026-03-19)
+## Current Folder Structure (as of 2026-04-09)
 
 ```
 /home/projects/galvardi/yoado/     ← WEXAC home = top-level git repo
@@ -254,62 +445,35 @@ Four plots in `figures/`:
 ├── STATUS.md                      ← this file
 ├── LESSONS_LEARNED.md
 ├── STYLE_GUIDE.md
-├── papers/                        ← reference PDFs (1 present, 3 need sync from Mac)
-│   ├── THE_PAPER.pdf
-│   └── README.md                  ← lists what to sync
-├── figures/                       ← 9 files (all regenerated)
-├── results/                       ← 87 files (.csv metrics + .pth tensors from sweeps)
+├── papers/                        ← reference PDFs
+├── figures/                       ← 12 files (incl. Phase 0 results)
+├── results/                       ← 105 files (.csv metrics + .pth tensors)
 ├── notes/
 │   └── reconstruction_approaches.tex  ← catalog of approaches (March 2026)
-├── scripts/                       ← WEXAC job submission scripts
+├── scripts/                       ← 28 WEXAC job submission scripts
 │   └── wexac_logs/                ← job stdout/stderr logs
-├── experiments/                   ← LoRA reconstruction experiment code (24 .py files)
-│   └── tests/                     ← pytest test suite (7 files)
+├── experiments/                   ← 25 .py files (LoRA recon + Phase 0 ViT inversion)
+│   └── tests/                     ← pytest test suite
 └── dataset_reconstruction/        ← original Haim et al. codebase (separate .git)
 ```
 
 ---
 
-## Next Steps (After Sprint 1)
+## Thesis Roadmap (updated 2026-04-09)
 
-### Sprint 2a: Free-Coefficient NTK Extraction — IMPLEMENTED (2026-02-22)
-Fixed the oracle-coefficient cheating. Implementation:
-- `ntk_extraction.py`: `get_coeff_penalty()`, free-c mode in `run_ntk_extraction()`, `run_ntk_extraction_n_sweep()`
-- `run_experiment_b.py`: `--free_coefficients`, `--consistency_weight`, `--n_sweep`, `--optimizer` flags
-- `configs.py`: `COEFF_LR=1e-3`, `COEFF_BOX_WEIGHT=5.0`, `COEFF_CONSISTENCY_WEIGHT=0.0`
+Sprint 2 established the NTK attack on MNIST MLPs. The path forward has three tiers, ordered by thesis impact:
 
-**α ablation results (seed=42, T=1, full model):**
+### Tier 1: Gradient Bridge (highest priority — core thesis contribution)
+The LoRA → full gradient → image reconstruction pipeline:
+1. **Sprint 3 (current)**: Scale gradient inversion to ViT/CNN on CIFAR-10 — establishes the inversion engine
+2. **Sprint 4 (future)**: Train Gradient Decoder (R2F-style) — 50K (BA, ∇_W L) pairs from proxy data, per-layer MLP, cosine sim loss
+3. **Sprint 5 (future)**: End-to-end attack — frozen decoder → inversion engine → reconstructed images on victim LoRA adapter
 
-| α | Optimizer | SSIM | Coeff Error | Notes |
-|---|-----------|------|-------------|-------|
-| 0 | L-BFGS | 0.282 | 1.066 | Signs flipped — non-unique |
-| 1 | L-BFGS | 0.777 | 0.005 | Near-oracle c |
-| 10 | L-BFGS | 0.638 | 0.005 | Over-penalized |
-| **1** | **SGD** | **0.997** | **0.0004** | **Matches oracle** |
-| oracle | L-BFGS | 0.817 | 0 | Upper bound (cheating) |
+### Tier 2: NTK Reconstruction (supporting evidence)
+Differentiable unrolling (S3.4) extends the NTK approach to exact multi-step matching, removing the linearization assumption. If it works on CIFAR-10, it's a publishable improvement over Sprint 2's NTK results and provides an alternative attack path.
 
-**Recommended config:** `--free_coefficients --consistency_weight 1.0 --optimizer sgd`
-
-### Sprint 2b: Multi-Step Sweep
-- WEXAC job submitted: T ∈ {1,2,5,10,20,50,100,500,1000} × rank ∈ {full,1,4,8,32,64} = 54 configs
-- Free-coefficient extraction is especially important here: for T > 1, oracle coefficients use `coefficients_at_init` which is only exact for T=1
-
-### ViT Scaling (Sprint 3)
-After establishing rank threshold and NTK step-count analysis on FCN:
-1. ViT-B/16 (pretrained from `timm`) with HuggingFace PEFT LoRA
-2. Fine-tune on 5-10 CelebA face images (binary classification)
-3. Phase 0: capture true gradient during LoRA fine-tuning, feed into Inverting Gradients
-4. Phase 1: train gradient decoder (R2F-style) on proxy data
-5. Phase 2: end-to-end attack on victim LoRA adapter
-
-### Gradient Bridge (Phase 1-2)
-- Generate ~50k (BA, ∇_W L) pairs from proxy data
-- Train per-layer MLP decoder: low-rank LoRA → full-rank gradient (>0.9 cosine similarity)
-- End-to-end: frozen decoder → inversion engine → reconstructed images
-
-### Diffusion Priors (Direction 3)
-- Hybrid KKT + SDS loss for low-rank reconstruction
-- Target: face reconstruction from SD/ViT LoRA adapters
+### Tier 3: Diffusion Priors (stretch goal)
+Hybrid gradient-matching + SDS loss for low-rank reconstruction. Blocked on having a working inversion engine (Tier 1). Target: face reconstruction from ViT LoRA adapters fine-tuned on CelebA.
 
 ---
 
@@ -367,17 +531,32 @@ After establishing rank threshold and NTK step-count analysis on FCN:
 
 ### Phase 0: ViT Gradient Inversion
 - [x] ~~**Setup phase0 conda env**~~ — not needed, `rec` env has timm+peft
-- [ ] **Phase 0 (fixed)**: Resubmit with bug fixes (differentiable cosine sim, full-model gradient, restarts)
-- [ ] **Phase 0b**: Noise tolerance sweep (blocked on Phase 0 fix)
+- [x] **Phase 0 (fixed)**: Resubmitted with bug fixes — SSIM=0.089 (full) / 0.264 (LoRA). Poor but real signal (was 0.015 before fixes).
+- [ ] **Phase 0b**: Noise tolerance sweep — deprioritized, folded into Sprint 3
+
+### Sprint 3: Scaling Beyond MNIST
+- [ ] **S3.1**: Phase 0 hyperparameter sweep (lr × tv_weight × optimizer × n_iters)
+- [ ] **S3.2**: Low-dim reconstruction space (32×32 / Fourier / patch-aware)
+- [ ] **S3.3a**: CNN baseline on CIFAR-10 (simplest architecture)
+- [ ] **S3.3b**: ResNet-18 + LoRA on CIFAR-10 (skip connections)
+- [ ] **S3.3c**: DeiT-Tiny on CIFAR-10 (small ViT, 5.7M params)
+- [ ] **S3.4**: Differentiable unrolling — Phase 1: validate on MNIST (T=1 should match Exp B)
+- [ ] **S3.4**: Differentiable unrolling — Phase 2: T=1,2,5,10,20 on MNIST vs NTK
+- [ ] **S3.4**: Differentiable unrolling — Phase 3: apply to best CIFAR-10 architecture
+- [ ] **S3.5**: Image priors (frequency, LPIPS, BN stats, SDS, latent-space)
 
 ### Research Backlog
-- [ ] **Design better image-domain prior loss** — current NTK extraction only uses pixel box constraint (x ∈ [-1,1]). Ideas: Total Variation (TV), LPIPS perceptual loss, SDS from frozen diffusion model, manifold constraints (VAE latent space), frequency-domain priors. Low priority for MNIST, critical for ViT/larger images. Connects to Direction 3 (Diffusion Priors).
+- [ ] **Image priors for ViT inversion** — folded into S3.5; TV alone is insufficient at 224×224
+- [ ] **N>1 superposition problem** — deprioritized until N=1 works reliably on CIFAR-10. Approaches: diversity penalty, ICA (Cocktail Party Attack), cross-gradient orthogonality
+- [ ] **Read Gradient Inversion on PEFT (Sami et al., CVPR 2025)** — PEFT dimensionality reduction makes inversion *easier*; directly validates thesis. **HIGH PRIORITY** — read before starting S3.3
+- [ ] **Read Cocktail Party Attack (ICML 2023)** — ICA-based gradient inversion, scales to N=1024 (needed for N>1)
+- [ ] **Read SPEAR (NeurIPS 2024)** — exact batch recovery via SVD + ReLU sparsity
 
 ### Writing & Communication
-- [ ] **Write LaTeX summary** — `notes/lora_reconstruction_writeup.tex`
-- [ ] **Email supervisor** with results and figures
+- [ ] **Write LaTeX summary** — `notes/lora_reconstruction_writeup.tex` (after Sprint 3 results)
+- [ ] **Email supervisor** with Sprint 2 + Phase 0 results and Sprint 3 plan
 - [ ] **Verify figure quality** — publication-ready (axes, legends, DPI, colorblind-safe)
 
 ### Reading (Sprint 3 prep)
-- [ ] Read R2F paper Section 3 in detail (decoder architecture)
-- [ ] Read Inverting Gradients (Geiping et al.) for attack loop
+- [ ] **Read Inverting Gradients (Geiping et al.)** — the gradient inversion algorithm Phase 0 implements. **HIGH PRIORITY** — may reveal hyperparameter guidance we're missing
+- [ ] Read R2F paper Section 3 in detail (decoder architecture) — needed for Sprint 4

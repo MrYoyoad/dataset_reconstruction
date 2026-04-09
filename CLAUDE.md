@@ -58,6 +58,23 @@ The thesis focuses on the **image domain**, extending the Haim et al. reconstruc
 - `papers/Gradient Bridge_ PEFT Privacy Attack.pdf` — The Gradient Bridge attack formulation (LoRA → Gradient Decoder → Gradient Inversion)
 - `papers/Thesis Ideas_ LoRA, NTK, Reconstruction.pdf` — Full thesis prospectus covering all three directions with theoretical analysis
 
+### Critical External References (not in papers/ — download needed)
+
+- **Gradient Inversion on PEFT (Sami et al., CVPR 2025)** — Shows PEFT dimensionality reduction *focuses* gradient info, making inversion *easier* than full FT. Recovers from batches up to N=128. Directly validates thesis direction. [arXiv:2506.04453]
+- **Cocktail Party Attack (Kariyappa et al., ICML 2023)** — ICA on FC layer gradient rows separates N sources from averaged gradient. Scales to N=1024. Key for N>2 reconstruction. [GitHub: facebookresearch/cocktail_party_attack]
+- **SPEAR (NeurIPS 2024)** — Exact batch recovery via SVD + ReLU sparsity filtering, N≤25 on FC+ReLU. [openreview.net/forum?id=lPDxPVS6ix]
+- **ReCIT (2025)** — Reconstruct private data from PEFT gradients. [arXiv:2504.20570]
+- **ARES (2025)** — Sparse recovery gradient inversion, scales to N=384. [arXiv:2603.17623]
+
+### Superposition Problem for N>1 Reconstruction
+
+When reconstructing N≥2 images, the NTK loss has a mixing symmetry: any linear recombination of per-sample gradients that sums to the same total gives the same loss. Reconstructions appear as superpositions (blends) of all training images. Key decomposition approaches:
+1. **Cross-gradient orthogonality penalty**: penalize cos_sim between per-sample gradients
+2. **Label-based grouping**: cᵢ signs differ by class in binary classification — separate first
+3. **ICA on weight gradient matrix**: each FC layer row is a linear mixture of N sources; FastICA separates them (Cocktail Party Attack). Scales to N ≤ layer width.
+4. **Sequential peeling**: reconstruct one image at a time from the residual, then joint refinement
+5. **Existing code**: `get_diversity_penalty()` in `ntk_extraction.py` is implemented but not wired in
+
 ## Environment Setup
 
 ```bash
