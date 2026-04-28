@@ -279,6 +279,17 @@ This prevents the situation where you have SSIM numbers in a CSV but have to re-
 
 This ensures the project state is always accurately reflected in docs, not just in git history.
 
+### Document big results and lessons — always
+
+**IMPORTANT: this rule is non-optional.** Whenever any of the following happen, update the relevant doc(s) **in the same turn** (don't defer, don't wait to be asked, don't assume the commit message is sufficient):
+
+- **Big research result** (gate crossed, sweep finished, surprising finding, dead end) → write it up in **STATUS.md** with the headline number, the config that produced it, and the next step.
+- **Bug discovered and fixed** → log it in **LESSONS_LEARNED.md** with: (a) what the bug was, (b) how it presented (wrong number, silent failure, etc.), (c) the root cause, (d) the fix. The fix being in git history is not enough — the *insight* needs to be retrievable without a git archaeology session.
+- **Pitfall, gotcha, or non-obvious design decision** (chosen approach + why, alternatives ruled out, environmental quirk) → also LESSONS_LEARNED.md.
+- **New workflow, script, or config** that future-you would otherwise have to rediscover → CLAUDE.md.
+
+Skip only for trivial mechanical work (typo fix, doc reflow, file rename with no behavior change). For anything that produced a new number, a new failure mode, or a new way of doing things, document it. **If you're about to commit and you haven't checked whether STATUS.md / LESSONS_LEARNED.md needs an update, you are not yet ready to commit.**
+
 ## Git
 
 The entire thesis directory (`/home/projects/galvardi/yoado/`) is a git repo, initialized 2026-03-19. The `dataset_reconstruction/` subdirectory has its own separate `.git` (origin: `https://github.com/MrYoyoad/Data_Reconstruciton_server.git`).
