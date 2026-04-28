@@ -92,6 +92,7 @@ def main():
     _save_heatmap(unique, figures_dir)
     _save_top_comparison(unique[:5], figures_dir)
     _save_cossim_overlay(unique[:5], figures_dir)
+    _save_cossim_overlay_by_tv(unique, figures_dir)
 
 
 def _save_heatmap(results, figures_dir):
@@ -227,6 +228,69 @@ def _save_cossim_overlay(top_results, figures_dir):
 
     plt.tight_layout()
     path = os.path.join(figures_dir, 'phase0_d2_cossim_overlay.png')
+    plt.savefig(path, dpi=200, bbox_inches='tight', facecolor='white')
+    plt.close()
+    print(f"Saved: {path}")
+
+
+def _save_cossim_overlay_by_tv(results, figures_dir):
+    """Cos_sim overlay with one curve per TV level (best config at that TV).
+
+    D2's dominant lever is tv_weight, so this view shows convergence
+    behavior for each qualitatively-different regime — the analog of
+    the D1 overlay (which had 4 curves for 4 qualitatively-different
+    optimizer × TV combinations).
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from experiments.phase0_vit_inversion import D2_TV_WEIGHTS
+
+    # Best result per TV level (highest SSIM, must have loss_history)
+    best_per_tv = {}
+    for r in results:
+        if not r.get('loss_history'):
+            continue
+        tv = r['tv_weight']
+        if tv not in best_per_tv or r['ssim'] > best_per_tv[tv]['ssim']:
+            best_per_tv[tv] = r
+
+    # Keep TV order consistent with D2_TV_WEIGHTS (low → high)
+    ordered = [best_per_tv[tv] for tv in D2_TV_WEIGHTS if tv in best_per_tv]
+    if not ordered:
+        print("No D2 results with loss_history — skipping by-TV overlay")
+        return
+
+    # Cool→warm gradient so reader sees TV increasing visually
+    cmap = plt.get_cmap('viridis')
+    colors = [cmap(i / max(1, len(ordered) - 1)) for i in range(len(ordered))]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+    for r, c in zip(ordered, colors):
+        cos_curves = r['loss_history']['cos_sim']
+        best_r = max(range(len(cos_curves)),
+                     key=lambda ri: max(cos_curves[ri]))
+        label = (f"tv={r['tv_weight']:.0e}  best lr={r['lr']}  "
+                 f"(SSIM={r['ssim']:.3f})")
+        ax1.plot(cos_curves[best_r], color=c, linewidth=1.4, label=label)
+        ax2.plot(r['loss_history']['total'][best_r], color=c, linewidth=1.4,
+                 label=label)
+
+    ax1.set_xlabel('Iteration')
+    ax1.set_ylabel('Cosine Similarity')
+    ax1.set_title('Best Restart per TV Level: Cos Sim Convergence')
+    ax1.legend(fontsize=8, loc='lower right')
+    ax1.grid(True, alpha=0.3)
+
+    ax2.set_xlabel('Iteration')
+    ax2.set_ylabel('Total Loss')
+    ax2.set_title('Best Restart per TV Level: Total Loss Convergence')
+    ax2.legend(fontsize=8, loc='upper right')
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    path = os.path.join(figures_dir, 'phase0_d2_cossim_overlay_by_tv.png')
     plt.savefig(path, dpi=200, bbox_inches='tight', facecolor='white')
     plt.close()
     print(f"Saved: {path}")
