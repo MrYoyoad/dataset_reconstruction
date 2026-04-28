@@ -91,6 +91,7 @@ def main():
     # Generate figures
     _save_heatmap(unique, figures_dir)
     _save_top_comparison(unique[:5], figures_dir)
+    _save_top_comparison_by_tv(unique, figures_dir)
     _save_cossim_overlay(unique[:5], figures_dir)
     _save_cossim_overlay_by_tv(unique, figures_dir)
 
@@ -162,7 +163,7 @@ def _save_top_comparison(top_results, figures_dir):
     denorm_std = torch.tensor([0.229, 0.224, 0.225]).reshape(1, 3, 1, 1)
 
     n = len(top_results)
-    fig, axes = plt.subplots(1, n + 1, figsize=(5 * (n + 1), 5))
+    fig, axes = plt.subplots(1, n + 1, figsize=(4.2 * (n + 1), 5.4))
 
     gt = top_results[0]['x_true']
     gt_np = (gt * denorm_std + denorm_mean).clamp(0, 1)[0].numpy().transpose(1, 2, 0)
@@ -175,17 +176,75 @@ def _save_top_comparison(top_results, figures_dir):
                    .numpy().transpose(1, 2, 0)
         axes[i + 1].imshow(recon_np)
         axes[i + 1].set_title(
-            f"#{i+1}: tv={r['tv_weight']:.0e} lr={r['lr']}\n"
-            f"SSIM={r['ssim']:.3f}  cos={r['best_cos_sim']:.3f}",
-            fontsize=9, fontweight='bold' if i == 0 else 'normal',
+            f"#{i+1}  tv={r['tv_weight']:.0e}  lr={r['lr']:g}\n"
+            f"SSIM {r['ssim']:.3f}   cos {r['best_cos_sim']:.3f}",
+            fontsize=10, fontweight='bold' if i == 0 else 'normal',
             color='#1a7a2e' if i == 0 else 'black'
         )
         axes[i + 1].axis('off')
 
     fig.suptitle(f'D2 Top-{n} Reconstructions (signAdam, full gradient)',
                  fontsize=13, fontweight='bold')
-    plt.tight_layout()
+    fig.subplots_adjust(wspace=0.18, top=0.82)
     path = os.path.join(figures_dir, 'phase0_d2_top5_comparison.png')
+    plt.savefig(path, dpi=200, bbox_inches='tight', facecolor='white')
+    plt.close()
+    print(f"Saved: {path}")
+
+
+def _save_top_comparison_by_tv(results, figures_dir):
+    """GT + best reconstruction per TV level (one panel per TV).
+
+    Analog of D1's 4-config side-by-side: instead of stacking the top-5
+    by SSIM (which all share tv=1e-1 in D2), this stacks one config per
+    TV level so the visible quality jump from low → high TV is on screen.
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from experiments.phase0_vit_inversion import D2_TV_WEIGHTS
+
+    best_per_tv = {}
+    for r in results:
+        tv = r['tv_weight']
+        if tv not in best_per_tv or r['ssim'] > best_per_tv[tv]['ssim']:
+            best_per_tv[tv] = r
+    ordered = [best_per_tv[tv] for tv in D2_TV_WEIGHTS if tv in best_per_tv]
+    if not ordered:
+        print("No D2 results — skipping by-TV top comparison")
+        return
+
+    denorm_mean = torch.tensor([0.485, 0.456, 0.406]).reshape(1, 3, 1, 1)
+    denorm_std = torch.tensor([0.229, 0.224, 0.225]).reshape(1, 3, 1, 1)
+
+    n = len(ordered)
+    fig, axes = plt.subplots(1, n + 1, figsize=(4.2 * (n + 1), 5.4))
+
+    gt = ordered[0]['x_true']
+    gt_np = (gt * denorm_std + denorm_mean).clamp(0, 1)[0].numpy().transpose(1, 2, 0)
+    axes[0].imshow(gt_np)
+    axes[0].set_title('Ground Truth', fontsize=11, fontweight='bold')
+    axes[0].axis('off')
+
+    best_ssim = max(r['ssim'] for r in ordered)
+    for i, r in enumerate(ordered):
+        recon_np = (r['x_recon'] * denorm_std + denorm_mean).clamp(0, 1)[0] \
+                   .numpy().transpose(1, 2, 0)
+        axes[i + 1].imshow(recon_np)
+        is_winner = r['ssim'] == best_ssim
+        axes[i + 1].set_title(
+            f"tv={r['tv_weight']:.0e}\n"
+            f"best lr={r['lr']:g}\n"
+            f"SSIM {r['ssim']:.3f}",
+            fontsize=10, fontweight='bold' if is_winner else 'normal',
+            color='#1a7a2e' if is_winner else 'black'
+        )
+        axes[i + 1].axis('off')
+
+    fig.suptitle('D2 Best Reconstruction per TV Level (signAdam, full gradient)',
+                 fontsize=13, fontweight='bold')
+    fig.subplots_adjust(wspace=0.18, top=0.78)
+    path = os.path.join(figures_dir, 'phase0_d2_top_comparison_by_tv.png')
     plt.savefig(path, dpi=200, bbox_inches='tight', facecolor='white')
     plt.close()
     print(f"Saved: {path}")
