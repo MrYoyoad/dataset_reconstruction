@@ -395,14 +395,28 @@ def generate_experiment_b_figure(results, save_dir=None):
         x_ctrl_c = x_ctrl - ds_mean if ds_mean is not None else x_ctrl
         ssim_ctrl, ssim_ctrl_mean = compute_ssim(recon_for_ctrl, x_ctrl_c, ds_mean)
 
+    # Compute actual parameter counts from config or model info
+    config = results.get('config', {})
+    full_params = config.get('full_params')
+    lora_params = config.get('lora_params')
+
+    def _fmt_params(n):
+        if n is None:
+            return ''
+        if n >= 1_000_000:
+            return f'\n({n/1_000_000:.1f}M params)'
+        elif n >= 1_000:
+            return f'\n({n/1_000:.0f}K params)'
+        return f'\n({n} params)'
+
     # Build column specs: (label, color, images, is_centered, ssim_vals)
     cols = [('Ground Truth\n(private data)', '#333333', x_train, False, None)]
     if x_recon_full is not None:
-        cols.append(('Full-Model Recon\n(all 1.8M params)', '#1565C0',
+        cols.append((f'Full-Model Recon{_fmt_params(full_params)}', '#1565C0',
                      x_recon_full, True, ssim_full))
     if x_recon_lora is not None:
         rank_str = f'r={rank} ' if rank else ''
-        cols.append((f'LoRA {rank_str}Recon\n(38K params)', '#E65100',
+        cols.append((f'LoRA {rank_str}Recon{_fmt_params(lora_params)}', '#E65100',
                      x_recon_lora, True, ssim_lora))
     if x_ctrl is not None:
         cols.append(('Negative Control\n(diff instance, same digit)', '#777777',
@@ -415,22 +429,27 @@ def generate_experiment_b_figure(results, save_dir=None):
     if n_cols == 1:
         axes = axes.reshape(-1, 1)
 
-    fig.subplots_adjust(top=0.74, bottom=0.08, left=0.12, right=0.98,
+    fig.subplots_adjust(top=0.82, bottom=0.18, left=0.12, right=0.98,
                         hspace=0.45, wspace=0.15)
 
-    # Title + subtitle
-    fig.suptitle(f'Experiment B: Training Data Recovered from {n_steps} Gradient Step{"s" if n_steps > 1 else ""}\n(Oracle Coefficients)',
-                 fontsize=15, fontweight='bold', y=0.98)
-    fig.text(0.5, 0.87,
-             r'Attack scenario: attacker observes $\Delta W = \theta_T - \theta_0$ '
-             f'after {n_steps} SGD step{"s" if n_steps > 1 else ""} on private data\n'
-             r'Reconstruction uses oracle coefficients $c_i$ (computed from true $x$) — upper bound on attack quality',
-             ha='center', fontsize=10, color='#555555', linespacing=1.5)
+    # Detect free-coefficient mode from config or extract results
+    is_free = config.get('mode', '').upper() == 'FREE-COEFFICIENT'
+    if not is_free:
+        for key in ('lora_extract_res', 'full_extract_res'):
+            if key in results and 'coeff_error' in results.get(key, {}):
+                is_free = True
+                break
+
+    # Title
+    mode_label = 'Free Coefficient' if is_free else 'Oracle Coefficients'
+    rank_str = f', LoRA r={rank}' if rank else ''
+    fig.suptitle(f'{mode_label}{rank_str}, T={n_steps}',
+                 fontsize=15, fontweight='bold', y=0.96)
 
     # Column headers
     for c, (label, color, _, _, _) in enumerate(cols):
         pos = axes[0, c].get_position()
-        fig.text((pos.x0 + pos.x1) / 2, 0.80, label,
+        fig.text((pos.x0 + pos.x1) / 2, 0.88, label,
                  ha='center', va='bottom', fontsize=10, fontweight='bold',
                  color=color, linespacing=1.3)
 
@@ -478,7 +497,8 @@ def generate_experiment_b_figure(results, save_dir=None):
                  ha='center', fontsize=9.5, color='#555555', style='italic',
                  linespacing=1.4)
 
-    save_path = os.path.join(save_dir, 'experiment_b_grid.png')
+    suffix = '_free' if is_free else '_oracle'
+    save_path = os.path.join(save_dir, f'experiment_b_grid{suffix}.png')
     os.makedirs(save_dir, exist_ok=True)
     plt.savefig(save_path, bbox_inches='tight', facecolor='white')
     plt.close()

@@ -25,6 +25,8 @@ conda activate /home/projects/galvardi/yoado/.conda/envs/rec
 cd /home/projects/galvardi/yoado
 mkdir -p results figures scripts/wexac_logs
 
+pip install -q scipy 2>/dev/null  # Flowers102 needs scipy for .mat labels
+
 python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, Device: {torch.cuda.get_device_name(0)}')"
 python -c "import kornia; print(f'Kornia: {kornia.__version__}')"
 

@@ -151,6 +151,15 @@ notes/*.pdf
 *.bbl
 *.blg
 
+# --- Intermediate reconstruction snapshots (many small PNGs, MB-sized dirs) ---
+figures/snapshots/
+figures/**/snapshots/
+figures/**/snapshots_*/
+
+# --- Private face photos (not for git) ---
+figures/Gal photo/
+assets/gal_photo/
+
 # --- Misc ---
 .python_history
 .wget-hsts

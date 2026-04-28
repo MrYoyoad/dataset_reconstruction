@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: **2026-04-09**
+Last updated: **2026-04-28** (post D2 sweep)
 
 ---
 
@@ -52,46 +52,98 @@ Comprehensive ablation study across two tracks. 148+ configs completed.
 - B4: N sweep (NTK) — **DONE** (results/sprint2c_track_b4_*.csv)
 - B5-B8: Additional ablations — **DONE** (results in sprint2c_track_b5/b6/b7/b8 CSVs)
 
-### Phase 0: ViT Gradient Inversion Gate — RAN, AWAITING RE-RUN WITH FIXES
+### Phase 0: ViT Gradient Inversion Gate — D2 COMPLETE, GATE CROSSED
 
 Critical gate experiment: can gradient inversion reconstruct images from exact ViT-B/16 gradients?
 
-**First attempt (2026-03-27):** SSIM=0.015. Failed due to 4 bugs (non-differentiable cosine sim, per-tensor averaging, LoRA-only grads, float.sqrt). All fixed.
+**Status: GATE CROSSED.** D2 sweep (2026-04-28) found tv=1e-1 + lr=0.05 + 30K iters achieves **SSIM=0.548, PSNR=15.11, cos_sim=0.955** on Flowers102 — a 3.8× improvement over D1's best (0.144) and well past the 0.3 SSIM gate. 7/29 configs cleared the gate, all at tv=1e-1. The thesis can proceed to LoRA-only inversion, multi-seed validation, and the Gradient Bridge decoder.
 
-**Second attempt (2026-04-07, bugs fixed):** Reconstructions showed vague color/shape resemblance (boat outline visible) but were very noisy. SSIM numbers from this run used a **non-standard global-mean SSIM** (not comparable to Sprint 2 or literature) — do not cite the old values.
+**Run history:**
+1. **2026-03-27**: SSIM=0.015. Failed due to 4 bugs. All fixed.
+2. **2026-04-07**: Bug fixes applied. Vague structure visible. Non-standard SSIM metric (don't cite).
+3. **2026-04-09**: Code audit fixed 6 issues (SSIM metric, backward, signAdam, TV norm, clamping, LoRA dims). Switched to Flowers102.
+4. **2026-04-10**: signAdam bug found (was SignSGD). cos_sim=0.97 but SSIM=0.008 (noise). After fix: SSIM=0.022 full / 0.009 LoRA.
+5. **2026-04-14**: D1 controlled comparison — 4 configs, same image/gradient.
 
-**Code audit (2026-04-09) — 6 issues found and fixed:**
-1. **SSIM was non-standard** (global mean, not windowed). Now uses Kornia `ssim(window_size=3)`, matching Sprint 2 and the literature.
-2. **Wasteful backward**: `total_loss.backward()` computed gradients for all 86M model params. Now uses `backward(inputs=[x_recon])`.
-3. **Missing signed Adam** (Geiping et al. key finding). Added `--optimizer signAdam` option.
-4. **TV not normalized** by pixel count (resolution-dependent weighting). Now normalized. Added `--tv_norm l1` option.
-5. **Loose clamping** [-3, 3] allowed non-physical pixels. Tightened to valid ImageNet-normalized range [-2.2, 2.7].
-6. **LoRA gradient dims misreported** as 294K. Effective dims are ~147K (B matrices only — peft inits B=0 so ∂L/∂A=0).
+#### D1: Controlled Optimizer × TV Comparison — COMPLETE (2026-04-14)
 
-**Diagnosis — why Phase 0 underperforms:**
-1. **86M-dimensional cosine sim is hard to optimize**: gradient space is enormous; standard Adam (not signed Adam) with 10K iters + 8 restarts is insufficient.
-2. **Weak image prior**: only TV regularization; 224×224 RGB search space is vast without perceptual/generative constraints.
-3. **Attention double-backward**: ViT self-attention through `create_graph=True` is memory-intensive and may produce noisy higher-order gradients.
-4. **Single image, single seed**: no multi-seed statistics yet; this could be an unlucky seed/image pair.
-5. **Hyperparameters not tuned**: lr=0.1, tv_weight=1e-4, Adam — all defaults, no sweep performed.
+4 configs on the SAME Flowers102 image (seed=42), full-model gradient (86M params), 8 restarts × 10K iters each:
 
-- Code: `experiments/phase0_vit_inversion.py`
-- WEXAC script: `scripts/run_phase0_v2_wexac.sh`
-- Previous results: `results/phase0_{full,lora}_r8_n1_s42_20260407_*.pth` (old SSIM — non-standard)
-- Figures: `figures/phase0_{full,lora}_r8_n1.png`
+| Config | Optimizer | TV weight | SSIM | PSNR | cos_sim | Time |
+|--------|-----------|-----------|------|------|---------|------|
+| A | Adam | 1e-4 | 0.030 | 8.7 | 0.920 | 3.0h |
+| B | signAdam | 1e-4 | 0.020 | 8.2 | 0.934 | 1.8h |
+| C | Adam | 1e-2 | 0.090 | 9.8 | 0.887 | 1.7h |
+| **D** | **signAdam** | **1e-2** | **0.144** | **10.9** | **0.933** | **3.0h** |
+
+**Key findings:**
+1. **Strong TV (1e-2) is essential.** Both strong-TV configs (C, D) beat both weak-TV configs (A, B) in SSIM. tv_weight=1e-4 is 100× too weak at 224×224.
+2. **signAdam beats Adam at every TV level.** D > C by 60% (0.144 vs 0.090), B ≈ A at weak TV. signAdam maintains high cos_sim (0.93) even with strong TV drag.
+3. **cos_sim alone is misleading.** Config B has highest cos_sim (0.934) but worst SSIM (0.020). Config D has similar cos_sim (0.933) but 7× better SSIM. The TV prior makes the difference.
+4. **signAdam convergence is faster and tighter.** Cos_sim overlay shows signAdam restarts cluster tightly (0.920-0.934) while Adam restarts spread widely (0.465-0.920).
+
+**Go/no-go outcome:** Config D SSIM=0.144 is just below the 0.15 gate threshold. **Proceeded to D2** (see below) — D2 crossed the gate decisively at SSIM=0.548.
+
+**Instrumentation added (2026-04-14):**
+- `best_cos_sim` + per-restart `loss_history` saved in .pth files
+- Loss curve plots (3-panel: cos_sim/TV/total vs iteration, all restarts)
+- D1 comparison figure + cos_sim overlay
+
+- Code: `experiments/phase0_vit_inversion.py` + `experiments/phase0_d1_compare.py`
+- WEXAC scripts: `scripts/run_phase0_d1_{A,B,C,D}.sh`
+- Results: `results/phase0_full_r8_n1_s42_20260414_*.pth`, `results/phase0_d1_comparison_*.csv`
+- Figures: `figures/phase0/phase0_d1_comparison.png`, `figures/phase0/phase0_d1_cossim_overlay.png`
+
+#### D2: Targeted Sweep Around Winning Config — COMPLETE (2026-04-28)
+
+40-config sweep (signAdam, full gradient, Flowers102, seed=42), 29 configs analyzed:
+
+**Top 7 configs (all cleared 0.3 SSIM gate):**
+
+| Rank | TV weight | LR    | Iters | SSIM   | PSNR  | cos_sim |
+|------|-----------|-------|-------|--------|-------|---------|
+| 1    | **1e-1**  | 0.05  | 30000 | **0.548** | **15.11** | **0.955** |
+| 2    | 1e-1      | 0.10  | 10000 | 0.496  | 12.93 | 0.955   |
+| 3    | 1e-1      | 0.01  | 30000 | 0.469  | 12.44 | 0.941   |
+| 4    | 1e-1      | 0.10  | 30000 | 0.469  | 12.81 | 0.955   |
+| 5    | 1e-1      | 0.50  | 10000 | 0.466  | 12.20 | 0.946   |
+| 6    | 1e-1      | 0.50  | 30000 | 0.464  | 12.27 | 0.959   |
+| 7    | 1e-1      | 0.05  | 10000 | 0.385  | 12.23 | 0.930   |
+
+**Key findings:**
+1. **tv_weight=1e-1 is the dominant winning factor.** All 7 gate-passing configs use tv=1e-1. The next TV level (2e-2) tops out at SSIM=0.27. The 10× jump from D1's tv=1e-2 (SSIM=0.144) to tv=1e-1 produced a 3.8× SSIM improvement.
+2. **LR is secondary.** Across lr ∈ {0.01, 0.05, 0.1, 0.5} at tv=1e-1, SSIM stays in [0.46, 0.55]. lr=0.05 is best but the spread is small.
+3. **30K iters helps but not dramatically.** lr=0.05 jumps from 0.385 (10K) to 0.548 (30K). lr=0.1 marginal: 0.496 → 0.469. Diminishing returns past 10K for most configs.
+4. **High cos_sim (0.94-0.96) at all 7 winners**, while D1's noisy configs had similar cos_sim with garbage SSIM. Strong TV is what converts gradient match into visible structure.
+
+**Go/no-go outcome:** **GATE CROSSED.** SSIM=0.548 is well past the 0.3 threshold. The flower's pink color, petal arrangement, and leaf structure are all clearly visible. **Proceed to multi-seed validation, LoRA-only inversion, and face-photo extension (face1/2/3 sweep already submitted).**
+
+- Code: `experiments/phase0_d2_compare.py`, `phase0_vit_inversion.py` `--d2 --config_index N` mode
+- WEXAC scripts: `scripts/run_phase0_d2_wexac.sh` (40 jobs), face sweep: `scripts/run_phase0_face_sweep.sh`
+- Results: `results/phase0_d2_*.pth` (29 configs), figures: `figures/phase0/d2_sweep/`
+- Custom image support: `--image_path` flag in `phase0_vit_inversion.py`, tests in `experiments/tests/test_phase0_custom_image.py`
+- Repo reorg: figures grouped under `figures/{phase0,sprint1,training_dynamics,free_c_all_seeds}/`. Per-iter snapshot dirs (~800 MB) excluded via `.gitignore`.
+
+#### Post-D2: Next Steps
+
+- **Face sweep (in flight)**: 4-config grid on face1.jpg with tv ∈ {1e-2, 5e-2}, iters ∈ {10K, 30K} — uses custom-image loader
+- **LoRA-only at the D2 winner**: rerun signAdam + tv=1e-1 + lr=0.05 + 30K with `--mode lora --rank 8` (and 16, 32, 64)
+- **Multi-seed canonical numbers**: 5-10 seeds at the winning config to replace seed=42 anecdote with mean±std
+- **D3 (if priors needed)**: frequency-domain prior, LPIPS, latent-space (S3.5)
 
 ---
 
-### Sprint 3: Scaling Beyond MNIST — PLANNED
+### Sprint 3: Scaling Beyond MNIST — IN PROGRESS (via D1→D2→D3)
 
-**Goal**: Establish gradient-based reconstruction on realistic (non-MNIST) data. Sprint 2 proved the NTK attack works on MNIST MLPs (SSIM=0.997 full, 0.557 LoRA free-c). Sprint 3 bridges to ViT-scale by progressively relaxing conditions.
+**Goal**: Establish gradient-based reconstruction on realistic (non-MNIST) data. Sprint 2 proved the NTK attack works on MNIST MLPs (SSIM=0.997 full, 0.557 LoRA free-c). Sprint 3 bridges to ViT-scale.
 
-**Strategy**: Don't jump straight to ViT-B/16 on ImageNet-scale images. Instead, isolate the two hard dimensions (architecture complexity × image complexity) and tackle them separately:
-- **S3.1**: Fix Phase 0 hyperparameters (same ViT, same images, better optimization)
-- **S3.2**: Shrink reconstruction space (optimize in 32×32 or frequency domain, upsample to 224×224)
-- **S3.3**: Shrink architecture (ResNet-18 and CNN on CIFAR-10)
-- **S3.4**: Differentiable unrolling (bypass NTK approximation entirely)
-- **S3.5**: Add stronger image priors (LPIPS, frequency, SDS)
+**Updated strategy after D1 results:** D1 showed the bottleneck is regularization, not architecture. signAdam + TV=1e-2 reached SSIM=0.144 on ViT-B/16 with no architectural changes. The path forward is hyperparameter tuning + stronger priors on the same ViT, not retreating to simpler architectures.
+
+- ~~**S3.1**: Fix Phase 0 hyperparameters~~ → **Absorbed into D1 (done) + D2 (next)**
+- **S3.2**: Shrink reconstruction space (optimize in 32×32 or frequency domain, upsample to 224×224) — still relevant if D2 plateaus
+- ~~**S3.3**: Shrink architecture~~ — **Deprioritized** (ViT works, no need to retreat)
+- **S3.4**: Differentiable unrolling (bypass NTK approximation) — future direction
+- **S3.5**: Add stronger image priors (LPIPS, frequency, SDS) — **maps to D3**
 
 Each sub-sprint has a clear **go/no-go gate** so we don't waste time on dead ends.
 
@@ -351,9 +403,10 @@ Fixed the oracle-coefficient cheating. Implementation in `ntk_extraction.py` and
 - 165/200 (82.5%) produce weak/no signal (< 0.01)
 - Perfect correlation: model wrong after centering ↔ strong signal
 - Digits 4, 5, 8, 9 over-represented in attackable seeds
-- **Figures**: `figures/multi_seed_analysis.png`
+- **Figures**: `figures/sprint1/multi_seed_analysis.png`
 
-- **Figures**: `figures/experiment_b_grid.png`, `figures/experiment_b_grid_r32.png`, `figures/rank_sweep_sprint1.png`, `figures/sprint1_summary.png`
+- **Figures**: `figures/sprint1/experiment_b_grid_oracle.png`, `figures/sprint1/experiment_b_grid_free.png`, `figures/sprint1/experiment_b_grid_r32.png`, `figures/sprint1/rank_sweep_sprint1.png`, `figures/sprint1/sprint1_summary.png`
+  - Note: Old figures (`experiment_b_free_coeff_grid.png`, `free_coeff_reconstruction_grid.png`) were stale — showed grey/blank reconstructions due to missing ds_mean correction. Deleted and replaced with correctly rendered versions (2026-04-28). `generate_experiment_b_figure()` is now mode-aware (auto-detects oracle vs free-coefficient).
 
 ### Base Reconstruction (Haim et al.) — Complete
 
@@ -533,6 +586,12 @@ Hybrid gradient-matching + SDS loss for low-rank reconstruction. Blocked on havi
 ### Phase 0: ViT Gradient Inversion
 - [x] ~~**Setup phase0 conda env**~~ — not needed, `rec` env has timm+peft
 - [x] **Phase 0 (fixed)**: Resubmitted with bug fixes — SSIM=0.089 (full) / 0.264 (LoRA). Poor but real signal (was 0.015 before fixes).
+- [x] **D1 controlled comparison** (2026-04-14): signAdam + tv=1e-2 → SSIM=0.144 (4 configs)
+- [x] **D2 hyperparameter sweep** (2026-04-28): 40 configs, best tv=1e-1 + lr=0.05 + 30K → **SSIM=0.548** — gate crossed
+- [x] **Custom image loading**: `--image_path` flag + 7 unit tests
+- [ ] **Face sweep (face1/2/3)**: signAdam + tv ∈ {1e-2, 5e-2} on three real face photos — submitted, in flight
+- [ ] **LoRA-only at D2 winner**: rerun tv=1e-1, lr=0.05, 30K with --mode lora across rank 8/16/32/64
+- [ ] **Multi-seed validation**: 5-10 seeds at the winning config for canonical SSIM mean±std
 - [ ] **Phase 0b**: Noise tolerance sweep — deprioritized, folded into Sprint 3
 
 ### Sprint 3: Scaling Beyond MNIST

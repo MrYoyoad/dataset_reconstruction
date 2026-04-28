@@ -119,6 +119,79 @@ The git repo WAS initialized and pushed to `myfork/main` on GitHub — but the W
 - **SignSGD ≠ signed Adam.** First implementation of signAdam was just `sign(raw_gradient) × lr` (= SignSGD). This ignores Adam's momentum/variance, flipping direction wildly per pixel per step → high-frequency noise. Got cos_sim=0.97 but SSIM=0.008 (noise image). Correct signed Adam: compute full Adam update (momentum + variance + bias correction), *then* take sign. Always verify optimizer implementations against the reference code, not a paper description.
 - **Never upscale low-res images for ViT inversion.** CIFAR-10 (32×32) upscaled to 224×224 creates blocky, unnatural images. The gradient encodes the upscaling artifact, not natural image structure. TV regularization fights the block artifacts. Always use datasets with native high-res images (Flowers102 ~500px, Food101 ~512px, ImageNet) and center-crop to 224. Default changed from `cifar10` to `flowers102`.
 
+### Optimizer Deep Dive (2026-04-14)
+
+Three variants of "signed Adam" exist — they are NOT interchangeable:
+
+1. **SignSGD** (buggy, was our first impl): `update = sign(raw_grad) × lr`. No momentum/variance. Every pixel gets ±lr each step → uniform HF noise. Maximizes cos_sim (0.97) because noise is directionally "correct" but magnitude-uniform → SSIM=0.008.
+
+2. **Sign-then-Adam** (Geiping et al., current code): `x.grad.sign_()` before `optimizer.step()`. Adam receives ±1 inputs and applies momentum + variance. Problem: after enough iters, Adam's variance tracker `v_t ≈ 1` for all params (all inputs are ±1), so adaptive scaling degenerates. Effectively becomes momentum SGD with uniform step size. May explain the "good patches + HF noise" observation.
+
+3. **Adam-then-sign** (described in literature, never implemented): compute full Adam update, *then* take sign. Preserves Adam's directional intelligence while enforcing uniform step magnitude. Not validated by any published code.
+
+**Key insight:** The "good patches + HF noise" reconstruction is the signature of an optimizer that found the right basin (correct colors, spatial structure) but oscillates within it due to too-aggressive uniform updates.
+
+**Critical instrumentation gap found and fixed:** `invert_gradient()` returned only `best_x` — no cos_sim, no loss curves. Cos_sim was printed to console but WEXAC logs were lost. Added: return `best_cos_sim` + full per-restart `loss_history`, save to .pth, generate loss curve plots.
+
+### D1 Results — Hypothesis Tested (2026-04-14)
+
+The hypothesis that signAdam hurts was **wrong**. D1 controlled comparison (4 configs, same image, same gradient):
+
+| Config | Optimizer | TV weight | SSIM | cos_sim |
+|--------|-----------|-----------|------|---------|
+| A | Adam | 1e-4 | 0.030 | 0.920 |
+| B | signAdam | 1e-4 | 0.020 | 0.934 |
+| C | Adam | 1e-2 | 0.090 | 0.887 |
+| **D** | **signAdam** | **1e-2** | **0.144** | **0.933** |
+
+**What actually mattered — TV weight, not optimizer choice:**
+- Weak TV (1e-4) produces noise regardless of optimizer. SSIM=0.02-0.03.
+- Strong TV (1e-2) produces visible structure. SSIM=0.09-0.14.
+- The 100× TV increase was the dominant factor (4.5× SSIM improvement for Adam, 7× for signAdam).
+
+**signAdam wins at every TV level**, but the margin is small with weak TV (0.02 vs 0.03) and large with strong TV (0.144 vs 0.090). Explanation: strong TV constrains the search space enough that signAdam's aggressive direction-finding becomes an advantage rather than producing noise. With weak TV, both optimizers find gradient-matching noise images.
+
+**Convergence pattern:** signAdam restarts are remarkably consistent (all 8 in 0.920-0.934 cos_sim) while Adam restarts spread widely (0.465-0.920). signAdam is more robust to initialization.
+
+**Lesson:** Don't blame the optimizer when the regularizer is 100× too weak. The previous conclusion that "signAdam creates HF noise" was actually "tv_weight=1e-4 is insufficient at 224×224 resolution." Always test regularization strength before changing the optimizer.
+
+### D2 Sweep — TV Weight Is the Dominant Lever (2026-04-28)
+
+**Context:** D1 (2026-04-14) showed signAdam + tv=1e-2 reached SSIM=0.144, just below the 0.15 gate. D2 swept tv_weight × lr × n_iters around the D1 winner: 5 × 4 × 2 = 40 configs.
+
+**Result: gate crossed.** Best D2 config (tv=1e-1, lr=0.05, 30K iters) achieves **SSIM=0.548, PSNR=15.11, cos_sim=0.955** — 3.8× over D1's best. 7/29 analyzed configs cleared the 0.3 SSIM gate, **all at tv=1e-1**.
+
+**TV-weight ranking (best SSIM at any lr/iters per TV level):**
+
+| TV weight | Best SSIM | Notes |
+|-----------|-----------|-------|
+| 1e-1      | 0.548     | All 7 gate-passing configs are here |
+| 2e-2      | 0.267     | Plateaus far below gate |
+| 1e-2      | 0.207     | Matches D1's tv=1e-2 finding (~0.14-0.20) |
+| 5e-3      | 0.109     | Effectively no signal |
+
+**Lessons:**
+1. **TV at 224×224 needs to be much stronger than papers suggest.** Geiping et al. used tv≈1e-4 to 1e-2 for ImageNet. Our system (Flowers102 image, full ViT-B/16 gradient, signAdam) needs tv=1e-1 — 10× stronger than D1's winner and 1000× stronger than the original Phase 0 default. The D1 conclusion ("strong TV is essential") was directionally right but understated the magnitude.
+2. **Cos_sim is loosely coupled to SSIM at the high end.** All 7 D2 winners had cos_sim 0.94–0.96; the worst configs (5e-3 TV) also reach cos_sim 0.92+. Cos_sim is a necessary-not-sufficient metric — once it saturates near 0.95, only the pixel-space prior (TV) determines whether the answer is a noisy match or a recognizable image.
+3. **lr is a secondary lever, iters has diminishing returns.** Across lr ∈ {0.01, 0.05, 0.1, 0.5} at tv=1e-1, SSIM stays in [0.46, 0.55]. Going from 10K → 30K iters gives only ~0.05 SSIM lift on average.
+4. **Always sweep at least one order of magnitude past the previous winner.** If we'd tested only tv ∈ {5e-3, 1e-2, 2e-2} (a tighter sweep around D1), we would have concluded tv=1e-2 is optimal. The 1e-1 finding required deliberately overshooting.
+
+**Action:** Set tv=1e-1 + lr=0.05 + 30K iters + signAdam as the new Phase 0 baseline. Rerun LoRA-only mode and multi-seed at this config before adding any new priors (D3).
+
+---
+
+### Visualization: Always Add ds_mean Back Before Plotting Reconstructions (2026-04-28)
+
+**Context:** Free-coefficient experiment figures (`experiment_b_free_coeff_grid.png`, `free_coeff_reconstruction_grid.png`) showed grey/blank reconstructions despite SSIM=0.59 confirming real signal.
+
+**Root cause:** Reconstructions are optimized in mean-subtracted space: `x_centered = x_ft - ds_mean`, so `x_recon_lora` lives in range [-0.2, 0.2]. Ground truth `x_train` lives in pixel space [0, 1]. Plotting both on the same [0, 1] colormap without adding `ds_mean` back makes reconstructions appear flat grey.
+
+**Fix:**
+1. The plotting code in `plotting.py` (`plot_reconstruction_grid`, `generate_experiment_b_figure`) already correctly marks reconstructions as `is_centered=True` and adds `ds_mean` back at display time. The broken figures were generated by an older, now-deleted code path.
+2. Made `generate_experiment_b_figure` mode-aware: auto-detects free-coefficient vs oracle mode from `results['config']['mode']` or `coeff_error` presence; adjusts title, subtitle, and output filename (`experiment_b_grid_free.png` vs `experiment_b_grid_oracle.png`).
+
+**Lesson:** When working with mean-centered data, always track which tensors are in which space. Mark them explicitly (e.g., `is_centered` flag) and handle the conversion at the display boundary. Never assume pixel range [0, 1] — always check `.min()` and `.max()` before plotting. And when figures look wrong, check the value ranges before suspecting the algorithm.
+
 ---
 
 ## Discrete Sequence Reconstruction (LLMs)

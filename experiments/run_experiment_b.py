@@ -660,12 +660,24 @@ if __name__ == '__main__':
                    'full_extract_res', 'lora_extract_res']:
             if k in results:
                 save_dict[k] = results[k]
+        # Compute actual param counts for figure labels
+        from experiments.lora_wrapper import apply_lora, get_lora_param_count
+        _m = load_pretrained(device='cpu')
+        full_params = sum(p.numel() for p in _m.parameters())
+        lora_params = None
+        if args.rank is not None:
+            apply_lora(_m, rank=args.rank)
+            lora_params = get_lora_param_count(_m)
+        del _m
+
         save_dict['config'] = {
             'n_steps': args.n_steps, 'rank': args.rank,
             'n_per_class': args.n_per_class, 'seed': args.seed,
             'lr': args.lr, 'mode': mode,
             'relu_alpha': args.relu_alpha,
             'optimizer': args.optimizer,
+            'full_params': full_params,
+            'lora_params': lora_params,
         }
         pth_path = os.path.join(RESULTS_DIR, f"{base_name}.pth")
         torch.save(save_dict, pth_path)

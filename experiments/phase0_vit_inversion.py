@@ -74,10 +74,14 @@ def load_vit_with_lora(rank=8, num_classes=2, device='cuda'):
 
 
 def get_sample_images(n_images=2, seed=42, dataset_name='flowers102',
-                      device='cuda'):
+                      image_path=None, device='cuda'):
     """Get sample images for fine-tuning.
 
     Args:
+        image_path: If provided, loads a single custom image from this path
+                    instead of using a dataset. Overrides dataset_name, n_images,
+                    and seed. The image is center-cropped to 224x224 with ImageNet
+                    normalization. Label is set to 0.
         dataset_name: 'flowers102' (native ~500px, auto-download, default),
                       'food101' (native ~512px, auto-download),
                       'stl10' (native 96px — still upscaled but 9x better than CIFAR),
@@ -87,6 +91,26 @@ def get_sample_images(n_images=2, seed=42, dataset_name='flowers102',
     Returns (images, labels) where images are [N, 3, 224, 224].
     """
     _, torchvision, T, _, _, _ = _lazy_imports()
+
+    # Custom image from file path (overrides dataset)
+    if image_path is not None:
+        if not os.path.isfile(image_path):
+            raise FileNotFoundError(f"Custom image not found: {image_path}")
+        from PIL import Image, ImageOps
+        transform = T.Compose([
+            T.Resize(256),
+            T.CenterCrop(224),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+        ])
+        img = Image.open(image_path).convert('RGB')
+        img = ImageOps.exif_transpose(img)
+        img_tensor = transform(img)
+        images = img_tensor.unsqueeze(0).to(device)
+        labels = torch.tensor([[0]], dtype=torch.float32, device=device)
+        print(f"  Custom image: {image_path}")
+        return images, labels
 
     # For native high-res datasets: center-crop to 224 (no upscaling artifacts)
     # For low-res datasets: resize (with warning)
@@ -237,25 +261,52 @@ def _sign_gradients(x):
 _CLAMP_MIN = -2.2
 _CLAMP_MAX = 2.7
 
+_DENORM_MEAN = None
+_DENORM_STD = None
+
+
+def _freq_penalty(x, cutoff_fraction=0.5):
+    """Penalize high-frequency energy in 2D FFT of x.
+
+    Returns mean |FFT|^2 above a radial frequency cutoff.
+    Differentiable via torch.fft autograd.
+    """
+    H, W = x.shape[-2], x.shape[-1]
+    fft = torch.fft.rfft2(x)
+    fy = torch.fft.fftfreq(H, device=x.device).reshape(-1, 1)
+    fx = torch.fft.rfftfreq(W, device=x.device).reshape(1, -1)
+    radius = (fy ** 2 + fx ** 2).sqrt()
+    hf_mask = (radius > cutoff_fraction).float()
+    return (fft.abs() * hf_mask).pow(2).mean()
+
 
 def invert_gradient(model, gradients, labels, image_shape,
                     n_iters=10000, n_restarts=8, lr=0.1, tv_weight=1e-4,
                     tv_norm='l2', optimizer_name='Adam',
+                    freq_weight=0.0, freq_cutoff=0.5,
+                    lpips_weight=0.0, lpips_fn=None,
+                    snapshot_dir=None, snapshot_interval=1000,
                     device='cuda', verbose=True):
     """Reconstruct images from gradients via optimization.
 
-    Implements Geiping et al. (2020) style cosine-similarity inversion:
-        max_x cos(flatten(nabla L(x)), flatten(nabla_true))
-
-    Uses torch.autograd.grad with create_graph=True so the cosine
-    similarity is differentiable w.r.t. x_recon.
-
-    Multiple random restarts to handle non-convexity.
+    Loss = -cos_sim + tv*TV [+ freq*HF_energy] [+ lpips*LPIPS_smooth]
 
     Args:
         tv_norm: 'l1' (anisotropic, preserves edges) or 'l2' (isotropic).
-        optimizer_name: 'Adam', 'signAdam' (Geiping et al. recommended),
-                        or 'SGD'.
+        optimizer_name: 'Adam', 'signAdam' (Geiping et al.), or 'SGD'.
+        freq_weight: Frequency-domain HF penalty weight (0=disabled).
+            Suppresses high-frequency noise more surgically than TV.
+        freq_cutoff: Fraction of frequency radius above which to penalize.
+        lpips_weight: LPIPS perceptual smoothness weight (0=disabled).
+            Penalizes patch-boundary artifacts via VGG features.
+        lpips_fn: Frozen lpips.LPIPS model (shared across restarts).
+        snapshot_dir: If provided, save reconstruction PNGs at intervals.
+        snapshot_interval: Save a snapshot every this many iterations.
+
+    Returns:
+        best_x: Tensor — best reconstruction across restarts.
+        best_cos_sim: float — best cosine similarity achieved.
+        loss_history: dict — per-restart loss curves.
     """
     # Disable efficient SDPA — its backward doesn't support create_graph=True
     # (needed for double-backward through attention in PyTorch 2.x)
@@ -275,6 +326,19 @@ def invert_gradient(model, gradients, labels, image_shape,
     # Pixel count for TV normalization (resolution-independent weighting)
     n_pixels = image_shape[-2] * image_shape[-1]
 
+    global _DENORM_MEAN, _DENORM_STD
+
+    # Denorm constants (for snapshots and LPIPS)
+    if _DENORM_MEAN is None or _DENORM_MEAN.device != torch.device(device):
+        _DENORM_MEAN = torch.tensor([0.485, 0.456, 0.406],
+                                    device=device).reshape(1, 3, 1, 1)
+        _DENORM_STD = torch.tensor([0.229, 0.224, 0.225],
+                                   device=device).reshape(1, 3, 1, 1)
+
+    # Snapshot setup
+    if snapshot_dir is not None:
+        os.makedirs(snapshot_dir, exist_ok=True)
+
     # Pre-compute flattened true gradient (constant across restarts)
     param_names_in_grad = [n for n, _ in model.named_parameters() if n in gradients]
     params_for_grad = [p for n, p in model.named_parameters() if n in gradients]
@@ -284,6 +348,13 @@ def invert_gradient(model, gradients, labels, image_shape,
     if verbose:
         print(f"  Gradient vector: {n_total:,} dims, "
               f"{n_nonzero:,} non-zero ({100*n_nonzero/n_total:.1f}%)")
+        extras = []
+        if freq_weight > 0:
+            extras.append(f"freq={freq_weight:.0e}(cut={freq_cutoff})")
+        if lpips_weight > 0:
+            extras.append(f"lpips={lpips_weight:.0e}")
+        if extras:
+            print(f"  Extra priors: {', '.join(extras)}")
 
     # Enable requires_grad on all matched params so autograd.grad works
     orig_requires_grad = {}
@@ -293,6 +364,11 @@ def invert_gradient(model, gradients, labels, image_shape,
 
     best_cos_sim = -1.0
     best_x = None
+    loss_history = {'cos_sim': [], 'tv': [], 'total': []}
+    if freq_weight > 0:
+        loss_history['freq'] = []
+    if lpips_weight > 0:
+        loss_history['lpips'] = []
 
     # Enter SDPA math-only context if available
     if sdpa_ctx is not None:
@@ -315,6 +391,8 @@ def invert_gradient(model, gradients, labels, image_shape,
 
         run_best_cos = -1.0
         run_best_x = x_recon.detach().clone()
+        run_cos_hist, run_tv_hist, run_total_hist = [], [], []
+        run_freq_hist, run_lpips_hist = [], []
 
         for i in range(n_iters):
             optimizer.zero_grad()
@@ -350,8 +428,21 @@ def invert_gradient(model, gradients, labels, image_shape,
                     diff_w = (x_recon[:, :, :, 1:] - x_recon[:, :, :, :-1]).pow(2).sum()
                 tv_loss = tv_weight * (diff_h + diff_w) / n_pixels
 
-            # Inversion loss: maximize cosine similarity
-            total_loss = -cos_sim + tv_loss
+            # Frequency-domain HF penalty
+            freq_loss = 0.0
+            if freq_weight > 0:
+                freq_loss = freq_weight * _freq_penalty(x_recon, freq_cutoff)
+
+            # LPIPS perceptual smoothness (penalize distance from blurred self)
+            lpips_loss = 0.0
+            if lpips_weight > 0 and lpips_fn is not None:
+                from kornia.filters import gaussian_blur2d
+                x_pixel = (x_recon * _DENORM_STD + _DENORM_MEAN).clamp(0, 1)
+                x_blur = gaussian_blur2d(x_pixel, (5, 5), (1.5, 1.5))
+                lpips_loss = lpips_weight * lpips_fn(x_pixel, x_blur).mean()
+
+            # Inversion loss: maximize cosine similarity + regularization
+            total_loss = -cos_sim + tv_loss + freq_loss + lpips_loss
             # Only compute gradient w.r.t. x_recon (skip 86M model params)
             total_loss.backward(inputs=[x_recon])
 
@@ -367,19 +458,53 @@ def invert_gradient(model, gradients, labels, image_shape,
             with torch.no_grad():
                 x_recon.clamp_(_CLAMP_MIN, _CLAMP_MAX)
 
+            # Save snapshot at regular intervals
+            if snapshot_dir is not None and (i % snapshot_interval == 0 or i == n_iters - 1):
+                with torch.no_grad():
+                    snap_img = (x_recon * _DENORM_STD + _DENORM_MEAN).clamp(0, 1)
+                    from torchvision.utils import save_image
+                    snap_path = os.path.join(
+                        snapshot_dir, f'restart{restart}_iter{i:05d}.png')
+                    save_image(snap_img, snap_path)
+
             cos_val = cos_sim.item()
+            tv_val = tv_loss if isinstance(tv_loss, float) else tv_loss.item()
+            freq_val = freq_loss if isinstance(freq_loss, float) else freq_loss.item()
+            lpips_val = lpips_loss if isinstance(lpips_loss, float) else lpips_loss.item()
+            total_val = total_loss.item()
+
+            run_cos_hist.append(cos_val)
+            run_tv_hist.append(tv_val)
+            run_total_hist.append(total_val)
+            if freq_weight > 0:
+                run_freq_hist.append(freq_val)
+            if lpips_weight > 0:
+                run_lpips_hist.append(lpips_val)
+
             if cos_val > run_best_cos:
                 run_best_cos = cos_val
                 run_best_x = x_recon.detach().clone()
 
             if verbose and (i % 2000 == 0 or i == n_iters - 1):
-                tv_val = tv_loss if isinstance(tv_loss, float) else tv_loss.item()
+                extra = ''
+                if freq_weight > 0:
+                    extra += f', freq={freq_val:.6f}'
+                if lpips_weight > 0:
+                    extra += f', lpips={lpips_val:.6f}'
                 print(f"  [restart {restart+1}/{n_restarts}] iter {i:5d}: "
-                      f"cos_sim={cos_val:.4f}, tv={tv_val:.6f}, "
-                      f"total={total_loss.item():.4f}")
+                      f"cos_sim={cos_val:.4f}, tv={tv_val:.6f}"
+                      f"{extra}, total={total_val:.4f}")
 
         if verbose:
             print(f"  Restart {restart+1}: best cos_sim={run_best_cos:.4f}")
+
+        loss_history['cos_sim'].append(run_cos_hist)
+        loss_history['tv'].append(run_tv_hist)
+        loss_history['total'].append(run_total_hist)
+        if freq_weight > 0:
+            loss_history['freq'].append(run_freq_hist)
+        if lpips_weight > 0:
+            loss_history['lpips'].append(run_lpips_hist)
 
         if run_best_cos > best_cos_sim:
             best_cos_sim = run_best_cos
@@ -397,7 +522,7 @@ def invert_gradient(model, gradients, labels, image_shape,
         print(f"  Overall best cos_sim={best_cos_sim:.4f} "
               f"(from {n_restarts} restarts)")
 
-    return best_x
+    return best_x, best_cos_sim, loss_history
 
 
 def add_noise_to_gradient(gradients, target_cosine_sim, seed=42):
@@ -477,6 +602,69 @@ def _fallback_ssim(img1, img2):
     return ssim_map.mean().item()
 
 
+def save_loss_plot(loss_history, save_path, title=None):
+    """Save loss curves across restarts. Dynamic panel count based on active losses.
+
+    Always shows: cos_sim, TV, total.
+    Optionally shows: freq (if present), lpips (if present).
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    # Build panel list dynamically
+    panels = [
+        ('cos_sim', 'Cosine Similarity', 'Cosine Similarity', False),
+        ('tv', 'TV Loss', 'Total Variation', True),
+    ]
+    if 'freq' in loss_history and loss_history['freq']:
+        panels.append(('freq', 'Freq Loss', 'HF Frequency Penalty', True))
+    if 'lpips' in loss_history and loss_history['lpips']:
+        panels.append(('lpips', 'LPIPS Loss', 'LPIPS Perceptual', True))
+    panels.append(('total', 'Total Loss', 'Total Loss', False))
+
+    n_panels = len(panels)
+    n_restarts = len(loss_history['cos_sim'])
+    fig, axes = plt.subplots(1, n_panels, figsize=(6 * n_panels, 5))
+    if n_panels == 1:
+        axes = [axes]
+
+    cmap = plt.cm.viridis(np.linspace(0, 1, n_restarts))
+
+    for pi, (key, ylabel, ptitle, use_log) in enumerate(panels):
+        ax = axes[pi]
+        for r in range(n_restarts):
+            vals = loss_history[key][r]
+            ax.plot(vals, color=cmap[r], alpha=0.7, linewidth=0.8,
+                    label=f'R{r+1}' if (n_restarts <= 8 and pi == 0) else None)
+        ax.set_xlabel('Iteration')
+        ax.set_ylabel(ylabel)
+        ax.set_title(ptitle)
+        ax.grid(True, alpha=0.3)
+        if use_log:
+            ax.set_yscale('log')
+        if pi == 0 and n_restarts <= 8:
+            ax.legend(fontsize=7, ncol=2)
+
+    # Mark best restart on cos_sim panel
+    best_r = max(range(n_restarts),
+                 key=lambda r: max(loss_history['cos_sim'][r]))
+    best_val = max(loss_history['cos_sim'][best_r])
+    axes[0].axhline(y=best_val, color='red', linestyle='--', alpha=0.5,
+                    linewidth=0.8)
+    axes[0].text(0.02, 0.98, f'best={best_val:.4f} (R{best_r+1})',
+                 transform=axes[0].transAxes, fontsize=8,
+                 verticalalignment='top', color='red')
+
+    if title:
+        fig.suptitle(title, fontsize=13, y=1.02)
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved loss plot: {save_path}")
+
+
 def save_comparison_image(x_true, x_recon, metrics, save_path,
                           denorm_mean, denorm_std, title=None):
     """Save side-by-side comparison of ground truth and reconstruction."""
@@ -514,9 +702,71 @@ def save_comparison_image(x_true, x_recon, metrics, save_path,
     print(f"Saved: {save_path}")
 
 
+def save_progress_grid(snapshot_dir, x_true, denorm_mean, denorm_std,
+                       save_path, n_restarts=8, snapshot_interval=1000,
+                       n_iters=10000):
+    """Generate a grid showing reconstruction progress across iterations.
+
+    Rows = restarts (or subset), columns = iteration snapshots.
+    Ground truth shown in top-left for reference.
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from PIL import Image as PILImage
+
+    # Collect snapshot paths per restart
+    snap_iters = list(range(0, n_iters, snapshot_interval)) + [n_iters - 1]
+    snap_iters = sorted(set(snap_iters))
+
+    # Limit to 4 restarts max for readability
+    show_restarts = min(n_restarts, 4)
+
+    n_cols = len(snap_iters) + 1  # +1 for ground truth column
+    n_rows = show_restarts
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(2.5 * n_cols, 2.5 * n_rows))
+    if n_rows == 1:
+        axes = axes.reshape(1, -1)
+
+    # Denormalize ground truth
+    mean = torch.tensor(denorm_mean).reshape(1, 3, 1, 1)
+    std = torch.tensor(denorm_std).reshape(1, 3, 1, 1)
+    gt_np = (x_true.cpu() * std + mean).clamp(0, 1).numpy()[0].transpose(1, 2, 0)
+
+    for r in range(show_restarts):
+        # Ground truth in first column
+        axes[r, 0].imshow(gt_np)
+        axes[r, 0].set_ylabel(f'R{r+1}', fontsize=10)
+        if r == 0:
+            axes[r, 0].set_title('GT', fontsize=9)
+        axes[r, 0].axis('off')
+
+        # Snapshots
+        for j, it in enumerate(snap_iters):
+            snap_path = os.path.join(snapshot_dir,
+                                     f'restart{r}_iter{it:05d}.png')
+            ax = axes[r, j + 1]
+            if os.path.exists(snap_path):
+                snap_img = PILImage.open(snap_path)
+                ax.imshow(snap_img)
+            else:
+                ax.text(0.5, 0.5, '?', ha='center', va='center',
+                        transform=ax.transAxes)
+            if r == 0:
+                ax.set_title(f'iter {it}', fontsize=8)
+            ax.axis('off')
+
+    fig.suptitle('Reconstruction Progress', fontsize=13, y=1.01)
+    plt.tight_layout()
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved progress grid: {save_path}")
+
+
 def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
                lr=0.1, tv_weight=1e-4, tv_norm='l2', optimizer_name='Adam',
-               dataset_name='flowers102',
+               dataset_name='flowers102', image_path=None,
                mode='both', device='cuda', verbose=True):
     """Run Phase 0: exact gradient inversion on ViT.
 
@@ -524,6 +774,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
         mode: 'full' (all 86M params), 'lora' (~147K effective LoRA B only),
               or 'both'
         dataset_name: Source dataset for sample images (see get_sample_images).
+        image_path: If provided, loads a single custom image instead of dataset.
     """
     modes = [mode] if mode != 'both' else ['full', 'lora']
 
@@ -533,6 +784,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
     # Get images
     images, labels = get_sample_images(n_images=n_images, seed=seed,
                                         dataset_name=dataset_name,
+                                        image_path=image_path,
                                         device=device)
     print(f"Image shape: {images.shape}, labels: {labels.squeeze().tolist()}")
     print(f"Config: lr={lr}, tv_weight={tv_weight}, tv_norm={tv_norm}, "
@@ -541,7 +793,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
     denorm_mean = [0.485, 0.456, 0.406]
     denorm_std = [0.229, 0.224, 0.225]
     results_dir = os.path.join(os.path.dirname(__file__), '..', 'results')
-    figures_dir = os.path.join(os.path.dirname(__file__), '..', 'figures')
+    figures_dir = os.path.join(os.path.dirname(__file__), '..', 'figures', 'phase0')
     os.makedirs(results_dir, exist_ok=True)
     os.makedirs(figures_dir, exist_ok=True)
 
@@ -569,12 +821,16 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
         # Invert gradient
         print(f"Running gradient inversion ({n_restarts} restarts, "
               f"{n_iters} iters, optimizer={optimizer_name})...")
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        snap_dir = os.path.join(figures_dir, 'snapshots',
+                                f'{grad_mode}_r{rank}_n{n_images}_{ts}')
         t0 = time.time()
-        x_recon = invert_gradient(
+        x_recon, best_cos, loss_hist = invert_gradient(
             model, gradients, labels, images.shape,
             n_iters=n_iters, n_restarts=n_restarts, lr=lr,
             tv_weight=tv_weight, tv_norm=tv_norm,
             optimizer_name=optimizer_name,
+            snapshot_dir=snap_dir,
             device=device, verbose=verbose
         )
         t_inv = time.time() - t0
@@ -582,12 +838,12 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
 
         # Compute metrics
         metrics = compute_metrics(images, x_recon, denorm_mean, denorm_std)
+        metrics['best_cos_sim'] = best_cos
         print(f"  SSIM={metrics['ssim']:.4f}, PSNR={metrics['psnr']:.1f}dB, "
-              f"MSE={metrics['mse']:.6f}")
+              f"MSE={metrics['mse']:.6f}, cos_sim={best_cos:.4f}")
         all_metrics[grad_mode] = metrics
 
-        # Save tensors
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Save tensors (reuse ts from snapshot dir)
         tensor_path = os.path.join(
             results_dir, f'phase0_{grad_mode}_r{rank}_n{n_images}_s{seed}_{ts}.pth'
         )
@@ -596,6 +852,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
             'x_recon': x_recon.cpu(),
             'labels': labels.cpu(),
             'metrics': metrics,
+            'loss_history': loss_hist,
             'rank': rank,
             'n_images': n_images,
             'seed': seed,
@@ -605,14 +862,24 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
             'tv_weight': tv_weight,
             'tv_norm': tv_norm,
             'optimizer': optimizer_name,
-            'dataset': dataset_name,
+            'dataset': 'custom' if image_path else dataset_name,
+            'image_path': image_path,
             'grad_mode': grad_mode,
             'n_grad_params': n_grad_params,
             'train_loss': train_loss,
             'grad_time': t_grad,
             'inversion_time': t_inv,
+            'snapshot_dir': snap_dir,
         }, tensor_path)
         print(f"Saved tensors: {tensor_path}")
+
+        # Save loss curves plot
+        loss_fig_path = os.path.join(
+            figures_dir, f'phase0_{grad_mode}_r{rank}_n{n_images}_loss.png'
+        )
+        save_loss_plot(loss_hist, loss_fig_path,
+                       title=f'Phase 0 [{grad_mode}] loss curves '
+                             f'(opt={optimizer_name}, tv={tv_weight})')
 
         # Save comparison image
         fig_path = os.path.join(
@@ -624,6 +891,14 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
                    f'{n_images} image, {n_grad_params:,} grad params')
         )
 
+        # Save progress grid (reconstruction evolution across iterations)
+        progress_path = os.path.join(
+            figures_dir, f'phase0_{grad_mode}_r{rank}_n{n_images}_progress.png'
+        )
+        save_progress_grid(snap_dir, images, denorm_mean, denorm_std,
+                           progress_path, n_restarts=n_restarts,
+                           snapshot_interval=1000, n_iters=n_iters)
+
     # Print summary if both modes ran
     if len(modes) == 2:
         print("\n" + "=" * 70)
@@ -631,7 +906,8 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
         print("=" * 70)
         for m in modes:
             met = all_metrics[m]
-            print(f"  {m:5s}: SSIM={met['ssim']:.4f}, PSNR={met['psnr']:.1f}dB")
+            print(f"  {m:5s}: SSIM={met['ssim']:.4f}, PSNR={met['psnr']:.1f}dB, "
+                  f"cos_sim={met.get('best_cos_sim', -1):.4f}")
 
     return all_metrics
 
@@ -639,7 +915,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
 def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=10000,
                              n_restarts=4, lr=0.1, tv_weight=1e-4,
                              tv_norm='l2', optimizer_name='Adam',
-                             dataset_name='flowers102',
+                             dataset_name='flowers102', image_path=None,
                              mode='full', device='cuda', verbose=True):
     """Run Phase 0b: gradient inversion with varying noise levels."""
     full_grad = (mode == 'full')
@@ -651,6 +927,7 @@ def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=10000,
     model = load_vit_with_lora(rank=rank, num_classes=2, device=device)
     images, labels = get_sample_images(n_images=n_images, seed=seed,
                                         dataset_name=dataset_name,
+                                        image_path=image_path,
                                         device=device)
 
     gradients, train_loss = capture_gradient(
@@ -677,7 +954,7 @@ def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=10000,
             )
         print(f"  Achieved cosine similarity: {actual_cos:.4f}")
 
-        x_recon = invert_gradient(
+        x_recon, best_cos, _ = invert_gradient(
             model, noisy_grads, labels, images.shape,
             n_iters=n_iters, n_restarts=n_restarts, lr=lr,
             tv_weight=tv_weight, tv_norm=tv_norm,
@@ -686,7 +963,9 @@ def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=10000,
         )
 
         metrics = compute_metrics(images, x_recon, denorm_mean, denorm_std)
-        print(f"  SSIM={metrics['ssim']:.4f}, PSNR={metrics['psnr']:.1f}dB")
+        metrics['best_cos_sim'] = best_cos
+        print(f"  SSIM={metrics['ssim']:.4f}, PSNR={metrics['psnr']:.1f}dB, "
+              f"cos_sim={best_cos:.4f}")
 
         results_list.append({
             'target_cosine': target_cos,
@@ -714,7 +993,7 @@ def run_phase0b_noise_sweep(rank=8, n_images=1, seed=42, n_iters=10000,
     print(f"\nNoise sweep results saved: {csv_path}")
 
     _plot_noise_curve(results_list,
-                      os.path.join(os.path.dirname(__file__), '..', 'figures'))
+                      os.path.join(os.path.dirname(__file__), '..', 'figures', 'phase0'))
 
     return results_list
 
@@ -756,6 +1035,352 @@ def _plot_noise_curve(results, figures_dir):
     print(f"Saved: {save_path}")
 
 
+def run_d1_comparison(rank=8, n_images=1, seed=42, n_iters=10000,
+                      n_restarts=8, tv_norm='l2', dataset_name='flowers102',
+                      image_path=None, device='cuda', verbose=True):
+    """D1: Controlled optimizer × TV comparison.
+
+    Runs 4 configs on the SAME image with the SAME model, full-gradient mode:
+        A: Adam       + tv_weight=1e-4  (baseline)
+        B: signAdam   + tv_weight=1e-4  (current default)
+        C: Adam       + tv_weight=1e-2  (strong TV)
+        D: signAdam   + tv_weight=1e-2  (signed + strong TV)
+
+    Saves per-config .pth (with loss_history + cos_sim) and a 4-panel
+    comparison figure + loss curve overlay.
+    """
+    configs = [
+        {'name': 'A_adam_tv1e-4',      'optimizer': 'Adam',     'tv_weight': 1e-4},
+        {'name': 'B_signAdam_tv1e-4',  'optimizer': 'signAdam', 'tv_weight': 1e-4},
+        {'name': 'C_adam_tv1e-2',      'optimizer': 'Adam',     'tv_weight': 1e-2},
+        {'name': 'D_signAdam_tv1e-2',  'optimizer': 'signAdam', 'tv_weight': 1e-2},
+    ]
+
+    results_dir = os.path.join(os.path.dirname(__file__), '..', 'results')
+    figures_dir = os.path.join(os.path.dirname(__file__), '..', 'figures', 'phase0')
+    os.makedirs(results_dir, exist_ok=True)
+    os.makedirs(figures_dir, exist_ok=True)
+
+    denorm_mean = [0.485, 0.456, 0.406]
+    denorm_std = [0.229, 0.224, 0.225]
+
+    # Load model + images ONCE (shared across all configs)
+    model = load_vit_with_lora(rank=rank, num_classes=2, device=device)
+    images, labels = get_sample_images(n_images=n_images, seed=seed,
+                                        dataset_name=dataset_name,
+                                        image_path=image_path,
+                                        device=device)
+    print(f"D1 Comparison: image shape={images.shape}, seed={seed}")
+
+    # Capture full-model gradient ONCE
+    gradients, train_loss = capture_gradient(
+        model, images, labels, full_model_grad=True
+    )
+    n_grad_params = sum(g.numel() for g in gradients.values())
+    print(f"Gradient: {n_grad_params:,} params from {len(gradients)} tensors")
+
+    all_results = []
+
+    for cfg in configs:
+        name = cfg['name']
+        opt = cfg['optimizer']
+        tvw = cfg['tv_weight']
+        print(f"\n{'='*70}")
+        print(f"D1 CONFIG {name}: optimizer={opt}, tv_weight={tvw}")
+        print(f"{'='*70}")
+
+        t0 = time.time()
+        x_recon, best_cos, loss_hist = invert_gradient(
+            model, gradients, labels, images.shape,
+            n_iters=n_iters, n_restarts=n_restarts, lr=0.1,
+            tv_weight=tvw, tv_norm=tv_norm,
+            optimizer_name=opt, device=device, verbose=verbose
+        )
+        t_inv = time.time() - t0
+
+        metrics = compute_metrics(images, x_recon, denorm_mean, denorm_std)
+        metrics['best_cos_sim'] = best_cos
+        print(f"  => SSIM={metrics['ssim']:.4f}, PSNR={metrics['psnr']:.1f}dB, "
+              f"cos_sim={best_cos:.4f}, time={t_inv:.0f}s")
+
+        # Save per-config .pth
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        pth_path = os.path.join(results_dir, f'phase0_d1_{name}_{ts}.pth')
+        torch.save({
+            'x_true': images.cpu(),
+            'x_recon': x_recon.cpu(),
+            'labels': labels.cpu(),
+            'metrics': metrics,
+            'loss_history': loss_hist,
+            'config_name': name,
+            'rank': rank, 'n_images': n_images, 'seed': seed,
+            'n_iters': n_iters, 'n_restarts': n_restarts,
+            'lr': 0.1, 'tv_weight': tvw, 'tv_norm': tv_norm,
+            'optimizer': opt,
+            'dataset': 'custom' if image_path else dataset_name,
+            'image_path': image_path,
+            'grad_mode': 'full', 'n_grad_params': n_grad_params,
+            'train_loss': train_loss, 'inversion_time': t_inv,
+        }, pth_path)
+        print(f"  Saved: {pth_path}")
+
+        # Save per-config loss plot
+        loss_fig = os.path.join(figures_dir, f'phase0_d1_{name}_loss.png')
+        save_loss_plot(loss_hist, loss_fig,
+                       title=f'D1 {name} (opt={opt}, tv={tvw})')
+
+        all_results.append({
+            'name': name, 'optimizer': opt, 'tv_weight': tvw,
+            'ssim': metrics['ssim'], 'psnr': metrics['psnr'],
+            'mse': metrics['mse'], 'best_cos_sim': best_cos,
+            'inversion_time': t_inv,
+            'x_recon': x_recon.cpu(),
+            'loss_history': loss_hist,
+        })
+
+    # Save CSV summary
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    csv_path = os.path.join(results_dir, f'phase0_d1_comparison_{ts}.csv')
+    with open(csv_path, 'w', newline='') as f:
+        fields = ['name', 'optimizer', 'tv_weight', 'ssim', 'psnr', 'mse',
+                  'best_cos_sim', 'inversion_time']
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for r in all_results:
+            writer.writerow({k: r[k] for k in fields})
+    print(f"\nD1 CSV: {csv_path}")
+
+    # Generate 4-panel comparison figure
+    _save_d1_comparison_figure(images, all_results, denorm_mean, denorm_std,
+                               figures_dir)
+
+    # Generate cos_sim overlay plot (all 4 configs, best restart each)
+    _save_d1_cossim_overlay(all_results, figures_dir)
+
+    # Print summary table
+    print(f"\n{'='*70}")
+    print("D1 COMPARISON SUMMARY")
+    print(f"{'='*70}")
+    print(f"{'Config':<25s} {'Optimizer':<10s} {'TV':<8s} "
+          f"{'SSIM':>6s} {'PSNR':>6s} {'CosSim':>7s} {'Time':>6s}")
+    print("-" * 70)
+    for r in all_results:
+        print(f"{r['name']:<25s} {r['optimizer']:<10s} {r['tv_weight']:<8.0e} "
+              f"{r['ssim']:>6.4f} {r['psnr']:>6.1f} {r['best_cos_sim']:>7.4f} "
+              f"{r['inversion_time']:>5.0f}s")
+
+
+def _save_d1_comparison_figure(images, all_results, denorm_mean, denorm_std,
+                                figures_dir):
+    """4-panel comparison: ground truth + 4 reconstructions."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    mean = torch.tensor(denorm_mean).reshape(1, 3, 1, 1)
+    std = torch.tensor(denorm_std).reshape(1, 3, 1, 1)
+
+    gt_np = (images.cpu() * std + mean).clamp(0, 1)[0].numpy().transpose(1, 2, 0)
+
+    fig, axes = plt.subplots(1, 5, figsize=(25, 5))
+
+    axes[0].imshow(gt_np)
+    axes[0].set_title('Ground Truth', fontsize=11)
+    axes[0].axis('off')
+
+    for i, r in enumerate(all_results):
+        recon_np = (r['x_recon'] * std + mean).clamp(0, 1)[0].numpy().transpose(1, 2, 0)
+        axes[i+1].imshow(recon_np)
+        axes[i+1].set_title(
+            f"{r['name']}\n"
+            f"SSIM={r['ssim']:.3f}  cos={r['best_cos_sim']:.3f}",
+            fontsize=9
+        )
+        axes[i+1].axis('off')
+
+    fig.suptitle('Phase 0 D1: Optimizer × TV Comparison (full-model gradient)',
+                 fontsize=13)
+    plt.tight_layout()
+    save_path = os.path.join(figures_dir, 'phase0_d1_comparison.png')
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved D1 comparison: {save_path}")
+
+
+def _save_d1_cossim_overlay(all_results, figures_dir):
+    """Overlay cos_sim curves: best restart from each config."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+
+    for i, r in enumerate(all_results):
+        # Pick the restart with highest final cos_sim
+        cos_curves = r['loss_history']['cos_sim']
+        best_r = max(range(len(cos_curves)),
+                     key=lambda ri: max(cos_curves[ri]))
+        ax1.plot(cos_curves[best_r], color=colors[i], linewidth=1.2,
+                 label=f"{r['name']} (best={max(cos_curves[best_r]):.4f})")
+
+        total_curves = r['loss_history']['total']
+        ax2.plot(total_curves[best_r], color=colors[i], linewidth=1.2,
+                 label=r['name'])
+
+    ax1.set_xlabel('Iteration')
+    ax1.set_ylabel('Cosine Similarity')
+    ax1.set_title('Best Restart: Cos Sim Convergence')
+    ax1.legend(fontsize=8)
+    ax1.grid(True, alpha=0.3)
+
+    ax2.set_xlabel('Iteration')
+    ax2.set_ylabel('Total Loss')
+    ax2.set_title('Best Restart: Total Loss Convergence')
+    ax2.legend(fontsize=8)
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    save_path = os.path.join(figures_dir, 'phase0_d1_cossim_overlay.png')
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved D1 overlay: {save_path}")
+
+
+# ====================================================================
+# D2: Targeted hyperparameter sweep around D1 winner (signAdam + TV)
+# ====================================================================
+
+D2_TV_WEIGHTS = [5e-3, 1e-2, 2e-2, 5e-2, 1e-1]
+D2_LRS = [0.01, 0.05, 0.1, 0.5]
+D2_ITERS = [10000, 30000]
+D2_TOTAL_CONFIGS = len(D2_TV_WEIGHTS) * len(D2_LRS) * len(D2_ITERS)  # 40
+
+
+def d2_config_from_index(config_index):
+    """Map config_index (0-39) to (tv_weight, lr, n_iters, n_restarts)."""
+    n_lr = len(D2_LRS)
+    n_it = len(D2_ITERS)
+    tv_idx = config_index // (n_lr * n_it)
+    lr_idx = (config_index // n_it) % n_lr
+    it_idx = config_index % n_it
+    tv_weight = D2_TV_WEIGHTS[tv_idx]
+    lr = D2_LRS[lr_idx]
+    n_iters = D2_ITERS[it_idx]
+    # 4 restarts for 10K iters (~3.5h), 2 for 30K (~5h) — fit 8h wall time
+    n_restarts = 4 if n_iters <= 10000 else 2
+    return tv_weight, lr, n_iters, n_restarts
+
+
+def run_d2_single_config(config_index, rank=8, n_images=1, seed=42,
+                         tv_norm='l2', dataset_name='flowers102',
+                         freq_weight=0.0, freq_cutoff=0.5,
+                         lpips_weight=0.0,
+                         device='cuda', verbose=True,
+                         n_iters_override=None, n_restarts_override=None):
+    """Run a single D2 sweep config (signAdam fixed).
+
+    Args:
+        config_index: 0-39 index into the D2 grid.
+        n_iters_override / n_restarts_override: when set, override the
+            grid-derived values (used for smoke tests).
+    """
+    tv_weight, lr, n_iters, n_restarts = d2_config_from_index(config_index)
+    if n_iters_override is not None:
+        n_iters = n_iters_override
+    if n_restarts_override is not None:
+        n_restarts = n_restarts_override
+    config_name = f'{config_index:02d}_tv{tv_weight:.0e}_lr{lr}_it{n_iters}'
+
+    results_dir = os.path.join(os.path.dirname(__file__), '..', 'results')
+    figures_dir = os.path.join(os.path.dirname(__file__), '..', 'figures',
+                               'phase0', 'd2_sweep')
+    os.makedirs(results_dir, exist_ok=True)
+    os.makedirs(figures_dir, exist_ok=True)
+
+    denorm_mean = [0.485, 0.456, 0.406]
+    denorm_std = [0.229, 0.224, 0.225]
+
+    print(f"\n{'='*70}")
+    print(f"D2 CONFIG {config_name}: tv={tv_weight:.0e}, lr={lr}, "
+          f"iters={n_iters}, restarts={n_restarts}")
+    print(f"{'='*70}")
+
+    model = load_vit_with_lora(rank=rank, num_classes=2, device=device)
+    images, labels = get_sample_images(n_images=n_images, seed=seed,
+                                        dataset_name=dataset_name,
+                                        device=device)
+
+    gradients, train_loss = capture_gradient(
+        model, images, labels, full_model_grad=True
+    )
+    n_grad_params = sum(g.numel() for g in gradients.values())
+
+    # Optional LPIPS model
+    lpips_fn_obj = None
+    if lpips_weight > 0:
+        import lpips as lpips_pkg
+        lpips_fn_obj = lpips_pkg.LPIPS(net='vgg', verbose=False).to(device).eval()
+
+    # Snapshot dir for this config
+    snap_dir = os.path.join(figures_dir, f'snapshots_{config_name}')
+
+    t0 = time.time()
+    x_recon, best_cos, loss_hist = invert_gradient(
+        model, gradients, labels, images.shape,
+        n_iters=n_iters, n_restarts=n_restarts, lr=lr,
+        tv_weight=tv_weight, tv_norm=tv_norm,
+        optimizer_name='signAdam',
+        freq_weight=freq_weight, freq_cutoff=freq_cutoff,
+        lpips_weight=lpips_weight, lpips_fn=lpips_fn_obj,
+        snapshot_dir=snap_dir, snapshot_interval=max(1, n_iters // 10),
+        device=device, verbose=verbose
+    )
+    t_inv = time.time() - t0
+
+    metrics = compute_metrics(images, x_recon, denorm_mean, denorm_std)
+    metrics['best_cos_sim'] = best_cos
+    print(f"  => SSIM={metrics['ssim']:.4f}, PSNR={metrics['psnr']:.1f}dB, "
+          f"cos_sim={best_cos:.4f}, time={t_inv:.0f}s")
+
+    # Save .pth
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    pth_path = os.path.join(results_dir, f'phase0_d2_{config_name}_{ts}.pth')
+    torch.save({
+        'x_true': images.cpu(),
+        'x_recon': x_recon.cpu(),
+        'labels': labels.cpu(),
+        'metrics': metrics,
+        'loss_history': loss_hist,
+        'd2_config_index': config_index,
+        'd2_config_name': config_name,
+        'rank': rank, 'n_images': n_images, 'seed': seed,
+        'n_iters': n_iters, 'n_restarts': n_restarts,
+        'lr': lr, 'tv_weight': tv_weight, 'tv_norm': tv_norm,
+        'optimizer': 'signAdam',
+        'freq_weight': freq_weight, 'freq_cutoff': freq_cutoff,
+        'lpips_weight': lpips_weight,
+        'dataset': dataset_name,
+        'grad_mode': 'full', 'n_grad_params': n_grad_params,
+        'train_loss': train_loss, 'inversion_time': t_inv,
+    }, pth_path)
+    print(f"  Saved: {pth_path}")
+
+    # Save loss plot
+    loss_fig = os.path.join(figures_dir, f'd2_{config_name}_loss.png')
+    save_loss_plot(loss_hist, loss_fig,
+                   title=f'D2 {config_name} (SSIM={metrics["ssim"]:.3f})')
+
+    # Save comparison image
+    fig_path = os.path.join(figures_dir, f'd2_{config_name}_recon.png')
+    save_comparison_image(
+        images, x_recon, metrics, fig_path, denorm_mean, denorm_std,
+        title=f'D2 {config_name}: SSIM={metrics["ssim"]:.3f}, '
+              f'cos={best_cos:.3f}')
+
+    return metrics
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Phase 0: ViT Gradient Inversion')
     parser.add_argument('--rank', type=int, default=8, help='LoRA rank')
@@ -780,21 +1405,59 @@ if __name__ == '__main__':
                                  'imagenet', 'cifar10'],
                         help='Image source. Use native high-res datasets '
                              '(flowers102, food101) — NOT cifar10 (32px upscaled)')
+    parser.add_argument('--image_path', type=str, default=None,
+                        help='Path to a custom image file (JPG/PNG). '
+                             'Overrides --dataset. Image is center-cropped '
+                             'to 224x224 with ImageNet normalization.')
     parser.add_argument('--mode', type=str, default='both',
                         choices=['full', 'lora', 'both'],
                         help='Gradient mode: full (all 86M params), '
                              'lora (LoRA B only ~147K effective), or both')
     parser.add_argument('--noise_sweep', action='store_true',
                         help='Run Phase 0b noise tolerance sweep')
+    parser.add_argument('--freq_weight', type=float, default=0.0,
+                        help='Frequency-domain HF penalty weight (0=disabled)')
+    parser.add_argument('--freq_cutoff', type=float, default=0.5,
+                        help='Frequency cutoff fraction (0-1)')
+    parser.add_argument('--lpips_weight', type=float, default=0.0,
+                        help='LPIPS perceptual smoothness weight (0=disabled)')
+    parser.add_argument('--d1', action='store_true',
+                        help='Run D1 controlled comparison: '
+                             'Adam/signAdam × TV(1e-4/1e-2), full-model only')
+    parser.add_argument('--d2', action='store_true',
+                        help='Run single D2 sweep config (use with --config_index)')
+    parser.add_argument('--config_index', type=int, default=0,
+                        help=f'D2 config index (0-{D2_TOTAL_CONFIGS - 1})')
     parser.add_argument('--device', type=str, default='cuda')
     args = parser.parse_args()
 
-    if args.noise_sweep:
+    if args.d2:
+        n_iters_override = args.n_iters if '--n_iters' in sys.argv else None
+        n_restarts_override = args.n_restarts if '--n_restarts' in sys.argv else None
+        run_d2_single_config(
+            config_index=args.config_index,
+            rank=args.rank, n_images=args.n_images, seed=args.seed,
+            tv_norm=args.tv_norm, dataset_name=args.dataset,
+            freq_weight=args.freq_weight, freq_cutoff=args.freq_cutoff,
+            lpips_weight=args.lpips_weight,
+            device=args.device,
+            n_iters_override=n_iters_override,
+            n_restarts_override=n_restarts_override,
+        )
+    elif args.d1:
+        run_d1_comparison(
+            rank=args.rank, n_images=args.n_images, seed=args.seed,
+            n_iters=args.n_iters, n_restarts=args.n_restarts,
+            tv_norm=args.tv_norm, dataset_name=args.dataset,
+            image_path=args.image_path, device=args.device
+        )
+    elif args.noise_sweep:
         run_phase0b_noise_sweep(
             rank=args.rank, n_images=args.n_images, seed=args.seed,
             n_iters=args.n_iters, n_restarts=args.n_restarts,
             lr=args.lr, tv_weight=args.tv_weight, tv_norm=args.tv_norm,
             optimizer_name=args.optimizer, dataset_name=args.dataset,
+            image_path=args.image_path,
             mode=args.mode if args.mode != 'both' else 'full',
             device=args.device
         )
@@ -804,5 +1467,6 @@ if __name__ == '__main__':
             n_iters=args.n_iters, n_restarts=args.n_restarts,
             lr=args.lr, tv_weight=args.tv_weight, tv_norm=args.tv_norm,
             optimizer_name=args.optimizer, dataset_name=args.dataset,
+            image_path=args.image_path,
             mode=args.mode, device=args.device
         )
