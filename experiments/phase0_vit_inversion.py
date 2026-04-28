@@ -286,6 +286,7 @@ def invert_gradient(model, gradients, labels, image_shape,
                     freq_weight=0.0, freq_cutoff=0.5,
                     lpips_weight=0.0, lpips_fn=None,
                     snapshot_dir=None, snapshot_interval=1000,
+                    snapshot_log_spaced=True, snapshot_n_cols=10,
                     device='cuda', verbose=True):
     """Reconstruct images from gradients via optimization.
 
@@ -338,6 +339,19 @@ def invert_gradient(model, gradients, labels, image_shape,
     # Snapshot setup
     if snapshot_dir is not None:
         os.makedirs(snapshot_dir, exist_ok=True)
+
+    # Pre-compute the iters at which to save snapshots. Log-spaced by default
+    # so we capture early dynamics (most progress is in the first few thousand
+    # iters) without bloating disk for long runs.
+    if snapshot_dir is not None:
+        if snapshot_log_spaced:
+            snap_iter_set = set(_log_spaced_iters(n_iters,
+                                                  n_cols=snapshot_n_cols))
+        else:
+            snap_iter_set = set(range(0, n_iters, snapshot_interval))
+        snap_iter_set.add(n_iters - 1)
+    else:
+        snap_iter_set = set()
 
     # Pre-compute flattened true gradient (constant across restarts)
     param_names_in_grad = [n for n, _ in model.named_parameters() if n in gradients]
@@ -458,8 +472,8 @@ def invert_gradient(model, gradients, labels, image_shape,
             with torch.no_grad():
                 x_recon.clamp_(_CLAMP_MIN, _CLAMP_MAX)
 
-            # Save snapshot at regular intervals
-            if snapshot_dir is not None and (i % snapshot_interval == 0 or i == n_iters - 1):
+            # Save snapshot at log-spaced (or interval-based) iters
+            if snapshot_dir is not None and i in snap_iter_set:
                 with torch.no_grad():
                     snap_img = (x_recon * _DENORM_STD + _DENORM_MEAN).clamp(0, 1)
                     from torchvision.utils import save_image
@@ -703,29 +717,77 @@ def save_comparison_image(x_true, x_recon, metrics, save_path,
     print(f"Saved: {save_path}")
 
 
+def _log_spaced_iters(n_iters, n_cols=10):
+    """Pick ~n_cols log-spaced iter indices in [0, n_iters-1], always
+    including iter 0 and iter n_iters-1.
+
+    Most qualitative change in gradient inversion happens early (iters
+    100-3000); a uniform grid over a 30K-iter run wastes most of its
+    real estate on near-identical late frames.
+    """
+    if n_iters <= 1:
+        return [0]
+    if n_cols >= n_iters:
+        return list(range(n_iters))
+    pts = np.round(np.logspace(0, np.log10(n_iters - 1), n_cols - 1)).astype(int)
+    pts = sorted(set([0] + [int(p) for p in pts if 0 < p < n_iters]))
+    return pts
+
+
 def save_progress_grid(snapshot_dir, x_true, denorm_mean, denorm_std,
                        save_path, n_restarts=8, snapshot_interval=1000,
-                       n_iters=10000):
+                       n_iters=10000, n_cols=10, cleanup=True):
     """Generate a grid showing reconstruction progress across iterations.
 
-    Rows = restarts (or subset), columns = iteration snapshots.
-    Ground truth shown in top-left for reference.
+    Rows = restarts (or subset), columns = log-spaced iteration snapshots.
+    Ground truth shown in first column for reference.
+
+    Columns are picked log-spaced (iter 0, 100, 300, 1K, 3K, ..., final)
+    rather than uniform — most progress happens early.
+
+    If cleanup=True, snapshot frames not selected for the figure are
+    deleted from snapshot_dir to keep on-disk artifacts tidy.
     """
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     from PIL import Image as PILImage
+    import re
+    import glob
 
-    # Collect snapshot paths per restart
-    snap_iters = list(range(0, n_iters, snapshot_interval)) + [n_iters - 1]
-    snap_iters = sorted(set(snap_iters))
+    # Discover available snapshots per restart
+    pat = re.compile(r'restart(\d+)_iter(\d+)\.png$')
+    all_files = sorted(glob.glob(os.path.join(snapshot_dir,
+                                              'restart*_iter*.png')))
+    restart_iters = {}
+    for f in all_files:
+        m = pat.search(f)
+        if m:
+            r, it = int(m.group(1)), int(m.group(2))
+            restart_iters.setdefault(r, []).append(it)
+    for r in restart_iters:
+        restart_iters[r] = sorted(restart_iters[r])
+
+    if not restart_iters:
+        print(f"No snapshots found in {snapshot_dir}")
+        return
+
+    # Use restart 0's available iters as the reference range
+    avail_iters = restart_iters.get(0, restart_iters[next(iter(restart_iters))])
+    n_iters_eff = max(avail_iters) + 1
+
+    # Pick log-spaced targets, snap each to the nearest available frame
+    targets = _log_spaced_iters(n_iters_eff, n_cols=n_cols)
+    snap_iters = sorted({min(avail_iters, key=lambda x: abs(x - t))
+                         for t in targets})
 
     # Limit to 4 restarts max for readability
-    show_restarts = min(n_restarts, 4)
+    show_restarts = min(n_restarts, 4, len(restart_iters))
 
-    n_cols = len(snap_iters) + 1  # +1 for ground truth column
+    n_grid_cols = len(snap_iters) + 1  # +1 for ground truth
     n_rows = show_restarts
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(2.5 * n_cols, 2.5 * n_rows))
+    fig, axes = plt.subplots(n_rows, n_grid_cols,
+                             figsize=(2.5 * n_grid_cols, 2.5 * n_rows))
     if n_rows == 1:
         axes = axes.reshape(1, -1)
 
@@ -735,21 +797,18 @@ def save_progress_grid(snapshot_dir, x_true, denorm_mean, denorm_std,
     gt_np = (x_true.cpu() * std + mean).clamp(0, 1).numpy()[0].transpose(1, 2, 0)
 
     for r in range(show_restarts):
-        # Ground truth in first column
         axes[r, 0].imshow(gt_np)
         axes[r, 0].set_ylabel(f'R{r+1}', fontsize=10)
         if r == 0:
             axes[r, 0].set_title('GT', fontsize=9)
         axes[r, 0].axis('off')
 
-        # Snapshots
         for j, it in enumerate(snap_iters):
             snap_path = os.path.join(snapshot_dir,
                                      f'restart{r}_iter{it:05d}.png')
             ax = axes[r, j + 1]
             if os.path.exists(snap_path):
-                snap_img = PILImage.open(snap_path)
-                ax.imshow(snap_img)
+                ax.imshow(PILImage.open(snap_path))
             else:
                 ax.text(0.5, 0.5, '?', ha='center', va='center',
                         transform=ax.transAxes)
@@ -757,18 +816,38 @@ def save_progress_grid(snapshot_dir, x_true, denorm_mean, denorm_std,
                 ax.set_title(f'iter {it}', fontsize=8)
             ax.axis('off')
 
-    fig.suptitle('Reconstruction Progress', fontsize=13, y=1.01)
+    fig.suptitle('Reconstruction Progress (log-spaced)', fontsize=13, y=1.01)
     plt.tight_layout()
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"Saved progress grid: {save_path}")
 
+    if cleanup:
+        keep = {(r, it) for r in restart_iters for it in snap_iters}
+        n_deleted = 0
+        for f in all_files:
+            m = pat.search(f)
+            if not m:
+                continue
+            r, it = int(m.group(1)), int(m.group(2))
+            if (r, it) not in keep:
+                try:
+                    os.remove(f)
+                    n_deleted += 1
+                except OSError:
+                    pass
+        if n_deleted:
+            print(f"Cleaned up {n_deleted} unused snapshot frames in "
+                  f"{snapshot_dir}")
+
 
 def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
                lr=0.1, tv_weight=1e-4, tv_norm='l2', optimizer_name='Adam',
                dataset_name='flowers102', image_path=None,
-               mode='both', device='cuda', verbose=True):
+               mode='both', device='cuda', verbose=True,
+               freq_weight=0.0, freq_cutoff=0.5, lpips_weight=0.0,
+               run_tag=None):
     """Run Phase 0: exact gradient inversion on ViT.
 
     Args:
@@ -798,6 +877,12 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
     os.makedirs(results_dir, exist_ok=True)
     os.makedirs(figures_dir, exist_ok=True)
 
+    # Optional LPIPS model (loaded once, shared across modes)
+    lpips_fn_obj = None
+    if lpips_weight > 0:
+        import lpips as lpips_pkg
+        lpips_fn_obj = lpips_pkg.LPIPS(net='vgg', verbose=False).to(device).eval()
+
     all_metrics = {}
 
     for grad_mode in modes:
@@ -823,6 +908,8 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
         print(f"Running gradient inversion ({n_restarts} restarts, "
               f"{n_iters} iters, optimizer={optimizer_name})...")
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        if run_tag:
+            ts = f'{ts}_{run_tag}'
         snap_dir = os.path.join(figures_dir, 'snapshots',
                                 f'{grad_mode}_r{rank}_n{n_images}_{ts}')
         t0 = time.time()
@@ -831,6 +918,8 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
             n_iters=n_iters, n_restarts=n_restarts, lr=lr,
             tv_weight=tv_weight, tv_norm=tv_norm,
             optimizer_name=optimizer_name,
+            freq_weight=freq_weight, freq_cutoff=freq_cutoff,
+            lpips_weight=lpips_weight, lpips_fn=lpips_fn_obj,
             snapshot_dir=snap_dir,
             device=device, verbose=verbose
         )
@@ -1335,6 +1424,7 @@ def run_d2_single_config(config_index, rank=8, n_images=1, seed=42,
         freq_weight=freq_weight, freq_cutoff=freq_cutoff,
         lpips_weight=lpips_weight, lpips_fn=lpips_fn_obj,
         snapshot_dir=snap_dir, snapshot_interval=max(1, n_iters // 10),
+        snapshot_log_spaced=False,
         device=device, verbose=verbose
     )
     t_inv = time.time() - t0
@@ -1430,6 +1520,10 @@ if __name__ == '__main__':
     parser.add_argument('--config_index', type=int, default=0,
                         help=f'D2 config index (0-{D2_TOTAL_CONFIGS - 1})')
     parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--run_tag', type=str, default=None,
+                        help='Optional tag appended to timestamp in output '
+                             'filenames to avoid collisions when many jobs '
+                             'start in the same second.')
     args = parser.parse_args()
 
     if args.d2:
@@ -1469,5 +1563,8 @@ if __name__ == '__main__':
             lr=args.lr, tv_weight=args.tv_weight, tv_norm=args.tv_norm,
             optimizer_name=args.optimizer, dataset_name=args.dataset,
             image_path=args.image_path,
-            mode=args.mode, device=args.device
+            mode=args.mode, device=args.device,
+            freq_weight=args.freq_weight, freq_cutoff=args.freq_cutoff,
+            lpips_weight=args.lpips_weight,
+            run_tag=args.run_tag,
         )

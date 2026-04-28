@@ -583,3 +583,18 @@ The hypothesis that signAdam hurts was **wrong**. D1 controlled comparison (4 co
 
 **Action:** Use 50-seed statistics as canonical numbers in the thesis, not seed=42. The attack works but is moderate (SSIM ~0.55-0.58), not dramatic (0.83). Frame as: "reconstruction quality sufficient to identify sensitive content but not pixel-perfect" — which is actually more realistic for a privacy threat analysis.
 
+---
+
+## [PITFALL] Uniform-Spaced Snapshots Make Long-Run Progress Figures Unreadable (2026-04-28)
+
+**What presented:** `figures/phase0/phase0_full_r8_n1_progress.png` rendered as a ~12000 px wide strip — 32 columns × 3 rows of tiny crammed thumbnails — once Phase 0 runs grew from 10K to 30K iters. Earlier 10K-iter runs gave readable 11-col figures.
+
+**Root cause:** `save_progress_grid` and the training-loop snapshot save both used a hardcoded `snapshot_interval=1000`, so column count scaled linearly with `n_iters`. Going 10K → 30K tripled column count while figsize stayed at `2.5 * n_cols` inches.
+
+**Fix:**
+1. `save_progress_grid` now picks ~10 *log-spaced* iters (iter 0, ~100, ~300, ~1K, ~3K, …, final), snaps each target to the nearest available frame, and (with `cleanup=True`) deletes unused frames after rendering.
+2. The training loop in `invert_gradient` now precomputes a log-spaced `snap_iter_set` and only saves frames at those iters (`snapshot_log_spaced=True` default). The d2 sweep keeps uniform behavior via `snapshot_log_spaced=False` because its 10-step uniform grid is already the right density.
+3. One-off `tmp/rerender_and_cleanup.py` pruned 1642 frames (2355 → 713) across the existing snapshot dirs.
+
+**Lesson:** Uniform sampling wastes most columns on the late-stage near-identical frames. Log-spacing matches the actual dynamics of gradient inversion (most progress in the first ~3K iters). Whenever a figure-generation function depends on run length, default to log spacing or cap the column count — never let n_iters silently set the figure width.
+
