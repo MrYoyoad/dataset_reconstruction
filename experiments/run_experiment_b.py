@@ -684,5 +684,6 @@ if __name__ == '__main__':
         print(f"\nSaved tensors to {pth_path}")
 
         # Save figure (.png)
-        generate_experiment_b_figure(results, save_dir=FIGURES_DIR)
-        print(f"Saved figure to {FIGURES_DIR}/")
+        sprint1_dir = os.path.join(FIGURES_DIR, 'sprint1')
+        generate_experiment_b_figure(results, save_dir=sprint1_dir)
+        print(f"Saved figure to {sprint1_dir}/")

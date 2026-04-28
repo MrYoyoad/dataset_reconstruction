@@ -292,7 +292,8 @@ if __name__ == '__main__':
     save_results(all_results, best_per_t, pth_path)
 
     # Generate PDF
-    pdf_path = args.output_pdf or os.path.join(FIGURES_DIR, 't_sweep_examples.pdf')
+    pdf_path = args.output_pdf or os.path.join(FIGURES_DIR, 'sprint1', 't_sweep_examples.pdf')
+    os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
     generate_pdf(all_results, best_per_t, full_ssim_sweep, step_set, pdf_path)
 
     print("\n=== Done ===")

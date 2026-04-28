@@ -463,6 +463,7 @@ def invert_gradient(model, gradients, labels, image_shape,
                 with torch.no_grad():
                     snap_img = (x_recon * _DENORM_STD + _DENORM_MEAN).clamp(0, 1)
                     from torchvision.utils import save_image
+                    os.makedirs(snapshot_dir, exist_ok=True)
                     snap_path = os.path.join(
                         snapshot_dir, f'restart{restart}_iter{i:05d}.png')
                     save_image(snap_img, snap_path)

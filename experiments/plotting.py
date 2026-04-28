@@ -352,7 +352,7 @@ def plot_step_rank_heatmap(csv_path, save_path=None, title=None):
     ax.axhline(y=0.5, color='white', linewidth=2)
 
     plt.tight_layout()
-    save_path = save_path or os.path.join(FIGURES_DIR, 'ntk_step_rank_heatmap.png')
+    save_path = save_path or os.path.join(FIGURES_DIR, 'sprint1', 'ntk_step_rank_heatmap.png')
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path, facecolor='white')
     print(f"Saved: {save_path}")
@@ -369,7 +369,7 @@ def generate_experiment_b_figure(results, save_dir=None):
     from experiments.metrics import compute_ssim
 
     plt = _setup_matplotlib()
-    save_dir = save_dir or FIGURES_DIR
+    save_dir = save_dir or os.path.join(FIGURES_DIR, 'sprint1')
 
     x_train = results['x_train']
     ds_mean = results.get('ds_mean')

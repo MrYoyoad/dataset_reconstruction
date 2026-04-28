@@ -32,4 +32,4 @@ python -u -m experiments.gen_t_sweep_examples \
 echo "=== Done ==="
 echo "Date: $(date)"
 echo "Results: results/t_sweep_examples.pth"
-echo "Figure:  figures/t_sweep_examples.pdf"
+echo "Figure:  figures/sprint1/t_sweep_examples.pdf"
