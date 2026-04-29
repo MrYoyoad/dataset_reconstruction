@@ -88,11 +88,14 @@ def main():
             writer.writerow({k: r[k] for k in fields})
     print(f"\nCSV: {csv_path}")
 
-    # Generate figures
+    # Generate figures.
+    # Note: top-N-by-SSIM variants are intentionally not emitted — when
+    # one axis dominates the sweep (here tv_weight=1e-1) the top-N panels
+    # collapse onto a single regime. The "by_tv" variants give one panel
+    # per qualitatively-different regime, mirroring D1's optimizer×TV
+    # layout. See LESSONS_LEARNED.md ("by-axis vs top-N").
     _save_heatmap(unique, figures_dir)
-    _save_top_comparison(unique[:5], figures_dir)
     _save_top_comparison_by_tv(unique, figures_dir)
-    _save_cossim_overlay(unique[:5], figures_dir)
     _save_cossim_overlay_by_tv(unique, figures_dir)
 
 
@@ -153,45 +156,6 @@ def _save_heatmap(results, figures_dir):
     print(f"Saved: {path}")
 
 
-def _save_top_comparison(top_results, figures_dir):
-    """GT + top-N reconstructions side by side."""
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-
-    denorm_mean = torch.tensor([0.485, 0.456, 0.406]).reshape(1, 3, 1, 1)
-    denorm_std = torch.tensor([0.229, 0.224, 0.225]).reshape(1, 3, 1, 1)
-
-    n = len(top_results)
-    fig, axes = plt.subplots(1, n + 1, figsize=(4.2 * (n + 1), 5.4))
-
-    gt = top_results[0]['x_true']
-    gt_np = (gt * denorm_std + denorm_mean).clamp(0, 1)[0].numpy().transpose(1, 2, 0)
-    axes[0].imshow(gt_np)
-    axes[0].set_title('Ground Truth', fontsize=11, fontweight='bold')
-    axes[0].axis('off')
-
-    for i, r in enumerate(top_results):
-        recon_np = (r['x_recon'] * denorm_std + denorm_mean).clamp(0, 1)[0] \
-                   .numpy().transpose(1, 2, 0)
-        axes[i + 1].imshow(recon_np)
-        axes[i + 1].set_title(
-            f"#{i+1}  tv={r['tv_weight']:.0e}  lr={r['lr']:g}\n"
-            f"SSIM {r['ssim']:.3f}   cos {r['best_cos_sim']:.3f}",
-            fontsize=10, fontweight='bold' if i == 0 else 'normal',
-            color='#1a7a2e' if i == 0 else 'black'
-        )
-        axes[i + 1].axis('off')
-
-    fig.suptitle(f'D2 Top-{n} Reconstructions (signAdam, full gradient)',
-                 fontsize=13, fontweight='bold')
-    fig.subplots_adjust(wspace=0.18, top=0.82)
-    path = os.path.join(figures_dir, 'phase0_d2_top5_comparison.png')
-    plt.savefig(path, dpi=200, bbox_inches='tight', facecolor='white')
-    plt.close()
-    print(f"Saved: {path}")
-
-
 def _save_top_comparison_by_tv(results, figures_dir):
     """GT + best reconstruction per TV level (one panel per TV).
 
@@ -245,48 +209,6 @@ def _save_top_comparison_by_tv(results, figures_dir):
                  fontsize=13, fontweight='bold')
     fig.subplots_adjust(wspace=0.18, top=0.78)
     path = os.path.join(figures_dir, 'phase0_d2_top_comparison_by_tv.png')
-    plt.savefig(path, dpi=200, bbox_inches='tight', facecolor='white')
-    plt.close()
-    print(f"Saved: {path}")
-
-
-def _save_cossim_overlay(top_results, figures_dir):
-    """Cos_sim convergence overlay for top-N configs."""
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-
-    colors = ['#d62728', '#2ca02c', '#1f77b4', '#ff7f0e', '#9467bd']
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
-
-    for i, r in enumerate(top_results):
-        lh = r.get('loss_history')
-        if not lh:
-            continue
-        cos_curves = lh['cos_sim']
-        best_r = max(range(len(cos_curves)),
-                     key=lambda ri: max(cos_curves[ri]))
-        c = colors[i % len(colors)]
-        label = f"tv={r['tv_weight']:.0e} lr={r['lr']} (SSIM={r['ssim']:.3f})"
-
-        ax1.plot(cos_curves[best_r], color=c, linewidth=1.2, label=label)
-        total_curves = lh['total']
-        ax2.plot(total_curves[best_r], color=c, linewidth=1.2, label=label)
-
-    ax1.set_xlabel('Iteration')
-    ax1.set_ylabel('Cosine Similarity')
-    ax1.set_title('Best Restart: Cos Sim')
-    ax1.legend(fontsize=7)
-    ax1.grid(True, alpha=0.3)
-
-    ax2.set_xlabel('Iteration')
-    ax2.set_ylabel('Total Loss')
-    ax2.set_title('Best Restart: Total Loss')
-    ax2.legend(fontsize=7)
-    ax2.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    path = os.path.join(figures_dir, 'phase0_d2_cossim_overlay.png')
     plt.savefig(path, dpi=200, bbox_inches='tight', facecolor='white')
     plt.close()
     print(f"Saved: {path}")

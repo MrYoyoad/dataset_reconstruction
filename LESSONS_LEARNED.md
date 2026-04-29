@@ -192,6 +192,18 @@ The hypothesis that signAdam hurts was **wrong**. D1 controlled comparison (4 co
 
 **Lesson:** When working with mean-centered data, always track which tensors are in which space. Mark them explicitly (e.g., `is_centered` flag) and handle the conversion at the display boundary. Never assume pixel range [0, 1] — always check `.min()` and `.max()` before plotting. And when figures look wrong, check the value ranges before suspecting the algorithm.
 
+### Visualization: By-Axis Beats Top-N When One Axis Dominates the Sweep (2026-04-28)
+
+**Context:** D2's first aggregate figures replicated D1's two-figure layout — `phase0_d2_top5_comparison.png` (GT + 5 best reconstructions) and `phase0_d2_cossim_overlay.png` (cos_sim curves for the same 5). They were not informative: all 7 gate-passing configs share `tv_weight=1e-1`, so the top-5 panels collapsed to five near-identical reconstructions of the same regime, and the cos_sim curves bunched at 0.94–0.96.
+
+**Fix:** Replaced both with **by-axis** variants (`phase0_d2_top_comparison_by_tv.png` + `phase0_d2_cossim_overlay_by_tv.png`): one panel/curve per TV level (best config in that level), TVs ordered low→high. The reconstruction quality progression (noise → recognizable flower) is now on screen and matches D1's "show one panel per qualitatively-different setting" framing.
+
+**Lesson:** When one sweep axis dominates SSIM (or whatever the headline metric is), top-N collapses onto a single regime and tells the reader nothing about the rest of the grid. Use **by-axis-of-interest** instead: pick the dominant lever, render one panel per level (best at that level), order monotonically. The heatmap still owns the full-grid story; the by-axis figures own the "what does each regime look like" story.
+
+**Rule of thumb:** if your top-N panels would all share the same value on the dominant axis, you've built a degenerate version of the by-axis figure — drop the top-N.
+
+**Title/layout pitfall:** matplotlib's `tight_layout()` packs subplots tightly and won't add horizontal padding for wide titles. When per-panel titles include several pieces of metadata (`#k tv=… lr=… SSIM=…`), neighboring titles collide. Fix is explicit `fig.subplots_adjust(wspace=0.18, top=0.78)` and shorter title text (drop redundant separators, use one line of metadata + one line of metrics, slightly larger fontsize).
+
 ---
 
 ## Discrete Sequence Reconstruction (LLMs)
@@ -597,4 +609,36 @@ The hypothesis that signAdam hurts was **wrong**. D1 controlled comparison (4 co
 3. One-off `tmp/rerender_and_cleanup.py` pruned 1642 frames (2355 → 713) across the existing snapshot dirs.
 
 **Lesson:** Uniform sampling wastes most columns on the late-stage near-identical frames. Log-spacing matches the actual dynamics of gradient inversion (most progress in the first ~3K iters). Whenever a figure-generation function depends on run length, default to log spacing or cap the column count — never let n_iters silently set the figure width.
+
+---
+
+## [BUG] kornia FaceDetector backward returns NaN gradient via sqrt(0) (2026-04-29)
+
+**What presented:** First differentiability test for the new face-structure prior failed with all-NaN gradient on the input image. The forward pass worked fine (the loss was a finite ~0.07 on `face1.jpg`); only `out['total'].backward()` produced `tensor(nan)` for every pixel.
+
+**Root cause:** kornia 0.6.8's `FaceDetector.postprocess` (in `kornia/contrib/face_detection.py`) computes
+```python
+scores = (cls_scores * iou_scores.clamp(0.0, 1.0)).sqrt()
+```
+The YuNet `iou` head emits real-valued logits, including negatives (observed range −0.07 → 2.34). `iou.clamp(0, 1)` maps the negatives to exactly 0, so `cls * iou_clamped == 0` for those anchors, and `sqrt(0)` is taken. The autograd backward of `sqrt` is `0.5 / sqrt(z)`, which at `z = 0` evaluates to `inf`. Even though the threshold filter `inds = scores > confidence_threshold` later discards those anchors (so the upstream gradient at those positions is 0), IEEE-754 says `0 * inf = NaN`. That NaN propagates through the chain rule into every input pixel's gradient.
+
+**Fix:** Monkeypatch `FaceDetector.postprocess` at load time with a NaN-safe variant that adds a tiny epsilon inside the sqrt:
+```python
+scores = (cls_scores * iou_scores.clamp(0.0, 1.0) + 1e-12).sqrt()
+```
+Now `sqrt(1e-12) ≈ 1e-6`, the gradient is `0.5 / 1e-6 = 5e5` — large but finite — and `0 * 5e5 = 0` cleanly. See [`_patch_postprocess_nan_safe`](experiments/face_prior.py) in `experiments/face_prior.py`. Tests pass after the patch.
+
+**Diagnosis trick that found it:** Backward through each loss component separately (`presence`, `layout`, `symmetry`) showed the symmetry term — which doesn't traverse the detector — gave clean gradients, while presence and layout (which both touch the detector output) gave NaN. That isolated the bug to the YuNet path. Then `iou.min()` printed `-0.074`, which combined with the `clamp(0, 1)` and `.sqrt()` made the failure mode obvious.
+
+**Lesson:** When a frozen pretrained model produces NaN gradients despite finite forward values, suspect `sqrt(z.clamp(min=0))` or `log(z.clamp(min=ε))` patterns where the clamp boundary is *exactly* the singular point. Adding `+ε` *inside* the sqrt/log (rather than relying on clamp) is the standard fix because it shifts the singularity away from the working domain. This is a generalizable autograd hazard, not specific to face detection.
+
+---
+
+## [DESIGN] Semantic priors need a warm-up before they engage (2026-04-29)
+
+**Context:** When wiring the face-structure prior into Phase 0 ViT inversion, the natural impulse is to add `face_loss` to `total_loss` from iteration 0. This fails: at iter 0 the reconstruction is pure Gaussian noise — no face detector will fire. With no detection, the layout loss is undefined (no landmarks), the symmetry term defaults to a global-image symmetry (uninformative), and the presence loss falls back to a constant (no gradient). The face prior contributes nothing useful and risks destabilizing the early dynamics.
+
+**Decision:** Default `--face_warmup_iters=5000` (no face term until iter 5000) and `--face_ramp_iters=2000` (linear ramp to full strength over the next 2000 iters). The TV term carries the first ~5K iters and produces enough coarse face-shaped structure that the detector reliably fires by iter 5K. This same pattern applies to any pretrained-model-based prior (LPIPS in classification space, ArcFace identity, etc.): the prior must be active over the *natural input distribution* of its source model, and noise is not in that distribution.
+
+**Lesson:** When adding a frozen-model prior, the warm-up schedule isn't a tuning detail — it's load-bearing. Without it the optimization either stalls (no gradient signal) or blows up (NaN-bordering values from a model evaluated wildly out-of-distribution). Always start the prior off and ramp it in.
 

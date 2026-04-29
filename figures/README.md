@@ -12,7 +12,13 @@ figures/
 │   ├── phase0_d1_cossim_overlay.png    Cosine-sim trajectories
 │   ├── d1_panels/                       Per-config detail/loss panels
 │   ├── d2_sweep/                        D2 targeted sweep (40 configs)
-│   └── snapshots/                       Per-run optimization snapshots
+│   │   ├── phase0_d2_heatmap.png       SSIM grid: tv × lr, panels for 10K/30K iters
+│   │   ├── phase0_d2_top_comparison_by_tv.png   GT + best reconstruction at each TV level
+│   │   ├── phase0_d2_cossim_overlay_by_tv.png   cos_sim & total-loss curves, one per TV
+│   │   ├── d2_<idx>_<config>_recon.png Per-config reconstructions (40 files)
+│   │   ├── d2_<idx>_<config>_loss.png  Per-config loss curves (40 files)
+│   │   └── snapshots_<config>/          Per-config optimization snapshots
+│   └── snapshots/                       Phase-0 single-image optimization snapshots
 ├── sprint1/                             Sprint 1 NTK reconstruction archive
 │   ├── experiment_b_grid_{oracle,free,r32}.png
 │   ├── multi_seed_analysis.png         200-seed signal distribution

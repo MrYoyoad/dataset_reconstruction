@@ -120,7 +120,12 @@ Critical gate experiment: can gradient inversion reconstruct images from exact V
 
 - Code: `experiments/phase0_d2_compare.py`, `phase0_vit_inversion.py` `--d2 --config_index N` mode
 - WEXAC scripts: `scripts/run_phase0_d2_wexac.sh` (40 jobs), face sweep: `scripts/run_phase0_face_sweep.sh`
-- Results: `results/phase0_d2_*.pth` (29 configs), figures: `figures/phase0/d2_sweep/`
+- Results: `results/phase0_d2_*.pth` (29 configs), `results/phase0_d2_comparison_<ts>.csv` (sweep summary)
+- Aggregate figures (in `figures/phase0/d2_sweep/`):
+  - `phase0_d2_heatmap.png` — SSIM grid, tv × lr, panels for 10K/30K iters (this is where the "tv=1e-1 dominates" story lives)
+  - `phase0_d2_top_comparison_by_tv.png` — GT + best reconstruction at each TV level (analog of D1's 4-config side-by-side)
+  - `phase0_d2_cossim_overlay_by_tv.png` — cos_sim & total-loss curves, one per TV level
+  - The earlier top-5-by-SSIM variants were dropped: when one axis dominates, top-N collapses to a single regime — by-axis is the canonical view (see LESSONS_LEARNED.md "by-axis vs top-N visualization").
 - Custom image support: `--image_path` flag in `phase0_vit_inversion.py`, tests in `experiments/tests/test_phase0_custom_image.py`
 - Repo reorg: figures grouped under `figures/{phase0,sprint1,training_dynamics,free_c_all_seeds}/`. Per-iter snapshot dirs (~800 MB) excluded via `.gitignore`.
 
