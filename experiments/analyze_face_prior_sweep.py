@@ -30,7 +30,7 @@ import torch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
-# Plot defaults from STYLE_GUIDE.md
+# Plot defaults from style_guide/plots.md and style_guide/guardrails.md §T5
 _DPI = 200
 plt.rcParams.update({
     'axes.titlesize': 14,

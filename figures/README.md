@@ -63,4 +63,4 @@ python -m experiments.gen_t_sweep_examples --device cuda
 
 ## Style conventions
 
-See [STYLE_GUIDE.md](../STYLE_GUIDE.md) (Plot Styling section) for DPI, palette, fonts, layout.
+See [style_guide/plots.md](../style_guide/plots.md) for DPI, palette, project conventions; [style_guide/guardrails.md](../style_guide/guardrails.md) §T5 for plot font minimums.
