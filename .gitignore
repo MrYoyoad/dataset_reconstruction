@@ -86,6 +86,7 @@ wexac_gpu_mode.txt
 .nv/
 .ssh/
 .wexac_jlab/
+.apptainer/
 
 # --- Misc binaries ---
 code
