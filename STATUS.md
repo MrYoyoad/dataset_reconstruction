@@ -136,6 +136,21 @@ Critical gate experiment: can gradient inversion reconstruct images from exact V
 - **Multi-seed canonical numbers**: 5-10 seeds at the winning config to replace seed=42 anecdote with mean±std
 - **D3 (if priors needed)**: frequency-domain prior, LPIPS, latent-space (S3.5)
 
+#### D4: Face-Structure Prior — INFRA WIRED, SWEEP PENDING (2026-04-29)
+
+**Motivation.** D3 confirmed TV does all the prior work; freq/LPIPS only re-impose smoothness and don't fix the structural failure mode (mouth in wrong place, multiple face fragments). Adding a *semantic* prior — a frozen face detector + landmark-layout penalty — is the next lever.
+
+**What was added (this turn):**
+- [experiments/face_prior.py](experiments/face_prior.py): `load_face_prior`, `compute_face_prior` (presence + 5-pt landmark layout + bbox symmetry), `face_detection_score`, `face_prior_ramp`. Backbone: kornia.contrib.FaceDetector (YuNet, ~600KB, already in env). Detection-confidence threshold lowered to 0.05 to keep gradient flow during warm-up.
+- [experiments/phase0_vit_inversion.py](experiments/phase0_vit_inversion.py): new CLI flags `--cos_weight`, `--face_weight`, `--face_layout_weight`, `--face_sym_weight`, `--face_warmup_iters` (default 5000), `--face_ramp_iters` (default 2000), `--face_model`. With `face_weight=0` the legacy code path is byte-equivalent.
+- [experiments/tests/test_face_prior.py](experiments/tests/test_face_prior.py): 9 pytest unit tests (all pass). Coverage: loader, real-face vs noise loss, differentiability, no-grad eval score, ramp helper, layout penalty zero on canonical face, layout penalty positive on eye-mouth swap, pipeline plumbing.
+- [scripts/run_phase0_face_prior_sweep.sh](scripts/run_phase0_face_prior_sweep.sh): 9-arm bsub ablation grid on face1.jpg (A control, B face-only, C low TV+face, D high TV+face, E1/E4 face_weight strength sweep, F1/F3/F4 cos_weight sweep). 30k iters × 8 restarts × 9 jobs in parallel.
+- [experiments/analyze_face_prior_sweep.py](experiments/analyze_face_prior_sweep.py): post-sweep analyzer. Produces 5 figures (per-arm grid with landmark overlays, face_weight strength curve, cos_weight curve, per-arm loss panels, winner landmark evolution) under [figures/phase0/face_prior/](figures/phase0/face_prior/) plus a metrics CSV.
+
+**Bug fix in this turn**: kornia's YuNet postprocess does `(cls * iou.clamp(0,1)).sqrt()`, which produces `sqrt(0)` for anchors with non-positive raw iou. The backward of `sqrt(0)` is `0.5/0 = inf`; even though the threshold filter discards those anchors, IEEE `0 * inf = NaN` poisoned the entire input gradient. Patched by adding `+1e-12` inside the sqrt (monkeypatch in `_patch_postprocess_nan_safe`). See [LESSONS_LEARNED.md](LESSONS_LEARNED.md).
+
+**Pending (next turn)**: launch the sweep on WEXAC; rerun the analyzer; promote the SSIM+face_det winner to face2/face3 and to the n=3 same-person case. **Headline numbers will be appended here once the sweep completes.**
+
 ---
 
 ### Sprint 3: Scaling Beyond MNIST — IN PROGRESS (via D1→D2→D3)

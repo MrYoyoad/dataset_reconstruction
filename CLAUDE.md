@@ -132,6 +132,27 @@ Pre-built command lines with tested hyperparameters are in `command_line_args/`.
 
 **Analysis notebooks:** `reconstruction_cifar10.ipynb` and `reconstruction_mnist.ipynb` analyze pre-computed reconstructions.
 
+### Phase 0 Face-Structure Prior
+
+`experiments/phase0_vit_inversion.py` supports a semantic face prior on top of the cos_sim + TV objective. Backbone: kornia.contrib.FaceDetector (YuNet, in env). Three loss terms — top-1 detection confidence, 5-pt landmark layout (eyes < nose < mouth, eye-spacing, nose alignment), and bbox horizontal symmetry. With `--face_weight 0` the legacy code path is byte-equivalent.
+
+| Flag | Default | Purpose |
+|------|---------|---------|
+| `--cos_weight` | 1.0 | Multiplier on `-cos_sim` (was implicit). |
+| `--face_weight` | 0.0 | Master weight on face prior. 0 disables it. |
+| `--face_layout_weight` | 1.0 | α on landmark-layout penalty inside the face term. |
+| `--face_sym_weight` | 0.5 | β on bbox horizontal symmetry. |
+| `--face_warmup_iters` | 5000 | Iters of pure-TV before the face term engages (detectors do not fire on noise). |
+| `--face_ramp_iters` | 2000 | Linear 0→1 ramp duration after warmup. |
+| `--face_model` | `auto` | Backend: `auto` / `kornia` / `kornia_yunet`. Reserved for future face_alignment/mediapipe. |
+
+Face-prior ablation sweep (9 arms, `face1.jpg`, all parallel bsub jobs):
+```bash
+./scripts/run_phase0_face_prior_sweep.sh         # submit
+python -m experiments.analyze_face_prior_sweep  # build figures + CSV after all complete
+```
+Outputs: `figures/phase0/face_prior/face_prior_*.png` and `results/phase0_face_prior_sweep_<ts>.csv`.
+
 ## Architecture
 
 ### Pipeline Flow

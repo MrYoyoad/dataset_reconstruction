@@ -92,11 +92,16 @@ def get_sample_images(n_images=2, seed=42, dataset_name='flowers102',
     """
     _, torchvision, T, _, _, _ = _lazy_imports()
 
-    # Custom image from file path (overrides dataset)
+    # Custom image from file path (overrides dataset). Accepts a single path
+    # or a comma-separated list of paths (e.g. "data/faces/face1.jpg,face2.jpg")
+    # — when multiple paths are passed, n_images is inferred from the list and
+    # all labels are set to 0 (same-class threat model).
     if image_path is not None:
-        if not os.path.isfile(image_path):
-            raise FileNotFoundError(f"Custom image not found: {image_path}")
         from PIL import Image, ImageOps
+        paths = [p.strip() for p in image_path.split(',') if p.strip()]
+        for p in paths:
+            if not os.path.isfile(p):
+                raise FileNotFoundError(f"Custom image not found: {p}")
         transform = T.Compose([
             T.Resize(256),
             T.CenterCrop(224),
@@ -104,12 +109,17 @@ def get_sample_images(n_images=2, seed=42, dataset_name='flowers102',
             T.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225]),
         ])
-        img = Image.open(image_path).convert('RGB')
-        img = ImageOps.exif_transpose(img)
-        img_tensor = transform(img)
-        images = img_tensor.unsqueeze(0).to(device)
-        labels = torch.tensor([[0]], dtype=torch.float32, device=device)
-        print(f"  Custom image: {image_path}")
+        tensors = []
+        for p in paths:
+            img = Image.open(p).convert('RGB')
+            img = ImageOps.exif_transpose(img)
+            tensors.append(transform(img))
+        images = torch.stack(tensors).to(device)
+        labels = torch.zeros(len(paths), 1, dtype=torch.float32, device=device)
+        if len(paths) == 1:
+            print(f"  Custom image: {paths[0]}")
+        else:
+            print(f"  Custom images (N={len(paths)}): {paths}")
         return images, labels
 
     # For native high-res datasets: center-crop to 224 (no upscaling artifacts)
@@ -285,12 +295,16 @@ def invert_gradient(model, gradients, labels, image_shape,
                     tv_norm='l2', optimizer_name='Adam',
                     freq_weight=0.0, freq_cutoff=0.5,
                     lpips_weight=0.0, lpips_fn=None,
+                    cos_weight=1.0,
+                    face_weight=0.0, face_prior=None,
+                    face_layout_weight=1.0, face_sym_weight=0.5,
+                    face_warmup_iters=5000, face_ramp_iters=2000,
                     snapshot_dir=None, snapshot_interval=1000,
                     snapshot_log_spaced=True, snapshot_n_cols=10,
                     device='cuda', verbose=True):
     """Reconstruct images from gradients via optimization.
 
-    Loss = -cos_sim + tv*TV [+ freq*HF_energy] [+ lpips*LPIPS_smooth]
+    Loss = -cos_weight*cos_sim + tv*TV [+ freq*HF] [+ lpips] [+ face*ramp*L_face]
 
     Args:
         tv_norm: 'l1' (anisotropic, preserves edges) or 'l2' (isotropic).
@@ -301,6 +315,14 @@ def invert_gradient(model, gradients, labels, image_shape,
         lpips_weight: LPIPS perceptual smoothness weight (0=disabled).
             Penalizes patch-boundary artifacts via VGG features.
         lpips_fn: Frozen lpips.LPIPS model (shared across restarts).
+        cos_weight: Multiplier on -cos_sim data term (default 1.0 == legacy).
+        face_weight: Master weight on the face-structure prior (0=disabled).
+        face_prior: Dict from face_prior.load_face_prior() (required if
+            face_weight > 0).
+        face_layout_weight: alpha for landmark-layout penalty.
+        face_sym_weight: beta for face-region symmetry penalty.
+        face_warmup_iters: iters of pure-TV before face term engages.
+        face_ramp_iters: linear ramp duration after warmup.
         snapshot_dir: If provided, save reconstruction PNGs at intervals.
         snapshot_interval: Save a snapshot every this many iterations.
 
@@ -367,8 +389,16 @@ def invert_gradient(model, gradients, labels, image_shape,
             extras.append(f"freq={freq_weight:.0e}(cut={freq_cutoff})")
         if lpips_weight > 0:
             extras.append(f"lpips={lpips_weight:.0e}")
+        if face_weight > 0:
+            extras.append(f"face={face_weight:.0e}"
+                          f"(warm={face_warmup_iters},ramp={face_ramp_iters},"
+                          f"a={face_layout_weight},b={face_sym_weight})")
+        if cos_weight != 1.0:
+            extras.append(f"cos_w={cos_weight}")
         if extras:
             print(f"  Extra priors: {', '.join(extras)}")
+        if face_weight > 0 and face_prior is None:
+            raise ValueError("face_weight > 0 but face_prior is None")
 
     # Enable requires_grad on all matched params so autograd.grad works
     orig_requires_grad = {}
@@ -383,6 +413,13 @@ def invert_gradient(model, gradients, labels, image_shape,
         loss_history['freq'] = []
     if lpips_weight > 0:
         loss_history['lpips'] = []
+    if face_weight > 0:
+        loss_history['face_total'] = []
+        loss_history['face_presence'] = []
+        loss_history['face_layout'] = []
+        loss_history['face_symmetry'] = []
+        loss_history['face_ramp'] = []
+        from experiments.face_prior import compute_face_prior, face_prior_ramp
 
     # Enter SDPA math-only context if available
     if sdpa_ctx is not None:
@@ -407,6 +444,9 @@ def invert_gradient(model, gradients, labels, image_shape,
         run_best_x = x_recon.detach().clone()
         run_cos_hist, run_tv_hist, run_total_hist = [], [], []
         run_freq_hist, run_lpips_hist = [], []
+        run_face_total_hist, run_face_pres_hist = [], []
+        run_face_layout_hist, run_face_sym_hist = [], []
+        run_face_ramp_hist = []
 
         for i in range(n_iters):
             optimizer.zero_grad()
@@ -447,16 +487,38 @@ def invert_gradient(model, gradients, labels, image_shape,
             if freq_weight > 0:
                 freq_loss = freq_weight * _freq_penalty(x_recon, freq_cutoff)
 
+            # x_pixel only computed if any [0,1]-space prior is active
+            need_pixel = (lpips_weight > 0 and lpips_fn is not None) or face_weight > 0
+            x_pixel = None
+            if need_pixel:
+                x_pixel = (x_recon * _DENORM_STD + _DENORM_MEAN).clamp(0, 1)
+
             # LPIPS perceptual smoothness (penalize distance from blurred self)
             lpips_loss = 0.0
             if lpips_weight > 0 and lpips_fn is not None:
                 from kornia.filters import gaussian_blur2d
-                x_pixel = (x_recon * _DENORM_STD + _DENORM_MEAN).clamp(0, 1)
                 x_blur = gaussian_blur2d(x_pixel, (5, 5), (1.5, 1.5))
                 lpips_loss = lpips_weight * lpips_fn(x_pixel, x_blur).mean()
 
+            # Face-structure prior (presence + landmark layout + symmetry)
+            face_loss = 0.0
+            face_components = None
+            face_ramp_val = 0.0
+            if face_weight > 0:
+                face_ramp_val = face_prior_ramp(
+                    i, face_warmup_iters, face_ramp_iters
+                )
+                if face_ramp_val > 0.0:
+                    face_components = compute_face_prior(
+                        x_pixel, face_prior,
+                        layout_weight=face_layout_weight,
+                        sym_weight=face_sym_weight,
+                    )
+                    face_loss = face_weight * face_ramp_val * face_components['total']
+
             # Inversion loss: maximize cosine similarity + regularization
-            total_loss = -cos_sim + tv_loss + freq_loss + lpips_loss
+            total_loss = (-cos_weight * cos_sim
+                          + tv_loss + freq_loss + lpips_loss + face_loss)
             # Only compute gradient w.r.t. x_recon (skip 86M model params)
             total_loss.backward(inputs=[x_recon])
 
@@ -486,6 +548,7 @@ def invert_gradient(model, gradients, labels, image_shape,
             tv_val = tv_loss if isinstance(tv_loss, float) else tv_loss.item()
             freq_val = freq_loss if isinstance(freq_loss, float) else freq_loss.item()
             lpips_val = lpips_loss if isinstance(lpips_loss, float) else lpips_loss.item()
+            face_val = face_loss if isinstance(face_loss, float) else face_loss.item()
             total_val = total_loss.item()
 
             run_cos_hist.append(cos_val)
@@ -495,6 +558,17 @@ def invert_gradient(model, gradients, labels, image_shape,
                 run_freq_hist.append(freq_val)
             if lpips_weight > 0:
                 run_lpips_hist.append(lpips_val)
+            if face_weight > 0:
+                run_face_total_hist.append(face_val)
+                run_face_ramp_hist.append(face_ramp_val)
+                if face_components is not None:
+                    run_face_pres_hist.append(face_components['presence'].item())
+                    run_face_layout_hist.append(face_components['layout'].item())
+                    run_face_sym_hist.append(face_components['symmetry'].item())
+                else:
+                    run_face_pres_hist.append(0.0)
+                    run_face_layout_hist.append(0.0)
+                    run_face_sym_hist.append(0.0)
 
             if cos_val > run_best_cos:
                 run_best_cos = cos_val
@@ -506,6 +580,8 @@ def invert_gradient(model, gradients, labels, image_shape,
                     extra += f', freq={freq_val:.6f}'
                 if lpips_weight > 0:
                     extra += f', lpips={lpips_val:.6f}'
+                if face_weight > 0:
+                    extra += f', face={face_val:.6f}(r={face_ramp_val:.2f})'
                 print(f"  [restart {restart+1}/{n_restarts}] iter {i:5d}: "
                       f"cos_sim={cos_val:.4f}, tv={tv_val:.6f}"
                       f"{extra}, total={total_val:.4f}")
@@ -520,6 +596,12 @@ def invert_gradient(model, gradients, labels, image_shape,
             loss_history['freq'].append(run_freq_hist)
         if lpips_weight > 0:
             loss_history['lpips'].append(run_lpips_hist)
+        if face_weight > 0:
+            loss_history['face_total'].append(run_face_total_hist)
+            loss_history['face_presence'].append(run_face_pres_hist)
+            loss_history['face_layout'].append(run_face_layout_hist)
+            loss_history['face_symmetry'].append(run_face_sym_hist)
+            loss_history['face_ramp'].append(run_face_ramp_hist)
 
         if run_best_cos > best_cos_sim:
             best_cos_sim = run_best_cos
@@ -636,6 +718,8 @@ def save_loss_plot(loss_history, save_path, title=None):
         panels.append(('freq', 'Freq Loss', 'HF Frequency Penalty', True))
     if 'lpips' in loss_history and loss_history['lpips']:
         panels.append(('lpips', 'LPIPS Loss', 'LPIPS Perceptual', True))
+    if 'face_total' in loss_history and loss_history['face_total']:
+        panels.append(('face_total', 'Face Loss', 'Face-Structure Prior', False))
     panels.append(('total', 'Total Loss', 'Total Loss', False))
 
     n_panels = len(panels)
@@ -847,6 +931,10 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
                dataset_name='flowers102', image_path=None,
                mode='both', device='cuda', verbose=True,
                freq_weight=0.0, freq_cutoff=0.5, lpips_weight=0.0,
+               cos_weight=1.0,
+               face_weight=0.0, face_layout_weight=1.0, face_sym_weight=0.5,
+               face_warmup_iters=5000, face_ramp_iters=2000,
+               face_model='auto',
                run_tag=None):
     """Run Phase 0: exact gradient inversion on ViT.
 
@@ -882,6 +970,16 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
     if lpips_weight > 0:
         import lpips as lpips_pkg
         lpips_fn_obj = lpips_pkg.LPIPS(net='vgg', verbose=False).to(device).eval()
+
+    # Optional face-structure prior (loaded once, shared across modes)
+    face_prior_obj = None
+    if face_weight > 0:
+        from experiments.face_prior import load_face_prior
+        face_prior_obj = load_face_prior(model=face_model, device=device)
+        print(f"  Face prior loaded: {face_prior_obj['name']} "
+              f"(weight={face_weight}, alpha={face_layout_weight}, "
+              f"beta={face_sym_weight}, warmup={face_warmup_iters}, "
+              f"ramp={face_ramp_iters})")
 
     all_metrics = {}
 
@@ -920,6 +1018,12 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
             optimizer_name=optimizer_name,
             freq_weight=freq_weight, freq_cutoff=freq_cutoff,
             lpips_weight=lpips_weight, lpips_fn=lpips_fn_obj,
+            cos_weight=cos_weight,
+            face_weight=face_weight, face_prior=face_prior_obj,
+            face_layout_weight=face_layout_weight,
+            face_sym_weight=face_sym_weight,
+            face_warmup_iters=face_warmup_iters,
+            face_ramp_iters=face_ramp_iters,
             snapshot_dir=snap_dir,
             device=device, verbose=verbose
         )
@@ -929,8 +1033,21 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
         # Compute metrics
         metrics = compute_metrics(images, x_recon, denorm_mean, denorm_std)
         metrics['best_cos_sim'] = best_cos
+        if face_prior_obj is not None:
+            from experiments.face_prior import face_detection_score
+            denorm_mean_t = torch.tensor(denorm_mean, device=x_recon.device
+                                          ).reshape(1, 3, 1, 1)
+            denorm_std_t = torch.tensor(denorm_std, device=x_recon.device
+                                         ).reshape(1, 3, 1, 1)
+            x_pixel_eval = (x_recon.to(x_recon.device) * denorm_std_t
+                             + denorm_mean_t).clamp(0, 1)
+            metrics['face_det_score'] = face_detection_score(
+                x_pixel_eval, face_prior_obj
+            )
         print(f"  SSIM={metrics['ssim']:.4f}, PSNR={metrics['psnr']:.1f}dB, "
-              f"MSE={metrics['mse']:.6f}, cos_sim={best_cos:.4f}")
+              f"MSE={metrics['mse']:.6f}, cos_sim={best_cos:.4f}"
+              + (f", face_det={metrics.get('face_det_score', 0):.3f}"
+                 if face_prior_obj is not None else ''))
         all_metrics[grad_mode] = metrics
 
         # Save tensors (reuse ts from snapshot dir)
@@ -952,6 +1069,13 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
             'tv_weight': tv_weight,
             'tv_norm': tv_norm,
             'optimizer': optimizer_name,
+            'cos_weight': cos_weight,
+            'face_weight': face_weight,
+            'face_layout_weight': face_layout_weight,
+            'face_sym_weight': face_sym_weight,
+            'face_warmup_iters': face_warmup_iters,
+            'face_ramp_iters': face_ramp_iters,
+            'face_model': face_model,
             'dataset': 'custom' if image_path else dataset_name,
             'image_path': image_path,
             'grad_mode': grad_mode,
@@ -1497,9 +1621,12 @@ if __name__ == '__main__':
                         help='Image source. Use native high-res datasets '
                              '(flowers102, food101) — NOT cifar10 (32px upscaled)')
     parser.add_argument('--image_path', type=str, default=None,
-                        help='Path to a custom image file (JPG/PNG). '
-                             'Overrides --dataset. Image is center-cropped '
-                             'to 224x224 with ImageNet normalization.')
+                        help='Path to a custom image file (JPG/PNG), or a '
+                             'comma-separated list of paths for N>1. '
+                             'Overrides --dataset. Image(s) center-cropped '
+                             'to 224x224 with ImageNet normalization. When '
+                             'multiple paths are given, n_images is inferred '
+                             'from the list and all labels are set to 0.')
     parser.add_argument('--mode', type=str, default='both',
                         choices=['full', 'lora', 'both'],
                         help='Gradient mode: full (all 86M params), '
@@ -1512,6 +1639,30 @@ if __name__ == '__main__':
                         help='Frequency cutoff fraction (0-1)')
     parser.add_argument('--lpips_weight', type=float, default=0.0,
                         help='LPIPS perceptual smoothness weight (0=disabled)')
+    parser.add_argument('--cos_weight', type=float, default=1.0,
+                        help='Multiplier on -cos_sim data term '
+                             '(default 1.0 = legacy behavior)')
+    parser.add_argument('--face_weight', type=float, default=0.0,
+                        help='Master weight on the face-structure prior '
+                             '(0=disabled). When > 0 enables a frozen face '
+                             'detector that adds a presence + landmark layout + '
+                             'symmetry penalty.')
+    parser.add_argument('--face_layout_weight', type=float, default=1.0,
+                        help='Weight (alpha) on landmark-layout penalty '
+                             'inside the face term.')
+    parser.add_argument('--face_sym_weight', type=float, default=0.5,
+                        help='Weight (beta) on face-region horizontal '
+                             'symmetry inside the face term.')
+    parser.add_argument('--face_warmup_iters', type=int, default=5000,
+                        help='Iterations of pure-TV before the face term '
+                             'engages. Detectors do not fire on noise.')
+    parser.add_argument('--face_ramp_iters', type=int, default=2000,
+                        help='Linear ramp duration after warmup (the face '
+                             'multiplier goes 0->1 over this many iters).')
+    parser.add_argument('--face_model', type=str, default='auto',
+                        choices=['auto', 'kornia', 'kornia_yunet'],
+                        help='Face-prior backend (currently only kornia '
+                             'YuNet is wired up; auto picks it).')
     parser.add_argument('--d1', action='store_true',
                         help='Run D1 controlled comparison: '
                              'Adam/signAdam × TV(1e-4/1e-2), full-model only')
@@ -1566,5 +1717,12 @@ if __name__ == '__main__':
             mode=args.mode, device=args.device,
             freq_weight=args.freq_weight, freq_cutoff=args.freq_cutoff,
             lpips_weight=args.lpips_weight,
+            cos_weight=args.cos_weight,
+            face_weight=args.face_weight,
+            face_layout_weight=args.face_layout_weight,
+            face_sym_weight=args.face_sym_weight,
+            face_warmup_iters=args.face_warmup_iters,
+            face_ramp_iters=args.face_ramp_iters,
+            face_model=args.face_model,
             run_tag=args.run_tag,
         )
