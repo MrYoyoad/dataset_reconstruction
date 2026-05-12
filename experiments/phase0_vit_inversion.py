@@ -301,6 +301,7 @@ def invert_gradient(model, gradients, labels, image_shape,
                     face_warmup_iters=5000, face_ramp_iters=2000,
                     snapshot_dir=None, snapshot_interval=1000,
                     snapshot_log_spaced=True, snapshot_n_cols=10,
+                    partial_save_fn=None,
                     device='cuda', verbose=True):
     """Reconstruct images from gradients via optimization.
 
@@ -606,6 +607,16 @@ def invert_gradient(model, gradients, labels, image_shape,
         if run_best_cos > best_cos_sim:
             best_cos_sim = run_best_cos
             best_x = run_best_x.clone()
+
+        # Partial save after each restart so a kill at the run-time wall
+        # doesn't lose all prior work. Pass the running best across all
+        # restarts so far, plus the full loss_history of completed restarts.
+        if partial_save_fn is not None and best_x is not None:
+            try:
+                partial_save_fn(restart, best_x, best_cos_sim, loss_history)
+            except Exception as e:
+                if verbose:
+                    print(f"  (partial save failed: {type(e).__name__}: {e})")
 
     # Exit SDPA context
     if sdpa_ctx is not None:
