@@ -165,10 +165,58 @@ def test_pipeline_accepts_face_args():
     sig = inspect.signature(invert_gradient)
     for k in ('face_weight', 'face_prior', 'face_layout_weight',
              'face_sym_weight', 'face_warmup_iters', 'face_ramp_iters',
-             'cos_weight'):
+             'cos_weight', 'partial_save_fn'):
         assert k in sig.parameters, f"invert_gradient missing {k}"
     sig2 = inspect.signature(run_phase0)
     for k in ('face_weight', 'face_layout_weight', 'face_sym_weight',
              'face_warmup_iters', 'face_ramp_iters', 'face_model',
              'cos_weight'):
         assert k in sig2.parameters, f"run_phase0 missing {k}"
+
+
+# ---------------- 10. Partial save callback ----------------
+
+def test_partial_save_fn_called_each_restart(tmp_path):
+    """invert_gradient calls partial_save_fn once per completed restart.
+
+    Uses a 2-layer MLP toy model so the test stays fast on CPU. Verifies the
+    callback is invoked, gets a valid x tensor + best_cos float, and that a
+    file written by the callback persists on disk.
+    """
+    import torch
+    import torch.nn as nn
+    from experiments.phase0_vit_inversion import invert_gradient
+
+    torch.manual_seed(0)
+    model = nn.Sequential(nn.Flatten(), nn.Linear(3 * 8 * 8, 4), nn.ReLU(),
+                          nn.Linear(4, 2)).eval()
+    labels = torch.tensor([[1.0]])
+    x = torch.randn(1, 3, 8, 8)
+    logits = model(x)
+    loss = torch.nn.functional.cross_entropy(logits, torch.tensor([1]))
+    grads = {n: g.detach() for n, g in
+             zip([n for n, _ in model.named_parameters()],
+                 torch.autograd.grad(loss, list(model.parameters())))}
+    for p in model.parameters():
+        p.requires_grad_(True)
+
+    calls = []
+    save_path = tmp_path / 'partial.pth'
+
+    def cb(r, x_best, cos_best, hist):
+        calls.append((r, float(cos_best), tuple(x_best.shape)))
+        torch.save({'restart': r, 'x_recon': x_best.cpu(),
+                    'best_cos_sim': cos_best}, save_path)
+
+    invert_gradient(
+        model, grads, labels, x.shape,
+        n_iters=5, n_restarts=3, lr=0.01,
+        tv_weight=0.0, partial_save_fn=cb,
+        device='cpu', verbose=False,
+    )
+    assert len(calls) == 3, f"expected 3 callback invocations, got {len(calls)}"
+    assert all(c[2] == (1, 3, 8, 8) for c in calls)
+    assert save_path.exists()
+    loaded = torch.load(save_path, map_location='cpu', weights_only=False)
+    assert loaded['restart'] == 2  # last restart index
+    assert loaded['x_recon'].shape == (1, 3, 8, 8)

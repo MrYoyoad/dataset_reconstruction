@@ -292,7 +292,7 @@ def _freq_penalty(x, cutoff_fraction=0.5):
 
 def invert_gradient(model, gradients, labels, image_shape,
                     n_iters=10000, n_restarts=8, lr=0.1, tv_weight=1e-4,
-                    tv_norm='l2', optimizer_name='Adam',
+                    tv_norm='l2', tv_chroma_weight=5.0, optimizer_name='Adam',
                     freq_weight=0.0, freq_cutoff=0.5,
                     lpips_weight=0.0, lpips_fn=None,
                     cos_weight=1.0,
@@ -475,7 +475,30 @@ def invert_gradient(model, gradients, labels, image_shape,
             # Total Variation regularization (normalized by pixel count)
             tv_loss = 0.0
             if tv_weight > 0:
-                if tv_norm == 'l1':
+                if tv_norm == 'lab':
+                    # Chroma-coupled TV in LAB space. Heavier penalty on a,b
+                    # (chroma) than L (luminance) — kills colored speckle that
+                    # spatial-only TV can't see. Natural images have smooth
+                    # chroma; speckle pixels violate this.
+                    # LAB channels are scaled to ~[0,1] so tv_weight stays
+                    # on the same scale as the l2/RGB version (L/100, a/128, b/128).
+                    from kornia.color import rgb_to_lab
+                    x_pixel_tv = (x_recon * _DENORM_STD + _DENORM_MEAN).clamp(0, 1)
+                    x_lab = rgb_to_lab(x_pixel_tv)
+                    lab_scale = torch.tensor(
+                        [1.0 / 100.0, 1.0 / 128.0, 1.0 / 128.0],
+                        device=x_recon.device,
+                    ).view(1, 3, 1, 1)
+                    x_lab = x_lab * lab_scale
+                    ch_w = torch.tensor(
+                        [1.0, tv_chroma_weight, tv_chroma_weight],
+                        device=x_recon.device,
+                    ).view(1, 3, 1, 1)
+                    diff_h = ((x_lab[:, :, 1:, :] - x_lab[:, :, :-1, :]).pow(2)
+                              * ch_w).sum()
+                    diff_w = ((x_lab[:, :, :, 1:] - x_lab[:, :, :, :-1]).pow(2)
+                              * ch_w).sum()
+                elif tv_norm == 'l1':
                     diff_h = (x_recon[:, :, 1:, :] - x_recon[:, :, :-1, :]).abs().sum()
                     diff_w = (x_recon[:, :, :, 1:] - x_recon[:, :, :, :-1]).abs().sum()
                 else:
@@ -938,7 +961,8 @@ def save_progress_grid(snapshot_dir, x_true, denorm_mean, denorm_std,
 
 
 def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
-               lr=0.1, tv_weight=1e-4, tv_norm='l2', optimizer_name='Adam',
+               lr=0.1, tv_weight=1e-4, tv_norm='l2', tv_chroma_weight=5.0,
+               optimizer_name='Adam',
                dataset_name='flowers102', image_path=None,
                mode='both', device='cuda', verbose=True,
                freq_weight=0.0, freq_cutoff=0.5, lpips_weight=0.0,
@@ -1021,11 +1045,52 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
             ts = f'{ts}_{run_tag}'
         snap_dir = os.path.join(figures_dir, 'snapshots',
                                 f'{grad_mode}_r{rank}_n{n_images}_{ts}')
+        # Pre-compute the .pth path so partial saves can target it. The full
+        # save at the end overwrites the same path with complete metrics.
+        tensor_path = os.path.join(
+            results_dir, f'phase0_{grad_mode}_r{rank}_n{n_images}_s{seed}_{ts}.pth'
+        )
+        partial_meta = {
+            'x_true': images.cpu(),
+            'labels': labels.cpu(),
+            'rank': rank, 'n_images': n_images, 'seed': seed,
+            'n_iters': n_iters, 'n_restarts': n_restarts, 'lr': lr,
+            'tv_weight': tv_weight, 'tv_norm': tv_norm,
+            'optimizer': optimizer_name,
+            'cos_weight': cos_weight, 'face_weight': face_weight,
+            'face_layout_weight': face_layout_weight,
+            'face_sym_weight': face_sym_weight,
+            'face_warmup_iters': face_warmup_iters,
+            'face_ramp_iters': face_ramp_iters,
+            'face_model': face_model,
+            'dataset': 'custom' if image_path else dataset_name,
+            'image_path': image_path,
+            'grad_mode': grad_mode,
+            'n_grad_params': n_grad_params,
+            'train_loss': train_loss,
+            'grad_time': t_grad,
+            'snapshot_dir': snap_dir,
+        }
+
+        def _partial_save(restart_idx, best_x_so_far, best_cos_so_far,
+                          loss_history_so_far, _path=tensor_path,
+                          _meta=partial_meta):
+            payload = {
+                **_meta,
+                'x_recon': best_x_so_far.cpu(),
+                'metrics': {'best_cos_sim': best_cos_so_far,
+                            'partial': True,
+                            'restarts_completed': restart_idx + 1},
+                'loss_history': loss_history_so_far,
+            }
+            torch.save(payload, _path)
+
         t0 = time.time()
         x_recon, best_cos, loss_hist = invert_gradient(
             model, gradients, labels, images.shape,
             n_iters=n_iters, n_restarts=n_restarts, lr=lr,
             tv_weight=tv_weight, tv_norm=tv_norm,
+            tv_chroma_weight=tv_chroma_weight,
             optimizer_name=optimizer_name,
             freq_weight=freq_weight, freq_cutoff=freq_cutoff,
             lpips_weight=lpips_weight, lpips_fn=lpips_fn_obj,
@@ -1036,6 +1101,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
             face_warmup_iters=face_warmup_iters,
             face_ramp_iters=face_ramp_iters,
             snapshot_dir=snap_dir,
+            partial_save_fn=_partial_save,
             device=device, verbose=verbose
         )
         t_inv = time.time() - t0
@@ -1061,40 +1127,13 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
                  if face_prior_obj is not None else ''))
         all_metrics[grad_mode] = metrics
 
-        # Save tensors (reuse ts from snapshot dir)
-        tensor_path = os.path.join(
-            results_dir, f'phase0_{grad_mode}_r{rank}_n{n_images}_s{seed}_{ts}.pth'
-        )
+        # Final save: overwrites any partial save with complete metrics.
         torch.save({
-            'x_true': images.cpu(),
+            **partial_meta,
             'x_recon': x_recon.cpu(),
-            'labels': labels.cpu(),
             'metrics': metrics,
             'loss_history': loss_hist,
-            'rank': rank,
-            'n_images': n_images,
-            'seed': seed,
-            'n_iters': n_iters,
-            'n_restarts': n_restarts,
-            'lr': lr,
-            'tv_weight': tv_weight,
-            'tv_norm': tv_norm,
-            'optimizer': optimizer_name,
-            'cos_weight': cos_weight,
-            'face_weight': face_weight,
-            'face_layout_weight': face_layout_weight,
-            'face_sym_weight': face_sym_weight,
-            'face_warmup_iters': face_warmup_iters,
-            'face_ramp_iters': face_ramp_iters,
-            'face_model': face_model,
-            'dataset': 'custom' if image_path else dataset_name,
-            'image_path': image_path,
-            'grad_mode': grad_mode,
-            'n_grad_params': n_grad_params,
-            'train_loss': train_loss,
-            'grad_time': t_grad,
             'inversion_time': t_inv,
-            'snapshot_dir': snap_dir,
         }, tensor_path)
         print(f"Saved tensors: {tensor_path}")
 
@@ -1621,8 +1660,13 @@ if __name__ == '__main__':
     parser.add_argument('--tv_weight', type=float, default=1e-4,
                         help='Total Variation regularization weight')
     parser.add_argument('--tv_norm', type=str, default='l2',
-                        choices=['l1', 'l2'],
-                        help='TV norm: l1 (edge-preserving) or l2 (isotropic)')
+                        choices=['l1', 'l2', 'lab'],
+                        help='TV norm: l1 (edge-preserving), l2 (isotropic), '
+                             'or lab (chroma-coupled in LAB space — heavier '
+                             'penalty on a/b than L; targets colored speckle)')
+    parser.add_argument('--tv_chroma_weight', type=float, default=5.0,
+                        help='When --tv_norm=lab, multiplier on the a,b '
+                             '(chroma) TV vs the L (luminance) TV. Default 5.0.')
     parser.add_argument('--optimizer', type=str, default='Adam',
                         choices=['Adam', 'signAdam', 'SGD'],
                         help='Optimizer: Adam, signAdam (Geiping et al.), SGD')
@@ -1723,6 +1767,7 @@ if __name__ == '__main__':
             rank=args.rank, n_images=args.n_images, seed=args.seed,
             n_iters=args.n_iters, n_restarts=args.n_restarts,
             lr=args.lr, tv_weight=args.tv_weight, tv_norm=args.tv_norm,
+            tv_chroma_weight=args.tv_chroma_weight,
             optimizer_name=args.optimizer, dataset_name=args.dataset,
             image_path=args.image_path,
             mode=args.mode, device=args.device,

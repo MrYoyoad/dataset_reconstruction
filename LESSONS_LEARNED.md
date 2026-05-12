@@ -642,3 +642,39 @@ Now `sqrt(1e-12) ≈ 1e-6`, the gradient is `0.5 / 1e-6 = 5e5` — large but fin
 
 **Lesson:** When adding a frozen-model prior, the warm-up schedule isn't a tuning detail — it's load-bearing. Without it the optimization either stalls (no gradient signal) or blows up (NaN-bordering values from a model evaluated wildly out-of-distribution). Always start the prior off and ramp it in.
 
+---
+
+## [RESULT] D2 / D3 winner config transfers from flowers to a real face (2026-04-28)
+
+**What happened.** The Phase 0 D3v2 ablation tested 7 freq+LPIPS prior configs on top of the D2 winner backbone (signAdam, tv=1e-1, lr=0.05, 30K iters) on a Flowers102 image. Best D3 result was SSIM=0.558 at freq=1e-3, within seed/restart noise of the prior-free D2 winner (SSIM=0.548). Then the same hyperparameters were applied to a real human portrait (`data/faces/face1.jpg`) with zero re-tuning: SSIM=0.522, PSNR=13.8 dB, cos_sim=0.974 — recognizable person, correct skin tone, collar, eye placement.
+
+**Why it matters.** Flowers102 was the technical gate (texture-heavy, single foreground object). Faces are the privacy payload (the modality the thesis actually attacks). The fact that the same hyperparameters generalize means the per-image hyperparameter tuning concern (which would have been a thesis-credibility problem) is overblown — at least within the natural-image regime — and we can use one canonical config for downstream experiments instead of re-sweeping per image.
+
+**Caveat.** Single seed only on the face number. Multi-seed validation is in flight (5 seeds, jobs 777058-777063). The transfer claim becomes stronger after we have mean±std.
+
+**Side finding from D3v2.** Freq and LPIPS priors stacked on top of strong TV add nothing measurable. Strong freq (1e-1) and the combined freq+lpips configs actively *degrade* SSIM to 0.41-0.43 while cos_sim stays high (0.93-0.95) — classic over-regularization (loss matches, pixels wrong). TV at 1e-1 already does all the pixel-space prior work; the only remaining lever from extra priors is *semantic* (D4 face-structure prior, D6 latent / SDS), not additional smoothness.
+
+---
+
+## [DESIGN] Long WEXAC jobs need per-restart checkpoints, not just end-of-run saves (2026-05-13)
+
+**Context.** Phase 0 inversion runs n_restarts independent optimization passes (default 8), each ~30K iters and ~1.5h on an L40S. A `--n_restarts 8 --n_iters 30000` job takes ~12h. WEXAC's `long-gpu` queue has a 48h wall, but earlier-finished jobs already at restart 4/8 had been getting killed before any `.pth` was written because the save happened only at the end of `invert_gradient`. We were losing hours of compute every time the queue rolled over.
+
+**Fix.** `invert_gradient` now takes a `partial_save_fn(restart_idx, best_x, best_cos, loss_history)` callback. `run_phase0` wires it to the same `.pth` path the final save uses, with `metrics['partial']=True` and `restarts_completed` set. So a killed job at restart 4 leaves a valid 4-restart reconstruction on disk; the analyzer can consume it normally; a re-run can warm-start from it. Restarts can now be bumped (or dropped) without re-architecting the run script.
+
+**Side effect.** Once partial saves were safe, the face-prior sweep dropped `n_restarts` from 8 → 4 and let 9 arms run in parallel instead of 5. Wall-clock for the full sweep dropped from ~26h to ~12h, with the option to re-run the winner at n_restarts=8 cheaply afterwards.
+
+**Lesson.** Any optimization loop with N independent passes and a long per-pass cost should expose a per-pass-completion hook from day one. Treat "end of `for` loop is the only save point" as a code smell whenever the loop body costs more than ~30 min. Test in `experiments/tests/test_face_prior.py::test_partial_save_fn_called_each_restart`.
+
+---
+
+## [DESIGN] Chroma-coupled TV in LAB space targets the speckle TV-RGB can't see (2026-05-13)
+
+**Why.** After D3, the visible failure mode on face1 (SSIM=0.522) is *colored speckle* — clusters of high-frequency RGB noise where the *spatial* gradient in each channel is small enough to slip under RGB-TV but the *cross-channel* coherence is wrong. RGB-TV penalizes `‖∂_x I‖²` per channel independently; it has no notion of "natural images have smooth chroma even when luminance varies". Speckle pixels are exactly where chroma varies fast while luminance stays roughly constant.
+
+**Design.** Replace `tv_norm='l2'` with `tv_norm='lab'`. Convert `x_recon` to LAB (via `kornia.color.rgb_to_lab`), rescale channels to ~[0,1] (`L/100, a/128, b/128`) so `tv_weight=1e-1` still has the same dimensional magnitude, then take the per-channel squared-difference TV with a heavier coefficient on a and b than on L. Default `tv_chroma_weight=5.0`, sweeping {5, 20} as a safety check against over-flattening.
+
+**What this is not.** It's not a replacement for D4 (face-structure prior). It addresses the *texture* failure (speckle), not the *layout* failure (eyes in the wrong place). Both can compose: chroma-TV on top of face-structure prior is the planned D4+D5 stack if both prove out individually.
+
+**Lesson.** When a regularizer leaves a specific structured artifact (here, colored speckle), think about which property of natural images the regularizer fails to constrain. RGB-TV doesn't see chroma incoherence. LAB-TV does, almost for free. This is the cheapest possible perceptual improvement, much cheaper than LPIPS / SDS / latent-recon, and should be tried first when a low-frequency-only prior is leaving visible high-frequency color noise.
+

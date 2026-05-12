@@ -33,8 +33,10 @@ cd "$(dirname "$0")/.."
 # Common bsub args
 BSUB_COMMON='-q long-gpu -R "rusage[mem=32768] select[ngpus>0]" -gpu "num=1" -W 12:00'
 
-# Common phase0 args
-COMMON_ARGS='--mode full --image_path data/faces/face1.jpg --optimizer signAdam --tv_norm l2 --lr 0.05 --n_iters 30000 --n_restarts 8 --freq_weight 1e-3 --lpips_weight 0 --device cuda --seed 42'
+# Common phase0 args. n_restarts dropped 8 -> 4 after the May-1 sweep hit the
+# 48h wall at restart 4/8 for the slowest arms. Phase 0 partial-saves the .pth
+# after each restart now, so even an early kill leaves usable results.
+COMMON_ARGS='--mode full --image_path data/faces/face1.jpg --optimizer signAdam --tv_norm l2 --lr 0.05 --n_iters 30000 --n_restarts 4 --freq_weight 1e-3 --lpips_weight 0 --device cuda --seed 42'
 
 submit() {
     # $1=arm tag, $2=tv_weight, $3=cos_weight, $4=face_weight

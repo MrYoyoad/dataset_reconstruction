@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: **2026-04-28** (post D2 sweep)
+Last updated: **2026-05-13** (D3v2 done, real-face gate crossed; D4/D5/multi-seed all running)
 
 ---
 
@@ -129,14 +129,48 @@ Critical gate experiment: can gradient inversion reconstruct images from exact V
 - Custom image support: `--image_path` flag in `phase0_vit_inversion.py`, tests in `experiments/tests/test_phase0_custom_image.py`
 - Repo reorg: figures grouped under `figures/{phase0,sprint1,training_dynamics,free_c_all_seeds}/`. Per-iter snapshot dirs (~800 MB) excluded via `.gitignore`.
 
-#### Post-D2: Next Steps
+#### D3v2: Frequency + LPIPS Prior Ablation — COMPLETE, PRIORS DON'T HELP (2026-04-28)
 
-- **Face sweep (in flight)**: 4-config grid on face1.jpg with tv ∈ {1e-2, 5e-2}, iters ∈ {10K, 30K} — uses custom-image loader
-- **LoRA-only at the D2 winner**: rerun signAdam + tv=1e-1 + lr=0.05 + 30K with `--mode lora --rank 8` (and 16, 32, 64)
-- **Multi-seed canonical numbers**: 5-10 seeds at the winning config to replace seed=42 anecdote with mean±std
-- **D3 (if priors needed)**: frequency-domain prior, LPIPS, latent-space (S3.5)
+7-config ablation on top of the D2 winner backbone (signAdam, tv=1e-1, lr=0.05, 30K iters, n_restarts=2 for speed) on Flowers102, seed=42. Variables: `freq_weight ∈ {0, 1e-3, 1e-2, 1e-1}` × `lpips_weight ∈ {0, 1e-3, 1e-2}` (subset of 7 cells).
 
-#### D4: Face-Structure Prior — INFRA WIRED, SWEEP PENDING (2026-04-29)
+| idx | config | SSIM | PSNR | cos_sim |
+|---|---|---|---|---|
+| 0 | freq=1e-3 | **0.558** | 11.9 | 0.975 |
+| 4 | lpips=1e-2 | 0.548 | 12.7 | 0.974 |
+| 1 | freq=1e-2 | 0.495 | 12.6 | 0.951 |
+| 6 | freq=1e-2 + lpips=1e-2 | 0.478 | 12.6 | 0.944 |
+| 2 | freq=1e-1 | 0.423 | 12.9 | 0.933 |
+| 3 | lpips=1e-3 | 0.416 | 12.4 | 0.946 |
+| 5 | freq=1e-2 + lpips=1e-3 | 0.411 | 12.4 | 0.949 |
+
+**Conclusion:** TV at 1e-1 does all the prior work in pixel space. Stacking freq / LPIPS on top of it adds nothing measurable at best and actively over-regularizes at worst (the SSIM 0.41-0.43 cluster). Cos_sim stays high (~0.93-0.97) across the board — the difference is structural correctness, which neither prior fixes.
+
+- Code: `scripts/run_phase0_d3_v2.sh`, results: `results/phase0_full_r8_n1_s42_20260428_12071*_d3v2_idx{0..6}_*.pth`
+- Figures: `figures/phase0_report/fig_d3_ablation.{png,pdf}` and `figures/phase0_report/last2days/fig_d3_grid.png`
+
+#### Face1 at the D3 Winner — REAL FACE CROSSES THE GATE (2026-04-28)
+
+Same hyperparameters as the D3 winner (signAdam, tv=1e-1, lr=0.05, freq=1e-3, 30K iters × **8 restarts**, seed=42), applied to a real human portrait (`data/faces/face1.jpg`) via the new custom-image loader.
+
+**Result: SSIM=0.522, PSNR=13.8 dB, cos_sim=0.974** — within seed/restart noise of the Flowers102 D2 winner. The reconstruction is a visibly identifiable person: skin tone, collar, eye placement all recovered. The 30K-iter trajectory is clean coarse-to-fine — recognizable face shape by iter 5K, fine detail between iter 10K and 30K, no late-stage collapse.
+
+**Why this matters:** Flowers102 was the technical gate. Faces are the privacy payload. Same hyperparameters with zero re-tuning transferred from a flower image to a real face. The privacy attack now works on the relevant data modality.
+
+- Tensor: `results/phase0_full_r8_n1_s42_20260428_134922_face_d3winner_freq1e-3.pth`
+- Figures: `figures/phase0_report/last2days/fig_face1_recon.png`, `fig_face1_iters.png`
+- Supervisor handoff: `notes/phase0_report.tex` (350-line LaTeX report covering D1→D4) and `notes/phase0_last2days.md` (chronological log)
+
+#### Post-D3 Gaps & Next Levers
+
+What's missing from Phase 0:
+- **face2.jpg, face3.jpg at the new winner**: only face1 has been re-run. The face2/face3 numbers in old logs (`wexac_logs/phase0_face{2,3}_584*.out`, SSIM 0.21-0.24) were from the weak-TV March sweep — stale, no tensors saved.
+- **N>1 anywhere**: every Phase 0 .pth on disk is `n1`. Multi-image inversion in Phase 0 is still backlog (Sprint 3 / superposition section in CLAUDE.md).
+- **Multi-seed faces**: the SSIM=0.522 number is one seed. No mean±std yet.
+- **LoRA-only at the winner**: every run is `--mode full` (86M-param gradient). The LoRA-only sweep at rank ∈ {8, 16, 32, 64} is still pending.
+
+The cheap next levers (all submitted 2026-05-13, jobs running): D4 face-structure prior, D5 chroma-coupled TV, multi-seed face1.
+
+#### D4: Face-Structure Prior — INFRA WIRED, SWEEP RUNNING (2026-04-29 → 2026-05-13)
 
 **Motivation.** D3 confirmed TV does all the prior work; freq/LPIPS only re-impose smoothness and don't fix the structural failure mode (mouth in wrong place, multiple face fragments). Adding a *semantic* prior — a frozen face detector + landmark-layout penalty — is the next lever.
 
@@ -149,7 +183,37 @@ Critical gate experiment: can gradient inversion reconstruct images from exact V
 
 **Bug fix in this turn**: kornia's YuNet postprocess does `(cls * iou.clamp(0,1)).sqrt()`, which produces `sqrt(0)` for anchors with non-positive raw iou. The backward of `sqrt(0)` is `0.5/0 = inf`; even though the threshold filter discards those anchors, IEEE `0 * inf = NaN` poisoned the entire input gradient. Patched by adding `+1e-12` inside the sqrt (monkeypatch in `_patch_postprocess_nan_safe`). See [LESSONS_LEARNED.md](LESSONS_LEARNED.md).
 
-**Pending (next turn)**: launch the sweep on WEXAC; rerun the analyzer; promote the SSIM+face_det winner to face2/face3 and to the n=3 same-person case. **Headline numbers will be appended here once the sweep completes.**
+**Sweep launched (2026-05-13).** 9 jobs running on WEXAC: `phase0_face_prior_{A,B,C,D,E1,E4,F1,F3,F4}` (jobs 777007-777019 / 777085-777095). n_restarts dropped 8 → 4 after an earlier sweep hit the 48h wall; the new `partial_save_fn` checkpoint hook (see below) makes early kills safe. Companion runs share the same submission window: multi-seed face1 (5 seeds, jobs 777058-777063) and D5 chroma-TV (2 arms, jobs 777084/777086) — all submitted together so they can be analyzed jointly when they land. Headline numbers will be appended once the sweep completes.
+
+**Infrastructure: per-restart checkpointing (2026-05-13).** `invert_gradient` now takes a `partial_save_fn(restart_idx, best_x, best_cos, loss_history)` callback fired after every completed restart. `run_phase0` wires it to the same `.pth` path the final save uses, so a job killed at restart 4/8 leaves a usable partial reconstruction on disk (marked `metrics['partial'] = True`). This lets us run more arms in parallel without paying the full 12h × 8-restart wall every time. Unit test in `experiments/tests/test_face_prior.py`. Commit `8a7cfa2`.
+
+#### D5: Chroma-Coupled TV (LAB-space) — INFRA WIRED, JOBS RUNNING (2026-05-13)
+
+**Motivation.** D3 / D4 address structural correctness (face layout). The remaining visual defect on face1 (SSIM=0.522) is *colored speckle* — high-frequency RGB noise the spatial-only TV cannot see because it doesn't constrain per-channel coherence. Natural images have smooth chroma; speckle pixels violate this. Penalizing TV in LAB space with a heavier weight on a/b (chroma) than L (luminance) is the cheapest possible fix.
+
+**What was added (this turn):**
+- [experiments/phase0_vit_inversion.py](experiments/phase0_vit_inversion.py): `tv_norm='lab'` option in `invert_gradient` and `run_phase0`, new CLI flags `--tv_norm lab` and `--tv_chroma_weight` (default 5.0). LAB values are rescaled (L/100, a/128, b/128) so `tv_weight=1e-1` stays on the same magnitude as the l2/RGB version — no other hyperparameters change.
+- [scripts/run_phase0_face1_chroma_tv.sh](scripts/run_phase0_face1_chroma_tv.sh): 2-arm bsub sweep on face1.jpg at `chroma_weight ∈ {5, 20}`, otherwise identical to the D3-winner config (signAdam, tv=1e-1, lr=0.05, freq=1e-3, 30k iters × 8 restarts, seed=42).
+
+**Status.** Jobs `phase0_face1_chroma_tv_cw5` (777084) and `phase0_face1_chroma_tv_cw20` (777086) submitted. ETA ~5h each. Companion runs: multi-seed face1 (5 seeds, jobs 777058–777063) and D4 face-prior sweep (9 arms, jobs 777007–777019) — all submitted same turn so they can be analyzed jointly once they land.
+
+#### D6: Latent-Space Reconstruction / SDS Prior — PLAN (2026-05-13)
+
+**Motivation.** If multi-seed median fusion + chroma TV still leave visible speckle and structural error after D5, the diagnosis is that 224×224×3 pixel-space optimization is too high-dimensional to satisfy a "looks natural" constraint. The fix: replace pixel-space optimization with **latent-space optimization** through a frozen generative model. Off-manifold pixel patterns become mechanically impossible because the decoder only produces natural-image-distribution outputs.
+
+**Two flavors (cheapest first):**
+
+1. **Latent-space recon (S3.5 in Sprint 3 backlog).** Optimize `z ∈ R^4 × 28 × 28` in the latent space of the Stable Diffusion VAE; decode to pixel space via the frozen VAE decoder for the gradient-matching loss. Search space drops from 150K to ~3K dims. Decoder gradient flows through every iter — no autograd subtlety beyond what we already do.
+   - Engineering: load SD VAE (~330MB, fp16), wrap `x_recon` as `decode(z)`. The cos_sim loss, TV, freq, and face priors all still apply but operate on `decode(z)` instead of `x_recon`. Maybe 2 days of code + 1 day of tuning.
+   - Risk: VAE-decoded image manifold may not contain the *specific* face well enough — could decay to a generic-looking face. Mitigated by joint optimization of `z` and a small residual `δ` in pixel space, so the latent provides the prior and the residual recovers the identity.
+
+2. **Score Distillation Sampling (SDS).** Add an SDS term using a frozen diffusion model (e.g., Stable Diffusion 1.5): `sds_loss = E_t,ε[w(t)·(ε_θ(x_t,t) − ε)·∂x_t/∂x]`. This is the strongest manifold prior available and composes with the face-structure prior already in the codebase. Replaces TV entirely for late iters.
+   - Engineering: requires a working SD checkpoint on WEXAC, gradient checkpointing for memory, careful weight scheduling. 3-5 days conservatively. SDS gradients are noisy at small batch sizes — likely needs `n_restarts=16+`.
+   - Risk: known to over-smooth and converge to generic mean-faces. Mitigated by warm-starting from the D4/D5 reconstruction and using SDS only in the last 10K iters as a polish step.
+
+**Go/no-go gate.** Trigger D6 only if **all** of (a) multi-seed median, (b) chroma TV, and (c) face-structure prior together still leave SSIM<0.6 *and* qualitative artifacts that hurt identifiability. If we get to ~0.6 with the cheap interventions, D6 becomes a thesis stretch goal, not a critical path.
+
+**Code locations (placeholders, not yet created):** `experiments/latent_recon.py` for #1, `experiments/sds_prior.py` for #2. Both plug into `phase0_vit_inversion.py` via the same flag pattern as `face_weight`.
 
 ---
 
@@ -607,11 +671,19 @@ Hybrid gradient-matching + SDS loss for low-rank reconstruction. Blocked on havi
 - [x] ~~**Setup phase0 conda env**~~ — not needed, `rec` env has timm+peft
 - [x] **Phase 0 (fixed)**: Resubmitted with bug fixes — SSIM=0.089 (full) / 0.264 (LoRA). Poor but real signal (was 0.015 before fixes).
 - [x] **D1 controlled comparison** (2026-04-14): signAdam + tv=1e-2 → SSIM=0.144 (4 configs)
-- [x] **D2 hyperparameter sweep** (2026-04-28): 40 configs, best tv=1e-1 + lr=0.05 + 30K → **SSIM=0.548** — gate crossed
+- [x] **D2 hyperparameter sweep** (2026-04-28): 40 configs, best tv=1e-1 + lr=0.05 + 30K → **SSIM=0.548** — gate crossed on Flowers102
+- [x] **D3v2 freq/LPIPS prior ablation** (2026-04-28): 7 configs; priors don't help (best 0.558, within seed noise of TV-only D2)
+- [x] **Face1 at D3 winner** (2026-04-28): real-face gate crossed — **SSIM=0.522, PSNR=13.8, cos_sim=0.974**
 - [x] **Custom image loading**: `--image_path` flag + 7 unit tests
-- [ ] **Face sweep (face1/2/3)**: signAdam + tv ∈ {1e-2, 5e-2} on three real face photos — submitted, in flight
-- [ ] **LoRA-only at D2 winner**: rerun tv=1e-1, lr=0.05, 30K with --mode lora across rank 8/16/32/64
-- [ ] **Multi-seed validation**: 5-10 seeds at the winning config for canonical SSIM mean±std
+- [x] **Partial-save checkpoint hook** (2026-05-13): per-restart .pth save so 48h-wall kills leave usable data
+- [x] **Supervisor handoff report**: `notes/phase0_report.tex` (350 lines, D1→D4) + `notes/phase0_last2days.md`
+- [ ] **D4 face-structure prior sweep**: 9 arms running on WEXAC (jobs 777007-777019/777085-777095); analyzer ready
+- [ ] **D5 chroma-coupled (LAB) TV**: 2 arms running on face1.jpg (jobs 777084/777086); chroma_weight ∈ {5, 20}
+- [ ] **Multi-seed face1**: 5 seeds running (jobs 777058-777063) at D3 winner config — canonical SSIM mean±std
+- [ ] **Re-run face2/face3 at D3 winner**: existing numbers (SSIM 0.21-0.24) are stale, from weak-TV March sweep
+- [ ] **LoRA-only at D2/D3 winner**: rerun tv=1e-1, lr=0.05, 30K with --mode lora across rank 8/16/32/64
+- [ ] **N>1 reconstruction (Phase 0)**: never run; folded into superposition work in CLAUDE.md
+- [ ] **D6 (conditional)**: latent-space recon / SDS — only if D4+D5+multi-seed don't reach SSIM≥0.6
 - [ ] **Phase 0b**: Noise tolerance sweep — deprioritized, folded into Sprint 3
 
 ### Sprint 3: Scaling Beyond MNIST
