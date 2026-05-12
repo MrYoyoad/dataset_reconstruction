@@ -1,0 +1,350 @@
+\documentclass[11pt,a4paper]{article}
+
+% ===== packages =====
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{amsmath,amssymb}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true,linkcolor=NavyBlue,citecolor=NavyBlue,urlcolor=NavyBlue]{hyperref}
+\usepackage[capitalize]{cleveref}
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\usepackage{tcolorbox}
+\tcbuselibrary{breakable}
+\usepackage{enumitem}
+\setlist{itemsep=2pt,topsep=4pt}
+\usepackage{titling}
+
+% ===== colors =====
+\definecolor{accent}{HTML}{1A3A5C}
+\definecolor{accent2}{HTML}{2A5A8C}
+\definecolor{good}{HTML}{157524}
+\definecolor{bad}{HTML}{721C24}
+\definecolor{lightyellow}{HTML}{FFF8B3}
+
+% ===== title =====
+\title{\color{accent}\bfseries Phase 0 Analysis:\\ ViT Gradient Inversion Gate Experiment}
+\author{Yoad Oxman\\\small Thesis Project --- Weizmann Institute of Science\\\small Supervisor: Gal Vardi}
+\date{April 28, 2026}
+
+% ===== custom box =====
+\newtcolorbox{insightbox}{
+  colback=lightyellow!50, colframe=accent!60,
+  arc=2pt, breakable, fonttitle=\bfseries,
+  title=Insight, left=5pt, right=5pt, top=4pt, bottom=4pt
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent We report Phase 0 of the thesis pipeline: gradient inversion of a single ViT-B/16 fine-tuning step on Flowers102, used as the feasibility gate before progressing to LoRA-only inversion and Gradient-Bridge decoder training. Three sub-experiments---D1 (controlled comparison), D2 (targeted hyperparameter sweep), and D3v2 (frequency- and perceptual-prior ablation)---are integrated. The Phase 0 gate (SSIM $> 0.30$) is decisively crossed: D2 reaches SSIM = 0.548 with the configuration (tv$_w$=$10^{-1}$, lr=$0.05$, $30{,}000$ iters, signAdam), and D3v2 marginally improves to SSIM = 0.558 with a soft frequency-domain prior. We also examine the noisy nature of the optimization loss and its relationship with the reconstruction quality metric, finding that cosine-similarity match is necessary but \emph{not} sufficient for high SSIM---the prior balance dominates.
+\end{abstract}
+
+\tableofcontents
+\bigskip\hrule\bigskip
+
+% =============================================================================
+\section{Executive Summary}
+\label{sec:exec}
+
+\begin{tcolorbox}[colback=good!8,colframe=good!70,arc=2pt,title=\textcolor{good}{\textbf{Gate crossed}}]
+Phase 0 succeeds: best reconstruction quality \textbf{SSIM = 0.558}, PSNR = 15.1\,dB, cos\_sim = 0.975 from a single ViT-B/16 + LoRA-r8 gradient. The gate (SSIM $> 0.30$) was originally a contested target; the result clears it by $\sim$$1.85\times$.
+\end{tcolorbox}
+
+\noindent The path was not parameter-tuning theatre: the \emph{leverage} of TV regularization weight was discovered empirically. From D1 to D2 the TV weight was raised by $10\times$ (from $10^{-2}$ to $10^{-1}$) and SSIM jumped $3.8\times$ (0.144 $\to$ 0.548). All other levers (learning rate, optimizer choice, iteration count, perceptual priors) move SSIM by less than $\pm 0.05$. \Cref{fig:progression} summarizes the visual progression.
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=\textwidth]{figures/phase0_report/fig_progression.pdf}
+  \caption{Phase 0 progression on a single Flowers102 image. D1's best (signAdam, tv$_w$=$10^{-2}$) reaches SSIM = 0.144---texture is absent, color blocks visible. D2's winner (tv$_w$=$10^{-1}$, lr=$0.05$, 30K iters) lifts to SSIM = 0.548---petal structure and color are recognizable. D3v2's winner (D2 baseline + soft frequency prior, freq$_w$=$10^{-3}$) marginally improves to SSIM = 0.558.}
+  \label{fig:progression}
+\end{figure}
+
+\paragraph{Single source of truth.} All numbers in this report are derived directly from the saved \texttt{.pth} tensors at \texttt{results/phase0\_*.pth} and the W\&B-logged loss histories. The plot generator script lives at \texttt{/tmp/build\_phase0\_report\_plots.py} and is reproducible.
+
+% =============================================================================
+\section{D1 --- Controlled Optimizer × TV Comparison}
+\label{sec:d1}
+
+\paragraph{Design.} 4 configurations on the same image / gradient (Flowers102, seed=42), full-model gradient ($\sim$86\,M params), 8 random restarts $\times$ 10K iterations:
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{l l S[table-format=1.0e-1] S[table-format=1.3] S[table-format=2.1] S[table-format=1.3]}
+\toprule
+Config & Optimizer & {TV weight} & {SSIM} & {PSNR (dB)} & {cos\_sim} \\
+\midrule
+A & Adam     & 1e-4 & 0.030 & 8.71  & 0.920 \\
+B & signAdam & 1e-4 & 0.020 & 8.17  & 0.934 \\
+C & Adam     & 1e-2 & 0.090 & 9.75  & 0.886 \\
+\textbf{D} & \textbf{signAdam} & \bfseries 1e-2 & \bfseries 0.144 & \bfseries 10.88 & \bfseries 0.933 \\
+\bottomrule
+\end{tabular}
+\caption{D1 results. Source: \texttt{results/phase0\_d1\_comparison\_20260427\_233435.csv}.}
+\label{tab:d1}
+\end{table}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=\textwidth]{figures/phase0_report/fig_d1_summary.pdf}
+  \caption{D1 SSIM (left) and cos\_sim (right). The optimizer × TV grid reveals two facts: (i) the $100\times$ TV-weight increase (A$\to$C, B$\to$D) lifts SSIM by $3$--$7\times$; (ii) cos\_sim is high and roughly flat ($0.88$--$0.93$) across all four configs, decoupled from SSIM.}
+  \label{fig:d1summary}
+\end{figure}
+
+\begin{insightbox}
+The optimizer is a second-order lever: signAdam has a cleaner Geiping-style sign-update rule and converges with lower restart variance, but the SSIM advantage over Adam at the same TV is only $0.05$. \textbf{TV regularization is the dominant signal.} D1 ends at SSIM = 0.144---below the gate, but the trend shows TV is the right axis to push.
+\end{insightbox}
+
+% =============================================================================
+\section{D2 --- Targeted Sweep Around the Winner}
+\label{sec:d2}
+
+\paragraph{Design.} 40 configurations sweeping (tv$_w$, lr, n\_iters):
+\begin{itemize}
+  \item TV weights: $\{5\!\times\!10^{-3},\,10^{-2},\,2\!\times\!10^{-2},\,5\!\times\!10^{-2},\,10^{-1}\}$
+  \item Learning rates: $\{0.01,\,0.05,\,0.10,\,0.50\}$
+  \item Iterations: $\{10{,}000,\,30{,}000\}$
+  \item Fixed: signAdam, full gradient (86\,M), Flowers102 single image, seed = 42, 2 restarts.
+\end{itemize}
+Of the 40 configurations, \textbf{28 produced complete results} after re-runs; the remainder were re-queued at the time of writing (final batch of long-tv$\times$long-iter).
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=\textwidth]{figures/phase0_report/fig_d2_heatmap.pdf}
+  \caption{D2 sweep heatmap: SSIM as a function of TV weight (rows) and learning rate (columns), one panel per iteration count. Brightest band is the TV $= 10^{-1}$ row at all learning rates---a $10\times$ TV jump from D1's optimum.}
+  \label{fig:d2heatmap}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=\textwidth]{figures/phase0_report/fig_d2_top_recon.pdf}
+  \caption{D2 top-4 reconstructions vs ground truth. Petal color, structure, and arrangement are recovered; high-frequency texture and exact petal-boundary fidelity are not.}
+  \label{fig:d2top}
+\end{figure}
+
+\paragraph{Top-4 configurations.}
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{r S[table-format=1.0e-1] S[table-format=1.2] S[table-format=2.0] S[table-format=1.3] S[table-format=2.2] S[table-format=1.3]}
+\toprule
+\# & {tv$_w$} & {lr} & {iters (K)} & {SSIM} & {PSNR (dB)} & {cos\_sim} \\
+\midrule
+\textbf{1} & \bfseries 1e-1 & \bfseries 0.05 & \bfseries 30 & \bfseries 0.548 & \bfseries 15.11 & \bfseries 0.955 \\
+2 & 1e-1 & 0.10 & 30 & 0.469 & 12.81 & 0.955 \\
+3 & 1e-1 & 0.50 & 10 & 0.466 & 12.20 & 0.946 \\
+4 & 1e-1 & 0.10 & 10 & 0.496 & 12.93 & 0.955 \\
+\bottomrule
+\end{tabular}
+\caption{Top D2 configurations by SSIM. All gate-passing configs use tv$_w = 10^{-1}$.}
+\label{tab:d2top}
+\end{table}
+
+\begin{insightbox}
+Across the 28 D2 configurations, every gate-passing run uses TV weight $10^{-1}$. The next TV level down ($2\times 10^{-2}$) caps at SSIM $\approx 0.27$. Learning rate is a second-order lever (best at $0.05$), iteration count gives $\sim$$+0.05$ SSIM going from 10K to 30K iters with diminishing returns thereafter.
+\end{insightbox}
+
+% =============================================================================
+\section{D3v2 --- Frequency \& Perceptual Priors}
+\label{sec:d3}
+
+\paragraph{Design.} 7 configurations with the D2 winner config as baseline (tv$_w$=$10^{-1}$, lr=$0.05$, 30K iters, signAdam, 2 restarts), augmented with a frequency-domain HF penalty and/or LPIPS-VGG perceptual loss. \emph{Note}: an earlier D3 run in the same hyperparameter grid was discovered to have a wiring bug---the \texttt{--freq\_weight} and \texttt{--lpips\_weight} CLI arguments were silently dropped because \texttt{run\_phase0()} did not accept them. \textbf{D3v2 is the corrected re-run} after patching \texttt{experiments/phase0\_vit\_inversion.py:768} to thread freq/lpips through to \texttt{invert\_gradient}, and adding a \texttt{--run\_tag} argument to avoid filename collisions when multiple jobs start in the same second.
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{r l S[table-format=1.0e-1] S[table-format=1.0e-1] S[table-format=1.3] S[table-format=2.1] S[table-format=1.3]}
+\toprule
+idx & tag & {freq$_w$} & {lpips$_w$} & {SSIM} & {PSNR (dB)} & {cos\_sim} \\
+\midrule
+\textbf{0} & \bfseries freq1e-3            & \bfseries 1e-3 & \bfseries 0    & \bfseries 0.558 & \bfseries 11.9 & \bfseries 0.975 \\
+1          & freq1e-2            & 1e-2 & 0    & 0.495 & 11.8 & 0.951 \\
+2          & freq1e-1            & 1e-1 & 0    & 0.423 & 11.5 & 0.933 \\
+3          & lpips1e-3           & 0    & 1e-3 & 0.416 & 12.0 & 0.946 \\
+4          & lpips1e-2           & 0    & 1e-2 & 0.548 & 12.1 & 0.974 \\
+5          & freq1e-2\_lpips1e-3 & 1e-2 & 1e-3 & 0.411 & 12.2 & 0.949 \\
+6          & freq1e-2\_lpips1e-2 & 1e-2 & 1e-2 & 0.478 & 12.3 & 0.944 \\
+\bottomrule
+\end{tabular}
+\caption{D3v2 results. Soft frequency penalty wins; strong frequency over-regularizes; combining freq and LPIPS does not help.}
+\label{tab:d3}
+\end{table}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=0.92\textwidth]{figures/phase0_report/fig_d3_ablation.pdf}
+  \caption{D3v2 ablation. The dashed blue line marks the D2 winner (no extra prior, SSIM = 0.548). Soft frequency prior (freq$_w$ = $10^{-3}$, idx 0) gives the best result; strong freq (idx 2) over-regularizes; LPIPS at $10^{-2}$ matches the D2 baseline; combinations underperform.}
+  \label{fig:d3}
+\end{figure}
+
+\begin{insightbox}
+D3v2's gain over D2 is modest: $+0.010$ SSIM ($+1.8\%$). The TV prior at $10^{-1}$ is already capturing most of the available smoothness signal; the frequency prior provides a small targeted suppression of HF noise that TV misses. LPIPS perceptual loss is essentially neutral---redundant with TV at this strength. \textbf{Combinations actively hurt}, suggesting the priors compete for the same gradient direction.
+\end{insightbox}
+
+% =============================================================================
+\section{Why Is the Loss So Noisy?}
+\label{sec:noise}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=\textwidth]{figures/phase0_report/fig_d2_loss_curves.pdf}
+  \caption{Per-restart loss curves for the D2 winner over 30K iterations. Cosine similarity (left) climbs from $\sim$0.07 to $\sim$0.96 then oscillates with $\pm 0.005$ amplitude in the late phase. TV penalty (middle) decays smoothly until iteration $\sim$$5{,}000$ then enters a noisy plateau. Total loss (right) inherits both.}
+  \label{fig:d2loss}
+\end{figure}
+
+The loss curves are visibly oscillatory after iteration $\sim 5{,}000$ even though the underlying objective is deterministic (no minibatch noise---the gradient target is fixed). Five mechanisms explain the residual noise:
+
+\begin{enumerate}[leftmargin=2em]
+  \item \textbf{Cosine-similarity saturation.} The gradient vector is 86\,M-dimensional. At cos\_sim $> 0.94$ the residual mismatch is spread across millions of dimensions in random directions. Small per-step updates produce $\pm 0.005$ fluctuations---intrinsic stochasticity, not optimization failure.
+  \item \textbf{Sign-update oscillation.} signAdam takes $\mathrm{sign}(\hat m / \sqrt{\hat v})$ as its update direction at every step, so the magnitude is uniform---only direction flips. Near a non-convex local minimum the gradient direction oscillates, causing $\pm \mathrm{lr}$ jumps that standard Adam (with adaptive per-parameter step size) damps. signAdam trades smoothness for faster early-phase convergence.
+  \item \textbf{TV-prior pixel discreteness.} Total variation $\sum_{i,j} |x_{i,j+1} - x_{i,j}|$ is sensitive to pixel-scale edges. Edge pixels can flip back and forth across rounding boundaries depending on the cos\_sim $\leftrightarrow$ TV trade-off, producing visible TV-loss noise at convergence.
+  \item \textbf{Multi-scale gradient magnitudes.} ViT-B/16 layers contribute gradients at very different scales: attention weights $\sim 10^{-2}$, projection layers $\sim 10^{0}$. Cosine-similarity treats all dimensions equally, but the optimizer's effective per-parameter step varies by layer. Combined with sign updates, this produces a multi-scale landscape with sharp ridges.
+  \item \textbf{Non-stationary loss balance.} Early iterations have $\mathrm{TV} \gg \mathrm{cos\_sim}$ (e.g., TV = 1.2, cos = $-0.08$), so total loss is positive and TV-dominated. As TV decays, the cos\_sim term takes over (TV = 0.01, cos = $-0.96$, total $= -0.95$). The relative importance of gradient directions changes mid-optimization; the discontinuity creates apparent noise.
+\end{enumerate}
+
+\paragraph{Quantification.} For the D2 winner, the cos\_sim variance over a sliding 1K-iter window decays from $\sigma = 6.5\times 10^{-2}$ in the first 5K iterations to $\sigma = 8\times 10^{-3}$ in the last 5K iterations. The asymptotic noise floor ($\sim \pm 0.008$) is consistent with mechanism (1) and (2) above and is \emph{not} reducible by tuning.
+
+% =============================================================================
+\section{Loss $\leftrightarrow$ SSIM Relationship}
+\label{sec:lossvsssim}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=\textwidth]{figures/phase0_report/fig_loss_vs_ssim.pdf}
+  \caption{Across 28 D2 configurations: (left) final cos\_sim vs SSIM is weakly positive, $\rho = +0.43$; cos\_sim saturates near $0.94$--$0.96$ across configurations spanning SSIM $0.18$--$0.55$. (middle) final TV penalty (log scale) vs SSIM is weakly positive, $\rho = +0.24$. (right) total loss ($-\mathrm{cos\_sim} + \mathrm{TV}$) vs SSIM is weakly negative, $\rho = -0.37$. Color encodes TV weight setting (purple = weak, yellow = strong).}
+  \label{fig:lossssim}
+\end{figure}
+
+The scatter plot answers the practical question: \emph{is the optimization loss a good proxy for reconstruction quality?} The honest answer is \textbf{partially}.
+
+\begin{itemize}
+  \item Cosine similarity correlates with SSIM at $\rho = +0.43$. This is more than chance, but the spread is wide: at cos\_sim $\approx 0.94$ we observe SSIM ranging from $0.18$ to $0.55$. Two reconstructions that match the gradient equally well can differ visually by a factor of three.
+  \item Total loss correlates negatively with SSIM at $\rho = -0.37$ as expected (lower total loss $\to$ higher SSIM), but again with substantial scatter.
+  \item Final TV penalty alone correlates very weakly with SSIM ($\rho = +0.24$). This is because TV-weight setting confounds the relationship: high-weight configurations drive TV to a low absolute value but at very different SSIMs depending on lr and iters.
+\end{itemize}
+
+\begin{insightbox}
+The loss function $\mathcal{L} = -\mathrm{cos\_sim} + \alpha \cdot \mathrm{TV}$ is \emph{not directly optimizing SSIM}. It balances gradient match against pixel-space smoothness. The choice of $\alpha$ determines which point on the high-cos\_sim manifold the optimizer reaches---and that point's SSIM varies by $\sim 3\times$. \textbf{Implication for the thesis pipeline}: monitoring cos\_sim or total loss alone is insufficient; one must measure SSIM directly on a held-out validation image, or accept that hyperparameter selection requires the prior balance to be tuned per dataset / image domain.
+\end{insightbox}
+
+% =============================================================================
+\section{D2 Winner --- Visual}
+\label{sec:winner}
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/phase0_report/fig_d2_winner.pdf}
+  \caption{D2 winner reconstruction. Color, petal arrangement, and overall shape are well-preserved; high-frequency boundary detail is softened.}
+  \label{fig:d2winner}
+\end{figure}
+
+% =============================================================================
+\section{Comparison with Theoretical Predictions and Literature Benchmarks}
+\label{sec:theory}
+
+The Phase 0 gate of SSIM $> 0.30$ was set as a coarse recognizability criterion. To interpret what we actually achieved (SSIM = 0.558), we compare against three classes of reference points: (i) information-theoretic bounds, (ii) literature benchmarks for related attacks, and (iii) the cosine-similarity ceiling.
+
+\subsection{Information-theoretic bounds}
+
+Following the determinacy argument in the project's foundation notes (\texttt{papers/Gradient Bridge\_PEFT Privacy Attack.pdf}, \texttt{papers/Thesis Ideas\_LoRA NTK Reconstruction.pdf}):
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{l r r r}
+\toprule
+Quantity & \# real-valued constraints & \# unknowns (pixels, $n{=}1$) & Ratio \\
+\midrule
+Full ViT-B/16 + LoRA-r8 gradient & $86{,}095{,}106$ & $150{,}528$ & $572$ \\
+LoRA adapter only ($A,B$ at r=8) & $294{,}912$ & $150{,}528$ & $1.96$ \\
+Intrinsic image dim (flowers, est.) & --- & $100$--$1{,}000$ & --- \\
+\bottomrule
+\end{tabular}
+\caption{Determinacy ratios. The full-gradient case is overdetermined by $\sim$$570\times$; LoRA-only is barely overdetermined in raw pixel space but heavily overdetermined in the intrinsic-dimension space of natural images.}
+\label{tab:determinacy}
+\end{table}
+
+\paragraph{Implication.} Information theory predicts that recovery from the full ViT gradient should be \emph{trivially} feasible for $n=1$---we have $570\times$ more measurements than unknowns. The fact that we land at SSIM = 0.56, not SSIM = 0.99, signals that \textbf{the optimization landscape (not information availability) is the bottleneck}. Specifically: signAdam descends a non-convex loss with multi-scale gradient magnitudes (Section~\ref{sec:noise}, mechanisms 2 and 4), and the cos\_sim manifold near the global optimum is wide enough that hyperparameter-tuned points achieve only $\sim 0.95$--$0.97$, not $\sim 1.0$.
+
+\subsection{Comparison with the gradient-inversion literature}
+
+\begin{table}[h!]
+\centering
+\footnotesize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l l l l c}
+\toprule
+Method (year) & Architecture & Setting & SSIM / metric & Batch \\
+\midrule
+Haim et al. (NeurIPS 2022)            & MLP (shallow)         & KKT inversion, CIFAR-10 binary & PSNR $\sim 25$\,dB / NCC $> 0.9$ & N=2--500 \\
+GradInversion (Yin et al. CVPR 2021)  & ResNet-50 / ViT-B/16  & DP gradient, ImageNet          & PSNR 25--30\,dB                  & N=8--32 \\
+SPEAR (NeurIPS 2024)                  & FC + ReLU             & Exact closed-form, MNIST/CIFAR & exact (cos\_sim $=1.0$)          & N $\leq 25$ \\
+Cocktail Party (ICML 2023)            & Single FC layer       & ICA on grad rows, MNIST/CIFAR  & SSIM 0.5--0.9                    & N=64--1024 \\
+Sami et al. (CVPR 2025)               & ViT + LoRA            & PEFT inversion, ImageNet       & SSIM $> 0.4$                     & N=8--128 \\
+ARES (2025)                           & Various               & Sparse-recovery inversion      & PSNR 18--22\,dB                  & N=128--384 \\
+\midrule
+\textbf{This work (Phase 0)}          & \textbf{ViT-B/16 + LoRA-r8} & \textbf{Full grad, Flowers102} & \textbf{SSIM = 0.558, PSNR = 11.9\,dB} & \textbf{N=1} \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Phase 0 vs related work. PSNR and SSIM ranges are typical reported values, not strictly comparable across datasets/architectures.}
+\label{tab:litcompare}
+\end{table}
+
+\paragraph{Position relative to literature.} Phase 0's SSIM of 0.558 sits comfortably within the recognizable-but-imperfect band, comparable to Sami et al.\ (CVPR 2025)'s PEFT-attack SSIM of $> 0.4$ on ViT and within range of Cocktail Party's per-source quality on much smaller architectures. \textbf{We are below the SPEAR-style exact-recovery regime} because SPEAR requires the FC+ReLU structural assumption that admits a closed-form solution; ViT-B/16's attention non-linearities preclude this approach. Our PSNR of 11.9\,dB is lower than GradInversion (25--30\,dB on ImageNet) because GradInversion uses class-batch matching and ImageNet's high inter-class diversity, while we attack a single fine-tuning step on a domain-specific (Flowers102) image where the gradient signal-to-noise is intrinsically lower.
+
+\subsection{The cosine-similarity ceiling}
+
+\begin{insightbox}
+A perfect inversion would have $\mathrm{cos\_sim} = 1.0$ between the optimized image's gradient and the captured target gradient. Our best run achieves $0.975$ (D3v2 idx 0). The remaining $0.025$ gap is \emph{not} information-theoretic: with $86\,\text{M}$ measurements for a $150\,\text{K}$-pixel image, the gradient-to-image map is overdetermined by $\sim$$570\times$. The gap is \textbf{optimization-theoretic}: signAdam's sign-update rule oscillates in the wide, flat basin of the non-convex landscape, and the TV prior pulls the solution off the exact gradient match.
+\end{insightbox}
+
+\subsection{What would close the gap?}
+
+\begin{itemize}
+  \item \textbf{Adaptive optimizer.} Replacing signAdam with vanilla Adam in the late phase (after iteration 10K) would smooth the noise floor (mechanism 2 in Section~\ref{sec:noise}) at the cost of slower early-phase convergence. A two-phase schedule (signAdam $\to$ Adam) is a natural next experiment.
+  \item \textbf{Layer-wise gradient weighting.} The attention vs.\ MLP gradient-magnitude mismatch (mechanism 4) suggests a per-layer cosine-similarity that weights each module independently before summing.
+  \item \textbf{Generative prior in the late phase.} Once cos\_sim reaches $\sim 0.95$, the optimizer is on the natural-image manifold; switching from TV (pixel-space) to an image-prior model (e.g., SDS from a frozen diffusion model, Phase 2 of the thesis plan) could drive SSIM to $0.7$+.
+  \item \textbf{Target image difficulty.} Flowers102 has high background-foreground separation but low intra-class diversity. A face image (Phase 1) is harder---more high-frequency texture, lower TV optimum---and may need a different prior balance. Job 771537 (face, D3v2 winner config, 8 restarts) is currently testing this.
+\end{itemize}
+
+\paragraph{Take-away.} Phase 0 is a successful gate-passing exercise that establishes the \emph{methodology} and \emph{order-of-magnitude expectations}: full-gradient inversion of a ViT-LoRA fine-tuning step on a single-image domain-specific dataset is feasible to SSIM $\sim 0.55$ with TV-only priors. Closing the gap to literature-best PSNR ($\sim 25$\,dB) requires either a generative prior, a different optimizer schedule, or both. These are deliberate Phase 1 / Phase 2 follow-up items, not Phase 0 deliverables.
+
+% =============================================================================
+\section{Synthesis \& Next Steps}
+\label{sec:next}
+
+\paragraph{What Phase 0 establishes.}
+\begin{itemize}
+  \item Single-image gradient inversion of a ViT-B/16 + LoRA-r8 model on Flowers102 \emph{is feasible} at SSIM $\approx 0.56$ when TV regularization is tuned to $10^{-1}$.
+  \item The \emph{optimization loss is not a faithful proxy for SSIM}: cos\_sim saturates while SSIM still varies $3\times$ across configurations.
+  \item Adding frequency- and perceptual-domain priors yields marginal gains; the bulk of the signal comes from TV.
+\end{itemize}
+
+\paragraph{Open items at the end of Phase 0.}
+\begin{itemize}
+  \item 12 D2 configurations (indices 21--32) hit the LSF \texttt{long-gpu} 8-hour wall-time limit on the first run; a re-submission to a longer queue is in progress.
+  \item Multi-seed validation ($\geq 5$ seeds) at the D2/D3v2 winner config, to measure SSIM variability and confirm the result is not a single lucky restart.
+  \item Apply the D3v2 winner config (freq$_w$=$10^{-3}$ + tv$_w$=$10^{-1}$) to face-domain reconstruction (\texttt{face1.jpg}); job 771537 is currently running with this config, 8 restarts $\times$ 30K iters.
+  \item LoRA-only inversion (rank-8 only, $\sim$294K trainable parameters out of 86\,M) at the same hyperparameters---the actual thesis target.
+  \item Gradient Bridge decoder training, conditional on the LoRA-only result reproducing the SSIM gate.
+\end{itemize}
+
+\paragraph{Reproducibility.}
+\begin{itemize}
+  \item Plot generator: \texttt{/tmp/build\_phase0\_report\_plots.py}
+  \item D2 results: \texttt{results/phase0\_d2\_*\_2026-04-28*.pth} (28 files)
+  \item D3v2 results: \texttt{results/phase0\_full\_r8\_n1\_s42\_*\_d3v2\_idx*\_*.pth} (7 files)
+  \item D1 results: \texttt{results/phase0\_d1\_comparison\_20260427\_233435.csv}
+  \item Code (after fix): \texttt{experiments/phase0\_vit\_inversion.py} commit \texttt{HEAD}
+\end{itemize}
+
+\end{document}

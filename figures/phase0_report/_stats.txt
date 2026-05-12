@@ -1,0 +1,13 @@
+D2_n_configs=28
+D2_winner_idx=35
+D2_winner_ssim=0.5483
+D2_winner_psnr=15.11
+D2_winner_cos=0.9551
+D2_winner_tv=1e-01
+D2_winner_lr=0.05
+D2_winner_iters=30000
+D3_winner_tag=freq1e-3
+D3_winner_ssim=0.5580
+rho_cos_ssim=+0.434
+rho_logtv_ssim=+0.237
+rho_total_ssim=-0.368
