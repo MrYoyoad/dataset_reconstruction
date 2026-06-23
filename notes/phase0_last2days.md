@@ -60,10 +60,86 @@ PDF versions of each figure live alongside the PNGs. Per-iteration snapshots (ev
 
 These are things you asked about that don't have data yet — flagging so we don't pretend they exist:
 
-- **face2.jpg, face3.jpg with the new winner config**: only face1 was re-run on 2026-04-28. The face2/face3 numbers in the older logs (`wexac_logs/phase0_face{2,3}_584*.out`, SSIM 0.21–0.24) were from the March sweep with weak TV (tv=1e-2) — they're stale and have no saved tensors, so we can't even render them.
-- **N > 1 reconstruction**: every Phase 0 .pth on disk is `n1`. We have never run multi-image inversion in Phase 0 — that's still in the Sprint 3 backlog (S3.5 + the superposition section in CLAUDE.md).
-- **Multi-seed faces**: the face1 SSIM=0.522 number is *one seed*. No mean±std yet. Same for the D3 priors (n_restarts=2, but seed=42 only).
+- ~~**face2.jpg, face3.jpg with the new winner config**~~: resubmitted at W=18:00 on 2026-05-13 as jobs 777106 / 777107 after the original 12h-budget submissions hit `TERM_RUNLIMIT` (exit 140 at 43,207s — single-job inversion takes ~12.5h end-to-end on a hgn14 GPU, the 12h budget left no margin).
+- ~~**N > 1 reconstruction**~~: see "N=3 same-person — what actually happened" section below. Done 2026-04-29.
+- **Multi-seed faces**: ~~still single-seed only~~ → 5-seed face1 sweep submitted 2026-05-13 as 777058–777063 (seeds 7/13/42/99/2026), running.
 - **LoRA-only at the winner**: still pending. Every last-2-days run is `--mode full` (86M-param gradient).
+
+## N=3 same-person — what actually happened (2026-04-29)
+
+The "first ever Phase 0 N>1" finished overnight on 2026-04-29 (job 976038). The aggregate metric looked surprisingly *good*:
+
+| Run | Config | Aggregate SSIM | PSNR | cos_sim |
+|---|---|---|---|---|
+| face1 solo (D3 winner) | N=1 | 0.522 | 13.8 | 0.974 |
+| **N=3 same person** (face1+face2+face3, all label=0) | N=3 | **0.662** | **14.5** | **0.979** |
+
+Per-image breakdown (each recon vs its corresponding GT):
+
+| recon[i] vs GT[i] | SSIM | PSNR |
+|---|---|---|
+| recon[0] vs face1.jpg | 0.603 | 13.8 |
+| recon[1] vs face2.jpg | 0.674 | 13.1 |
+| recon[2] vs face3.jpg | **0.710** | **17.6** |
+
+**All three individually beat the N=1 face1 number (0.522).** So the "N=3 wins" claim is real, not a metric artifact.
+
+### But there's partial superposition collapse
+
+Cross-matrix `recon[i]` vs `GT[j]` (SSIM):
+
+|  | vs face1 | vs face2 | vs face3 |
+|---|---|---|---|
+| recon[0] | **0.603** | 0.711 | 0.646 |
+| recon[1] | 0.557 | **0.674** | 0.600 |
+| recon[2] | 0.561 | 0.664 | **0.710** |
+
+Diagonals are the per-image self-matches. But for `recon[0]`, the strongest match is *not* its own GT — it's **face2 (0.711 > 0.603)**. Every reconstruction has its single strongest match at face2.
+
+Why? face2 is the "centroid" photo — the most central member of the GT set, measured by mean SSIM to the other two GTs:
+
+|  | mean SSIM to other 2 GTs |
+|---|---|
+| face1 | 0.555 |
+| **face2** | **0.601** |
+| face3 | 0.567 |
+
+And the three reconstructions are *more similar to each other* than the GTs are:
+
+| pairwise | recon vs recon | GT vs GT |
+|---|---|---|
+| (1,2) | 0.680 | 0.588 |
+| (1,3) | 0.709 | 0.521 |
+| (2,3) | 0.659 | 0.614 |
+| **mean** | **0.683** | **0.574** |
+
+So the recons collapse partly toward each other, all leaning toward the centroid face. Identity is recovered well (~0.66 mean SSIM ≫ 0.522 face1 solo), but the three outputs are NOT independent recoveries of three independent photos.
+
+### Why does N=3 beat N=1?
+
+Several mechanisms compose, and the relative weight of each is an open question worth more compute:
+
+1. **Gradient SNR amplification.** The captured fine-tuning gradient is `g* = (1/3) Σᵢ ∇L(θ; xᵢ)`. The directions in the 86M-dim weight space that encode the *shared identity* (same person → same face) reinforce constructively; per-image idiosyncratic noise partially cancels. The inversion target is therefore a higher-SNR version of "what is this person?" than any single-image gradient.
+
+2. **More variables for the same constraint.** With 3 reconstruction slots and one gradient target, the optimizer has 3 × 150K = 450K pixel variables to satisfy a single 86M-dim cos_sim constraint. Naively this is more underdetermined — but TV / freq / cos all apply per-slot, so each output is independently regularized toward natural images. The N=1 case has to fit *one* image that explains an averaged-3-face gradient; this is fundamentally over-constrained from the optimizer's POV and the easiest "solution" is a blurry consensus with TV-killed color speckle. With 3 slots, the optimizer can split the work, and TV stays effective per-slot.
+
+3. **Implicit identity manifold prior.** Same-person photos sit on a low-dim manifold of the same identity. Three samples nearly span that manifold; one sample is just one point. The inversion's reachable solutions for N=3 cluster near "consistent renderings of this identity," which is exactly what the gradient encodes anyway. N=1 has no implicit identity constraint — it can drift toward any face that fits the cos_sim, including a generic centroid face.
+
+4. **The superposition concern was wrong for same-class same-identity.** CLAUDE.md's superposition warning is about gradient *mixing symmetry*: any linear recombination of per-sample gradients that sums to the same total looks identical to the optimizer. That symmetry is real but it's harmless when (a) all labels are equal and (b) the gradients are nearly collinear (same person → same feature direction in the network). With label=0 across all 3 and a single identity, the mixing degrees of freedom are aligned, not orthogonal. The risk only materializes for cross-identity or cross-class N>1 — which we haven't tested yet.
+
+5. **The win comes with a "tax".** Mechanism #1 amplifies *shared* features and suppresses idiosyncratic ones. The cross-matrix shows that this is exactly the trade-off: each output captures the identity well (high SSIM to all 3 GTs, including its own) but loses the pose/clothing details that distinguish photos within the same person. This is *not* a bug — for a privacy attack, recovering "this is the person, here's their identity at three poses" is arguably worse than three pixel-perfect copies of distinct photos. The leak is about identifying the person, not the specific snapshots.
+
+### Open questions
+
+- **Cross-identity N>1**: would N=2 of two *different* people produce two faithful reconstructions, or full superposition collapse to a single "average face"? Until we test, we don't know whether the identity-manifold story (mechanism #3) or the symmetry concern (#4) wins.
+- **Does the centroid bias diminish at N=4, 5, ...?** With more samples, the centroid is more sharply defined; recon collapse could either intensify or saturate at the true identity manifold.
+- **Per-slot diversity penalty**: would adding `Σᵢⱼ cos(∇L(xᵢ), ∇L(xⱼ))` as a soft regularizer recover three distinct reconstructions? It's wired in MNIST (`get_diversity_penalty` in ntk_extraction.py, mentioned in CLAUDE.md) but never used in Phase 0.
+
+### Figures
+
+- [figures/phase0_report/last2days/fig_n3_grid.png](../figures/phase0_report/last2days/fig_n3_grid.png) — 3 GT row + 3 recon row (with per-image SSIM/PSNR) + 3 |diff| row
+- [figures/phase0_report/last2days/fig_n3_crossmatrix.png](../figures/phase0_report/last2days/fig_n3_crossmatrix.png) — three 3×3 SSIM heatmaps (recon vs GT, recon vs recon, GT vs GT)
+- Tensor: [results/phase0_full_r8_n1_s42_20260429_005407_face_n3_same_d3winner.pth](../results/phase0_full_r8_n1_s42_20260429_005407_face_n3_same_d3winner.pth) (filename mis-labels `n1` due to a cosmetic bug in the filename-from-args step; the saved tensors are correctly shape `(3, 3, 224, 224)`)
 
 ## Suggested next runs (cheapest first)
 

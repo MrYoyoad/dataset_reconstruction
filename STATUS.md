@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: **2026-05-13** (D3v2 done, real-face gate crossed; D4/D5/multi-seed all running)
+Last updated: **2026-05-14** (planning pass: post-meeting direction "direct weight inversion" added — see Next Direction below; experimental **results** last updated 2026-05-13)
 
 ---
 
@@ -35,6 +35,24 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
+### Next Direction (post-2026-05-14 meeting): Direct Weight Inversion — PLANNED
+
+After the first supervision meeting with Gal Vardi, the **new primary research axis is direct weight
+inversion** — recover the fine-tuning samples by inverting the deterministic map `θ_T = F(θ₀, {x_i})`
+(minimize `‖θ_T − F(θ₀, {x̂_i})‖²`). It is **complementary to** the Gradient Bridge, not a replacement.
+Three concrete meeting additions accompany it (varied-data LoRA breadth; smooth-activation / GELU sweep;
+anchor α-sweep with a two-curve validation protocol). **Status: proposed / planned** — only an
+Approach-G / S3.4 sketch exists; nothing run yet.
+
+- **Actionable to-do (single source of truth):** [notes/experiment_plan.md](notes/experiment_plan.md) (PDF reading copy: [notes/experiment_plan.pdf](notes/experiment_plan.pdf))
+- **Direction rationale, taxonomy, concerns:** [notes/unified_direction_analysis.md](notes/unified_direction_analysis.md) → "Direct Weight Inversion — New Primary Axis"
+- **Full briefing:** [notes/thesis_update_briefing.md](notes/thesis_update_briefing.md)
+
+> **Phase-naming note (avoids collision):** the completed "Phase 0" below is the **ViT-gate** track
+> (full-gradient inversion). The new direct-inversion phases are labeled **DI-Phase 0…3** and the
+> Gradient Bridge decoder phases **GB-Phase 0…2** in experiment_plan.md — three distinct tracks, not the
+> same Phase 0.
+
 ### Sprint 2c: KKT & NTK Reconstruction Ablations — COMPLETE
 
 Comprehensive ablation study across two tracks. 148+ configs completed.
@@ -52,7 +70,11 @@ Comprehensive ablation study across two tracks. 148+ configs completed.
 - B4: N sweep (NTK) — **DONE** (results/sprint2c_track_b4_*.csv)
 - B5-B8: Additional ablations — **DONE** (results in sprint2c_track_b5/b6/b7/b8 CSVs)
 
-### Phase 0: ViT Gradient Inversion Gate — D2 COMPLETE, GATE CROSSED
+### Phase 0 (ViT-gate): ViT Gradient Inversion Gate — D2 COMPLETE, GATE CROSSED
+
+> *Naming:* this is the **ViT-gate** "Phase 0" (full-gradient inversion, taxonomy row 1) — distinct from
+> the new **DI-Phase 0** (direct-weight-inversion toy) and **GB-Phase 0** (Gradient Bridge scaffold) in
+> [notes/experiment_plan.md](notes/experiment_plan.md).
 
 Critical gate experiment: can gradient inversion reconstruct images from exact ViT-B/16 gradients?
 
@@ -197,6 +219,46 @@ The cheap next levers (all submitted 2026-05-13, jobs running): D4 face-structur
 
 **Status.** Jobs `phase0_face1_chroma_tv_cw5` (777084) and `phase0_face1_chroma_tv_cw20` (777086) submitted. ETA ~5h each. Companion runs: multi-seed face1 (5 seeds, jobs 777058–777063) and D4 face-prior sweep (9 arms, jobs 777007–777019) — all submitted same turn so they can be analyzed jointly once they land.
 
+**Result (2026-05-13): FAILED — both arms degrade the baseline by ~60%.**
+
+| Config | SSIM | vs D3 baseline (0.522) |
+|---|---|---|
+| chroma_weight=5 | **0.203** | −61% |
+| chroma_weight=20 | **0.169** | −68% |
+
+Diagnosis: the LAB-rescaling I applied (L/100, a/128, b/128 to keep `tv_weight=1e-1` on the same magnitude as RGB-l2) gave chroma channels effective weight 5× and 20× *stronger* than the original RGB TV, but the L-channel (which carries most pixel structure) became 100×/128× *weaker*. The reconstruction lost luminance detail trying to satisfy chroma smoothness. Two possible fixes if we ever revive this:
+1. Drop the LAB rescaling and just tune `tv_weight` down by ~100× to compensate.
+2. Keep RGB-TV for luminance and add a *separate* chroma-only penalty.
+
+**Verdict**: skip both. Chroma TV is the wrong knob — TV-l2 at 1e-1 was already nearly optimal. Color speckle won't be fixed by reweighting TV; it needs an actual image-manifold prior (D6 latent-space / SDS).
+
+#### N=3 same-person reconstruction — DONE, surprising result (2026-04-29)
+
+First-ever Phase 0 N>1 run completed overnight (job 976038, finished 2026-04-29 09:54). face1.jpg + face2.jpg + face3.jpg (all the same person) jointly inverted from one captured fine-tuning gradient (all labels=0). Same D3-winner backbone otherwise.
+
+**Aggregate vs N=1:**
+
+| Run | SSIM | PSNR | cos_sim |
+|---|---|---|---|
+| face1 solo (D3 winner, N=1) | 0.522 | 13.8 | 0.974 |
+| **N=3 same person** | **0.662** | **14.5** | **0.979** |
+
+Per-image diagonals (each recon vs its own GT): 0.603 / 0.674 / 0.710. All three individually beat face1 solo.
+
+**Partial superposition collapse, though.** Cross-matrix shows every reconstruction has its single strongest SSIM at face2 (the centroid of the GT set: mean GT-GT 0.601 vs face1's 0.555, face3's 0.567), not at its own corresponding GT. Recon-recon SSIM is 0.66–0.71 vs GT-GT 0.52–0.61 — the three outputs are MORE similar to each other than the inputs are.
+
+**Why N=3 beats N=1.** Five mechanisms compose:
+1. **Gradient SNR amplification** — averaging 3 same-person gradients reinforces shared-identity directions, cancels per-photo noise.
+2. **More degrees of freedom for the same constraint** — 3 × 150K pixel variables to satisfy one 86M-dim cos_sim, with per-slot TV/freq priors keeping each output natural.
+3. **Implicit identity-manifold prior** — three samples nearly span the same-person manifold; reachable solutions cluster near "consistent renderings of this identity".
+4. **Same-class, same-identity defuses superposition** — CLAUDE.md's mixing-symmetry warning applies for cross-class / cross-identity N>1. Here label and identity coincide so the symmetry degrees of freedom align with the gradient direction (not orthogonal to it).
+5. **The "win" is identity, not snapshots** — recons recover the person well but lose pose/clothing detail. For a privacy attack, identity recovery is the threat; this is arguably *worse* for privacy than pixel-perfect copies.
+
+**Open question.** Whether the result generalizes to cross-identity N>1 (where mechanism #4 reverses). Until we test, we don't know whether identity-manifold or mixing-symmetry dominates.
+
+Details: [notes/phase0_last2days.md](notes/phase0_last2days.md) "N=3 same-person — what actually happened" section.
+Figures: [figures/phase0_report/last2days/fig_n3_grid.png](figures/phase0_report/last2days/fig_n3_grid.png), [fig_n3_crossmatrix.png](figures/phase0_report/last2days/fig_n3_crossmatrix.png).
+
 #### D6: Latent-Space Reconstruction / SDS Prior — PLAN (2026-05-13)
 
 **Motivation.** If multi-seed median fusion + chroma TV still leave visible speckle and structural error after D5, the diagnosis is that 224×224×3 pixel-space optimization is too high-dimensional to satisfy a "looks natural" constraint. The fix: replace pixel-space optimization with **latent-space optimization** through a frozen generative model. Off-manifold pixel patterns become mechanically impossible because the decoder only produces natural-image-distribution outputs.
@@ -214,6 +276,62 @@ The cheap next levers (all submitted 2026-05-13, jobs running): D4 face-structur
 **Go/no-go gate.** Trigger D6 only if **all** of (a) multi-seed median, (b) chroma TV, and (c) face-structure prior together still leave SSIM<0.6 *and* qualitative artifacts that hurt identifiability. If we get to ~0.6 with the cheap interventions, D6 becomes a thesis stretch goal, not a critical path.
 
 **Code locations (placeholders, not yet created):** `experiments/latent_recon.py` for #1, `experiments/sds_prior.py` for #2. Both plug into `phase0_vit_inversion.py` via the same flag pattern as `face_weight`.
+
+#### D7: Cross-Identity N>1 — RUNNING (opened 2026-05-13)
+
+**Why this matters.** D-N3 (same-person, same-label) gave SSIM=0.662 — a clear win over N=1 (0.522). The reason is that label and identity coincide so the gradient-mixing-symmetry from CLAUDE.md becomes harmless. **The critical untested case is cross-identity N>1**, where the symmetry returns: the gradient is a sum over distinct identities, and any linear recombination of per-sample gradients that hits the same sum is indistinguishable to the optimizer.
+
+**Hypotheses (one will dominate):**
+- H1 — Identity-manifold dominates: cross-identity N=2 produces two recognizable but slightly blended faces (similar to D-N3, with a stronger centroid bias because there's no shared identity to amplify).
+- H2 — Mixing-symmetry dominates: full superposition collapse — both recons converge to a single "averaged face" of the two identities, qualitatively unidentifiable.
+- H3 — Same-class still defuses: as long as labels match, even different identities reconstruct cleanly (the symmetry only bites at cross-class). Plausible because the label fixes the BCE gradient sign; identity drift would still cost cos_sim.
+
+**Experiment design.**
+- 3 arms, all using the D3 winner backbone (signAdam, tv=1e-1, lr=0.05, freq=1e-3, 30K iters × 8 restarts):
+  - **Arm 1 — Cross-identity, same label (label=0 for both)**: face1.jpg + a Flowers102 image labeled 0. Tests H3 vs H2.
+  - **Arm 2 — Cross-identity, opposite labels (face1 label=0, Flowers label=1)**: forces the model to split the gradient along the BCE sign. Strongest stress test for mixing symmetry. Tests H2.
+  - **Arm 3 — Same scene, two photos** (e.g., two different Flowers102 photos, both label=0): same class but distinct subjects. Cleanest test of "does same-class N>1 actually defuse mixing" independent of the same-identity manifold (which only applies to faces).
+- Each arm: 1 bsub job, ~12h wall budget (use `W 18:00` since solo runs blew through 12h).
+- Output: `.pth` per arm with x_true (N=2, 3, 224, 224), x_recon (N=2, 3, 224, 224), plus all the per-image SSIM cross-matrices.
+
+**What "winning" means here.**
+- If H1: paper-positive (the attack works for arbitrary N as long as labels are same-class; centroid bias is a calibrated caveat).
+- If H2: paper-negative-but-publishable (cross-identity collapse is a hard ceiling — motivates the diversity penalty / decomposition approaches from CLAUDE.md).
+- If H3: paper-positive at a cost (works for any same-class N, breaks at cross-class; need cocktail-party / SPEAR-style decomposition for the cross-class case).
+
+**Code shipped (2026-05-13).**
+- [experiments/phase0_vit_inversion.py](experiments/phase0_vit_inversion.py): `--image_path` now accepts tokens of the form `dataset:index` (e.g. `flowers102:42`) alongside filesystem paths in the same comma-separated list. New `--image_labels` flag accepts a parallel `0,1`-style list; if omitted, defaults to all-zero. The `get_sample_images` loader was refactored to share a `_build_dataset(name)` helper between custom-image and dataset paths. 7-test smoke battery passed (single path, N=3 same-person regression, dataset:index, mixed path+dataset, labels override, length-mismatch raises, backward-compat dataset mode).
+- [scripts/run_phase0_d7_cross_identity.sh](scripts/run_phase0_d7_cross_identity.sh): 3-arm bsub script, each N=2 at the D3 winner config.
+
+**Status.** Jobs submitted 2026-05-13 00:55:
+- Arm A (`d7_A`, face1+flowers102:42, both label=0): **779866** RUN
+- Arm B (`d7_B`, face1+flowers102:42, labels 0/1): **779867** RUN
+- Arm C (`d7_C`, two distinct Flowers102 photos, both label=0): **779868** RUN
+
+ETA ~18h each. Track: `bjobs -J 'phase0_d7_*'`. After completion, generalize the N=3 cross-matrix renderer to 2×2 and update this section with headline numbers.
+
+**Owner**: Yoad.
+
+**Partial result (2026-05-13 ~10:00): Arm A complete, no collapse.**
+
+Cross-identity N=2, both label=0 (face1.jpg + flowers102:42):
+
+| recon[i] | vs GT[i] (own) | PSNR |
+|---|---|---|
+| recon[0] (face) | 0.435 | 11.2 |
+| recon[1] (flower) | 0.428 | 11.4 |
+| **aggregate** | **0.431** | 11.3 |
+
+**Interpretation.** Per-image SSIMs are nearly equal (0.435 ≈ 0.428) — the optimizer split the captured gradient between two distinct identities without collapsing. Aggregate SSIM is below face1 solo (0.522) because there's no identity-manifold prior to exploit (the win mechanism #3 from the N=3 same-person section doesn't apply here — face and flower don't share an identity manifold). But the recon quality is comparable across both subjects, so this is **positive evidence for H1/H3**: cross-identity same-class N>1 does NOT trigger superposition collapse.
+
+**Partial saves from arms B and C** (still RUN, checkpoints written ~7.5h in):
+- Arm B (opposite labels 0,1): recon[0]=0.509 (face), recon[1]=0.438 (flower) — opposite labels appear to *help* slightly, not hurt; counter to the strongest version of the mixing-symmetry hypothesis.
+- Arm C (two flowers, same class): recon[0]=0.334, recon[1]=0.300 — both low; will only be reliable after final save.
+
+**Status of dependency jobs** (informs interpretation):
+- 5-seed multi-seed face1: 3/5 still running, 2 (s7, s13) hit exit code 127 (heredoc shell bug) and were resubmitted as **798244** / **798356** with `W 16:00`.
+- face2/face3 resubmits (777106 / 777107): RUN, partial saves written.
+- D4 face_prior_A control replicates close to D3 baseline (0.499 vs 0.522 — within seed/restart noise).
 
 ---
 

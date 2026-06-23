@@ -73,121 +73,112 @@ def load_vit_with_lora(rank=8, num_classes=2, device='cuda'):
     return model
 
 
+def _build_dataset(dataset_name):
+    """Return (dataset, transform) for one of the supported torchvision datasets."""
+    _, torchvision, T, _, _, _ = _lazy_imports()
+    transform = T.Compose([
+        T.Resize(256), T.CenterCrop(224), T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225]),
+    ])
+    if dataset_name == 'flowers102':
+        return torchvision.datasets.Flowers102(
+            root='./data', split='test', download=True, transform=transform), 102
+    if dataset_name == 'food101':
+        return torchvision.datasets.Food101(
+            root='./data', split='test', download=True, transform=transform), 101
+    if dataset_name == 'stl10':
+        return torchvision.datasets.STL10(
+            root='./data', split='test', download=True, transform=transform), 10
+    if dataset_name == 'imagenet':
+        return torchvision.datasets.ImageNet(
+            root='./data/imagenet', split='val', transform=transform), 1000
+    if dataset_name == 'cifar10':
+        upscale = T.Compose([
+            T.Resize((224, 224)), T.ToTensor(),
+            T.Normalize(mean=[0.485, 0.456, 0.406],
+                        std=[0.229, 0.224, 0.225]),
+        ])
+        return torchvision.datasets.CIFAR10(
+            root='./data', train=False, download=True, transform=upscale), 10
+    raise ValueError(f"Unknown dataset: {dataset_name}. "
+                     f"Options: flowers102, food101, stl10, imagenet, cifar10")
+
+
+# Known dataset prefixes recognized in --image_path tokens
+_DATASET_PREFIXES = ('flowers102', 'food101', 'stl10', 'imagenet', 'cifar10')
+
+
+def _load_image_token(token, device):
+    """Load one image specified either as a filesystem path or as
+    'dataset:index' (e.g. 'flowers102:42'). Returns a (3,224,224) tensor.
+    """
+    from PIL import Image, ImageOps
+    _, _, T, _, _, _ = _lazy_imports()
+    file_transform = T.Compose([
+        T.Resize(256), T.CenterCrop(224), T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225]),
+    ])
+    # dataset:index form
+    if ':' in token and token.split(':', 1)[0] in _DATASET_PREFIXES:
+        ds_name, idx_str = token.split(':', 1)
+        idx = int(idx_str)
+        dataset, _ = _build_dataset(ds_name)
+        if idx < 0 or idx >= len(dataset):
+            raise IndexError(
+                f"{ds_name} index {idx} out of range [0, {len(dataset)})")
+        img, _ = dataset[idx]
+        return img.to(device)
+    # filesystem path form
+    if not os.path.isfile(token):
+        raise FileNotFoundError(f"Custom image not found: {token}")
+    img = Image.open(token).convert('RGB')
+    img = ImageOps.exif_transpose(img)
+    return file_transform(img).to(device)
+
+
 def get_sample_images(n_images=2, seed=42, dataset_name='flowers102',
-                      image_path=None, device='cuda'):
+                      image_path=None, image_labels=None, device='cuda'):
     """Get sample images for fine-tuning.
 
     Args:
-        image_path: If provided, loads a single custom image from this path
-                    instead of using a dataset. Overrides dataset_name, n_images,
-                    and seed. The image is center-cropped to 224x224 with ImageNet
-                    normalization. Label is set to 0.
-        dataset_name: 'flowers102' (native ~500px, auto-download, default),
-                      'food101' (native ~512px, auto-download),
-                      'stl10' (native 96px — still upscaled but 9x better than CIFAR),
-                      'imagenet' (native 224+, requires manual download to ./data/imagenet/),
-                      'cifar10' (native 32px — BAD for ViT, only for backward compat).
+        image_path: If provided, overrides dataset_name/n_images/seed. Accepts
+            either a single token or a comma-separated list of tokens. Each
+            token is either a filesystem path (JPG/PNG) or 'dataset:index'
+            (e.g. 'flowers102:42'). Mixing path and dataset:index in the same
+            list is supported (D7 cross-identity experiments).
+        image_labels: Comma-separated list of {0, 1} labels parallel to
+            image_path. When None, all labels default to 0 (same-class).
+            Length must match len(image_path).
+        dataset_name: 'flowers102' (default), 'food101', 'stl10',
+            'imagenet' (manual download), or 'cifar10' (32px, not recommended).
 
     Returns (images, labels) where images are [N, 3, 224, 224].
     """
     _, torchvision, T, _, _, _ = _lazy_imports()
 
-    # Custom image from file path (overrides dataset). Accepts a single path
-    # or a comma-separated list of paths (e.g. "data/faces/face1.jpg,face2.jpg")
-    # — when multiple paths are passed, n_images is inferred from the list and
-    # all labels are set to 0 (same-class threat model).
     if image_path is not None:
-        from PIL import Image, ImageOps
-        paths = [p.strip() for p in image_path.split(',') if p.strip()]
-        for p in paths:
-            if not os.path.isfile(p):
-                raise FileNotFoundError(f"Custom image not found: {p}")
-        transform = T.Compose([
-            T.Resize(256),
-            T.CenterCrop(224),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-        ])
-        tensors = []
-        for p in paths:
-            img = Image.open(p).convert('RGB')
-            img = ImageOps.exif_transpose(img)
-            tensors.append(transform(img))
-        images = torch.stack(tensors).to(device)
-        labels = torch.zeros(len(paths), 1, dtype=torch.float32, device=device)
-        if len(paths) == 1:
-            print(f"  Custom image: {paths[0]}")
+        tokens = [p.strip() for p in image_path.split(',') if p.strip()]
+        tensors = [_load_image_token(t, device) for t in tokens]
+        images = torch.stack(tensors)
+        if image_labels is not None:
+            label_list = [int(x.strip()) for x in image_labels.split(',') if x.strip() != '']
+            if len(label_list) != len(tokens):
+                raise ValueError(
+                    f"image_labels length {len(label_list)} does not match "
+                    f"image_path length {len(tokens)}")
+            labels = torch.tensor(label_list, dtype=torch.float32, device=device).unsqueeze(1)
         else:
-            print(f"  Custom images (N={len(paths)}): {paths}")
+            labels = torch.zeros(len(tokens), 1, dtype=torch.float32, device=device)
+        print(f"  Custom images (N={len(tokens)}): {tokens}")
+        print(f"  Labels: {labels.flatten().tolist()}")
         return images, labels
 
-    # For native high-res datasets: center-crop to 224 (no upscaling artifacts)
-    # For low-res datasets: resize (with warning)
     if dataset_name == 'cifar10':
         print("  WARNING: CIFAR-10 is 32x32 — upscaling to 224x224 creates "
               "blocky artifacts that hurt reconstruction. Use --dataset flowers102.")
-        transform = T.Compose([
-            T.Resize((224, 224)),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-        ])
-        dataset = torchvision.datasets.CIFAR10(
-            root='./data', train=False, download=True, transform=transform
-        )
-        n_classes = 10
-    elif dataset_name == 'flowers102':
-        transform = T.Compose([
-            T.Resize(256),
-            T.CenterCrop(224),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-        ])
-        dataset = torchvision.datasets.Flowers102(
-            root='./data', split='test', download=True, transform=transform
-        )
-        n_classes = 102
-    elif dataset_name == 'food101':
-        transform = T.Compose([
-            T.Resize(256),
-            T.CenterCrop(224),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-        ])
-        dataset = torchvision.datasets.Food101(
-            root='./data', split='test', download=True, transform=transform
-        )
-        n_classes = 101
-    elif dataset_name == 'stl10':
-        transform = T.Compose([
-            T.Resize(256),
-            T.CenterCrop(224),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-        ])
-        dataset = torchvision.datasets.STL10(
-            root='./data', split='test', download=True, transform=transform
-        )
-        n_classes = 10
-    elif dataset_name == 'imagenet':
-        transform = T.Compose([
-            T.Resize(256),
-            T.CenterCrop(224),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-        ])
-        dataset = torchvision.datasets.ImageNet(
-            root='./data/imagenet', split='val', transform=transform
-        )
-        n_classes = 1000
-    else:
-        raise ValueError(f"Unknown dataset: {dataset_name}. "
-                         f"Options: flowers102, food101, stl10, imagenet, cifar10")
+    dataset, n_classes = _build_dataset(dataset_name)
 
     # Pick n_images with deterministic seed
     rng = torch.Generator().manual_seed(seed)
@@ -963,7 +954,7 @@ def save_progress_grid(snapshot_dir, x_true, denorm_mean, denorm_std,
 def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
                lr=0.1, tv_weight=1e-4, tv_norm='l2', tv_chroma_weight=5.0,
                optimizer_name='Adam',
-               dataset_name='flowers102', image_path=None,
+               dataset_name='flowers102', image_path=None, image_labels=None,
                mode='both', device='cuda', verbose=True,
                freq_weight=0.0, freq_cutoff=0.5, lpips_weight=0.0,
                cos_weight=1.0,
@@ -988,6 +979,7 @@ def run_phase0(rank=8, n_images=1, seed=42, n_iters=10000, n_restarts=8,
     images, labels = get_sample_images(n_images=n_images, seed=seed,
                                         dataset_name=dataset_name,
                                         image_path=image_path,
+                                        image_labels=image_labels,
                                         device=device)
     print(f"Image shape: {images.shape}, labels: {labels.squeeze().tolist()}")
     print(f"Config: lr={lr}, tv_weight={tv_weight}, tv_norm={tv_norm}, "
@@ -1677,11 +1669,18 @@ if __name__ == '__main__':
                              '(flowers102, food101) — NOT cifar10 (32px upscaled)')
     parser.add_argument('--image_path', type=str, default=None,
                         help='Path to a custom image file (JPG/PNG), or a '
-                             'comma-separated list of paths for N>1. '
-                             'Overrides --dataset. Image(s) center-cropped '
-                             'to 224x224 with ImageNet normalization. When '
-                             'multiple paths are given, n_images is inferred '
-                             'from the list and all labels are set to 0.')
+                             'comma-separated list of tokens for N>1. Each '
+                             'token is either a filesystem path or '
+                             'dataset:index (e.g. "flowers102:42"). Mixing '
+                             'paths and dataset entries in the same list is '
+                             'supported (D7 cross-identity experiments). '
+                             'Overrides --dataset/--n_images/--seed. Images '
+                             'center-cropped to 224x224 with ImageNet norm.')
+    parser.add_argument('--image_labels', type=str, default=None,
+                        help='Comma-separated list of {0,1} labels parallel '
+                             'to --image_path. When None, all labels default '
+                             'to 0 (same-class). Length must match '
+                             'image_path. Use this for cross-class N>1 (D7).')
     parser.add_argument('--mode', type=str, default='both',
                         choices=['full', 'lora', 'both'],
                         help='Gradient mode: full (all 86M params), '
@@ -1769,7 +1768,7 @@ if __name__ == '__main__':
             lr=args.lr, tv_weight=args.tv_weight, tv_norm=args.tv_norm,
             tv_chroma_weight=args.tv_chroma_weight,
             optimizer_name=args.optimizer, dataset_name=args.dataset,
-            image_path=args.image_path,
+            image_path=args.image_path, image_labels=args.image_labels,
             mode=args.mode, device=args.device,
             freq_weight=args.freq_weight, freq_cutoff=args.freq_cutoff,
             lpips_weight=args.lpips_weight,

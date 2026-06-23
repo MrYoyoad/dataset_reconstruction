@@ -14,6 +14,18 @@ The `dataset_reconstruction/` subdirectory contains the original PyTorch impleme
 
 The thesis focuses on the **image domain**, extending the Haim et al. reconstruction paradigm to Foundation Models and PEFT:
 
+> **Primary axis (added 2026-05-14, after the first supervision meeting): Direct Weight Inversion.**
+> Treat fine-tuning as a deterministic differentiable map `θ_T = F(θ₀, {x_i})` and recover the private
+> samples by minimizing `‖θ_T − F(θ₀, {x̂_i})‖²` (autograd backprops through F to the candidate data).
+> This is **complementary to — not a replacement for — the Gradient Bridge** below: direct inversion is
+> the leakage *upper bound* under best-case (known-recipe) knowledge; the Gradient Bridge characterizes
+> how leakage *degrades* under realistic, weaker assumptions. Status: **proposed** (generalizes the
+> Approach-G / S3.4 sketch). Actionable plan: [notes/experiment_plan.md](notes/experiment_plan.md);
+> rationale + attack taxonomy: [notes/unified_direction_analysis.md](notes/unified_direction_analysis.md)
+> ("Direct Weight Inversion — New Primary Axis"); full record: [notes/thesis_update_briefing.md](notes/thesis_update_briefing.md).
+
+The three PEFT-reconstruction directions (the Gradient Bridge axis + its theoretical underpinnings):
+
 1. **LoRA Reconstruction via the "Gradient Bridge"**: LoRA adapters (A, B matrices) are structured, compressed recordings of cumulative training gradients. The LoRA update ΔW = BA is a low-rank projection of the full gradient that can be inverted. A learned **Gradient Decoder** (trained on proxy data) approximates the inverse projection, recovering full-dimensional gradients from low-rank adapters, which are then fed into gradient inversion pipelines (GradInversion for vision).
 
 2. **LoRA in the NTK Regime**: When LoRA rank r is sufficiently large (r ≳ N, where N = number of data points), LoRA optimization in the NTK regime converges to the same global minimum as full fine-tuning (Jang et al., 2024). This means LoRA weights BA encode the same support vector geometry as full weights — the KKT stationarity condition adapts to a coupled system where B^T(Σ λ_i y_i ∇_W Φ(θ; x_i)) = 0 and the analogous condition for A.
@@ -230,8 +242,11 @@ rsync -avz papers/ wexac:~/papers/
 
 - [STATUS.md](STATUS.md) — current project status: what's done, what's not started, known issues, pending tasks
 - [LESSONS_LEARNED.md](LESSONS_LEARNED.md) — running log of insights, pitfalls, and things to remember
-- [notes/reconstruction_approaches.tex](notes/reconstruction_approaches.tex) — catalog of reconstruction approaches and next steps (March 2026)
-- `notes/GRADIENT_BRIDGE_PLAN.md` — phased coding roadmap (Phase 0 → 1 → 2) — **missing, needs recreation or sync from Mac**
+- [notes/experiment_plan.md](notes/experiment_plan.md) — **single source of actionable to-do** (the three meeting additions + DI-Phase 0…3 direct-inversion sequence + GB-Phase 0…2 Gradient Bridge track). Start here for "what to do next."
+- [notes/thesis_update_briefing.md](notes/thesis_update_briefing.md) — canonical post-meeting briefing (2026-05-14): direct weight inversion, the three additions, honesty conventions
+- [notes/unified_direction_analysis.md](notes/unified_direction_analysis.md) — direction reconciliation + "Direct Weight Inversion — New Primary Axis" section
+- [notes/reconstruction_approaches.tex](notes/reconstruction_approaches.tex) — catalog of reconstruction approaches and next steps (March 2026); Approach G is the precursor to direct weight inversion
+- [notes/GRADIENT_BRIDGE_PLAN.md](notes/GRADIENT_BRIDGE_PLAN.md) — Gradient Bridge reading syllabus + decoder roadmap (GB-Phase 0 → 1 → 2). Background only; actionable to-do now lives in experiment_plan.md
 - [STYLE_GUIDE.md](STYLE_GUIDE.md) — formatting rules for Word docs, PPTX, LaTeX, and plots
 
 ### Always Do After Analysis
@@ -244,6 +259,7 @@ rsync -avz papers/ wexac:~/papers/
 - When the user gives feedback, remarks, or requests about presentation slides, **always** log the remark in `docs/presentation-remarks-log.md` (create if needed) in addition to executing the requested changes.
 - **Before creating or modifying a docx/pptx/LaTeX generator**, read `STYLE_GUIDE.md` first. Do NOT rely on memory or guessing — always read the file to get exact details.
 - When writing or modifying a docx report generator, follow the style guide's docx conventions (header layout, cover page, TOC, page breaks, logo paths).
+- **Quick markdown → PDF on WEXAC:** use Python `fpdf2` + the system DejaVu fonts. `tectonic`/`pandoc`/`pdflatex`/`xelatex` are all unavailable (glibc too old for the tectonic binary). Formal thesis LaTeX still compiles via Overleaf. See LESSONS_LEARNED.md "Markdown → PDF on WEXAC" and the `reference_pdf_generation_method` memory for the recipe + gotchas.
 
 ### Data Freshness Rules (Critical)
 

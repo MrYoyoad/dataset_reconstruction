@@ -161,6 +161,14 @@ figures/**/snapshots_*/
 figures/Gal photo/
 assets/gal_photo/
 
+# --- Scratch / temporary build artifacts ---
+.tmp_pptx/
+
+# --- Large binaries kept out of git (keep the repo light for GitHub) ---
+*.pptx
+v7_fixes/
+papers/MISNAMED__do_not_use__*
+
 # --- Misc ---
 .python_history
 .wget-hsts

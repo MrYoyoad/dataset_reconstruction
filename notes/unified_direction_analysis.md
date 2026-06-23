@@ -160,3 +160,127 @@ Prove r* for linear case. Test on MLPs. Lower risk, adds theoretical depth.
 The three analyses weren't wrong — they were written at different stages and weighted evidence differently. NTK-LoRA is the primary track because it's empirically proven. KKT-LoRA is a parallel theory track. Gradient Bridge requires Phase 0 clearance first.
 
 **By running Phase 0 (ViT gradient inversion) this week, you'll know within days whether to invest in all three or focus on one.**
+
+---
+
+# Direct Weight Inversion — New Primary Axis (2026-05-14 meeting)
+
+> **Added 2026-05-14**, after the first supervision meeting with Gal Vardi. This supersedes the
+> March-25 prioritization above on one point: the ViT gradient-inversion gate has since been **crossed**
+> (see [../STATUS.md](../STATUS.md)), and Gal proposed a new primary research axis — **direct weight
+> inversion**. It is **complementary to, not a replacement for, the Gradient Bridge.** §5 above
+> ("Approach G: Role and Priority") called the embryonic form of this idea *secondary*; the meeting
+> **re-prioritized its generalized form to primary.** Status throughout this section: **proposed**
+> (only an Approach-G / S3.4 sketch exists). Actionable to-do lives in
+> [experiment_plan.md](experiment_plan.md); full rationale in [thesis_update_briefing.md](thesis_update_briefing.md).
+
+## The attack taxonomy (the orienting frame)
+
+Four possible attacker objects, each a different inverse problem with different identifiability:
+
+| # | Object the attacker has | Evidence | Status |
+|---|---|---|---|
+| 1 | Full gradient ∇L | ViT inversion on Flowers + faces | ✅ demonstrated |
+| 2 | Fine-tuning update ΔW (full FT or LoRA-induced) | NTK reconstruction on MNIST | ✅ demonstrated |
+| 3 | LoRA adapter (A, B) — the actual PEFT artifact | proposed attacks (direct inversion + Gradient Bridge) | ☐ **proposed** (thesis target) |
+| 4 | Composed weights W₀ + BA | Haim-style KKT extraction | ✗ failed structurally (Experiment A) |
+
+- **Thesis target is row 3.** The new direct-inversion idea attacks rows 2/3 under strong (known-recipe) assumptions.
+- **Row 4 fails structurally:** a rank-2 BA cannot interpolate weights satisfying KKT over the hundreds of
+  pre-train + fine-tune support points (~110 in the run shown). A clean negative result, not a tuning failure.
+
+## Core formulation (F as a black-box differentiable map)
+
+Whatever the fine-tuning procedure — SGD, Adam, schedulers — the final weights are a deterministic
+function of the base weights and the training samples:
+
+```
+θ_T = F(θ₀, x₁, …, x_N)
+```
+
+In LoRA the attacker has θ₀ (public base) and (A, B) (published adapter), so `θ_T = θ₀ + BA` is fully
+reconstructible. The only unknowns are the samples {x_i}. The attack:
+
+```
+{x̂_i*} = argmin_{x̂_i}  ‖θ_T^observed − F(θ₀, {x̂_i})‖²
+```
+
+F is treated as a known, deterministic, **differentiable** map: in PyTorch, F is whatever fine-tuning
+loop you'd normally run, with x̂_i marked as a learnable `nn.Parameter`; autograd backprops through F to
+the candidate data. **This is not specific to trajectory unrolling** — unrolled SGD (known η, T, full
+batch) is just one concrete F; Adam, schedulers, etc. fit the same formulation.
+
+## Two attacker-knowledge regimes
+
+- **Regime A — endpoint only (realistic):** attacker has only θ_T. Loss = `‖F(θ₀, x̂_i) − θ_T‖²`. The real
+  LoRA threat model — HuggingFace publishes the adapter, not intermediate checkpoints.
+- **Regime B — full trajectory (best-case):** attacker has all intermediate θ_t. Per-step matching loss,
+  shorter backprop chains, easier — but a stronger assumption.
+
+**Why few-shot LoRA is the sweet spot:** small N (5–50 unknowns), small T (10–50 steps, tractable unroll),
+full-batch realistic at small N, recipe metadata often on the model card, θ₀ public by construction.
+
+## Theoretical hook (NTK regime)
+
+For SGD with small η, F has closed-form structure:
+
+```
+θ_T − θ₀ ≈ −η Σ_{s<T} (I − ηH)^(T−s−1) · Σ_i c_i(s) · ∇Φ(θ_anchor; x_i)
+```
+
+(H = NTK Hessian / feature-gradient Gram matrix; c_i(s) = per-sample residual at step s.) Inverting F in
+the NTK regime is then a **structured linear inverse problem**, with identifiability conditions writable
+analytically in terms of **feature-gradient rank** and the **eigenstructure of (I − ηH)**. This is where
+Gal's theory expertise plugs in — and where the **anchor α-sweep** (briefing Addition 3) lives: the choice
+of θ_anchor trades linearization error against identifiability of x_i.
+
+## Concerns to manage
+
+- **Memory** (only when F is an unroll): gradient checkpointing, truncated BPTT, implicit gradients, or
+  Regime B. Start small (MNIST T=5–10).
+- **Non-convexity / non-uniqueness:** multiple training sets may produce the same θ_T. Identifiability ↔
+  feature-gradient rank in the NTK regime; check empirically with multi-restart elsewhere. Characterizing
+  the non-uniqueness map is itself a contribution.
+- **Known-recipe assumption is strong:** frame the clean version as a best-case leakage upper bound;
+  stress-test η/T/recipe mismatch as separate experiments.
+- **Stochasticity:** few-shot is often full-batch; if not, a known seed restores determinism, else
+  marginalize/optimize over batch order.
+- **θ₀ must be exactly right:** errors compound through F. Same-checkpoint is cleanest; checkpoint-drift is
+  a stress test; cross-architecture probably breaks.
+
+## Relationship to the Gradient Bridge (complementary, not competing)
+
+| | Direct weight inversion | Gradient Bridge |
+|---|---|---|
+| **Mechanism** | invert F directly (no decoder, no proxy) | decoder `f_φ: (A,B) → ∇_W L` trained on proxy data, fed to single-gradient inversion |
+| **Attacks** | rows 2/3 under known-recipe assumptions | row 3 |
+| **Assumptions** | stronger (known recipe, exact θ₀) | weaker, more general (proxy-generalization risk) |
+| **Thesis role** | leakage **upper bound** under best-case knowledge | how leakage **degrades** under realistic weaker assumptions |
+
+**Combined story:** two complementary attack axes + a shared theoretical core. The Gradient Bridge
+material ([GRADIENT_BRIDGE_PLAN.md](GRADIENT_BRIDGE_PLAN.md), [r2f_bridge_concept.md](r2f_bridge_concept.md))
+stands unchanged; direct inversion is added beside it. Direct weight inversion does **not** depend on R2F.
+
+## Precursor note
+
+Direct weight inversion generalizes **Approach G "Differentiable Unrolling"**
+([reconstruction_approaches.tex](reconstruction_approaches.tex), §G) and **S3.4** ([../STATUS.md](../STATUS.md)
+Sprint 3): same `‖θ_T − F(θ₀, x̂)‖²` outer loss, reduces to the single-step NTK result (Experiment B) at
+T=1. The briefing adds the general-F view, the two regimes, the NTK identifiability theory, and the anchor
+tradeoff — and elevates it from "secondary fallback" to primary axis.
+
+## Two open theory questions (the "Gal-shaped" core)
+
+- **Q-A (stability / identifiability):** for a fixed inversion algorithm/prior, when is the reconstruction
+  map `R: g → x̂` well-posed? Identifiability + stability under perturbations of g.
+- **Q-B (pretraining / finetuning overlap):** when θ₀ already (partially) fits x_i, does inversion recover
+  x_i itself, or only the directions where θ₀ still has residual error? Feature-map injectivity of
+  `φ(x) = ∇Φ(θ₀; x)`.
+
+## Updated recommendation (supersedes §7.1–§7.2 prioritization)
+
+- **Primary axis:** Direct weight inversion (DI-Phase 0…3 in [experiment_plan.md](experiment_plan.md)) +
+  the three meeting additions (varied-data breadth, smooth activations / GELU, anchor α-sweep).
+- **Complementary axis:** Gradient Bridge (GB-Phase 0…2), unchanged.
+- **Theory core:** the two questions above, plus the analytic anchor tradeoff (α*).
+- Status: all **proposed**; the demonstrated base (rows 1–2) is what these build on.

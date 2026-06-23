@@ -2,6 +2,14 @@
 
 **Timeline:** 8–12 week sprint to Minimum Viable Paper (MVP)
 
+> **Pointer (2026-05-14):** The **actionable to-do is now consolidated in
+> [experiment_plan.md](experiment_plan.md)** (single source of truth). This file is retained for the
+> reading **syllabus** and the **decoder roadmap background**. Its "Phase 0 / 1 / 2" below are referred
+> to as **GB-Phase 0…2** elsewhere, to distinguish them from the *completed* ViT-gate "Phase 0"
+> ([../STATUS.md](../STATUS.md)) and the new **DI-Phase 0…3** direct-weight-inversion sequence. The
+> Gradient Bridge is now framed as the **complementary axis** to direct weight inversion — see
+> [unified_direction_analysis.md](unified_direction_analysis.md) → "Direct Weight Inversion."
+
 ---
 
 ## Part 1: The Syllabus (Reading & Watching)

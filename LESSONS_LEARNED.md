@@ -273,6 +273,21 @@ The hypothesis that signAdam hurts was **wrong**. D1 controlled comparison (4 co
 - Consolidate fine-grained failure modes into 3-5 categories that map to remediation strategies.
 - One concept per slide. If you need "Part 1" and "Part 2" labels, split into two slides.
 
+### Markdown → PDF on WEXAC: use fpdf2, not a LaTeX toolchain (2026-06-23)
+- **What broke:** to turn `notes/experiment_plan.md` into a reading PDF, the obvious routes all failed —
+  no `pandoc`, `pdflatex`, `xelatex`, `wkhtmltopdf`, or `weasyprint` installed, and the local `tectonic`
+  binary aborts with `GLIBC_2.35 / GLIBCXX_3.4.30 not found` (system libstdc++/glibc too old for it). No
+  `pdftoppm`/ghostscript/pymupdf either, so PDFs can't even be rasterized to eyeball here.
+- **What works:** Python **`fpdf2` 2.8.4** + the system **DejaVu** fonts
+  (`/usr/share/fonts/dejavu-sans-fonts/`, `dejavu-sans-mono-fonts/`). DejaVu covers all the Greek/math
+  glyphs the notes use (θ α ∇ Σ ‖·‖² → x̂ □ ✓ ✗); verify coverage with a fontTools cmap check since
+  missing glyphs render blank with no error.
+- **Gotchas:** (a) `multi_cell`'s default cursor leaves x at the right edge → the next call throws "Not
+  enough horizontal space"; wrap it to default `new_x=LMARGIN, new_y=NEXT` (the `pdf.table()` API passes
+  these explicitly, so a `setdefault` wrapper leaves tables alone). (b) Use `pdf.table()` for tables — it
+  wraps cells, avoiding the fpdf O9 silent-truncation trap. (c) Reset draw/fill/text state after any
+  colored box (O10). Recipe saved to memory; formal thesis LaTeX still goes through Overleaf.
+
 ---
 
 ## General Research Process

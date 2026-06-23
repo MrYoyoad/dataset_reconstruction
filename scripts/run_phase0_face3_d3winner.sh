@@ -2,7 +2,7 @@
 #BSUB -q long-gpu
 #BSUB -R "rusage[mem=32768] select[ngpus>0]"
 #BSUB -gpu "num=1"
-#BSUB -W 12:00
+#BSUB -W 18:00
 #BSUB -o wexac_logs/phase0_face3_d3winner_%J.out
 #BSUB -e wexac_logs/phase0_face3_d3winner_%J.err
 #BSUB -J phase0_face3_d3winner
