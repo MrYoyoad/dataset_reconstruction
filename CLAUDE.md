@@ -280,6 +280,16 @@ When auditing or revising presentations/documents, follow this order:
 5. **Polish last**: Speaker notes, transitions, naming consistency
 6. **Final audit**: Even after all phases, grep for known stale patterns — the first sweep ALWAYS misses some
 
+## Session Handover
+
+A `/handover` skill (`.claude/skills/handover/SKILL.md`) carries a baton between sessions.
+
+- `/handover save` writes a concise "where work stands" note to `docs/sessions/handover-latest.md` and appends a timestamped copy to `docs/sessions/handover-log.md`.
+- A `SessionStart` hook in `.claude/settings.json` prints that note ("📋 Handover note: …") at the top of every new session, so the next session sees it automatically (the hook stays silent until the first save).
+- `/handover resume` reads the latest note, **verifies it against the live repo** (referenced files/branches/runs may have moved or finished), and proposes the next step.
+
+This is a short-horizon baton ("what I was mid-way through") — distinct from STATUS.md / LESSONS_LEARNED.md, which are the durable project record. Run `/handover save` before ending a session that leaves something in flight.
+
 ## Compute Rules
 
 **ALL experiments must run on the WEXAC GPU cluster, NOT on the local MacBook (MPS).** MPS is only for light local dev and debugging. Any real training, reconstruction, or serious compute must be run on WEXAC (NVIDIA L40S, CUDA 12.6). Use `wexac_connect.sh shell` to get a GPU node. When writing or modifying experiment scripts, always assume CUDA — never write MPS-specific code for experiments.

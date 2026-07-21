@@ -693,3 +693,36 @@ Now `sqrt(1e-12) ≈ 1e-6`, the gradient is `0.5 / 1e-6 = 5e5` — large but fin
 
 **Lesson.** When a regularizer leaves a specific structured artifact (here, colored speckle), think about which property of natural images the regularizer fails to constrain. RGB-TV doesn't see chroma incoherence. LAB-TV does, almost for free. This is the cheapest possible perceptual improvement, much cheaper than LPIPS / SDS / latent-recon, and should be tried first when a low-frequency-only prior is leaving visible high-frequency color noise.
 
+---
+
+## [BUG] Smoke Tests Silently Overwrite Canonical Result Figures (2026-07-21)
+
+**What happened.** While validating a new activation (`--finetune_activation gelu`), I ran
+`experiments.run_experiment_b` with `--extraction_epochs 3` and **without** `--save_results`.
+That 3-epoch garbage run still overwrote `figures/sprint1/experiment_b_grid_oracle.png` — a real
+Sprint 1 result figure. It was caught only because `git status` showed the file as modified with a
+timestamp minutes old; the corrupted figure was one `git add -A` away from being committed.
+
+**How it presented.** A figure appearing as ` M` in `git status` that no one consciously edited.
+Content looked plausible (same layout), so a casual diff review would not have flagged it.
+
+**Root cause.** `generate_experiment_b_figure(results, save_dir=None)` in `experiments/plotting.py`
+defaults `save_dir = FIGURES_DIR/'sprint1'`. `--save_results` gates the **tensor** (`.pth`) saving
+(`run_experiment_b.py`, `if args.save_results:`) but **not** figure generation. So *any* invocation
+that reaches the plotting call rewrites the canonical Sprint-1 figure, regardless of flags, epochs,
+or how meaningless the run is.
+
+**Fix applied.** `git checkout -- figures/sprint1/experiment_b_grid_oracle.png` to restore it.
+
+**Lessons.**
+1. **Never smoke-test an experiment entry point in the repo working tree** without checking what it
+   writes. Smoke tests should use a throwaway `--save_dir`/output path, or run from `/tmp`.
+2. **`git status` before every commit is a data-integrity check, not just hygiene.** Check *file
+   mtimes* on anything unexpectedly modified — `ls -l --time-style=+"%F %H:%M"` tells you instantly
+   whether it was you, minutes ago.
+3. **Output paths that default to a canonical results directory are a trap.** A default of
+   `figures/sprint1/` means every debug run is one call away from corrupting a published figure.
+   Worth making the figure write conditional on `--save_results` too, or defaulting to a scratch dir.
+4. Related to the standing data-freshness rule: a stale/corrupt *figure* is harder to detect than a
+   stale *number*, because nothing greps for it.
+

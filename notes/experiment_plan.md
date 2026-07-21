@@ -198,9 +198,20 @@ weaker assumptions (only the published adapter, no recipe). Full roadmap + readi
 - [ ] Keywords: "differentiable training" + reconstruction · "unrolled SGD" + data reconstruction ·
       "training trajectory" + privacy · "implicit bias" + fine-tuning + reconstruction.
 - [ ] Check **Geiping's** recent work (most active author in gradient-inversion space).
-- Nearest known (none does exactly this): ReCIT (text), TLDR/Network Inversion (vision, not det-F),
+- **⚠ COLLISION FOUND (2026-06-29): SimuDy, Tian et al., ICLR 2025** (`openreview ZJftXKy12x`) **does
+  the full-FT version of our det-`F` matching** — unroll SGD through dummy data, match `θ_f−θ₀` by
+  cosine sim + TV. This **takes the "direct weight inversion of full fine-tuning" headline novelty.**
+  It does **not** touch PEFT/LoRA, weaker-knowledge regimes, or any identifiability theory, and it is
+  the expensive full-unroll (22 GB / 15 h for 120 CIFAR-32² imgs; ViT only N=10). **Reframe** (don't
+  abandon): cite as closest prior + feasibility de-risker + baseline; re-center novelty on LoRA-only
+  leakage / Gradient Bridge + weak-knowledge regimes + identifiability/anchor-α theory + the
+  NTK-linearized *efficient* counterpart. Full analysis: [related_work_simudy.md](related_work_simudy.md).
+- Other nearest (none does exactly this): ReCIT (text), TLDR/Network Inversion (vision, not det-F),
   DSiRe (recovers dataset *size*), Spectral DeTuning (recovers θ₀, opposite direction), R2F (text unlearning).
-- **Deliverable:** a literature paragraph for the next meeting.
+- **Deliverable:** a literature paragraph for the next meeting — SimuDy is now the lead citation.
+- **Decision brief + gated plan (B1→B5):** [simudy_decision_brief.md](simudy_decision_brief.md) —
+  reconstruction-chain teardown of what SimuDy proves/misses, feasibility, paper-worthiness, and the
+  fail-fast gates (B1 adapter-only recovery, B2 linearized-vs-unroll) that gate the whole direction.
 
 ---
 

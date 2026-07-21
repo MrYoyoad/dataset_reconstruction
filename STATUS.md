@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: **2026-05-14** (planning pass: post-meeting direction "direct weight inversion" added — see Next Direction below; experimental **results** last updated 2026-05-13)
+Last updated: **2026-07-21** (SimuDy novelty collision + direction reframe; Gal's Additions 1/2 + loss ablation launched as job 435843. Experimental **results** last updated 2026-05-13)
 
 ---
 
@@ -34,6 +34,35 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 ---
 
 ## What's In Progress
+
+### SimuDy collision + Gal's Additions launched (2026-07-21)
+
+**Novelty collision found (resolves the Part D literature search).** Gal sent
+[SimuDy (Tian et al., ICLR 2025)](papers/Tian_2025_SimuDy_Simulating_Training_Dynamics_ICLR.pdf) —
+*"already showed an idea that we discussed."* It publishes our direct-weight-inversion primitive:
+unroll SGD through dummy data, match `θ_f−θ₀` by cosine sim + TV. **The full-FT direct-inversion
+headline novelty is taken.**
+
+- **What it does NOT do (= what remains ours):** no LoRA/PEFT anywhere; no identifiability/stability
+  theory; brute-force full-unroll only (**22 GB / 15 h for 120 CIFAR-32² imgs on ResNet-18**; ViT
+  result is **N=10** only). Their numbers: MLP/100 SSIM 0.337, ResNet/50 **0.198**, ResNet/120 ~0.12.
+- **Decision: reframe, don't abandon.** Cite SimuDy as baseline + feasibility de-risker; re-center on
+  (i) LoRA-adapter-only leakage, (ii) identifiability/anchor-α theory, (iii) memory-tractable
+  (linearized) inversion. Gated on two cheap tests — **B1** (adapter-only recovery at all) and **B2**
+  (linearized anchor can replace full unroll).
+- **Full analysis:** [notes/simudy_decision_brief.md](notes/simudy_decision_brief.md) (1→N chain) ·
+  paper teardown: [notes/related_work_simudy.md](notes/related_work_simudy.md)
+
+**Gal's meeting Additions — job `435843` submitted to `long-gpu`**
+(`scripts/run_gal_additions_sweep.sh`, priority-ordered so the top ask lands first):
+
+| Ask | Status |
+|---|---|
+| Addition 2 — smooth activations (GELU top priority) | ⏳ running (Stage 1). **Required a code change** — `gelu`/`silu`/`softplus` did not exist in `ACTIVATION_CHOICES` |
+| Addition 1 — more LoRA samples / breadth | ⏳ running (Stage 2): `n_per_class` 1–4 × seeds 42/43/44 |
+| Loss ablation l2 vs cosine | ⏳ running (Stage 3) — extra relevant: SimuDy reports cosine ≫ Euclidean |
+| Addition 3 — anchor α-sweep | ☐ **blocked on code** — no `--anchor_alpha` flag exists yet |
+| Gradient Bridge GB-Phase 1 (decoder) | ☐ **blocked on code** — no decoder/bridge code exists at all |
 
 ### Next Direction (post-2026-05-14 meeting): Direct Weight Inversion — PLANNED
 

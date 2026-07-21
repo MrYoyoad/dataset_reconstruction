@@ -67,7 +67,10 @@ N_PER_CLASS_EXTRACTION_SWEEP = [1, 2, 3, 4, 5]
 # ---------------------------------------------------------------------------
 # Activation choices for ablation (Sprint 2b)
 # ---------------------------------------------------------------------------
-ACTIVATION_CHOICES = ['relu', 'leaky_relu', 'modified_relu']
+# Smooth activations (gelu/silu/softplus) added for meeting Addition 2: NTK theory
+# wants genuinely smooth (C^inf) activations; leaky_relu is only piecewise-linear.
+ACTIVATION_CHOICES = ['relu', 'leaky_relu', 'modified_relu',
+                      'gelu', 'silu', 'softplus']
 
 # LR schedule choices for ablation
 LR_SCHEDULE_CHOICES = ['constant', 'inv_sqrt_T', 'inv_T', 'cosine', 'linear', 'cosine_warmup']

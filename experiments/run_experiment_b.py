@@ -57,7 +57,7 @@ def make_activation(activation_name, relu_alpha=EXTRACTION_RELU_ALPHA):
     """Create an activation module from a name string.
 
     Args:
-        activation_name: one of 'relu', 'leaky_relu', 'modified_relu'
+        activation_name: one of ACTIVATION_CHOICES
         relu_alpha: alpha for ModifiedRelu (default: 149.87)
 
     Returns:
@@ -69,6 +69,14 @@ def make_activation(activation_name, relu_alpha=EXTRACTION_RELU_ALPHA):
         return nn.LeakyReLU(0.01)
     elif activation_name == 'modified_relu':
         return ModifiedRelu(relu_alpha)
+    # Smooth (C^inf) activations — Addition 2. GELU is the deployment-realistic
+    # one (real ViTs/BERT/GPT); silu/softplus give the smoothness ordering.
+    elif activation_name == 'gelu':
+        return nn.GELU()
+    elif activation_name == 'silu':
+        return nn.SiLU()
+    elif activation_name == 'softplus':
+        return nn.Softplus()
     else:
         raise ValueError(f"Unknown activation: {activation_name}")
 
