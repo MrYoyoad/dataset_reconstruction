@@ -39,6 +39,13 @@ found defective, **killed**, fixed, and **resubmitted as job 440634** (`gal_addi
 ## Open threads / gotchas
 - Job 440634 runs ~68 configs (~5 min each ≈ 5-6 h). Priority-ordered: Addition 2 first, so partial
   completion still delivers Gal's top ask.
+- **Stage 0 guard PASSED at 20:41** — verified `_gelu/_silu/_softplus.pth` are three distinct files
+  and figures are uniquely named. Both collision bugs are confirmed fixed in practice, not just in code.
+- **Job went `SSUSP` at ~20:45: preempted by higher-priority job 440970.** This is normal LSF
+  behaviour on WEXAC, **no progress is lost**, and it resumes automatically when the GPU frees
+  (RUNLIMIT is 5760 min, so no timeout risk). If it is *still* `SSUSP` many hours later, requeue with
+  `brequeue 440634` or resubmit. **Do NOT submit a second copy in parallel** — both would write the
+  same result filenames and recreate the collision bug.
 - **Never trust an SSIM without checking `weight_change` and `delta_w_effective_rank`.** Near-zero
   weight change ⇒ the number is meaningless.
 - Reply to Gal drafted but unconfirmed. Gmail/Calendar MCP connectors are **not authorized**, so
