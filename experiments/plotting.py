@@ -360,7 +360,7 @@ def plot_step_rank_heatmap(csv_path, save_path=None, title=None):
     return fig
 
 
-def generate_experiment_b_figure(results, save_dir=None):
+def generate_experiment_b_figure(results, save_dir=None, base_name=None):
     """Generate the Experiment B figure with clear attack scenario labeling.
 
     Layout: rows = samples, columns = [Ground Truth, Full Recon, LoRA Recon, Control].
@@ -498,7 +498,10 @@ def generate_experiment_b_figure(results, save_dir=None):
                  linespacing=1.4)
 
     suffix = '_free' if is_free else '_oracle'
-    save_path = os.path.join(save_dir, f'experiment_b_grid{suffix}.png')
+    # base_name makes the figure unique per config. Without it every run — including
+    # a 3-epoch smoke test — overwrites the same canonical figure (see LESSONS_LEARNED).
+    stem = f'experiment_b_grid{suffix}' if base_name is None else f'{base_name}{suffix}'
+    save_path = os.path.join(save_dir, f'{stem}.png')
     os.makedirs(save_dir, exist_ok=True)
     plt.savefig(save_path, bbox_inches='tight', facecolor='white')
     plt.close()

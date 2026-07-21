@@ -658,6 +658,17 @@ if __name__ == '__main__':
             parts.append("free")
         parts.append(f"s{args.seed}")
         parts.append(f"a{int(args.relu_alpha)}")
+        # Any swept dimension MUST appear here or configs silently overwrite each
+        # other's .pth/.png (see LESSONS_LEARNED 2026-07-21). Appended only when
+        # non-default so existing result filenames stay stable.
+        if args.finetune_activation is not None:
+            parts.append(str(args.finetune_activation))
+        if args.n_per_class != 1:
+            parts.append(f"npc{args.n_per_class}")
+        if args.loss_type != 'l2':
+            parts.append(str(args.loss_type))
+        if args.lr != TRAIN_LR:
+            parts.append(f"lr{args.lr:g}")
         base_name = "_".join(parts)
 
         # Save tensors (.pth)
@@ -693,5 +704,5 @@ if __name__ == '__main__':
 
         # Save figure (.png)
         sprint1_dir = os.path.join(FIGURES_DIR, 'sprint1')
-        generate_experiment_b_figure(results, save_dir=sprint1_dir)
+        generate_experiment_b_figure(results, save_dir=sprint1_dir, base_name=base_name)
         print(f"Saved figure to {sprint1_dir}/")

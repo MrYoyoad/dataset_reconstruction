@@ -726,3 +726,69 @@ or how meaningless the run is.
 4. Related to the standing data-freshness rule: a stale/corrupt *figure* is harder to detect than a
    stale *number*, because nothing greps for it.
 
+**Fix applied (2026-07-21).** `generate_experiment_b_figure()` now takes a `base_name` argument and
+`run_experiment_b.py` passes the per-config `base_name`, so figures no longer collide.
+
+---
+
+## [BUG] Swept Dimensions Missing From Output Filenames Destroyed 80% of a Sweep (2026-07-21)
+
+**What happened.** Submitted a 43-config sweep (job 435843) over `finetune_activation`,
+`n_per_class` and `loss_type`. The output filename was built as
+`exp_b_T{n_steps}_r{rank}[_free]_s{seed}_a{relu_alpha}` — **none of the three swept dimensions
+appear in it.** So all 5 activations at a given T wrote to the *same* `.pth`; Stage 2's
+`n_per_class` values collided by seed; Stage 3's `l2`/`cosine` overwrote each other.
+**43 runs would have collapsed to ~8 surviving files**, plus a single figure rewritten 43 times.
+Caught ~10 minutes in by reading the job log; job killed and resubmitted.
+
+**How it presented.** Nothing failed. Every run "succeeded" and printed
+`Saved tensors to results/exp_b_T1_r8_s42_a149.pth` — the *same path* every time. Silent data loss
+with a success message is the worst failure mode: you only notice at analysis time, hours later.
+
+**Root cause.** `run_experiment_b.py:652-661` predates the activation / n_per_class / loss_type
+flags. Each new CLI knob was added to the *parser* without being added to the *filename builder*.
+
+**Fix applied.** `base_name` now appends `finetune_activation`, `npc{n_per_class}`, `loss_type` and
+`lr{lr}` whenever they are non-default (non-default only, so existing result filenames stay stable).
+The sweep script also grew a **Stage 0 guard** that runs two activations and asserts two distinct
+`.pth` files exist, `exit 1` otherwise — so a collision aborts in minutes instead of wasting a night.
+
+**Lessons.**
+1. **Every swept dimension must appear in the output filename.** When adding a CLI flag that changes
+   what a run *computes*, update the filename builder in the same commit — otherwise the sweep that
+   uses it silently self-overwrites.
+2. **Add a cheap self-check at the top of long sweeps.** A guard stage that proves outputs are
+   distinct costs ~2 minutes and pays for itself the first time it fires. Generally: assert your
+   *plumbing* before spending hours on your *science*.
+3. **Read the first config's log before walking away from an overnight job.** Both this bug and the
+   GELU confound below were visible in the first ~10 minutes of output.
+4. Corollary to the "always save visual examples" rule: saving them to a **colliding path** is the
+   same as not saving them.
+
+---
+
+## [INSIGHT] A "Negative Result" That Is Really an Un-tuned Learning Rate (2026-07-21)
+
+**What happened.** First GELU run (Addition 2, LoRA r=8, T=1, oracle) returned **SSIM 0.0414 vs a
+control of 0.0203** — essentially chance, against a LeakyReLU/ModifiedRelu baseline of ~0.797. Read
+naively this says "GELU is catastrophically worse", which would directly contradict the prediction
+that reconstruction quality *improves* with activation smoothness.
+
+**Why it is probably not a real negative.** The diagnostics tell a different story:
+`weight_change=0.039` (tiny), `delta_w_effective_rank=2`, `ntk_passed=False`. The fine-tuned network
+barely moved from `θ₀`. Learning rate was `TRAIN_LR=0.01`, tuned for ReLU. GELU's smaller effective
+gradient magnitude at that LR means the fine-tune essentially did nothing — so the attack is
+inverting an update that carries almost no information. **We measured "nothing happened", not
+"GELU leaks less".**
+
+**Lessons.**
+1. **When comparing activations (or any architectural change), match the effective update magnitude,
+   not the nominal hyper-parameters.** Comparing at a fixed LR conflates "this activation is worse
+   for reconstruction" with "this activation trained less at this LR".
+2. `weight_change` / `delta_w_effective_rank` are the tell. A near-zero weight change means the
+   reconstruction number is meaningless regardless of how it looks — **check them before reporting
+   any SSIM.** Effective rank 2 for a rank-8 adapter is a red flag on its own.
+3. **A surprising negative on a headline claim deserves a confound check before it is reported.**
+   Handing a supervisor "GELU fails" when the truth is "our LR was wrong" is an expensive mistake.
+   The sweep now calibrates LR ∈ {0.01, 0.03, 0.1, 0.3} per activation before drawing conclusions.
+
