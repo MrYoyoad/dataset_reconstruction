@@ -35,6 +35,27 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
+### Retrieval metric — LoRA DOES leak instance-level info that SSIM missed (2026-07-23)
+
+Follow-up to the metric audit. Since absolute SSIM on MNIST is background-dominated, added an
+**instance-level retrieval metric** (`experiments/retrieval_metric.py`, 11 tests): among the N
+training images, is reconstruction *i* most similar to target *i*? Background cancels (common to all
+candidates); random baseline is 1/N, so it strengthens with N. Distances: pixel-L2, NCC, SSIM, and a
+pluggable classifier-feature space.
+
+**Result (LoRA r=8, T=1, N=4..32 via the N-sweep, NCC/SSIM ranking):** retrieval top-1 is
+**consistently ~2.0–2.3× the random baseline** at every N (e.g. N=32: ~0.07 vs 0.031 chance).
+Pooled across N and 3 seeds: **26 correct vs 12 expected by chance, z=4.3, one-sided p≈8.5e-6.**
+Pixel-L2 ranking stays near chance; the background-robust NCC/SSIM rankings carry the signal.
+
+**Why it matters:** absolute SSIM said single-step LoRA was "below the trivial baseline → nothing."
+Retrieval shows it **does** leak instance-level information — statistically significant, consistent
+across seeds, and surviving to N=32. This **flips the preliminary gate-B1 read**: the earlier
+"LoRA doesn't beat trivial" was a *metric* artifact, not the absence of leakage. The leakage is
+weak (~2× chance, not high-fidelity recovery) but real. Caveats: small per-cell counts (significance
+comes from pooling); the **full-model reference at larger N is still pending** (N-sweep full runs
+had a `--no_baseline` script bug, fixed and resubmitted as job **956997**).
+
 ### Metric audit — most single-step LoRA reconstructions sit at/below the trivial baseline (2026-07-22)
 
 Chasing a metric anomaly (identical GELU config: SSIM 0.358 at 5 extraction epochs, 0.041 at
@@ -76,6 +97,48 @@ re-run is job **857271** (`scripts/run_gal_additions_sweep.sh`, resumable via `-
 Three tracks Gal asked for that job 435843 did **not** cover — each needed new code — are now
 built, locally validated, and running on WEXAC (`long-gpu`).
 
+> **⚠ Mean-baseline re-scoring (2026-07-22) — read before quoting any SSIM below.** We re-scored the
+> saved reconstructions against `ssim_mean_baseline` (what the trivial dataset-mean predictor scores)
+> using the new `experiments/metrics.py`. Results in `results/rescored_metrics_2026-07-22.csv`. **Small N
+> makes the mean a *hard* bar** (N=2 → baseline 0.763; N=4 → 0.674), and clip fractions are high
+> (0.37–0.67 of pixels saturate out of [0,1], inflating raw SSIM). Verdicts:
+> - **Direct inversion: real but WEAK leakage that DEGRADES with N (the superposition problem).**
+>   At N=4 it fails the mean baseline (0.43–0.58 vs 0.674) but passes the control test (+0.17). At
+>   **N=10 (job 887704) the reconstruction collapses to SSIM 0.27** and the mean-baseline gap widens
+>   (0.27 vs 0.564), yet the control margin **survives, shrunken: +0.049 (T=1), +0.058 (T=10).** So DI
+>   does recover *some* instance-specific info, but joint inversion of more images degrades it fast —
+>   it does **not** scale. (Falsifies the earlier guess that larger N would clear the mean bar; larger N
+>   made it worse.) Method is sound (endpoint matching converges, T=1 exact); the toy just doesn't
+>   disentangle many images at once. **Confirmed (job 887704): SSIM falls monotonically with N —
+>   N=4 ~0.55, N=10 ~0.27, N=20 ~0.15–0.18 — and tightening the pixel box (box=5) does NOT rescue it
+>   (0.13/0.27, mixed), so the collapse is fundamental joint-inversion difficulty, not clipping.** DI is
+>   a very-small-N method; the superposition problem is the wall.
+> - **Anchor full-FT: REAL leakage for α ≤ 0.75** (beats 0.763; structure-only `ssim_norm` agrees,
+>   0.83–0.96; α=0.75 = 0.94/0.97/0.96). The α*≈0.75 finding **holds up under the strict metric.**
+> - **Anchor LoRA-only (r=8): does NOT beat the 0.763 baseline at any α** (best 0.64 at α=0.75). A clear
+>   monotone trend, but **no distinguishable instance leakage** — consistent with the decision brief's
+>   B1 "yellow flag." Bears on the thesis: LoRA-adapter-only recovery is not yet demonstrated here.
+>
+> Net (mean-baseline view): the strict-baseline headline is the **full-FT anchor α≈0.75 win**.
+>
+> **BUT the mean baseline is arguably the wrong bar.** The decision brief's B1 gate is "beat the
+> **same-class control**" — the instance-leakage question ("did we recover *this* image or just
+> something class-typical?"). Scoring recon-vs-true minus recon-vs-control (seed 42, T=10, both share
+> the same clipping/scale so the *margin* is clean):
+> - **Full-FT: instance leakage at every α** (+0.18 to +0.28; strongest at α=0.75, +0.28).
+> - **LoRA-only: real instance leakage (B1 signal holds), but α-dependence is config-specific.** On
+>   seed 42 the anchor appeared to *create* leakage (+0.03 at α=0 → +0.14 at α=0.75). **Replication
+>   tempered this** (see Track 1 below): seed 44 shows LoRA leaking already at α=0 (+0.18) with the anchor
+>   *hurting*. So adapter-only leakage is genuine (control margins +0.13–0.18 across configs → **B1
+>   passes**), but "the anchor creates it" was not robust. Green light for the LoRA-leakage *direction*;
+>   the α-story needs a multi-config study.
+>
+> Reconcile: two different questions. Mean baseline = "beat predicting the dataset mean" (hard at tiny
+> N). Control baseline = "match the true image better than a different same-class image" (the actual
+> leakage test; robust to clipping). **The control-margin is the right headline for LoRA; report both.**
+> Larger-N runs (jobs launched) will confirm under the meaningful-mean regime. The tracks below report
+> raw SSIM — always pair with these baselines.
+
 **Track 2 — DI-Phase 0 (direct weight inversion) — ✅ demonstrated (job 500913).**
 `θ_T = F(θ₀, x̂)` with autograd through an unrolled SGD `F`; MNIST MLP, N=4, LoRA r=8, GELU.
 - **SSIM-vs-T:** T=1 **0.57**, T=2 0.57, T=5 0.53, T=10 **0.58**, T=20 0.43. Recovers digits at
@@ -113,8 +176,20 @@ built, locally validated, and running on WEXAC (`long-gpu`).
   [run_experiment_b.py](experiments/run_experiment_b.py),
   [experiments/run_anchor_sweep.py](experiments/run_anchor_sweep.py),
   `compute_function_space_lin_error` in [ntk_verification.py](experiments/ntk_verification.py).
-- **Caveat:** single seed at T=10 (where the θ₀-anchor is weakest, so the anchor helps most). Multi-seed
-  + a T-sweep would harden the α*≈0.75 claim before it goes in the thesis.
+- **Replication (job 863020) — full-FT robust; LoRA inconsistent.** (Seed 43 drew [1,0], the two
+  easiest digits → Δw≈0 → lin-error 0.0000, byte-identical output at every α → degenerate/discarded; the
+  recurring "check weight_change first" trap. Use non-trivial digits: 44–50 are all fine.)
+  - **Full-FT: α*≈0.75 replicates.** seed 44 [8,3] peaks 0.965@0.75 (control margins +0.27→+0.43, strong
+    leak at every α); seed 42 T=5 peaks 0.934@0.75 then collapses at 0.9. Across seeds/T the full-FT
+    anchor gives strong instance leakage peaking ≈0.75 — **this is the solid, replicated headline.** (The
+    α=0.9 collapse is itself seed-dependent: seed 42 collapses, seed 44 stays high at 0.925.)
+  - **LoRA: leakage is present but the *anchor's effect is not consistent.*** Seed 42 T=10 = anchor
+    *creates* leakage (margin +0.03→+0.14 as α↑). Seed 44 T=10 = LoRA already leaks at α=0 (SSIM 0.42,
+    margin +0.18) and the anchor *hurts* (→+0.14, SSIM↓). Seed 42 T=5 = leak only at α=0.9 (+0.13). So
+    LoRA-adapter instance leakage **does occur** (control margins +0.13–0.18 across configs → **B1 signal
+    holds**), but the earlier "anchor creates LoRA leakage" claim was seed-42-specific, **not robust.**
+    Honest LoRA takeaway: adapter-only leakage is real but config-dependent; needs a proper multi-config
+    study (pinned hard digits × several seeds × T) before any α-dependence claim.
 
 **Track 3 — GB-Phase 1 (Gradient Bridge decoder) — ✅ first result (job 532180), higher-rank arms running.**
 `f_φ:(A,B)→∇_W L` on a public MNIST proxy, single-step LoRA measurements, cosine loss.

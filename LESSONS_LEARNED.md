@@ -67,6 +67,28 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
   multi-sample gradients instead. And **always report full-cosine vs the projection ceiling** — 0.685
   reads as "meh" until you see the measurement only afforded 0.086.
 
+### An SSIM is not leakage until it beats the dataset-mean baseline
+- We reported direct-inversion SSIM ~0.55 and anchor-LoRA up to 0.64 as "recovery." Re-scoring against
+  `ssim_mean_baseline` (the trivial dataset-mean predictor) killed both claims: **DI (N=4) never beats
+  0.674; anchor-LoRA (N=2) never beats 0.763.** Only anchor **full-FT** clears its baseline (and
+  `ssim_norm` confirms it's structure, not brightness).
+- **Small N makes the mean a brutal bar.** With N=2 the dataset mean is (img₁+img₂)/2 — already very
+  similar to each image — so the baseline is ~0.76 and almost nothing beats it. Any leakage claim at
+  small N must clear the mean *and* preferably use larger N so the bar is meaningful.
+- **Watch the clip fraction.** Extraction only *softly* constrains x to [-1,1], so 0.37–0.67 of
+  `x_recon+ds_mean` was saturating out of [0,1] here — that shared clamped background inflates raw SSIM.
+  Report `clipped_fraction`; a high value means the absolute SSIM is not trustworthy.
+- Rule: **report SSIM alongside (a) the mean-baseline, (b) `ssim_norm`, and (c) the clip fraction** —
+  and, per the older note, weight_change / effective_rank. A bare SSIM proves nothing.
+- **BUT the mean baseline is not the right bar for *instance* leakage — the same-class control is.**
+  "Beat the dataset mean" and "match the true image better than a different same-class image" are
+  different questions; the second (the decision brief's B1 gate) is what "leakage" actually means, and
+  its **margin (recon-vs-true − recon-vs-control) cancels the shared clipping/scale**, so it's far more
+  robust at small N. This flipped a conclusion: LoRA-only *fails* the mean baseline at every α but
+  *passes* the control test at α≥0.75 (+0.14) — the anchor **creates** adapter-only instance leakage.
+  Lesson: when a mean-baseline result looks negative at small N, re-check against the control before
+  concluding "no leakage" — and prefer the control margin as the headline for instance-recovery claims.
+
 ---
 
 ## Infrastructure & Data Loss (2026-03-19)
@@ -910,4 +932,52 @@ not `ast.parse` — `py_compile` runs the full compile and catches these. Cheap,
 import heavy deps (`import torch` costs ~270 s on the WEXAC login node, so a real import-based check
 is expensive; `py_compile` sidesteps that while still catching compile-time errors). Even so, the
 *test suite* is what actually caught this — CPU-only import tests earn their keep.
+
+---
+
+## [RESULT] Retrieval Metric Reveals LoRA Leakage That SSIM Declared Absent (2026-07-23)
+
+**What happened.** After the metric audit concluded single-step LoRA "sits below the trivial SSIM
+baseline," an instance-level **retrieval metric** (`experiments/retrieval_metric.py`) told a
+different story. Retrieval asks: among the N training images, is reconstruction *i* most similar to
+target *i*? Scoring the N-sweep LoRA runs (r=8, T=1, N=4..32), NCC/SSIM-space top-1 retrieval is
+**~2.0–2.3x the 1/N random baseline at every N**; pooled across N and 3 seeds, **26 correct vs 12
+expected by chance (z=4.3, one-sided p≈8.5e-6).**
+
+**Insight.** Two metrics gave opposite verdicts on the *same* reconstructions:
+- Absolute SSIM (background-dominated on MNIST) → "below trivial baseline, no leakage."
+- Relative retrieval (background cancels across candidates) → "significant instance-level leakage."
+
+The retrieval verdict is the trustworthy one for a *privacy* claim: leakage is about recovering
+*which specific* training image, which is exactly the relative question. Pixel-L2 retrieval stayed
+near chance; only the background-robust NCC/SSIM rankings surfaced the signal.
+
+**Lessons.**
+1. **Match the metric to the claim.** "Did we leak private data?" is an identifiability question
+   (retrieval), not a pixel-fidelity one (SSIM). We nearly filed a false negative by using the wrong
+   ruler.
+2. **A weak-but-significant signal needs pooling, not per-run eyeballing.** Any single N=32 run
+   (2/32 correct) looks like noise; 12 runs consistently ~2x chance is a 4-sigma effect. Report the
+   pooled test, not the best run.
+3. **Retrieval strengthens with N** (baseline 1/N), the opposite of absolute SSIM — another reason
+   larger-N testbeds are the right move.
+
+---
+
+## [BUG] Full-Model Runs Need `run_baseline=True` — `--no_baseline` Silently Broke the N-Sweep (2026-07-23)
+
+**What happened.** The N-sweep helper passed `--no_baseline` to *every* run. For LoRA that is
+correct (skip the full reference, reconstruct the adapter). For the **full model**, the
+reconstruction *is* the baseline run, so `rank=None` + `--no_baseline` hits
+`run_single_config`'s guard: `ValueError: Nothing to run: rank is None and run_baseline is False`.
+Result: all 15 full-model configs errored while all 12 LoRA configs succeeded — so the sweep looked
+~half-productive and I only noticed because the full-model `.pth` files were missing.
+
+**How it presented.** Missing output files, not a failed job — the job "completed" (exit 0 overall)
+because each config is a separate process; the full-model ones just raised and moved on.
+
+**Lesson.** When a sweep has two modes (full vs LoRA) that need *different* flags, don't route both
+through one helper with hardcoded flags. Split the helpers (`run_full` without `--no_baseline`,
+`run_lora` with it). And: **verify a sweep produced the files you expect per config**, not just that
+the job exited cleanly — `ls results/…full…npc*` would have flagged this immediately.
 
