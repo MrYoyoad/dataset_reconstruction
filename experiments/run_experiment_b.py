@@ -46,11 +46,59 @@ from experiments.data_utils import (
 )
 from experiments.ntk_steps import (
     compute_multi_step_update, compute_multi_step_update_lora,
+    compute_known_coefficients,
     FINETUNE_OPTIMIZER_CHOICES,
 )
 from experiments.ntk_extraction import run_ntk_extraction, run_ntk_extraction_n_sweep
-from experiments.ntk_verification import ntk_smoke_test, compute_linearization_error
+from experiments.ntk_verification import (
+    ntk_smoke_test, compute_linearization_error, compute_function_space_lin_error,
+)
 from experiments.metrics import compute_all_metrics
+
+
+def _build_anchor(theta_0, theta_T, alpha):
+    """Interpolate the linearization anchor: θ_anchor = (1-α)·θ₀ + α·θ_T (per key).
+
+    α=0 → θ₀ (current behavior), α=0.5 → midpoint, α→1 → θ_T. Keys present only
+    in θ₀ (never the case for these architectures) fall back to θ₀.
+    """
+    anchor = {}
+    for k in theta_0:
+        if k in theta_T:
+            anchor[k] = (1.0 - alpha) * theta_0[k] + alpha * theta_T[k]
+        else:
+            anchor[k] = theta_0[k].clone()
+    return anchor
+
+
+def build_base_name(args):
+    """Descriptive, collision-free output stem for this config.
+
+    **Any swept dimension MUST appear here** or configs silently overwrite each other's .pth/.png
+    (see LESSONS_LEARNED 2026-07-21: a 43-config sweep collapsed to ~8 files, each run reporting
+    success). Dimensions are appended only when non-default, so filenames from earlier runs stay
+    stable and remain comparable.
+    """
+    parts = [f"exp_b_T{args.n_steps}"]
+    if args.rank is not None:
+        parts.append(f"r{args.rank}")
+    else:
+        parts.append("full")
+    if args.free_coefficients:
+        parts.append("free")
+    parts.append(f"s{args.seed}")
+    parts.append(f"a{int(args.relu_alpha)}")
+    if args.finetune_activation is not None:
+        parts.append(str(args.finetune_activation))
+    if args.n_per_class != 1:
+        parts.append(f"npc{args.n_per_class}")
+    if args.loss_type != 'l2':
+        parts.append(str(args.loss_type))
+    if args.lr != TRAIN_LR:
+        parts.append(f"lr{args.lr:g}")
+    if args.anchor_alpha != 0.0:
+        parts.append(f"anch{args.anchor_alpha:g}")
+    return "_".join(parts)
 
 
 def make_activation(activation_name, relu_alpha=EXTRACTION_RELU_ALPHA):
@@ -63,22 +111,31 @@ def make_activation(activation_name, relu_alpha=EXTRACTION_RELU_ALPHA):
     Returns:
         nn.Module activation
     """
-    if activation_name == 'relu':
-        return nn.ReLU()
-    elif activation_name == 'leaky_relu':
-        return nn.LeakyReLU(0.01)
-    elif activation_name == 'modified_relu':
+    # Softplus sharpness knob: 'softplus_b<beta>'. One code path covers the whole
+    # SOFTPLUS_BETA_SWEEP; beta -> inf approaches ReLU, giving a continuous smooth<->kinked axis.
+    if activation_name.startswith('softplus_b'):
+        return nn.Softplus(beta=float(activation_name[len('softplus_b'):]))
+
+    simple = {
+        # kinked baselines
+        'relu': nn.ReLU,
+        'leaky_relu': lambda: nn.LeakyReLU(0.01),
+        # smooth (C^inf), deployment-relevant
+        'gelu': nn.GELU,                                    # real ViTs/BERT/GPT
+        'silu': nn.SiLU,                                    # EfficientNet
+        'softplus': nn.Softplus,                            # canonical smooth ReLU (beta=1)
+        'mish': nn.Mish,                                    # detection nets; different tail
+        'gelu_tanh': lambda: nn.GELU(approximate='tanh'),   # what GPT-2/BERT ship
+        # controls isolating why smoothness might matter
+        'elu': nn.ELU,                                      # C^1 only, not C^inf
+        'tanh': nn.Tanh,                                    # smooth BUT bounded
+        'hardswish': nn.Hardswish,                          # NOT smooth, ~silu shape
+    }
+    if activation_name in simple:
+        return simple[activation_name]()
+    if activation_name == 'modified_relu':
         return ModifiedRelu(relu_alpha)
-    # Smooth (C^inf) activations — Addition 2. GELU is the deployment-realistic
-    # one (real ViTs/BERT/GPT); silu/softplus give the smoothness ordering.
-    elif activation_name == 'gelu':
-        return nn.GELU()
-    elif activation_name == 'silu':
-        return nn.SiLU()
-    elif activation_name == 'softplus':
-        return nn.Softplus()
-    else:
-        raise ValueError(f"Unknown activation: {activation_name}")
+    raise ValueError(f"Unknown activation: {activation_name}")
 
 
 def create_model(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPHA,
@@ -209,6 +266,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
                       lr_schedule='constant',
                       finetune_optimizer='sgd',
                       weight_decay=0.01,
+                      anchor_alpha=0.0,
                       x_init=None,
                       init_seed=None,
                       device='cpu', verbose=True):
@@ -304,6 +362,14 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
 
         x_centered = x_ft - update_result['ds_mean'] if update_result['ds_mean'] is not None else x_ft
 
+        # Anchor for linearization: θ_anchor = (1-α)·θ₀ + α·θ_T (Addition 3). Only the
+        # linearization point moves; the reconstruction still matches the full observed
+        # Δw. α=0 reproduces the θ₀-anchored baseline exactly. δ = θ_T − θ_anchor is the
+        # Taylor direction for the function-space linearization-error diagnostic.
+        theta_anchor = _build_anchor(update_result['theta_0'], update_result['theta_T'], anchor_alpha)
+        delta_anchor_T = {k: update_result['theta_T'][k] - theta_anchor[k]
+                          for k in theta_anchor if k in update_result['theta_T']}
+
         # NTK smoke test (full model)
         def _make_model():
             return create_model(device=device,
@@ -318,22 +384,37 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
         )
         results['full_diagnostics'] = full_diag
 
-        # Linearization error (how good is the NTK approximation itself?)
+        # Linearization error at the anchor. model_lin uses the *real* activation
+        # (the true Φ), loaded at θ_anchor — this also yields the anchor-consistent
+        # oracle coefficients used by the reconstruction below.
         model_lin = create_model(device=device,
                                  activation_name=finetune_activation,
                                  relu_alpha=relu_alpha)
-        model_lin.load_state_dict(update_result['theta_0'])
+        model_lin.load_state_dict(theta_anchor)
         model_lin.eval()
+        coeffs_anchor = compute_known_coefficients(model_lin, x_centered, y_ft)
+        # Weight-space companion: does −lrT·Σc∇f(θ_anchor) reproduce the full Δw?
         lin_error = compute_linearization_error(
             model_lin, update_result['delta_w'], x_centered, y_ft,
             lr=effective_lr_train, n_steps=n_steps,
         )
         results['full_linearization_error'] = lin_error['relative_error']
+        # Function-space headline: Taylor residual of Φ over δ = θ_T − θ_anchor.
+        model_theta_T = create_model(device=device,
+                                     activation_name=finetune_activation,
+                                     relu_alpha=relu_alpha)
+        model_theta_T.load_state_dict(update_result['theta_T'])
+        model_theta_T.eval()
+        lin_error_fs = compute_function_space_lin_error(
+            model_lin, model_theta_T, x_centered, delta_anchor_T)
+        results['full_lin_error_fs'] = lin_error_fs['relative_error']
+        results['anchor_alpha'] = anchor_alpha
         if verbose:
-            print(f"  Linearization error: {lin_error['relative_error']:.6f}")
+            print(f"  Linearization error (weight-space): {lin_error['relative_error']:.6f}")
+            print(f"  Linearization error (function-space, α={anchor_alpha}): "
+                  f"{lin_error_fs['relative_error']:.6f}")
 
-        # Create extraction model at θ₀
-        model_theta0 = load_pretrained(device=device, pretrained_path=pretrained_path)
+        # Create extraction model at the anchor θ_anchor(α) (α=0 → θ₀).
         if extract_activation is not None:
             # Consistent activation: use same for extraction
             model_theta0_extract = create_model(
@@ -343,13 +424,13 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
             # Default: ModifiedRelu for extraction
             model_theta0_extract = create_model(
                 device=device, extraction=True, relu_alpha=relu_alpha)
-        model_theta0_extract.load_state_dict(model_theta0.state_dict())
+        model_theta0_extract.load_state_dict(theta_anchor)
         model_theta0_extract.eval()
 
-        # NTK reconstruction
+        # NTK reconstruction (anchor-consistent oracle coefficients)
         x_recon_full, extract_res = _run_extraction(
             model_theta0_extract, update_result['delta_w'],
-            update_result['coefficients_at_init'], y_ft,
+            coeffs_anchor, y_ft,
             lr=effective_lr_train, n_steps=n_steps, n_per_class=n_per_class,
             free_coefficients=free_coefficients,
             coeff_lr=coeff_lr, coeff_box_weight=coeff_box_weight,
@@ -403,6 +484,13 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
 
         x_centered = x_ft - update_result_lora['ds_mean'] if update_result_lora['ds_mean'] is not None else x_ft
 
+        # Anchor for linearization (Addition 3): θ_anchor = (1-α)·θ₀ + α·θ_T. For LoRA,
+        # θ_T is the composed W₀+scaling·BA. Same treatment as the full path.
+        theta_anchor_lora = _build_anchor(update_result_lora['theta_0'],
+                                          update_result_lora['theta_T'], anchor_alpha)
+        delta_anchor_T_lora = {k: update_result_lora['theta_T'][k] - theta_anchor_lora[k]
+                               for k in theta_anchor_lora if k in update_result_lora['theta_T']}
+
         # NTK smoke test (LoRA)
         def _make_model_lora():
             return create_model(device=device,
@@ -417,22 +505,34 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
         )
         results['lora_diagnostics'] = lora_diag
 
-        # Linearization error (LoRA)
+        # Linearization error at the anchor (LoRA). Real-activation model at θ_anchor,
+        # also source of the anchor-consistent oracle coefficients.
         model_lin_lora = create_model(device=device,
                                       activation_name=finetune_activation,
                                       relu_alpha=relu_alpha)
-        model_lin_lora.load_state_dict(update_result_lora['theta_0'])
+        model_lin_lora.load_state_dict(theta_anchor_lora)
         model_lin_lora.eval()
+        coeffs_anchor_lora = compute_known_coefficients(model_lin_lora, x_centered, y_ft)
         lin_error_lora = compute_linearization_error(
             model_lin_lora, update_result_lora['delta_w'], x_centered, y_ft,
             lr=effective_lr_train, n_steps=n_steps,
         )
         results['lora_linearization_error'] = lin_error_lora['relative_error']
+        model_theta_T_lora = create_model(device=device,
+                                          activation_name=finetune_activation,
+                                          relu_alpha=relu_alpha)
+        model_theta_T_lora.load_state_dict(update_result_lora['theta_T'])
+        model_theta_T_lora.eval()
+        lin_error_fs_lora = compute_function_space_lin_error(
+            model_lin_lora, model_theta_T_lora, x_centered, delta_anchor_T_lora)
+        results['lora_lin_error_fs'] = lin_error_fs_lora['relative_error']
+        results['anchor_alpha'] = anchor_alpha
         if verbose:
-            print(f"  LoRA linearization error: {lin_error_lora['relative_error']:.6f}")
+            print(f"  LoRA linearization error (weight-space): {lin_error_lora['relative_error']:.6f}")
+            print(f"  LoRA linearization error (function-space, α={anchor_alpha}): "
+                  f"{lin_error_fs_lora['relative_error']:.6f}")
 
-        # Create extraction model at θ₀
-        model_theta0_lora = load_pretrained(device=device, pretrained_path=pretrained_path)
+        # Create extraction model at the anchor θ_anchor(α) (α=0 → θ₀).
         if extract_activation is not None:
             model_theta0_lora_extract = create_model(
                 device=device, activation_name=extract_activation,
@@ -440,13 +540,13 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
         else:
             model_theta0_lora_extract = create_model(
                 device=device, extraction=True, relu_alpha=relu_alpha)
-        model_theta0_lora_extract.load_state_dict(model_theta0_lora.state_dict())
+        model_theta0_lora_extract.load_state_dict(theta_anchor_lora)
         model_theta0_lora_extract.eval()
 
-        # NTK reconstruction
+        # NTK reconstruction (anchor-consistent oracle coefficients)
         x_recon_lora, extract_res_lora = _run_extraction(
             model_theta0_lora_extract, update_result_lora['delta_w'],
-            update_result_lora['coefficients_at_init'], y_ft,
+            coeffs_anchor_lora, y_ft,
             lr=effective_lr_train, n_steps=n_steps, n_per_class=n_per_class,
             free_coefficients=free_coefficients,
             coeff_lr=coeff_lr, coeff_box_weight=coeff_box_weight,
@@ -571,11 +671,27 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=0.01,
                         help='Weight decay for AdamW fine-tuning (ignored for SGD)')
 
+    # Anchor sweep (Addition 3): θ_anchor = (1-α)·θ₀ + α·θ_T. α=0 = current baseline.
+    parser.add_argument('--anchor_alpha', type=float, default=0.0,
+                        help='Linearization anchor blend: 0=θ₀ (default), 0.5=midpoint, →1=θ_T')
+
     # Output control
+    parser.add_argument('--skip_if_exists', action='store_true',
+                        help='Exit immediately if this config already has a .pth in results/ '
+                             '(makes sweeps resumable after LSF preemption/requeue)')
     parser.add_argument('--save_results', action='store_true',
                         help='Save tensors (.pth) and figure (.png) to results/')
 
     args = parser.parse_args()
+
+    # Resumability: LSF preemption on long-gpu REQUEUES rather than resumes, restarting the sweep
+    # script from line 1 (see LESSONS_LEARNED 2026-07-22). Skipping already-computed configs makes
+    # a restart cost only the unfinished work instead of the whole sweep.
+    if args.skip_if_exists and args.save_results:
+        existing = os.path.join(RESULTS_DIR, f"{build_base_name(args)}.pth")
+        if os.path.exists(existing):
+            print(f"SKIP (already exists): {existing}")
+            sys.exit(0)  # main body runs under `if __name__`, not a function — no return here
 
     device = args.device or get_device()
     print(f"Using device: {device}")
@@ -601,6 +717,7 @@ if __name__ == '__main__':
         lr_schedule=args.lr_schedule,
         finetune_optimizer=args.finetune_optimizer,
         weight_decay=args.weight_decay,
+        anchor_alpha=args.anchor_alpha,
         n_sweep=args.n_sweep,
         optimizer_type=args.optimizer,
         relu_alpha=args.relu_alpha,
@@ -648,35 +765,16 @@ if __name__ == '__main__':
         os.makedirs(RESULTS_DIR, exist_ok=True)
         os.makedirs(FIGURES_DIR, exist_ok=True)
 
-        # Build descriptive filename
-        parts = [f"exp_b_T{args.n_steps}"]
-        if args.rank is not None:
-            parts.append(f"r{args.rank}")
-        else:
-            parts.append("full")
-        if args.free_coefficients:
-            parts.append("free")
-        parts.append(f"s{args.seed}")
-        parts.append(f"a{int(args.relu_alpha)}")
-        # Any swept dimension MUST appear here or configs silently overwrite each
-        # other's .pth/.png (see LESSONS_LEARNED 2026-07-21). Appended only when
-        # non-default so existing result filenames stay stable.
-        if args.finetune_activation is not None:
-            parts.append(str(args.finetune_activation))
-        if args.n_per_class != 1:
-            parts.append(f"npc{args.n_per_class}")
-        if args.loss_type != 'l2':
-            parts.append(str(args.loss_type))
-        if args.lr != TRAIN_LR:
-            parts.append(f"lr{args.lr:g}")
-        base_name = "_".join(parts)
+        base_name = build_base_name(args)
 
         # Save tensors (.pth)
         save_dict = {}
         for k in ['x_recon_full', 'x_recon_lora', 'x_train', 'x_ctrl', 'ds_mean',
                    'full_metrics', 'lora_metrics', 'control_metrics',
                    'full_diagnostics', 'lora_diagnostics',
-                   'full_extract_res', 'lora_extract_res']:
+                   'full_extract_res', 'lora_extract_res',
+                   'full_linearization_error', 'lora_linearization_error',
+                   'full_lin_error_fs', 'lora_lin_error_fs', 'anchor_alpha']:
             if k in results:
                 save_dict[k] = results[k]
         # Compute actual param counts for figure labels
@@ -695,6 +793,7 @@ if __name__ == '__main__':
             'lr': args.lr, 'mode': mode,
             'relu_alpha': args.relu_alpha,
             'optimizer': args.optimizer,
+            'anchor_alpha': args.anchor_alpha,
             'full_params': full_params,
             'lora_params': lora_params,
         }

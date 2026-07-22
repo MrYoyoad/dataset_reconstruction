@@ -506,3 +506,72 @@ def generate_experiment_b_figure(results, save_dir=None, base_name=None):
     plt.savefig(save_path, bbox_inches='tight', facecolor='white')
     plt.close()
     print(f"Saved: {save_path}")
+
+
+def plot_anchor_two_curve(alphas, ssims, lin_fs, lin_ws=None, save_path=None,
+                          path_label='LoRA', title=None):
+    """Two-curve anchor-sweep validation plot (meeting Addition 3).
+
+    Left axis: reconstruction SSIM(α). Right axis: linearization error(α),
+    function-space (solid, headline) and optional weight-space (dashed).
+    Legitimate win = lin-error bottoms out where SSIM peaks (improvement
+    explained by better linearization). Red flag = SSIM keeps climbing past
+    the lin-error minimum (the anchor is leaking x_i, not approximating better).
+
+    Args:
+        alphas: list of α values (x-axis).
+        ssims: list of SSIM(α), left axis.
+        lin_fs: list of function-space lin-error(α), right axis (headline).
+        lin_ws: optional list of weight-space lin-error(α), right axis (dashed).
+        save_path: output PNG path.
+        path_label: 'LoRA' or 'Full' (title/legend).
+        title: optional title override.
+    """
+    plt = _setup_matplotlib()
+    order = sorted(range(len(alphas)), key=lambda i: alphas[i])
+    xs = [alphas[i] for i in order]
+    ss = [ssims[i] for i in order]
+    lf = [lin_fs[i] for i in order]
+
+    fig, ax1 = plt.subplots(figsize=(8, 5.5))
+    c_ssim, c_lin = '#1f77b4', '#d62728'
+
+    ax1.plot(xs, ss, marker='o', linewidth=2, color=c_ssim, label='SSIM')
+    ax1.set_xlabel(r'anchor $\alpha$  ($\theta_{\mathrm{anchor}}=(1-\alpha)\theta_0+\alpha\theta_T$)')
+    ax1.set_ylabel('reconstruction SSIM', color=c_ssim)
+    ax1.tick_params(axis='y', labelcolor=c_ssim)
+    ax1.grid(True, alpha=0.3)
+
+    ax2 = ax1.twinx()
+    ax2.plot(xs, lf, marker='s', linewidth=2, color=c_lin,
+             label='lin-error (function-space)')
+    if lin_ws is not None:
+        lw = [lin_ws[i] for i in order]
+        ax2.plot(xs, lw, marker='^', linewidth=1.5, linestyle='--',
+                 color=c_lin, alpha=0.6, label='lin-error (weight-space)')
+    ax2.set_ylabel('linearization error', color=c_lin)
+    ax2.tick_params(axis='y', labelcolor=c_lin)
+    ax2.spines['top'].set_visible(False)
+
+    # Mark the SSIM peak and the function-space lin-error minimum. If the SSIM
+    # peak sits at a *larger* α than the lin-error minimum, that is the red flag.
+    i_peak = max(range(len(xs)), key=lambda i: (ss[i] if ss[i] is not None else -1))
+    i_min = min(range(len(xs)), key=lambda i: (lf[i] if lf[i] is not None else float('inf')))
+    ax1.axvline(xs[i_peak], color=c_ssim, alpha=0.25, linestyle=':')
+    ax2.axvline(xs[i_min], color=c_lin, alpha=0.25, linestyle=':')
+    flag = 'OK: SSIM peak ≈ lin-error min' if xs[i_peak] <= xs[i_min] + 1e-9 \
+        else 'RED FLAG: SSIM climbs past lin-error min (possible x_i leakage)'
+
+    ax1.set_title(title or f'Anchor α-sweep ({path_label}) — {flag}', fontsize=11)
+
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='best', fontsize=10)
+
+    plt.tight_layout()
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, bbox_inches='tight', facecolor='white')
+        print(f"Saved: {save_path}")
+    plt.close()
+    return save_path

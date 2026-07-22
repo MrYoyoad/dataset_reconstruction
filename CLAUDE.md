@@ -165,6 +165,31 @@ python -m experiments.analyze_face_prior_sweep  # build figures + CSV after all 
 ```
 Outputs: `figures/phase0/face_prior/face_prior_*.png` and `results/phase0_face_prior_sweep_<ts>.csv`.
 
+### Gal's Additions: anchor sweep, direct inversion, gradient bridge (added 2026-07-22)
+
+Three tracks beyond job 435843 (which covered Additions 1/2 + loss ablation). Each saves `.pth`
+tensors + visual grids/curves. All run on WEXAC `long-gpu`; job scripts model on
+`scripts/run_gal_additions_sweep.sh`. **Use `python -u` in job scripts** — LSF buffers `python -m`
+stdout until job end, so unbuffered is required to monitor a run live.
+
+- **Addition 3 — anchor α-sweep** (`θ_anchor = (1−α)θ₀ + αθ_T`). New flag `--anchor_alpha` on
+  `experiments.run_experiment_b` (default 0.0 = current baseline, byte-compatible). Only the
+  linearization point moves; the reconstruction still matches the full Δw. Orchestrator +
+  two-curve plot: `python -m experiments.run_anchor_sweep --n_steps 10 --rank 8
+  --finetune_activation gelu --save --device cuda` → `figures/anchor_sweep/anchor_two_curve_*.png`.
+  Headline metric: `compute_function_space_lin_error` (ntk_verification.py). Submit:
+  `bsub < scripts/run_anchor_sweep_wexac.sh`.
+- **DI-Phase 0 — direct weight inversion** (`θ_T = F(θ₀,x̂)`, autograd through unrolled SGD).
+  `python -m experiments.direct_inversion --sweep_T --save --device cuda` (also `--sanity_t1` for the
+  T=1 vs Experiment-B **oracle** check). Never use `modified_relu` here (no double-backward — breaks
+  the create_graph unroll); GELU is required. Submit: `bsub < scripts/run_di_phase0_wexac.sh`.
+- **GB-Phase 1 — gradient bridge decoder** (`experiments/gradient_bridge/`). Generate proxy pairs:
+  `python -m experiments.gradient_bridge.generate_pairs --layer {0,1,2} --rank R --n_pairs N`
+  (filters degenerate near-zero-gradient pairs by `--grad_tol`; stores rank-1 factors, not dense
+  gradients). Train: `python -m experiments.gradient_bridge.train_decoder --bank <pth>`. **Always
+  read full-cosine vs projected-cosine**: the output layer is near-analytic (weak), the hidden layer
+  (ceiling ≈ √(r/out)) is the real milestone. Submit: `bsub < scripts/run_gb_phase1_wexac.sh`.
+
 ## Architecture
 
 ### Pipeline Flow

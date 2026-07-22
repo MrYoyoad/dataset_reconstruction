@@ -50,6 +50,11 @@ N_PER_CLASS_SWEEP = [1, 2, 4, 8]
 STEP_SWEEP = [1, 2, 5, 10, 20, 50, 100, 500, 1000]
 RANK_SWEEP_EXP_B = [1, 4, 8, 32, 64]  # reduced set for tractability
 
+# Anchor-alpha sweep (meeting Addition 3): theta_anchor = (1-a)*theta_0 + a*theta_T.
+# a=0 -> theta_0 (current); a=0.5 -> midpoint (Gal's suggestion); capped below 1.0
+# because the identifiability of x_i degrades as the anchor absorbs theta_T's training signal.
+ANCHOR_ALPHA_SWEEP = [0.0, 0.25, 0.5, 0.75, 0.9]
+
 # ---------------------------------------------------------------------------
 # Free-coefficient optimization (mirrors Haim et al.'s λ handling)
 # See LESSONS_LEARNED.md: "NTK Coefficients Are Cheating"
@@ -67,10 +72,34 @@ N_PER_CLASS_EXTRACTION_SWEEP = [1, 2, 3, 4, 5]
 # ---------------------------------------------------------------------------
 # Activation choices for ablation (Sprint 2b)
 # ---------------------------------------------------------------------------
-# Smooth activations (gelu/silu/softplus) added for meeting Addition 2: NTK theory
-# wants genuinely smooth (C^inf) activations; leaky_relu is only piecewise-linear.
-ACTIVATION_CHOICES = ['relu', 'leaky_relu', 'modified_relu',
-                      'gelu', 'silu', 'softplus']
+# Meeting Addition 2 — the smoothness axis. NTK theory wants genuinely smooth (C^inf)
+# activations; leaky_relu is only piecewise-linear (C^0, kinked at 0).
+#
+# Softplus beta is a CONTINUOUS smoothness knob: softplus_b(x) -> relu(x) as beta -> inf, so this
+# interpolates smooth <-> kinked and turns "smoother is better" into a monotonicity test rather
+# than a categorical comparison. This is the theory-cleanest arm of the sweep.
+SOFTPLUS_BETA_SWEEP = [0.5, 1, 2, 5, 10, 50]
+
+
+def _softplus_name(beta):
+    """Canonical activation name for a Softplus sharpness, e.g. 0.5 -> 'softplus_b0.5'."""
+    return f"softplus_b{beta:g}"
+
+
+ACTIVATION_CHOICES = [
+    # kinked baselines
+    'relu', 'leaky_relu', 'modified_relu',
+    # smooth (C^inf), deployment-relevant
+    'gelu',        # real ViTs / BERT / GPT — top priority
+    'silu',        # EfficientNet, some ViT variants
+    'softplus',    # canonical smooth ReLU (beta=1)
+    'mish',        # C^inf, detection nets; different tail shape from gelu/silu
+    'gelu_tanh',   # the tanh approximation GPT-2/BERT actually ship
+    # controls that isolate WHY smoothness might matter
+    'elu',         # C^1 only, not C^inf -> is full smoothness needed, or just "no kink"?
+    'tanh',        # smooth BUT bounded/saturating -> smoothness vs unboundedness
+    'hardswish',   # NOT smooth, shape-matched to silu -> smoothness vs shape
+] + [_softplus_name(b) for b in SOFTPLUS_BETA_SWEEP]
 
 # LR schedule choices for ablation
 LR_SCHEDULE_CHOICES = ['constant', 'inv_sqrt_T', 'inv_T', 'cosine', 'linear', 'cosine_warmup']

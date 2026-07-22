@@ -35,6 +35,110 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
+### Metric audit — most single-step LoRA reconstructions sit at/below the trivial baseline (2026-07-22)
+
+Chasing a metric anomaly (identical GELU config: SSIM 0.358 at 5 extraction epochs, 0.041 at
+50,000) led to a metrics overhaul (`experiments/metrics.py`) adding: **`ssim11`** (window=11,
+literature/SimuDy-comparable — ours was window=3), **`ssim_norm`** (mean/std-matched, scale
+invariant), **`ssim_mean_baseline`** (SSIM of the trivial `ds_mean` predictor), and **clipping
+diagnostics**. New offline re-scorer `experiments/recompute_metrics.py` re-scores saved `.pth`
+tensors with no GPU (→ `results/metrics_recomputed.csv`). Tests: `experiments/tests/test_metrics.py`
+(9, all pass) + `test_activations.py`.
+
+**Headline (rescore of 76 historical reconstructions):**
+- **65/76 score BELOW the `ds_mean` trivial baseline** on raw window-3 SSIM.
+- **full-model:** 10/28 beat baseline (mean SSIM 0.728 vs baseline 0.758) — the clean full-model
+  runs (0.96–0.99) genuinely and clearly beat it; those results stand.
+- **LoRA:** **1/48 beat baseline** (mean 0.479 vs 0.753) — on raw SSIM, single-step LoRA
+  reconstructions mostly do **not** demonstrably exceed "just output the dataset mean."
+
+**Two confounds the new metrics expose (they pull opposite ways):**
+1. **Clipping** — smooth-activation runs clip 40–60% of pixels (`x_recon` pinned at ±1, then
+   `+ds_mean` exceeds [0,1]); raw SSIM *understates* them. `ssim_norm` recovers +0.12–0.16
+   (gelu 0.041→0.198, silu 0.341→0.559, softplus 0.497→0.650).
+2. **Inflated baseline** — with N=2 and MNIST's mostly-black background, `ds_mean` already scores
+   ~0.76 against each digit, so raw SSIM *overstates* how impressive any single number is.
+
+**Interpretation (with caveats).** Raw SSIM on MNIST-N=2 is a poor leakage discriminator: both the
+absolute values and the baseline are background-dominated (the same effect we flagged for SimuDy,
+now measured on our own data). This does **not** prove the reconstructions are worthless — a recon
+can carry instance detail `ds_mean` lacks while both share the black background — but the historical
+"LoRA r≈8 SSIM ~0.6–0.8" numbers must be reported **against the baseline**, not alone. The
+full-vs-LoRA gap is real signal: **LoRA recovery (the thesis target / gate B1) does not yet clearly
+beat trivial on this testbed.**
+
+**Next:** report `ssim_norm` + baseline + clip everywhere; move to larger N / harder data so the
+baseline isn't ≈ each image; add a background-robust identifiability/retrieval metric. Trustworthy
+re-run is job **857271** (`scripts/run_gal_additions_sweep.sh`, resumable via `--skip_if_exists`).
+
+### Gal's missing missions built: Addition 3 + DI-Phase 0 + GB-Phase 1 (2026-07-22)
+
+Three tracks Gal asked for that job 435843 did **not** cover — each needed new code — are now
+built, locally validated, and running on WEXAC (`long-gpu`).
+
+**Track 2 — DI-Phase 0 (direct weight inversion) — ✅ demonstrated (job 500913).**
+`θ_T = F(θ₀, x̂)` with autograd through an unrolled SGD `F`; MNIST MLP, N=4, LoRA r=8, GELU.
+- **SSIM-vs-T:** T=1 **0.57**, T=2 0.57, T=5 0.53, T=10 **0.58**, T=20 0.43. Recovers digits at
+  SSIM ~0.55, **stable through T=10**, degrading at T=20.
+- The differentiable `F` is **bit-exact** at T=1: `F(x_true)` reproduces the true θ_T to 0.0 and the
+  endpoint loss / input-gradient are exactly 0 at the truth (reachable optimum).
+- **T=1 equivalence holds:** DI-T1 0.57 ≈ Experiment-B oracle NTK T=1 (~0.50 from job 435843), and
+  DI is *slightly above* — expected, since DI matches endpoints exactly while NTK is linearized.
+- Artifacts: `results/direct_inversion_N4_r8_gelu.pth`, `figures/direct_inversion/di_ssim_vs_T_*.png`
+  + per-T grids. Code: [experiments/direct_inversion.py](experiments/direct_inversion.py),
+  [scripts/run_di_phase0_wexac.sh](scripts/run_di_phase0_wexac.sh).
+
+**Track 1 — Addition 3 (anchor α-sweep + two-curve validation) — ✅ demonstrated (job 532232, T=10, seed 42).**
+`θ_anchor(α) = (1−α)θ₀ + αθ_T`, α ∈ {0,0.25,0.5,0.75,0.9}, on **both** full-FT and LoRA paths.
+- **Headline — an interior optimum at α≈0.75, confirming Gal's tradeoff:**
+
+  | path | α=0 | 0.25 | 0.5 | **0.75** | 0.9 |
+  |------|-----|------|-----|----------|-----|
+  | full-FT SSIM | 0.801 | 0.807 | 0.815 | **0.939** | 0.484 |
+  | LoRA r8 SSIM | 0.063 | 0.334 | 0.404 | **0.643** | 0.560 |
+  | full lin-err (fn-space) | 0.008 | 0.004 | 0.002 | 0.001 | 0.000 |
+  | LoRA lin-err | 0.192 | 0.206 | 0.165 | 0.087 | 0.034 |
+
+  SSIM rises with α as the linearization error falls (dramatic on LoRA: **0.06→0.64**), peaks at
+  **α≈0.75**, then **collapses at α=0.9** (full-FT drops to 0.48, *below* the α=0 baseline). The
+  collapse is the identifiability-degradation regime Gal predicted — past ~0.75 the anchor absorbs
+  θ_T's training signal. SSIM peaks *before* the lin-error minimum (not after), so this is a legit
+  linearization win, **not** the x_i-leakage red flag. Gal's midpoint helps; **α*≈0.75** is the sweet
+  spot; cap below 0.9.
+- **α=0 reproduces the current baseline bit-for-bit** (verified offline). Only the *linearization
+  point* moves (features + recomputed coefficients at θ_anchor); the reconstruction still matches the
+  full observed Δw. Headline metric: **function-space** Taylor residual; weight-space kept as companion.
+- Deliverables: `figures/anchor_sweep/anchor_two_curve_{full,lora}_*.png` + per-α grids +
+  `results/anchor_sweep_T10_r8_gelu_s42.pth`. Code: `--anchor_alpha` in
+  [run_experiment_b.py](experiments/run_experiment_b.py),
+  [experiments/run_anchor_sweep.py](experiments/run_anchor_sweep.py),
+  `compute_function_space_lin_error` in [ntk_verification.py](experiments/ntk_verification.py).
+- **Caveat:** single seed at T=10 (where the θ₀-anchor is weakest, so the anchor helps most). Multi-seed
+  + a T-sweep would harden the α*≈0.75 claim before it goes in the thesis.
+
+**Track 3 — GB-Phase 1 (Gradient Bridge decoder) — ✅ first result (job 532180), higher-rank arms running.**
+`f_φ:(A,B)→∇_W L` on a public MNIST proxy, single-step LoRA measurements, cosine loss.
+- **Honest first result (r=8, reported as full-cosine vs the col(B₀) projection ceiling):**
+  - **Hidden layer (layers.1, the real milestone):** decoder full cosine **0.685** vs projection
+    ceiling **0.086** — the decoder recovers the gradient **~8× above** what the measurement subspace
+    affords, i.e. it genuinely *hallucinates the out-of-subspace component from the proxy prior* (the
+    R2F claim, now shown for vision).
+  - **Rank sweep (r=8/32/64) — a clean finding:** decoder full-cosine is **flat at 0.685** across all
+    three ranks, while the measurement ceiling rises 0.086→0.178→0.252 (exactly √(r/1000)). So the
+    decoder beats the ceiling at every rank, but **higher rank does not help** — the recovery is
+    prior/decoder-limited, not measurement-limited. Rank is **not** the lever to reach 0.9; the next
+    levers are decoder capacity, nonzero-A (two-sided) measurement, or multi-sample gradients.
+  - **Output layer (layers.2):** decoder full cosine **0.94** but projection ceiling **1.0** — the
+    decoder is *below* trivial analytic inversion, so ">0.9" here is **weak evidence** (near-analytic,
+    out=1). The dual-cosine report exposes this cleanly.
+- Risk-fixes that made the numbers honest: **gradient-norm filtering** of degenerate near-zero-gradient
+  pairs (output-layer ceiling went 0.865→1.000 after filtering), rank-1 factored storage (no 200 GB
+  blowup), stable QR projection (gram pinv blows up when out < r).
+- Risk-fixes baked in: rank-1 factored storage (no 200 GB blowup), fresh B₀ per pair, and
+  **gradient-norm filtering** (confidently-classified proxy samples give ≈0 gradient → useless pairs).
+- Code: [experiments/gradient_bridge/](experiments/gradient_bridge/) (generate_pairs / decoder /
+  train_decoder), [scripts/run_gb_phase1_wexac.sh](scripts/run_gb_phase1_wexac.sh).
+
 ### SimuDy collision + Gal's Additions launched (2026-07-21)
 
 **Novelty collision found (resolves the Part D literature search).** Gal sent

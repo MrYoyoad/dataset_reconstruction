@@ -4,6 +4,71 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Building Addition 3 + DI-Phase 0 + GB-Phase 1 (2026-07-22)
+
+### Anchor α-sweep: match the FULL Δw, not a residual (design decision)
+- **What was almost wrong:** an early plan matched the *residual* displacement `(1−α)·Δw` in the
+  reconstruction. That rescales the observable and introduces an ambiguous "effective step count."
+- **Correct formulation:** the spec says the inversion linearizes around θ_anchor and uses
+  `∇Φ(θ_anchor)`. So **only the linearization point moves** (gradient features + recomputed oracle
+  coefficients at θ_anchor); the reconstruction still matches the full, observed `Δw`, with `lr` and
+  `T` unchanged. This reduces to the current code **exactly** at α=0 (verified bitwise), which is the
+  built-in sanity check. The `(1−α)` factor belongs only inside the *function-space* lin-error
+  diagnostic (its Taylor direction `δ = θ_T − θ_anchor = (1−α)Δw`).
+- **Two lin-errors, not one:** the existing `compute_linearization_error` is *weight-space*
+  (`‖Δw − (−lrT·Σc∇f)‖/‖Δw‖`); the plan's deliverable is the *function-space* Taylor residual on Φ.
+  They are different metrics — ship the function-space one as the headline, keep weight-space as a
+  companion.
+
+### Sanity-baseline pitfall: DI-T1 vs the RIGHT Experiment-B mode
+- **Bug (spurious "large gap"):** the T=1 sanity compared DI-T1 (SSIM 0.57) to Experiment-B
+  **free-coefficient** LoRA at only 2000 extraction epochs (SSIM 0.067) and flagged a 0.47 gap.
+- **Root cause:** free-coefficient LBFGS needs ~50k epochs to converge; at 2k it badly under-reports.
+  The gap was an artifact of the *baseline being undertrained*, not a bug in `F`.
+- **Fix:** compare against Experiment-B **oracle** (fixed coefficients) — fast, well-defined, ~0.50.
+  DI-T1 (0.57) ≳ oracle (0.50) is the *expected* result: DI matches endpoints exactly while NTK is
+  linearized, so DI should sit at or slightly above the oracle. `F` itself is bit-exact at T=1.
+
+### Gradient bridge: degenerate near-zero-gradient pairs poison the bank
+- **Symptom:** projected-cosine ceiling for the output layer came out 0.865 instead of 1.0.
+- **Root cause:** proxy samples the base model already classifies confidently have `|g_err|≈0` →
+  per-sample gradient ≈ 0 → cosine undefined (~0), dragging the mean down. Such pairs also carry no
+  LoRA signal for the decoder.
+- **Fix:** filter pairs by per-sample gradient norm (`grad_tol`), oversampling the proxy pool to still
+  reach `n_pairs`; log the survival rate (no silent capping). After filtering, layer-2 ceiling = 1.000.
+
+### The col(B₀) subspace ceiling is the real GB milestone risk
+- A single-step LoRA adapter at A=0 observes `∇_W L` only through `col(B₀)` (since `∇_A L = scaling·B₀ᵀ∇_W L`).
+  So the full-gradient cosine is capped near `√(r/out)` unless the decoder hallucinates the rest.
+- **Output layer (out=1)** is trivially invertible (col(B₀)=R¹, cosine 1.0) → *weak evidence only*.
+- **Hidden layer (out=1000, r=8)** ceiling ≈ 0.089 — the honest bar. **Always report full-cosine vs
+  projected-cosine** so a ">0.9" claim can't hide behind the near-analytic layer. Use a stable QR
+  projection (`Q Qᵀ grad`), not a gram pseudo-inverse — `B₀ᵀB₀` is rank-deficient when out < r.
+
+### Local (login-node) CPU is unusable for real compute — validate on GPU
+- Multi-step **full** fine-tuning on the shared login node ran ~**10 s/step** (T=10 → 99.5 s) — ~100×
+  slower than an L40S — pure thread-thrash on a loaded node. Confirms the "GPU only" rule.
+- **Do validate logic locally** with fabricated/tiny inputs (anchor bitwise-equality, `F` bit-exactness,
+  pair self-consistency all ran in 1–15 s) — just never real sweeps.
+- **LSF buffers `python -m` stdout** (output appears only at job end); use `python -u` for jobs you
+  need to monitor live. A **stuck** job shows ~5 MB host RAM / 1 thread / 1 PID in `bjobs -l` — a
+  running PyTorch+CUDA process uses hundreds of MB, so that reading means "not computing."
+
+### Two empirical findings worth remembering
+- **Anchor has an interior optimum with a hard cliff.** SSIM(α) rises to **α≈0.75** (LoRA 0.06→0.64,
+  full-FT 0.80→0.94) then **collapses at α=0.9** (full-FT 0.48, below the α=0 baseline). The rise
+  tracks the falling linearization error; the collapse is the identifiability-degradation regime
+  (anchor absorbs θ_T's training signal). **Cap α ≤ ~0.75.** SSIM peaks *before* the lin-error minimum,
+  so the gain is a linearization win, not x_i leakage. (Single seed, T=10 — harden before the thesis.)
+- **More LoRA rank does not improve the gradient bridge.** Decoder full-cosine is **flat at 0.685**
+  across r=8/32/64 while the measurement ceiling rises √(r/1000). So most of the 0.685 comes from the
+  **proxy prior / decoder**, not the measurement — the bridge is prior-limited, not bandwidth-limited.
+  Don't reach for rank to hit 0.9; try decoder capacity, nonzero-A (two-sided) measurement, or
+  multi-sample gradients instead. And **always report full-cosine vs the projection ceiling** — 0.685
+  reads as "meh" until you see the measurement only afforded 0.086.
+
+---
+
 ## Infrastructure & Data Loss (2026-03-19)
 
 ### The Git Repo That Never Was
@@ -791,4 +856,58 @@ inverting an update that carries almost no information. **We measured "nothing h
 3. **A surprising negative on a headline claim deserves a confound check before it is reported.**
    Handing a supervisor "GELU fails" when the truth is "our LR was wrong" is an expensive mistake.
    The sweep now calibrates LR ∈ {0.01, 0.03, 0.1, 0.3} per activation before drawing conclusions.
+
+---
+
+## [RESULT] Most Single-Step LoRA Reconstructions Sit At/Below the Trivial `ds_mean` Baseline (2026-07-22)
+
+**What happened.** Adding a trivial-predictor baseline to the metrics (`ssim_mean_baseline` =
+SSIM of the dataset mean vs each target) and re-scoring all 76 saved reconstructions
+(`experiments/recompute_metrics.py`) showed **65/76 score below that baseline** on raw window-3
+SSIM. By recon type: **full-model 10/28** beat it (the clean 0.96–0.99 runs clearly do), but
+**LoRA 1/48** (mean 0.479 vs baseline 0.753). We had been reading LoRA numbers of 0.6–0.8 as
+"good" with no baseline to compare against.
+
+**Two confounds, pulling opposite directions, both now measured:**
+- **Clipping understates:** `x_recon` saturates the soft [-1,1] box, so `x_recon + ds_mean` leaves
+  [0,1] and the metric's clamp silently discards 40–60% of pixels. `ssim_norm` (mean/std matched)
+  recovers +0.12–0.16 (gelu 0.041→0.198).
+- **Baseline overstates:** with N=2 and MNIST's mostly-black background, `ds_mean` already scores
+  ~0.76 against each digit. Most of SSIM is background agreement, not digit recovery.
+
+**Root cause of the illusion.** SSIM on near-binary, mostly-black MNIST is dominated by the
+constant background both images share (exactly the "background carries no signal" effect we flagged
+for SimuDy). Absolute SSIM on this testbed is not a leakage discriminator.
+
+**Lessons.**
+1. **Always report a trivial-predictor baseline.** "0.68" means nothing until you know the dataset
+   mean scores 0.76. Any metric without a floor invites reading noise as success.
+2. **A metric that both understates (clipping) and overstates (baseline) is unusable raw.** Report
+   `ssim` + `ssim_norm` + `ssim_mean_baseline` + `clipped_fraction` together, never `ssim` alone.
+3. **The testbed itself is the problem, not just the metric.** N=2 makes `ds_mean ≈ each image`;
+   MNIST makes background dominate. Larger N and harder data are needed for SSIM to mean anything —
+   or a background-robust identifiability/retrieval metric.
+4. **This sharpens gate B1** (can we recover from the adapter at all?): on raw SSIM, single-step
+   LoRA does *not* yet clearly beat trivial. That is the honest current state, not a solved case.
+
+---
+
+## [INSIGHT] `ast.parse` Does Not Catch "return Outside Function" — Use `py_compile` (2026-07-22)
+
+**What happened.** Added a `--skip_if_exists` early-exit using `return`, but the `main` body runs
+under `if __name__ == '__main__':`, not a `def`, so `return` there is illegal. My syntax check
+(`ast.parse`) reported **OK**, and the bug only surfaced when a pytest run failed to import the
+module (`SyntaxError: 'return' outside function`). A GPU job submitted with that file would have
+crashed on its first Python call (the compile error blocks import entirely, including the smoke
+stage) — wasting the queue slot.
+
+**Root cause.** `ast.parse` checks *grammar* only. "return outside function", "break outside loop",
+etc. are *semantic* checks performed later by the symbol-table/compile pass, which `ast.parse`
+never runs. `return` is grammatically valid anywhere.
+
+**Lesson.** Validate scripts with **`python -m py_compile <file>`** (or `compile(src, f, 'exec')`),
+not `ast.parse` — `py_compile` runs the full compile and catches these. Cheap, and it does not
+import heavy deps (`import torch` costs ~270 s on the WEXAC login node, so a real import-based check
+is expensive; `py_compile` sidesteps that while still catching compile-time errors). Even so, the
+*test suite* is what actually caught this — CPU-only import tests earn their keep.
 

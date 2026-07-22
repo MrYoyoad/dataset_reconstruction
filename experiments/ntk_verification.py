@@ -321,6 +321,60 @@ def compute_linearization_error(model_at_theta0, delta_w, x, y, lr, n_steps):
     }
 
 
+def compute_function_space_lin_error(model_at_anchor, model_at_theta_T, x, delta):
+    """Function-space Taylor residual of the network output around an anchor.
+
+    Measures how linear the network *function* Φ is over the segment from the
+    anchor to θ_T, in the plan's exact terms (experiment_plan.md "Addition 3"):
+
+        ||Φ(θ_T; x) − [Φ(θ_anchor; x) + ∇Φ(θ_anchor; x)·δ]|| / ||Φ(θ_T; x) − Φ(θ_anchor; x)||
+
+    where δ = θ_T − θ_anchor is the (known) displacement. This is pure
+    approximation quality — it does NOT reconstruct x_i and is independent of
+    the extraction optimizer. It is the headline linearization-error(α) curve:
+    as the anchor α→1 the segment shrinks (δ→0) so the residual should drop.
+    Complements the weight-space compute_linearization_error above.
+
+    Args:
+        model_at_anchor: model loaded with θ_anchor weights (real activation, not
+            the ModifiedRelu extraction surrogate — this is the true Φ).
+        model_at_theta_T: model loaded with θ_T weights (same architecture).
+        x: [N, C, H, W] evaluation inputs (mean-subtracted, as during training).
+        delta: dict param_name → (θ_T − θ_anchor)[param], the Taylor direction.
+
+    Returns:
+        dict with 'relative_error', 'absolute_error', 'delta_output_norm'.
+    """
+    model_at_anchor.eval()
+    model_at_theta_T.eval()
+
+    with torch.no_grad():
+        f_anchor = model_at_anchor(x).view(-1)
+        f_T = model_at_theta_T(x).view(-1)
+
+    # First-order term: directional derivative ∇Φ(θ_anchor; x_i)·δ per sample.
+    # Reuse the per-sample gradient machinery, then contract with δ.
+    grad_list, _ = _get_per_sample_gradients(model_at_anchor, x)
+    jvp = torch.zeros_like(f_anchor)
+    for i, grads in enumerate(grad_list):
+        acc = torch.zeros((), dtype=f_anchor.dtype, device=f_anchor.device)
+        for name, g in grads.items():
+            if name in delta:
+                acc = acc + (g * delta[name]).sum()
+        jvp[i] = acc
+
+    predicted = f_anchor + jvp
+    abs_err = (f_T - predicted).norm().item()
+    delta_out = (f_T - f_anchor).norm().item()
+    relative = abs_err / delta_out if delta_out > 0 else 0.0
+
+    return {
+        'relative_error': relative,
+        'absolute_error': abs_err,
+        'delta_output_norm': delta_out,
+    }
+
+
 def ntk_smoke_test(theta_0, theta_T, model_class_fn, x, y, delta_w=None,
                    verbose=True, label=""):
     """Comprehensive NTK regime check before extraction.
