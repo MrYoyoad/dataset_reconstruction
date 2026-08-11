@@ -27,18 +27,35 @@ import torch
 from experiments.configs import RESULTS_DIR, FIGURES_DIR
 from experiments.gradient_bridge.decoder import (
     GradientDecoder, cosine_loss, mean_cosine, project_onto_colspace,
+    project_onto_two_sided,
 )
 
 
+def _grad3d(g_err, g_inp):
+    """Per-sample gradient ∇_W L = Σ_i g_err_i ⊗ g_inp_i, shape [b, out, in].
+
+    Handles both the rank-1 case (g_err [b,out], g_inp [b,in]) and the
+    multi-sample case (g_err [b,m,out], g_inp [b,m,in], summed over m)."""
+    if g_err.dim() == 3:
+        return torch.einsum('bmo,bmi->boi', g_err, g_inp)
+    return torch.einsum('bo,bi->boi', g_err, g_inp)
+
+
 def _target_grad(g_err, g_inp):
-    """Rank-1 per-sample gradient ∇_W L = g_err ⊗ g_inp, flattened to [b, out*in]."""
-    b = g_err.shape[0]
-    return torch.einsum('bo,bi->boi', g_err, g_inp).reshape(b, -1)
+    """∇_W L flattened to [b, out*in] (sum of outer products for m>1)."""
+    return _grad3d(g_err, g_inp).reshape(g_err.shape[0], -1)
 
 
-def _adapter_input(A, B0):
-    """Flatten (A,B0) into the decoder input [b, r*in + out*r]."""
+def _adapter_input(A, B0, two_sided=False, grad_A=None, grad_B=None, A0=None):
+    """Flatten the decoder input.
+
+    Single-sided: [A, B0]                       -> [b, r*in + out*r].
+    Two-sided:    [∇_A L, ∇_B L, B0, A0]        -> [b, 2*r*in + 2*out*r].
+    The two-sided layout exposes both measurement channels AND both bases."""
     b = A.shape[0]
+    if two_sided:
+        return torch.cat([grad_A.reshape(b, -1), grad_B.reshape(b, -1),
+                          B0.reshape(b, -1), A0.reshape(b, -1)], dim=1)
     return torch.cat([A.reshape(b, -1), B0.reshape(b, -1)], dim=1)
 
 
@@ -49,19 +66,28 @@ def train(bank, epochs=200, batch=256, lr=1e-3, hidden=1024, depth=2,
     meta = bank['meta']
     out_f, in_f = meta['out'], meta['in']
     lr_ft, scaling = meta['lr'], meta['scaling']
+    two_sided = meta.get('two_sided', False)
 
     # float32 for decoder training (cosine is scale-free; halves memory).
     A = bank['A'].float(); B0 = bank['B0'].float()
     g_err = bank['g_err'].float(); g_inp = bank['g_inp'].float()
     n = A.shape[0]
+    if two_sided:
+        A0 = bank['A0'].float(); grad_A = bank['grad_A'].float(); grad_B = bank['grad_B'].float()
+    else:
+        A0 = grad_A = grad_B = None
 
     if out_mode == 'auto':
         out_mode = 'dense' if out_f * in_f <= 5000 else 'lowrank'
-    in_dim = A[0].numel() + B0[0].numel()
+    if two_sided:
+        in_dim = grad_A[0].numel() + grad_B[0].numel() + B0[0].numel() + A0[0].numel()
+    else:
+        in_dim = A[0].numel() + B0[0].numel()
     dec = GradientDecoder(in_dim, out_f, in_f, hidden=hidden, depth=depth,
                           out_mode=out_mode, out_rank=out_rank).to(device)
     opt = torch.optim.Adam(dec.parameters(), lr=lr)
     print(f"Decoder: in_dim={in_dim} out={out_f}x{in_f} mode={out_mode} "
+          f"two_sided={two_sided} m={meta.get('samples_per_pair', 1)} "
           f"params={sum(p.numel() for p in dec.parameters()):,}")
 
     # split
@@ -75,17 +101,29 @@ def train(bank, epochs=200, batch=256, lr=1e-3, hidden=1024, depth=2,
         for i in range(0, len(order), bs):
             yield order[i:i + bs]
 
+    def _inp(bi):
+        """Assemble the decoder input for index batch bi (device tensors)."""
+        a, b0 = A[bi].to(device), B0[bi].to(device)
+        if two_sided:
+            return _adapter_input(a, b0, two_sided=True, grad_A=grad_A[bi].to(device),
+                                  grad_B=grad_B[bi].to(device), A0=A0[bi].to(device))
+        return _adapter_input(a, b0)
+
     @torch.no_grad()
     def evaluate():
         dec.eval()
         full, proj, seen = 0.0, 0.0, 0
         for bi in batches(val_idx, batch, shuffle=False):
-            a, b0 = A[bi].to(device), B0[bi].to(device)
+            b0 = B0[bi].to(device)
             ge, gi = g_err[bi].to(device), g_inp[bi].to(device)
-            grad3d = torch.einsum('bo,bi->boi', ge, gi)            # [b, out, in]
+            grad3d = _grad3d(ge, gi)                               # [b, out, in]
             tgt = grad3d.reshape(len(bi), -1)
-            pred = dec(_adapter_input(a, b0))
-            proj_est = project_onto_colspace(grad3d, b0).reshape(len(bi), -1)
+            pred = dec(_inp(bi))
+            if two_sided:
+                proj_est = project_onto_two_sided(grad3d, b0, A0[bi].to(device))
+            else:
+                proj_est = project_onto_colspace(grad3d, b0)
+            proj_est = proj_est.reshape(len(bi), -1)
             full += mean_cosine(pred, tgt) * len(bi)
             proj += mean_cosine(proj_est, tgt) * len(bi)
             seen += len(bi)
@@ -96,10 +134,9 @@ def train(bank, epochs=200, batch=256, lr=1e-3, hidden=1024, depth=2,
     for ep in range(epochs):
         dec.train()
         for bi in batches(tr_idx, batch, shuffle=True):
-            a, b0 = A[bi].to(device), B0[bi].to(device)
             tgt = _target_grad(g_err[bi].to(device), g_inp[bi].to(device))
             opt.zero_grad()
-            loss = cosine_loss(dec(_adapter_input(a, b0)), tgt)
+            loss = cosine_loss(dec(_inp(bi)), tgt)
             loss.backward()
             opt.step()
         full_c, proj_c = evaluate()
@@ -112,7 +149,12 @@ def train(bank, epochs=200, batch=256, lr=1e-3, hidden=1024, depth=2,
     return dec, history, {'best_full_cos': best_full,
                           'final_full_cos': history[-1]['val_full_cos'],
                           'final_proj_cos': history[-1]['val_proj_cos'],
-                          'out_mode': out_mode, 'meta': meta}
+                          'out_mode': out_mode,
+                          'two_sided': two_sided,
+                          'samples_per_pair': meta.get('samples_per_pair', 1),
+                          'rank': meta.get('rank'),
+                          'hidden': hidden, 'depth': depth, 'out_rank': out_rank,
+                          'meta': meta}
 
 
 def _plot(history, save_path, layer_idx, rank):

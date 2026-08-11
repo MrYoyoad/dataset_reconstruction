@@ -15,8 +15,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'dataset_reconstruction'))
 
 from experiments.retrieval_metric import (  # noqa: E402
-    retrieval_scores, similarity_matrix, METRIC_SPACES,
+    retrieval_scores, similarity_matrix, METRIC_SPACES, base_classifier_feature_fn,
 )
+from experiments.configs import PRETRAINED_MNIST_PATH  # noqa: E402
 
 
 def _blob(n=6, size=28, seed=0):
@@ -83,4 +84,16 @@ class TestFeatureFn:
         b = _blob(seed=4)
         identity_feat = lambda x: x            # trivial feature map
         s = retrieval_scores(similarity_matrix(b.clone(), b, feature_fn=identity_feat))
+        assert s['top1_acc'] == 1.0
+
+    @pytest.mark.skipif(not os.path.exists(PRETRAINED_MNIST_PATH),
+                        reason="base MNIST classifier weights not present")
+    def test_base_classifier_feature_fn(self):
+        """The existing base classifier loads and yields 1000-dim penultimate features that
+        retrieve a perfect reconstruction (sanity that the feature space is usable)."""
+        fn = base_classifier_feature_fn()
+        b = _blob(n=4, seed=5)
+        feats = fn(b)
+        assert feats.shape == (4, 1000)
+        s = retrieval_scores(similarity_matrix(b.clone(), b, feature_fn=fn))
         assert s['top1_acc'] == 1.0

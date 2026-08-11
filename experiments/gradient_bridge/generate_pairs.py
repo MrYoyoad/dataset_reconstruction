@@ -190,6 +190,13 @@ if __name__ == '__main__':
     parser.add_argument('--activation', type=str, default='gelu')
     parser.add_argument('--batch', type=int, default=256)
     parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--grad_tol', type=float, default=1e-2)
+    parser.add_argument('--samples_per_pair', type=int, default=1,
+                        help='m: proxy samples aggregated per pair (rank-m batch gradient).')
+    parser.add_argument('--two_sided', action='store_true',
+                        help='Also measure via a small A0 (∇_A L and ∇_B L channels).')
+    parser.add_argument('--a_init_scale', type=float, default=0.1,
+                        help='Std scale s for A0 = s·randn (two-sided mode only).')
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--save', type=str, default=None)
     args = parser.parse_args()
@@ -198,7 +205,9 @@ if __name__ == '__main__':
     print(f"Using device: {device}")
     bank = generate_pair_bank(args.n_pairs, args.layer, args.rank, lr=args.lr,
                               activation=args.activation, batch=args.batch,
-                              seed=args.seed, device=device)
+                              seed=args.seed, device=device, grad_tol=args.grad_tol,
+                              samples_per_pair=args.samples_per_pair,
+                              two_sided=args.two_sided, a_init_scale=args.a_init_scale)
     out = args.save or os.path.join(RESULTS_DIR, f"gb_pairs_L{args.layer}_r{args.rank}.pth")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     torch.save(bank, out)

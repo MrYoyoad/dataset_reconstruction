@@ -53,6 +53,20 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 - **LSF buffers `python -m` stdout** (output appears only at job end); use `python -u` for jobs you
   need to monitor live. A **stuck** job shows ~5 MB host RAM / 1 thread / 1 PID in `bjobs -l` — a
   running PyTorch+CUDA process uses hundreds of MB, so that reading means "not computing."
+- **Intermittent WEXAC startup hang — check every job ~15 min after it starts RUN.** Three jobs this
+  session (452468, 877297, 886406) landed on a bad node and **hung before Python even started**:
+  `bjobs -l` shows **~5–8 MB MEM, 1 thread, ~0.17 CPU-sec**, and the `.out` is **empty even with
+  `python -u`**. One held a GPU idle for its full 8 h `-W` wall before being killed. Likely cause: a
+  `conda activate` / `source conda.sh` stalling on a node with bad NFS to the shared env. **Detection:**
+  empty `-u` stdout + single-digit-MB MEM after ~15 min = hung (a live job streams and uses hundreds of
+  MB). **Fix:** `bkill` + resubmit to get a fresh node (most reruns work — it's node-specific). Don't
+  wait on it; and after killing a hung job, verify the *result files* are absent before assuming the run
+  produced nothing.
+- **`long-gpu` RUNLIMIT is 96 h and big staged sweeps WILL hit it** — jobs 857271 and 863020 both died
+  at TERM_RUNLIMIT (2026-07-26) mid-sweep. `--skip_if_exists` made them resumable, but nobody resubmitted,
+  so the tail stages silently never ran for 2+ weeks. Two fixes: (a) order stages so the highest-value
+  work lands first (this saved 863020 — its key stages finished), and (b) after ANY long job ends, check
+  the `.out` for `TERM_RUNLIMIT` vs `Successfully completed` before treating the sweep as done.
 
 ### Two empirical findings worth remembering
 - **Anchor has an interior optimum with a hard cliff.** SSIM(α) rises to **α≈0.75** (LoRA 0.06→0.64,

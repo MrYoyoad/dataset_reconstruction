@@ -1,0 +1,16 @@
+run,config,recon,stored_ssim,ssim,ssim11,ssim_norm,ssim_mean_baseline,clipped_fraction,beats_baseline
+direct_inversion_N4_r8_gelu,T=1,DI,0.5699,0.5699,0.5763,0.5988,0.6739,0.4168,False
+direct_inversion_N4_r8_gelu,T=2,DI,0.5685,0.5685,0.571,0.6016,0.6739,0.4254,False
+direct_inversion_N4_r8_gelu,T=5,DI,0.5289,0.5289,0.4757,0.4332,0.6739,0.434,False
+direct_inversion_N4_r8_gelu,T=10,DI,0.5796,0.5796,0.5428,0.4591,0.6739,0.4758,False
+direct_inversion_N4_r8_gelu,T=20,DI,0.4267,0.4267,0.3413,0.1779,0.6739,0.5198,False
+anchor_sweep_T10_r8_gelu_s42,alpha=0.0,full,,0.8006,0.7396,0.8285,0.763,0.4534,True
+anchor_sweep_T10_r8_gelu_s42,alpha=0.0,lora,,0.0631,0.0378,0.3102,0.763,0.5638,False
+anchor_sweep_T10_r8_gelu_s42,alpha=0.25,full,,0.8068,0.7493,0.8323,0.763,0.4413,True
+anchor_sweep_T10_r8_gelu_s42,alpha=0.25,lora,,0.3337,0.1444,0.4671,0.763,0.6728,False
+anchor_sweep_T10_r8_gelu_s42,alpha=0.5,full,,0.8154,0.8025,0.8528,0.763,0.3661,True
+anchor_sweep_T10_r8_gelu_s42,alpha=0.5,lora,,0.4036,0.1901,0.4735,0.763,0.6231,False
+anchor_sweep_T10_r8_gelu_s42,alpha=0.75,full,,0.9393,0.9668,0.9623,0.763,0.544,True
+anchor_sweep_T10_r8_gelu_s42,alpha=0.75,lora,,0.6425,0.5982,0.687,0.763,0.5306,False
+anchor_sweep_T10_r8_gelu_s42,alpha=0.9,full,,0.4842,0.3868,0.562,0.763,0.5485,False
+anchor_sweep_T10_r8_gelu_s42,alpha=0.9,lora,,0.5596,0.4411,0.6174,0.763,0.602,False

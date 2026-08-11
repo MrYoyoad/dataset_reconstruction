@@ -207,7 +207,8 @@ def sanity_check_T1(N=4, rank=8, activation='gelu', device='cuda',
 
 
 def sweep_T(Ts=(1, 2, 5, 10, 20), N=4, rank=8, activation='gelu',
-            outer_iters=2000, n_restarts=4, device='cuda', warm_start=True):
+            outer_iters=2000, n_restarts=4, box_weight=1.0, device='cuda',
+            warm_start=True):
     """Run direct inversion across T, warm-starting x̂ from the previous T."""
     results = {}
     x_prev = None
@@ -215,7 +216,8 @@ def sweep_T(Ts=(1, 2, 5, 10, 20), N=4, rank=8, activation='gelu',
         print(f"\n{'='*60}\nDirect inversion T={T}\n{'='*60}")
         res = run_direct_inversion(
             T=T, N=N, rank=rank, activation=activation, outer_iters=outer_iters,
-            n_restarts=n_restarts, x_init=(x_prev if warm_start else None),
+            n_restarts=n_restarts, box_weight=box_weight,
+            x_init=(x_prev if warm_start else None),
             device=device, verbose=True)
         results[T] = res
         x_prev = res['x_recon']
@@ -269,6 +271,9 @@ if __name__ == '__main__':
     parser.add_argument('--activation', type=str, default='gelu')
     parser.add_argument('--outer_iters', type=int, default=2000)
     parser.add_argument('--n_restarts', type=int, default=4)
+    parser.add_argument('--box_weight', type=float, default=1.0,
+                        help='Weight on the soft [-1,1] box penalty (default 1.0 '
+                             '= current behaviour). Raise to curb [0,1] saturation.')
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--save', action='store_true')
     parser.add_argument('--tag', type=str, default=None)
@@ -284,7 +289,8 @@ if __name__ == '__main__':
     if args.sweep_T:
         results = sweep_T(Ts=tuple(args.Ts), N=args.N, rank=args.rank,
                           activation=args.activation, outer_iters=args.outer_iters,
-                          n_restarts=args.n_restarts, device=device)
+                          n_restarts=args.n_restarts, box_weight=args.box_weight,
+                          device=device)
         print("\n=== SSIM vs T ===")
         for T in sorted(results):
             print(f"  T={T:>3d}: SSIM={results[T]['ssim']:.4f}  "

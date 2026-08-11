@@ -76,3 +76,29 @@ def project_onto_colspace(grad, B0):
     """
     Q, _ = torch.linalg.qr(B0, mode='reduced')       # Q: [b, out, min(out,r)]
     return Q @ (Q.transpose(1, 2) @ grad)            # P·grad = Q Qᵀ grad
+
+
+def project_onto_two_sided(grad, B0, A0):
+    """Projection of ∇_W L onto the two-sided subspace col(B0) ⊕ row(A0).
+
+    The two-sided single-step measurement observes ∇_W L through its columns
+    (via B0ᵀ∇_W L) AND its rows (via ∇_W L·A0ᵀ) — i.e. through the subspace
+    S = {B0·M} + {N·A0} of the [out,in] matrix space. Left- and right-projections
+    commute, so the orthogonal projector onto the sum is exactly
+        P_S = P_B + P_A − P_B P_A,   P_B = Q_B Q_Bᵀ (left),  P_A = Q_A Q_Aᵀ (right)
+    with Q_B an orthonormal basis of col(B0) and Q_A of row(A0)=col(A0ᵀ). This is
+    the honest two-sided ceiling: cos(P_S ∇_W L, ∇_W L) is the fraction of gradient
+    energy the two channels jointly capture (≈ r/out + r/in for a rank-1 gradient,
+    strictly above the single-sided √(r/out)).
+
+    Args:
+        grad: [b, out, in] the true per-sample gradients.
+        B0:   [b, out, r]  the LoRA column measurement bases.
+        A0:   [b, r, in]   the LoRA row measurement bases.
+    """
+    QB, _ = torch.linalg.qr(B0, mode='reduced')                  # [b, out, min(out,r)]
+    QA, _ = torch.linalg.qr(A0.transpose(1, 2), mode='reduced')  # [b, in,  min(in,r)]
+    PB = QB @ (QB.transpose(1, 2) @ grad)                        # left projection
+    PA = grad @ (QA @ QA.transpose(1, 2))                        # right projection
+    PBA = QB @ (QB.transpose(1, 2) @ PA)                         # P_B P_A grad
+    return PB + PA - PBA

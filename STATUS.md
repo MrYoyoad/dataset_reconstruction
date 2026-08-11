@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: **2026-07-21** (SimuDy novelty collision + direction reframe; Gal's Additions 1/2 + loss ablation launched as job 435843. Experimental **results** last updated 2026-05-13)
+Last updated: **2026-08-11** (status review after a ~2.5-week gap: committed the Jul 22–26 result batch, recorded outcomes of jobs 956997 / 957044 / 857271 / 863020. Cluster has been **idle since 2026-07-26**; experimental **results** last updated 2026-07-26)
 
 ---
 
@@ -35,6 +35,35 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
+### Status review — final job outcomes from the Jul 23–26 batch (2026-08-11)
+
+All four late-July jobs are finished; **nothing is running on WEXAC** (idle since 2026-07-26).
+Recorded from the logs (`scripts/wexac_logs/`):
+
+- **Job 956997 (full-model N-sweep reference) — ✅ completed 2026-07-23.** The full-model reference
+  for the retrieval metric at larger N now exists (`results/exp_b_T1_full_s{42,43,44}_a149_npc{2..16}.pth`).
+  At npc=16 (N=32): full-model SSIM 0.22–0.26 vs control 0.20–0.23 — small raw margins, as expected
+  in the meaningful-mean regime. **The retrieval analysis on these full-model runs has NOT been run
+  yet** — that's the open item, and `retrieval_metric.py` now also supports a base-classifier
+  (θ₀ penultimate-feature) ranking space via `--classifier` for it.
+- **Job 957044 (anchor α-sweep at N=10, vw=5, seed 42, T=10) — ✅ completed 2026-07-23.** Full-FT:
+  α=0 0.463 → α=0.75 **0.497** (peak) → α=0.9 0.440 — the **interior optimum at α≈0.75 persists at
+  N=10**, much compressed. LoRA r8: rises monotonically 0.096 → 0.173 (α=0.75) → 0.176 (α=0.9) —
+  **no α=0.9 collapse on the LoRA path at N=10**. Absolute SSIMs are far lower than at N=2
+  (superposition, consistent with the DI N-scaling collapse). Control-margin / mean-baseline rescore
+  of these tensors (`results/anchor_sweep_T10_r8_gelu_s42_N10_vw5.pth`) still pending.
+- **Job 857271 (trustworthy activation×LR re-run) — ⚠ hit the 96 h RUNLIMIT 2026-07-26.** Partial
+  but substantial: 68 configs produced SSIMs, through ADD2a `elu lr=0.3 T=1`. Resumable via
+  `--skip_if_exists`; the remainder was never resubmitted. Results not yet analyzed.
+- **Job 863020 (anchor multi-seed replication) — ⚠ hit the 96 h RUNLIMIT 2026-07-26.** The seed-43/44
+  and T-sweep stages that matter completed before the limit and their findings are already recorded
+  in Track 1 below (full-FT α*≈0.75 replicates; "anchor creates LoRA leakage" was seed-42-specific).
+
+**Next steps (priority order):** (1) run `retrieval_metric.py --classifier` over the full-model
+npc results from 956997 — this completes the retrieval story (LoRA-vs-full at matched N);
+(2) rescore the N=10 anchor tensors with control margins; (3) decide whether the 857271 remainder
+is still worth compute given the metric-audit conclusions.
+
 ### Retrieval metric — LoRA DOES leak instance-level info that SSIM missed (2026-07-23)
 
 Follow-up to the metric audit. Since absolute SSIM on MNIST is background-dominated, added an
@@ -53,8 +82,9 @@ Retrieval shows it **does** leak instance-level information — statistically si
 across seeds, and surviving to N=32. This **flips the preliminary gate-B1 read**: the earlier
 "LoRA doesn't beat trivial" was a *metric* artifact, not the absence of leakage. The leakage is
 weak (~2× chance, not high-fidelity recovery) but real. Caveats: small per-cell counts (significance
-comes from pooling); the **full-model reference at larger N is still pending** (N-sweep full runs
-had a `--no_baseline` script bug, fixed and resubmitted as job **956997**).
+comes from pooling); the full-model reference at larger N (N-sweep full runs had a `--no_baseline`
+script bug, fixed and resubmitted as job **956997**) **completed 2026-07-23 — tensors saved, but the
+retrieval analysis over them is still pending** (see the 2026-08-11 status review above).
 
 ### Metric audit — most single-step LoRA reconstructions sit at/below the trivial baseline (2026-07-22)
 
@@ -90,7 +120,8 @@ beat trivial on this testbed.**
 
 **Next:** report `ssim_norm` + baseline + clip everywhere; move to larger N / harder data so the
 baseline isn't ≈ each image; add a background-robust identifiability/retrieval metric. Trustworthy
-re-run is job **857271** (`scripts/run_gal_additions_sweep.sh`, resumable via `--skip_if_exists`).
+re-run was job **857271** (`scripts/run_gal_additions_sweep.sh`, resumable via `--skip_if_exists`) —
+it hit the 96 h RUNLIMIT on 2026-07-26 with 68 configs done (see 2026-08-11 status review).
 
 ### Gal's missing missions built: Addition 3 + DI-Phase 0 + GB-Phase 1 (2026-07-22)
 
@@ -203,6 +234,14 @@ built, locally validated, and running on WEXAC (`long-gpu`).
     decoder beats the ceiling at every rank, but **higher rank does not help** — the recovery is
     prior/decoder-limited, not measurement-limited. Rank is **not** the lever to reach 0.9; the next
     levers are decoder capacity, nonzero-A (two-sided) measurement, or multi-sample gradients.
+  - **Improvement arms (job 956994) — the >0.9 milestone is REACHED.** bigger decoder (hidden 2048,
+    depth 3) = **0.687** ≈ baseline (capacity is NOT the limit — the single-sample plateau is
+    information-limited); two-sided measurement (nonzero-A → observes col(B₀)⊕row(A₀)) = **0.794**
+    (ceiling rose 0.087→0.124, decoder exploits it); **multi-sample / realistic batch gradient** (m=8,
+    target = rank-8 batch gradient) = **0.951 — clears >0.9** at an unchanged 0.086 ceiling (11× above
+    it). Real fine-tuning uses *batch* gradients, so this is the more realistic AND far more decodable
+    target than a single-sample rank-1 gradient. **Verdict: the R2F-style gradient bridge works at
+    milestone level for vision (0.95) — the strongest GB result of the project.**
   - **Output layer (layers.2):** decoder full cosine **0.94** but projection ceiling **1.0** — the
     decoder is *below* trivial analytic inversion, so ">0.9" here is **weak evidence** (near-analytic,
     out=1). The dual-cosine report exposes this cleanly.

@@ -21,14 +21,41 @@ import os
 import sys
 
 import torch
+import torch.nn as nn
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'dataset_reconstruction'))
 
 from evaluations import ncc_dist              # noqa: E402
 from common_utils.image import get_ssim_all   # noqa: E402
-from experiments.configs import RESULTS_DIR   # noqa: E402
+from CreateModel import NeuralNetwork          # noqa: E402
+from experiments.configs import (              # noqa: E402
+    RESULTS_DIR, INPUT_DIM, MODEL_HIDDEN_LIST, OUTPUT_DIM, PRETRAINED_MNIST_PATH,
+)
 
 METRIC_SPACES = ('pixel', 'ncc', 'ssim')
+
+
+def base_classifier_feature_fn(model_path=None, device='cpu'):
+    """Feature extractor from the EXISTING base MNIST classifier (theta_0), no training needed.
+
+    Uses the penultimate layer (1000-dim, the input to the final linear) as an instance-discriminative
+    feature space. The attacker already has theta_0, so ranking in its feature space is a fair,
+    self-contained "classifier-based" retrieval — and it is far more digit-aware than raw pixels.
+    """
+    path = model_path or PRETRAINED_MNIST_PATH
+    ckpt = torch.load(path, map_location=device, weights_only=False)
+    model = NeuralNetwork(INPUT_DIM, MODEL_HIDDEN_LIST, OUTPUT_DIM,
+                          activation=nn.ReLU(), use_bias=False).to(device).double()
+    model.load_state_dict(ckpt['state_dict'])
+    model.eval()
+
+    @torch.no_grad()
+    def fn(x):
+        feats = x.to(device).double().reshape(x.shape[0], -1)
+        for layer in model.layers[:-1]:          # all but the final classification layer
+            feats = model.activation(layer(feats))
+        return feats.detach().cpu()              # [N, 1000] penultimate features
+    return fn
 
 
 def _to_pixel(recon, x_train, ds_mean):
@@ -114,24 +141,32 @@ def score_file(path, feature_fn=None):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--glob', default=os.path.join(RESULTS_DIR, 'exp_b_*.pth'))
+    p.add_argument('--classifier', action='store_true',
+                   help='Also rank in the base MNIST classifier feature space (adds top1_feat)')
     args = p.parse_args()
     files = sorted(globlib.glob(args.glob))
     if not files:
         print(f"No files matched {args.glob}")
         return
 
+    feature_fn = base_classifier_feature_fn() if args.classifier else None
+
     rows = []
     for f in files:
         try:
-            rows.extend(score_file(f))
+            rows.extend(score_file(f, feature_fn=feature_fn))
         except Exception as e:
             print(f"  SKIP {os.path.basename(f)}: {type(e).__name__}: {e}")
 
-    hdr = f"{'file':44s} {'rec':4s} {'N':>3s} {'rand':>5s} {'top1_px':>7s} {'top1_ncc':>8s} {'top1_ssim':>9s}"
+    feat = ' top1_feat' if feature_fn is not None else ''
+    hdr = f"{'file':40s} {'rec':4s} {'N':>3s} {'rand':>5s} {'px':>5s} {'ncc':>5s} {'ssim':>5s}{feat}"
     print(hdr); print('-' * len(hdr))
     for r in rows:
-        print(f"{r['file'][:44]:44s} {r['recon']:4s} {r['n']:3d} {r['random_top1']:5.2f} "
-              f"{r['top1_pixel']:7.2f} {r['top1_ncc']:8.2f} {r['top1_ssim']:9.2f}")
+        line = (f"{r['file'][:40]:40s} {r['recon']:4s} {r['n']:3d} {r['random_top1']:5.2f} "
+                f"{r['top1_pixel']:5.2f} {r['top1_ncc']:5.2f} {r['top1_ssim']:5.2f}")
+        if feature_fn is not None:
+            line += f" {r.get('top1_feat', float('nan')):9.2f}"
+        print(line)
     print(f"\n{len(rows)} reconstructions scored. top1 above 'rand' = instance-level leakage.")
 
 

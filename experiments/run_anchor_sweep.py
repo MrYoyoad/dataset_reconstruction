@@ -35,7 +35,8 @@ from experiments.configs import (
 
 
 def run_alpha_sweep(alphas, n_steps, rank, n_per_class, seed,
-                    finetune_activation, extraction_epochs, device, verbose=True):
+                    finetune_activation, extraction_epochs, device, verbose=True,
+                    verify_weight=1.0):
     """Run Experiment B once per α (both full-FT and LoRA paths). Returns {α: results}."""
     from experiments.run_experiment_b import run_single_config
 
@@ -43,13 +44,14 @@ def run_alpha_sweep(alphas, n_steps, rank, n_per_class, seed,
     for i, a in enumerate(alphas):
         print(f"\n{'='*60}")
         print(f"[{i+1}/{len(alphas)}] anchor_alpha={a}, T={n_steps}, rank={rank}, "
-              f"act={finetune_activation}")
+              f"act={finetune_activation}, verify_weight={verify_weight}")
         print(f"{'='*60}")
         res = run_single_config(
             n_steps=n_steps, rank=rank, n_per_class=n_per_class, seed=seed,
             run_baseline=True, anchor_alpha=a,
             finetune_activation=finetune_activation,
             extraction_epochs=extraction_epochs,
+            verify_weight=verify_weight,
             optimizer_type='lbfgs', device=device, verbose=verbose,
         )
         all_results[a] = res
@@ -113,6 +115,9 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--finetune_activation', type=str, default='gelu')
     parser.add_argument('--extraction_epochs', type=int, default=EXTRACTION_EPOCHS)
+    parser.add_argument('--verify_weight', type=float, default=1.0,
+                        help='soft box-constraint weight passed to run_single_config '
+                             '(raise to reduce [0,1] pixel saturation; default 1.0 = baseline)')
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--save', action='store_true',
                         help='save per-α tensors + grids and the aggregate sweep .pth')
@@ -126,7 +131,8 @@ if __name__ == '__main__':
 
     all_results = run_alpha_sweep(
         alphas, args.n_steps, args.rank, args.n_per_class, args.seed,
-        args.finetune_activation, args.extraction_epochs, device)
+        args.finetune_activation, args.extraction_epochs, device,
+        verify_weight=args.verify_weight)
 
     curves = collect_curves(all_results, alphas)
     print("\n=== Anchor sweep curves (α: SSIM / lin-error function-space) ===")
