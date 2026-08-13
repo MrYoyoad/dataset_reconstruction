@@ -80,6 +80,8 @@ def build_base_name(args):
     stable and remain comparable.
     """
     parts = [f"exp_b_T{args.n_steps}"]
+    if getattr(args, 'dataset', 'mnist') != 'mnist':
+        parts.append(str(args.dataset))          # e.g. 'fashion' — keep MNIST filenames unchanged
     if args.rank is not None:
         parts.append(f"r{args.rank}")
     else:
@@ -270,6 +272,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
                       finetune_optimizer='sgd',
                       weight_decay=0.01,
                       anchor_alpha=0.0,
+                      dataset='mnist',
                       x_init=None,
                       init_seed=None,
                       device='cpu', verbose=True):
@@ -285,9 +288,9 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
 
-    # Load held-out fine-tuning data (from MNIST TEST set, not train)
+    # Load held-out fine-tuning data (from the TEST set of `dataset`, not train)
     x_ft, y_ft, digits, indices = get_finetuning_data(
-        n_per_class, seed=seed, device=device
+        n_per_class, seed=seed, device=device, dataset=dataset
     )
     mode_str = "free-coefficient" if free_coefficients else "oracle"
     if verbose:
@@ -591,7 +594,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
         ds_mean = update_result_lora['ds_mean']
     else:
         raise ValueError("Nothing to run: rank is None and run_baseline is False")
-    x_ctrl, y_ctrl, ctrl_digits = get_control_images_in_distribution(digits, device=device)
+    x_ctrl, y_ctrl, ctrl_digits = get_control_images_in_distribution(digits, device=device, dataset=dataset)
     x_ctrl_centered = x_ctrl - ds_mean if ds_mean is not None else x_ctrl
 
     recon_for_ctrl = results.get('x_recon_full', results.get('x_recon_lora'))
@@ -684,6 +687,10 @@ if __name__ == '__main__':
                              '(makes sweeps resumable after LSF preemption/requeue)')
     parser.add_argument('--save_results', action='store_true',
                         help='Save tensors (.pth) and figure (.png) to results/')
+    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'fashion'],
+                        help="Private fine-tuning dataset: 'mnist' (default) or 'fashion' "
+                             "(Fashion-MNIST, harder data where the dataset mean != each image). "
+                             "theta_0 stays the MNIST-pretrained base -> a realistic transfer/PEFT setup.")
 
     args = parser.parse_args()
 
@@ -721,6 +728,7 @@ if __name__ == '__main__':
         finetune_optimizer=args.finetune_optimizer,
         weight_decay=args.weight_decay,
         anchor_alpha=args.anchor_alpha,
+        dataset=args.dataset,
         n_sweep=args.n_sweep,
         optimizer_type=args.optimizer,
         relu_alpha=args.relu_alpha,
@@ -794,6 +802,7 @@ if __name__ == '__main__':
             'n_steps': args.n_steps, 'rank': args.rank,
             'n_per_class': args.n_per_class, 'seed': args.seed,
             'lr': args.lr, 'mode': mode,
+            'dataset': args.dataset,
             'relu_alpha': args.relu_alpha,
             'optimizer': args.optimizer,
             'anchor_alpha': args.anchor_alpha,

@@ -13,6 +13,23 @@ def _load_mnist(train=True, root=None):
     return torchvision.datasets.MNIST(root, train=train, transform=transform, download=True)
 
 
+def _load_dataset(name='mnist', train=True, root=None):
+    """Load MNIST or Fashion-MNIST — both are 28x28x1, so they drop straight into the 784-input MLP.
+
+    Fashion-MNIST is the 'harder data' testbed (Step 4 / Addition 1): unlike MNIST, its dataset mean
+    is NOT ~= each image, so leakage numbers (control margin / retrieval) speak for themselves without
+    the N=2 background-dominance caveat. Binary labels reuse the parity map (class idx even->0, odd->1)
+    via _get_binary_label, giving a balanced 5-vs-5 split.
+    """
+    root = root or DATASETS_DIR
+    transform = torchvision.transforms.ToTensor()
+    if name == 'mnist':
+        return torchvision.datasets.MNIST(root, train=train, transform=transform, download=True)
+    if name == 'fashion':
+        return torchvision.datasets.FashionMNIST(root, train=train, transform=transform, download=True)
+    raise ValueError(f"Unknown dataset: {name} (expected 'mnist' or 'fashion')")
+
+
 def _get_binary_label(digit_label):
     """Map MNIST digit label to binary odd/even label (matching mnist_odd_even.py)."""
     return LABELS_DICT[int(digit_label)]
@@ -54,8 +71,8 @@ def get_few_shot_mnist(n_per_class, seed=42, root=None, device='cpu'):
     return x_train, y_train, digit_list, idx_list
 
 
-def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu'):
-    """Load few-shot fine-tuning data from MNIST TEST set.
+def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='mnist'):
+    """Load few-shot fine-tuning data from the TEST set of `dataset` ('mnist' or 'fashion').
 
     These samples are guaranteed non-overlapping with the pre-trained model's
     training data (which used MNIST train set, first 250/class sequential).
@@ -68,9 +85,9 @@ def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu'):
         x_ft: tensor [2*n_per_class, 1, 28, 28], float64
         y_ft: tensor [2*n_per_class], float64, values in {0, 1}
         digit_labels: list of int, the actual MNIST digit labels
-        indices: list of int, the MNIST test set indices
+        indices: list of int, the test set indices
     """
-    dataset = _load_mnist(train=False, root=root)  # TEST set
+    dataset = _load_dataset(dataset, train=False, root=root)  # TEST set
     rng = torch.Generator().manual_seed(seed)
     perm = torch.randperm(len(dataset), generator=rng)
 
@@ -94,8 +111,8 @@ def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu'):
     return x_ft, y_ft, digit_list, idx_list
 
 
-def get_control_images_in_distribution(training_digits, seed=99, root=None, device='cpu'):
-    """Load same-digit control images from MNIST test set.
+def get_control_images_in_distribution(training_digits, seed=99, root=None, device='cpu', dataset='mnist'):
+    """Load same-class control images from the test set of `dataset` ('mnist' or 'fashion').
 
     For each digit in training_digits, finds a different instance of the same
     digit from the test set. This rules out class-prototype explanations.
@@ -110,7 +127,7 @@ def get_control_images_in_distribution(training_digits, seed=99, root=None, devi
         y_control: tensor [N], float64 (binary labels)
         control_digits: list of int
     """
-    dataset = _load_mnist(train=False, root=root)
+    dataset = _load_dataset(dataset, train=False, root=root)
     rng = torch.Generator().manual_seed(seed)
     perm = torch.randperm(len(dataset), generator=rng)
 
