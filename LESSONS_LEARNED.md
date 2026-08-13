@@ -133,6 +133,13 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
   *passes* the control test at α≥0.75 (+0.14) — the anchor **creates** adapter-only instance leakage.
   Lesson: when a mean-baseline result looks negative at small N, re-check against the control before
   concluding "no leakage" — and prefer the control margin as the headline for instance-recovery claims.
+  - **⚠ RETRACTED (2026-08-13): "the anchor *creates* LoRA leakage" was seed-42-specific, not robust.**
+    Replication (job 863020, STATUS.md Track 1) showed seed 44 leaks already at α=0 (+0.18) with the
+    anchor *hurting*, and the N=10 rescore (QW3) gives tiny LoRA margins (+0.006–0.008) with no α trend.
+    Adapter-only leakage is real (control margins +0.13–0.18 across configs → B1 passes), but its
+    α-dependence is config-dependent — needs the multi-config anchor study before any "anchor creates
+    leakage" claim. The *lesson above* (prefer the control margin) still stands; only the anchor-α claim
+    is withdrawn.
 
 ---
 

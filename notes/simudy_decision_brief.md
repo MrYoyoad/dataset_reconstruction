@@ -64,6 +64,12 @@ Written as the dependency chain 1→N (read top-down; each step assumes the one 
       **0.62**, multi-step stable to T=100; control 0.58–0.69. Yellow flag: free-c stubborn at
       r=16/32 (~0.42). Go/no-go: beat same-class control. *Fail ⇒ empirical thesis dead, pivot to
       theory-only.* Days.
+      - **UPDATE (2026-08-13): B1 = weak YES (settled).** This paragraph pre-dates the metric audit.
+        Absolute SSIM is background-dominated on MNIST, so the right bar is the same-class control /
+        instance retrieval, not raw SSIM. On that bar the adapter **does** leak: pooled retrieval
+        **~2× chance, z=4.30, p=8.5e-6** across N=4..32 × 3 seeds, and control margins **+0.13–0.18**.
+        The full model leaks ~3× (z=8.3) — so LoRA leaks, roughly half as strongly. Weak but real →
+        **B1 passes.** The open gate is now **B2** (linearized-vs-unroll at scale), still un-run.
    2. **B2 — can linearized/anchor inversion replace full unroll?** (the scale enabler). SimuDy
       full-unroll vs NTK-anchor on identical ResNet-18/CIFAR; compare SSIM **and** memory; run the
       α two-curve (lin-error vs α, SSIM vs α). Yellow flag: M_lin=0.60 says linearization is crude →

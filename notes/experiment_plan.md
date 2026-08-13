@@ -1,5 +1,12 @@
 # Thesis Experiment Plan & TODO — single source of actionable work
 
+> **⚠ SUPERSEDED FOR STATUS (2026-08-13).** This 2026-05-14 plan pre-dates the work that landed
+> Jul–Aug 2026. The current actionable to-do is **[next_experiment_plan.md](next_experiment_plan.md)**
+> (the coupled activation×anchor×linearization study), and demonstrated results live in
+> [../STATUS.md](../STATUS.md). Reality vs the checkboxes below: **Addition 3 (anchor α-sweep) ✅,
+> DI-Phase 0 ✅, GB-Phase 1 ✅ (0.951 cosine)** are all demonstrated — the Part A/B/C boxes here are
+> stale. This file is kept for its rationale/taxonomy; do not treat its ☐/⏳ marks as current.
+
 **Last updated:** 2026-05-14 (after first supervision meeting with Gal Vardi + follow-up planning)
 **Rationale / canonical record:** [thesis_update_briefing.md](thesis_update_briefing.md) (the briefing — read it for full context)
 **Direction rationale & attack taxonomy:** [unified_direction_analysis.md](unified_direction_analysis.md) → "Direct Weight Inversion — New Primary Axis"
