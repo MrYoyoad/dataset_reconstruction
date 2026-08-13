@@ -17,10 +17,11 @@ import argparse
 import csv
 import glob as globlib
 import os
+import re
 
 import torch
 
-from experiments.configs import RESULTS_DIR
+from experiments.configs import ACTIVATION_CHOICES, RESULTS_DIR
 from experiments.metrics import compute_all_metrics
 
 RECON_KEYS = ['x_recon_full', 'x_recon_lora']
@@ -28,6 +29,24 @@ RECON_KEYS = ['x_recon_full', 'x_recon_lora']
 # Scalar metric columns pulled from compute_all_metrics for the CSV.
 METRIC_COLS = ['ssim', 'ssim11', 'ssim_norm', 'ssim_norm11', 'ssim_mean_baseline',
                'ncc', 'l2', 'clipped_fraction', 'pre_clamp_min', 'pre_clamp_max']
+
+# Diagnostic columns pulled from {full,lora}_diagnostics — an SSIM is meaningless without
+# these (near-zero weight_change or effective_rank << r ⇒ the fine-tune barely happened).
+DIAG_COLS = ['weight_change', 'delta_w_effective_rank', 'feature_stability', 'ntk_passed']
+
+# Known activations, longest-first, so 'gelu_tanh'/'softplus_b0.5' are matched before their
+# prefixes 'gelu'/'softplus'. Used to recover finetune_activation from the filename, since
+# run_experiment_b.py does NOT save it into config (only encodes it in base_name).
+_ACTS_LONGEST_FIRST = sorted(ACTIVATION_CHOICES, key=len, reverse=True)
+_ACT_RE = re.compile(r'_a\d+_(' + '|'.join(re.escape(a) for a in _ACTS_LONGEST_FIRST) + r')(?=_|$)')
+
+
+def _activation_from_filename(fname):
+    """Recover the fine-tune activation from a base_name like
+    'exp_b_T1_r8_s42_a149_gelu_tanh_lr0.1'. Returns None if no known activation token is present
+    (e.g. a default-relu run 'exp_b_T1_r8_s42_a149_npc2')."""
+    m = _ACT_RE.search(os.path.splitext(fname)[0])
+    return m.group(1) if m else None
 
 
 def _means(metrics):
@@ -51,18 +70,36 @@ def rescore_file(path):
         recon = d.get(key)
         if recon is None:
             continue
-        row = {'file': os.path.basename(path), 'recon': key.replace('x_recon_', '')}
+        recon_type = key.replace('x_recon_', '')  # 'full' or 'lora'
+        row = {'file': os.path.basename(path), 'recon': recon_type}
         row.update(_means(compute_all_metrics(recon, x_centered, ds_mean)))
 
         # Control uses the same semantics as run_experiment_b.py:557 —
         # SSIM(reconstruction, control image), NOT SSIM(control, ground truth).
+        # ctrl_margin (ssim − ctrl_ssim) is the instance-leakage bar: it cancels the shared
+        # clipping/background, so it is trustworthy at small N where absolute SSIM is not.
         if x_ctrl_centered is not None and recon.shape[0] == x_ctrl_centered.shape[0]:
             ctrl = compute_all_metrics(recon, x_ctrl_centered, ds_mean)
             row['ctrl_ssim'] = ctrl['ssim']['mean']
             row['ctrl_ssim11'] = ctrl['ssim11']['mean']
             row['ctrl_ssim_norm'] = ctrl['ssim_norm']['mean']
+            row['ctrl_margin'] = row['ssim'] - row['ctrl_ssim']
+            row['ctrl_margin_norm'] = row['ssim_norm'] - row['ctrl_ssim_norm']
+
+        # NTK diagnostics — never trust an SSIM without them (weight_change / effective_rank).
+        diag = d.get(f'{recon_type}_diagnostics') or {}
+        for dk in DIAG_COLS:
+            if dk in diag:
+                row[dk] = diag[dk]
 
         cfg = d.get('config') or {}
+        # finetune_activation / loss_type are not saved in config — recover from the filename.
+        if 'finetune_activation' not in cfg:
+            act = _activation_from_filename(os.path.basename(path))
+            if act is not None:
+                row['finetune_activation'] = act
+        if 'loss_type' not in cfg:
+            row['loss_type'] = 'cosine' if '_cosine' in os.path.basename(path) else 'l2'
         for c in ('n_steps', 'rank', 'seed', 'finetune_activation', 'lr',
                   'n_per_class', 'loss_type', 'anchor_alpha'):
             if c in cfg:
@@ -106,14 +143,21 @@ def main():
         w.writerows(rows)
 
     print(f"Rescored {len(rows)} reconstructions from {len(files)} files -> {out}")
-    hdr = f"{'file':46s} {'recon':5s} {'ssim':>7s} {'ssim11':>7s} {'norm':>7s} {'base':>7s} {'clip%':>7s}"
+    hdr = (f"{'activation':13s} {'recon':5s} {'ssim':>7s} {'norm':>7s} {'base':>7s} "
+           f"{'margin':>7s} {'wchg':>7s} {'erank':>5s} {'clip%':>6s}")
     print(hdr); print('-' * len(hdr))
     for r in rows:
-        def f(k):
+        def f(k, w=7):
             v = r.get(k)
-            return f"{v:7.4f}" if isinstance(v, float) else f"{'-':>7s}"
-        print(f"{r['file'][:46]:46s} {r['recon']:5s} {f('ssim')} {f('ssim11')} "
-              f"{f('ssim_norm')} {f('ssim_mean_baseline')} {f('clipped_fraction')}")
+            if isinstance(v, bool):
+                return f"{str(v):>{w}s}"
+            if isinstance(v, int):
+                return f"{v:{w}d}"
+            return f"{v:{w}.4f}" if isinstance(v, float) else f"{'-':>{w}s}"
+        act = (r.get('finetune_activation') or 'relu?')
+        print(f"{act[:13]:13s} {r['recon']:5s} {f('ssim')} {f('ssim_norm')} "
+              f"{f('ssim_mean_baseline')} {f('ctrl_margin')} {f('weight_change')} "
+              f"{f('delta_w_effective_rank', 5)} {f('clipped_fraction', 6)}")
 
 
 if __name__ == '__main__':

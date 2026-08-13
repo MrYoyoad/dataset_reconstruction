@@ -35,6 +35,43 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
+### Step 1 first-pass results — activation rescore + LoRA-vs-full retrieval (2026-08-13)
+
+Executing the approved coupled activation×anchor×linearization plan ([notes/next_experiment_plan.md](notes/next_experiment_plan.md)).
+Step 1 (zero-GPU analysis) is done; the results already sharpen the direction.
+
+- **Addition 2 first-pass — SOFTPLUS is the best activation, not GELU (rescore of job 857271).**
+  Rescored the 21 on-disk activation tensors with the full metric suite + `weight_change` + control
+  margin (`experiments/recompute_metrics.py`, now emits `weight_change`, `delta_w_effective_rank`,
+  `ntk_passed`, `ctrl_margin`, and recovers `finetune_activation` from the filename). **At matched
+  `weight_change`≈0.04, softplus wins on every metric**: ssim_norm 0.65, ssim11 0.49, **l2 4.8 (vs
+  ~18 for gelu — a ~4× gap)**, control margin **+0.115**, and it clips least (44% vs ~58%; its raw
+  recon stays in [−0.49, 1.32] not saturating to ±1). Ranking is unanimous across 7 metrics:
+  **softplus ≫ silu > gelu ≈ gelu_tanh > mish > elu** (elu has a *negative* margin). `feature_stability`
+  ranks identically (softplus **0.993** > silu 0.976 > gelu 0.965 > mish 0.947 > elu 0.808) — proof
+  criteria 1 (NTK survival proxy) and 2 (leakage) **co-move**, exactly as the crux predicts.
+  **Softplus is uniquely linearization-stable:** its reconstruction is invariant to **1.7e-4** across a
+  10× `weight_change` range (0.038→0.379) then breaks at 1.14, whereas gelu's shifts ~0.26 over the
+  same LRs. **⚠ Caveat (do not overclaim):** *all* 23 configs are `ntk_passed:False` with
+  `delta_w_effective_rank = 1–2` (degenerate, sub-NTK), single seed (42), single N (2), single dataset
+  (MNIST), oracle-coefficient. This is a strong **directional** signal, not a confirmed result — it is
+  what Step 2a re-runs in-regime (target `weight_change`→`ntk_passed:True`, multi-seed, the softplus-β
+  knob, and the never-run kinked controls relu/tanh/hardswish). Data: `results/rescored_activations_857271_2026-08-11.csv`.
+- **QW2 — LoRA-vs-full retrieval, now a durable artifact (was prose-only).** `retrieval_metric.py`
+  now writes a CSV + pooled significance test + figure. Over the N-sweep (N=4..32 × 3 seeds):
+  **LoRA leaks ~2× chance (NCC pool obs 26 vs exp 12, z=4.30, p=8.5e-6 — reproduces the earlier prose
+  exactly)**; **full-model leaks ~3× chance (z=8.3, p=5e-17)**. So gate **B1 = yes (weak)**: the adapter
+  leaks instance-level info, roughly half as strongly as the full model. Pixel-space and the θ₀
+  classifier-feature space stay near chance for LoRA (z≈0.9–1.2); only the background-robust NCC/SSIM
+  rankings carry the LoRA signal. Data: `results/retrieval_lora_vs_full_2026-08-11.csv`,
+  figure `figures/retrieval/retrieval_lora_vs_full_2026-08-11.png`.
+- **QW3 — newest tensors under the standard bar.** Anchor N=10 (957044): full-FT control margin peaks
+  at **α=0.75 (+0.132)**, confirming α*≈0.75 at N=10 under the control-margin bar (previously raw SSIM
+  only); LoRA margins are tiny (+0.006–0.008) — adapter leakage is very weak at N=10. DI large-N
+  (887704): `ssim_norm` confirms the N-collapse (N=4 0.60 → N=10 0.26 → N=20 0.24). **Gap found: DI
+  `.pth` files save no `x_ctrl`**, so the +0.049/+0.058 DI control margins in the 2026-07-22 box are
+  *not* re-derivable from disk (they were runtime-only); `direct_inversion.py` should save `x_ctrl`.
+
 ### Status review — final job outcomes from the Jul 23–26 batch (2026-08-11)
 
 All four late-July jobs are finished; **nothing is running on WEXAC** (idle since 2026-07-26).

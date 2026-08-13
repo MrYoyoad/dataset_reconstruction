@@ -16,7 +16,9 @@ background-robust instance-level signal.
 """
 
 import argparse
+import csv
 import glob as globlib
+import math
 import os
 import sys
 
@@ -107,6 +109,29 @@ def retrieval_scores(sim):
     }
 
 
+def pooled_significance(rows, space):
+    """Pool top-1 retrieval across files into one significance test (reproduces the p≈8e-6 headline).
+
+    Under the null (random ranking), each reconstruction's top-1 hit is Bernoulli(1/N) and a file of
+    N rows contributes a Binomial(N, 1/N) count with mean 1 and variance (1 − 1/N). Pooling over
+    files: observed O = Σ correct, expected E = #files, Var = Σ(1 − 1/N_i); z = (O − E)/√Var.
+    Returns None if the space is absent (e.g. no --classifier for 'feat').
+    """
+    key = f'top1_{space}'
+    scored = [r for r in rows if key in r]
+    if not scored:
+        return None
+    observed = sum(round(r[key] * r['n']) for r in scored)      # correct top-1 hits
+    expected = float(len(scored))                                # 1 per file under the null
+    var = sum(1.0 - 1.0 / r['n'] for r in scored)
+    z = (observed - expected) / math.sqrt(var) if var > 0 else float('nan')
+    # one-sided normal tail
+    p = 0.5 * math.erfc(z / math.sqrt(2)) if z == z else float('nan')
+    return {'space': space, 'files': len(scored), 'observed': observed,
+            'expected': round(expected, 2), 'ratio': observed / expected if expected else float('nan'),
+            'z': z, 'p_one_sided': p}
+
+
 def score_file(path, feature_fn=None):
     """Retrieval scores for each reconstruction in one saved run. N<2 is skipped (undefined)."""
     d = torch.load(path, map_location='cpu', weights_only=False)
@@ -143,6 +168,8 @@ def main():
     p.add_argument('--glob', default=os.path.join(RESULTS_DIR, 'exp_b_*.pth'))
     p.add_argument('--classifier', action='store_true',
                    help='Also rank in the base MNIST classifier feature space (adds top1_feat)')
+    p.add_argument('--out', default=None, help='CSV output path (persist per-file scores)')
+    p.add_argument('--fig', default=None, help='PNG output path (top1-vs-random by N, best-effort)')
     args = p.parse_args()
     files = sorted(globlib.glob(args.glob))
     if not files:
@@ -168,6 +195,52 @@ def main():
             line += f" {r.get('top1_feat', float('nan')):9.2f}"
         print(line)
     print(f"\n{len(rows)} reconstructions scored. top1 above 'rand' = instance-level leakage.")
+
+    # Pooled significance — the durable version of the p≈8e-6 headline. Split by recon type so
+    # LoRA and full-model are not conflated.
+    spaces = list(METRIC_SPACES) + (['feat'] if feature_fn is not None else [])
+    print(f"\n{'recon':6s} {'space':6s} {'files':>5s} {'obs':>4s} {'exp':>5s} {'ratio':>6s} {'z':>6s} {'p_1sided':>9s}")
+    print('-' * 52)
+    for rt in ('lora', 'full'):
+        sub = [r for r in rows if r['recon'] == rt]
+        for space in spaces:
+            sig = pooled_significance(sub, space)
+            if sig is None:
+                continue
+            print(f"{rt:6s} {space:6s} {sig['files']:5d} {sig['observed']:4d} {sig['expected']:5.1f} "
+                  f"{sig['ratio']:6.2f} {sig['z']:6.2f} {sig['p_one_sided']:9.2e}")
+
+    if args.out:
+        cols = []
+        for r in rows:
+            for k in r:
+                if k not in cols:
+                    cols.append(k)
+        with open(args.out, 'w', newline='') as fh:
+            w = csv.DictWriter(fh, fieldnames=cols)
+            w.writeheader(); w.writerows(rows)
+        print(f"\nWrote {len(rows)} rows -> {args.out}")
+
+    if args.fig:
+        try:
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots(figsize=(7, 4.5))
+            for rt, mk in (('lora', 'o'), ('full', 's')):
+                sub = sorted([r for r in rows if r['recon'] == rt], key=lambda r: r['n'])
+                if not sub:
+                    continue
+                ns = [r['n'] for r in sub]
+                ax.plot(ns, [r['top1_ssim'] for r in sub], marker=mk, label=f'{rt} (ssim rank)')
+            ns_all = sorted({r['n'] for r in rows})
+            ax.plot(ns_all, [1.0 / n for n in ns_all], 'k--', label='random 1/N')
+            ax.set_xlabel('N (images)'); ax.set_ylabel('top-1 retrieval'); ax.set_xscale('log', base=2)
+            ax.set_title('Instance-level retrieval: LoRA vs full-model vs chance')
+            ax.legend(); fig.tight_layout(); fig.savefig(args.fig, dpi=130)
+            print(f"Wrote figure -> {args.fig}")
+        except Exception as e:
+            print(f"  (figure skipped: {type(e).__name__}: {e})")
 
 
 if __name__ == '__main__':

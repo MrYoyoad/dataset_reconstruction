@@ -4,6 +4,37 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Activation rescore (job 857271): softplus wins, but the whole sweep is sub-NTK (2026-08-13)
+
+### The "matched weight_change" comparison was in a degenerate regime — a directional read, not a verdict
+- **What:** rescoring the 21 activation tensors gave a clean, unanimous ranking (softplus ≫ silu >
+  gelu ≈ gelu_tanh > mish > elu, across ssim/ssim11/ssim_norm/l2/ncc/clip/control-margin **and**
+  feature_stability). But **every** config is `ntk_passed:False` with `delta_w_effective_rank = 1–2`
+  for a rank-8 adapter — the fine-tune barely moved the net and the update is essentially rank-1.
+- **Why it matters:** the ranking is a *first-pass direction*, not a confirmed result. The LR grid
+  {0.01,0.03,0.1,0.3} straddled the usable band — low LR gives `weight_change`≈0.04 (barely trained),
+  high LR gives 1–3.7 (far past NTK), and none lands in-regime. **Confirm any activation claim with a
+  target-`weight_change` re-run that actually reaches `ntk_passed:True`, multi-seed, before quoting it
+  to Gal.** (This is Step 2a.)
+- **The positive signal that IS robust:** softplus's reconstruction is invariant to **1.7e-4** across a
+  10× `weight_change` range (0.038→0.379) then breaks at 1.14, while gelu's shifts ~0.26 over the same
+  LRs. That LR/weight-change invariance is a genuine **linearization-stability** property (at T=1,
+  Δw direction is LR-independent; a cleanly-linearizing activation recovers the same x across the whole
+  range where the linearization holds). Consistent with "smoother ⇒ more linearizable" — the crux hypothesis.
+
+### Two small gotchas found while wiring the rescorer
+- **`delta_w_effective_rank` is an `int`, and a float-only print formatter silently showed it as `-`.**
+  `f"{v:.4f}" if isinstance(v, float) else "-"` drops ints. Handle `int` explicitly (or use `float(v)`).
+  The value was in the CSV all along; only the console table hid it. An effective rank of 1–2 for a
+  rank-8 adapter is a red flag on its own — do not let a formatting bug hide it.
+- **Direct-inversion `.pth` files save no `x_ctrl`.** So the DI control margins (+0.049/+0.058) quoted
+  in the 2026-07-22 metric box are runtime-only, **not** re-derivable from disk — `recompute_metrics`
+  / any offline rescore can only get ssim_norm/mean-baseline for DI, not the control margin.
+  `direct_inversion.py` should persist `x_ctrl` like `run_experiment_b.py` does, or those margins stay
+  unreproducible.
+
+---
+
 ## Building Addition 3 + DI-Phase 0 + GB-Phase 1 (2026-07-22)
 
 ### Anchor α-sweep: match the FULL Δw, not a residual (design decision)
