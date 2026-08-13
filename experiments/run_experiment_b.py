@@ -128,7 +128,10 @@ def make_activation(activation_name, relu_alpha=EXTRACTION_RELU_ALPHA):
         'gelu_tanh': lambda: nn.GELU(approximate='tanh'),   # what GPT-2/BERT ship
         # controls isolating why smoothness might matter
         'elu': nn.ELU,                                      # C^1 only, not C^inf
+        'celu': nn.CELU,                                    # C^1 (continuous-derivative elu variant)
         'tanh': nn.Tanh,                                    # smooth BUT bounded
+        'sigmoid': nn.Sigmoid,                              # C^inf, bounded, inflection at 0
+        'selu': nn.SELU,                                    # self-normalizing but C^0 (kinked at 0)
         'hardswish': nn.Hardswish,                          # NOT smooth, ~silu shape
     }
     if activation_name in simple:

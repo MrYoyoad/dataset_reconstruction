@@ -24,9 +24,11 @@ from experiments.run_experiment_b import make_activation  # noqa: E402
 # backward pass, excluded from the analytic check. NB: hardswish is smooth AT 0 (locally the
 # quadratic x(x+3)/6) and only kinks at x=+/-3 — see its dedicated test. softplus_b50 has large
 # but bounded curvature (beta/4 = 12.5), so only betas <= 10 are checked here.
-SMOOTH_AT_0 = ['gelu', 'silu', 'softplus', 'mish', 'gelu_tanh', 'elu', 'tanh'] + \
+# sigmoid is C^inf (inflection at 0 -> curvature 0); celu is C^1 like elu (curvature ~0.5 at 0).
+# selu is C^0: left deriv lambda*alpha (~1.76) != right lambda (~1.05) -> a genuine kink at 0.
+SMOOTH_AT_0 = ['gelu', 'silu', 'softplus', 'mish', 'gelu_tanh', 'elu', 'celu', 'tanh', 'sigmoid'] + \
               [_softplus_name(b) for b in SOFTPLUS_BETA_SWEEP if b <= 10]
-KINKED_AT_0 = ['relu', 'leaky_relu']
+KINKED_AT_0 = ['relu', 'leaky_relu', 'selu']
 
 # At h=1e-3 the symmetric second difference is ~1/h (~1000) at a true corner and O(1) where the
 # function is twice-differentiable — a ~75x gap, so any threshold in between separates cleanly.

@@ -97,7 +97,10 @@ ACTIVATION_CHOICES = [
     'gelu_tanh',   # the tanh approximation GPT-2/BERT actually ship
     # controls that isolate WHY smoothness might matter
     'elu',         # C^1 only, not C^inf -> is full smoothness needed, or just "no kink"?
+    'celu',        # C^1 (continuous derivative variant of elu) -> second smoothness point at C^1
     'tanh',        # smooth BUT bounded/saturating -> smoothness vs unboundedness
+    'sigmoid',     # C^inf AND bounded, inflection at 0 -> smoothest bounded endpoint
+    'selu',        # self-normalizing but C^0 (KINKED at 0: left deriv lambda*alpha != right lambda)
     'hardswish',   # NOT smooth, shape-matched to silu -> smoothness vs shape
 ] + [_softplus_name(b) for b in SOFTPLUS_BETA_SWEEP]
 
