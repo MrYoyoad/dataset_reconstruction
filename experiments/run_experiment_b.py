@@ -687,9 +687,10 @@ if __name__ == '__main__':
                              '(makes sweeps resumable after LSF preemption/requeue)')
     parser.add_argument('--save_results', action='store_true',
                         help='Save tensors (.pth) and figure (.png) to results/')
-    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'fashion'],
-                        help="Private fine-tuning dataset: 'mnist' (default) or 'fashion' "
-                             "(Fashion-MNIST, harder data where the dataset mean != each image). "
+    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'fashion', 'flowers'],
+                        help="Private fine-tuning dataset: 'mnist' (default), 'fashion' (Fashion-MNIST), "
+                             "or 'flowers' (Flowers102 as 28x28 grayscale — real natural images through "
+                             "the SAME MLP cookbook). All harder than MNIST (dataset mean != each image). "
                              "theta_0 stays the MNIST-pretrained base -> a realistic transfer/PEFT setup.")
 
     args = parser.parse_args()

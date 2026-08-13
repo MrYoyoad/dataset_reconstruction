@@ -169,6 +169,21 @@ it — the mechanism is falsifiable, which is the point.
   level. State the proof criterion, show the four metrics co-moving with smoothness and with lin-error,
   name the winner with the mechanism (not just the number). Feeds Step 6 theory. **Compute:** 0.
 
+### 2d · N × lr ablation for GELU + the winner (softplus) **[EXP — RUNNING, job 483935]**
+- **Goal:** a clean, standalone ablation mapping the **(N, lr) → weight_change → reconstruction/leakage
+  surface** for the two key activations, so we can state exactly how sample count and step size trade
+  off against recovery for gelu (deployment-standard) and softplus (Step-1 winner) — not buried inside
+  the spectrum sweep.
+- **Method:** {gelu, softplus} × N∈{2,4,8,16} (n_per_class 1,2,4,8) × lr∈{0.005,0.01,0.02,0.05,0.1},
+  T=1, r=8, seed 42 = 40 configs. `weight_change` saved per run → read the surface at matched
+  weight_change post-hoc (rescore with `recompute_metrics.py`/`retrieval_metric.py`). Deliverables: two
+  heatmaps (ssim_norm & control-margin over N×lr) per activation + a weight_change contour.
+- **Reuse:** `run_experiment_b.py` (no new code); `scripts/run_N_lr_ablation_wexac.sh`.
+- **Compute:** ~3.3 GPU-h. **Success:** a clear (N, lr) operating-point map — where each activation
+  leaks most, and whether softplus's advantage is uniform across the grid or concentrated at low N/lr.
+- **Risk:** at large N×lr, weight_change blows past the NTK band and clipping rises — that's part of the
+  map, reported (not hidden); pair every cell with weight_change + clip fraction.
+
 ---
 
 ## STEP 3 — the bridge connection **[EXP]**
@@ -187,15 +202,20 @@ it — the mechanism is falsifiable, which is the point.
 
 ---
 
-## STEP 4 — Addition 1, harder data **[EXP]**
+## STEP 4 — Addition 1, harder data (SAME MLP cookbook) **[EXP — RUNNING]**
 
-- **Goal:** move off MNIST-N=2 (where `ds_mean ≈ each image`) to data where leakage numbers speak for
-  themselves. **Fashion-MNIST first**, CIFAR/faces stretch.
-- **Method:** Fashion-MNIST is 28×28×1 → drops into the 784 MLP; add a loader by near-copying
-  `_load_mnist` + a binary label map; rerun the **winning activation** + N-sweep + retrieval/margin.
-- **Reuse:** `experiments/data_utils.py` (`_load_mnist`, `get_finetuning_data`,
-  `get_control_images_in_distribution`); `dataset_reconstruction/common_utils/datasets.py`
-  (`load_balanced_dataset`) for the CIFAR stretch (needs `INPUT_DIM`/arch change — real work).
+- **Goal:** move off MNIST-N=2 (where `ds_mean ≈ each image`) to harder data where leakage numbers
+  speak for themselves — **on the same 784-MLP + same NTK/anchor cookbook** (θ₀ stays MNIST-pretrained
+  → a realistic transfer/PEFT attack). Does the softplus>>…>elu ranking + the smoothness→linearization
+  story **transfer** to harder image structure?
+- **Built + running (no arch change — both drop into the 784-MLP):**
+  - **Fashion-MNIST** (28×28×1 native) — job **482018** (spectrum, N=2 & N=10).
+  - **Flowers102 as 28×28 grayscale** (real natural images, downsampled to the MNIST input) — job
+    `run_activation_flowers_wexac.sh` (spectrum, N=2 & N=10). This is "the same cookbook for flowers"
+    per the 2026-08-13 steer — NOT the ViT gradient-inversion track (that's a separate pipeline).
+- **Reuse (done):** `experiments/data_utils.py` `_load_dataset` dispatcher + parity `_get_binary_label`
+  (validated end-to-end; MNIST backward-compat intact); `--dataset {mnist,fashion,flowers}` in
+  `run_experiment_b.py`. CIFAR/faces stay stretch (need `INPUT_DIM`/arch change, or the ViT track).
 - **Compute:** ~1–2 GPU-h (FMNIST). **Success:** retrieval > chance + control margin > 0 where the
   mean-baseline is *not* ≈ the image. **Risk:** if leakage vanishes on harder data, that bounds the
   attack — a real, reportable result.

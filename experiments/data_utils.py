@@ -27,12 +27,26 @@ def _load_dataset(name='mnist', train=True, root=None):
         return torchvision.datasets.MNIST(root, train=train, transform=transform, download=True)
     if name == 'fashion':
         return torchvision.datasets.FashionMNIST(root, train=train, transform=transform, download=True)
-    raise ValueError(f"Unknown dataset: {name} (expected 'mnist' or 'fashion')")
+    if name == 'flowers':
+        # Flowers102 (real natural images) run through the SAME 784-MLP cookbook: resize to 28x28 +
+        # grayscale so it drops into the MNIST-shaped input. Much harder structure than MNIST; binary
+        # label = class-index parity (102 species -> balanced 2-way). split test<->'test', train->'train'.
+        flowers_tfm = torchvision.transforms.Compose([
+            torchvision.transforms.Grayscale(num_output_channels=1),
+            torchvision.transforms.Resize((28, 28)),
+            torchvision.transforms.ToTensor(),
+        ])
+        return torchvision.datasets.Flowers102(
+            root, split=('train' if train else 'test'), transform=flowers_tfm, download=True)
+    raise ValueError(f"Unknown dataset: {name} (expected 'mnist', 'fashion', or 'flowers')")
 
 
 def _get_binary_label(digit_label):
-    """Map MNIST digit label to binary odd/even label (matching mnist_odd_even.py)."""
-    return LABELS_DICT[int(digit_label)]
+    """Binary label. MNIST: odd/even via LABELS_DICT (matching mnist_odd_even.py). Other datasets
+    (fashion/flowers, class idx >= 10): fall back to class-index parity — LABELS_DICT[d] == d % 2 for
+    MNIST digits, so this is consistent with MNIST and generalizes to any class count."""
+    d = int(digit_label)
+    return LABELS_DICT[d] if d in LABELS_DICT else d % 2
 
 
 def get_few_shot_mnist(n_per_class, seed=42, root=None, device='cpu'):
