@@ -35,6 +35,35 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
+### Flowers-native reconstruction track — infra built + jobs submitted (2026-08-13)
+
+New **native-dimension** flowers track (Step 4 "harder data" done properly, not the 28×28-grayscale
+transfer hack). Trains a flowers-OWN base model θ₀ at RGB native dims and runs the full reconstruction
+study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dims, carrying Additions
+2/3 as inner axes; the **dimension ladder is the Q-A** (well-posedness) probe; **Phase D is Q-B**
+(pretrain/finetune overlap = "additional *similar* images").
+
+- **Dimension ladder:** two base models — `flowers32` (RGB 32×32, **D=3072**, exact Haim CIFAR recipe)
+  and `flowers64` (RGB 64×64, **D=12288**, rich target). Task = species-index **parity** over 102
+  species; base trained on **train+val pooled** (~2040 imgs, 500/class); fine-tune/reconstruct from the
+  disjoint **test** split.
+- **Infra (all additive, MNIST paths byte-identical, 26 new tests pass):** `configs.DATASET_SPECS`
+  (per-dataset shape/dim/hidden/θ₀); `data_utils` flowers32/64 RGB loaders + Phase-D `source` filter;
+  `ntk_extraction` shape-aware x̂-init; `run_experiment_b` dim/θ₀ threading + `--pretrained_path`/
+  `--source`/`--holdout_species` + figure-gating fix + config now saves activation/optimizer/dataset;
+  `plotting` RGB imshow + dataset-aware labels + per-dataset figure dir; `recompute_metrics` dataset
+  column; `run_anchor_sweep` `--dataset`/`--lr`/`--skip_if_exists`; new
+  `dataset_reconstruction/problems/flowers102_parity.py` (+CreateData/GetParams dispatch, `--flowers_hw`
+  /`--flowers_gray`/`--flowers_holdout`).
+- **Jobs (WEXAC, dedicated A100 — FP64 workload, ~15× faster than shared A40/L40S):** training
+  527051 (flowers32 main + Phase-D holdout base) and 527054 (flowers64); 5 sweeps chained via LSF
+  `done()`: 527255 activation×lr (flowers32), 527258 anchor two-curve, 527262 N/rank/optimizer,
+  527264 Q-B overlap (Phase D), 527265 activation×lr (flowers64). Each sweep has Stage-0 (θ₀ load +
+  shape + filename-uniqueness) and Stage-0.5 (short-config NTK sanity) guards.
+- **Next:** confirm θ₀ reaches max-margin (train-error→0, loss<1e-20, p-val growing); rescore
+  each sweep with the full metric suite; build the Q-A dimension-ladder curve + Q-B overlap-vs-novel
+  contrast; send review grids (GT/recon/control, best+worst) per phase.
+
 ### Step 1 first-pass results — activation rescore + LoRA-vs-full retrieval (2026-08-13)
 
 Executing the approved coupled activation×anchor×linearization plan ([notes/next_experiment_plan.md](notes/next_experiment_plan.md)).
@@ -71,6 +100,36 @@ Step 1 (zero-GPU analysis) is done; the results already sharpen the direction.
   (887704): `ssim_norm` confirms the N-collapse (N=4 0.60 → N=10 0.26 → N=20 0.24). **Gap found: DI
   `.pth` files save no `x_ctrl`**, so the +0.049/+0.058 DI control margins in the 2026-07-22 box are
   *not* re-derivable from disk (they were runtime-only); `direct_inversion.py` should save `x_ctrl`.
+
+### Step 2 batch — MNIST confirms softplus; harder-data transfer is inconclusive (2026-08-13)
+
+First results from the coupled-study batch (7 long-gpu jobs). Rescored via `recompute_metrics.py`
+(`results/rescored_batch_2026-08-13.csv`), read through the control-margin bar.
+
+- **N×lr ablation (job 483935, MNIST, gelu vs softplus) — SOFTPLUS WIN CONFIRMED, clean.**
+  control margin, matched testbed:
+  - softplus N=2 = **+0.115 at every lr** (0.005→0.1) while weight_change scales 0.019→0.379 — i.e.
+    **perfectly lr-invariant** (the linearization-stability signature, now reproduced cleanly on a grid).
+    gelu N=2 = **+0.02** (≈5× worse) and is *not* lr-invariant.
+  - Leakage **decays with N** for both (softplus +0.115→+0.050→+0.023→+0.004 for N=2→4→8→16;
+    superposition), so the softplus advantage is largest at small N.
+- **Harder data via MNIST-θ₀ TRANSFER (Fashion job 482018, Flowers-28×28 job 484480) — DOES NOT cleanly
+  transfer, but the test is confounded/degenerate, NOT a refutation.**
+  - Ranking *flips*: kinked activations (selu, relu, leaky_relu) top the list; softplus lands mid-pack
+    or **last** (Fashion N=10 softplus +0.047 = worst; Flowers N=10 +0.043 near-worst).
+  - **BUT Fashion N=2 is degenerate**: 11/13 activations have **weight_change = 0.000** (the MNIST net
+    gives a ~zero BCE gradient on Fashion at one step → saturated logits) → identical trivial output
+    (+0.253 for all); softplus is one of only two activations that produced a *nonzero* update at all.
+    Fashion/Flowers cells are also **not at matched weight_change** (0.006–0.135) and mostly
+    `ntk_passed:False`. So the "kinked wins on harder data" read is confounded by the transfer setup,
+    not a clean result.
+  - **Interpretation:** softplus's advantage is a solid *clean-MNIST-testbed* result; whether it
+    survives on genuinely harder data is **unresolved** — the downsampled-flowers + MNIST-θ₀ transfer
+    proxy is too degenerate to tell. **This is exactly why the flowers-NATIVE θ₀ track (a model trained
+    on flowers, run by the parallel session) is the right test** — real gradients + matched-weight_change.
+- **Follow-up queued:** matched-weight_change harder-data re-run (higher LR to escape the wchg≈0
+  degeneracy on the transfer setup) — `scripts/run_harder_matched_wchg_wexac.sh`. Still finishing: the
+  two anchor two-curves (475149 N=2, 480485 N=10) + the two N=10 spectra (479367 requeued, 480482).
 
 ### Status review — final job outcomes from the Jul 23–26 batch (2026-08-11)
 
