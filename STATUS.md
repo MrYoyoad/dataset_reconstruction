@@ -128,8 +128,41 @@ First results from the coupled-study batch (7 long-gpu jobs). Rescored via `reco
     proxy is too degenerate to tell. **This is exactly why the flowers-NATIVE θ₀ track (a model trained
     on flowers, run by the parallel session) is the right test** — real gradients + matched-weight_change.
 - **Follow-up queued:** matched-weight_change harder-data re-run (higher LR to escape the wchg≈0
-  degeneracy on the transfer setup) — `scripts/run_harder_matched_wchg_wexac.sh`. Still finishing: the
-  two anchor two-curves (475149 N=2, 480485 N=10) + the two N=10 spectra (479367 requeued, 480482).
+  degeneracy on the transfer setup) — `scripts/run_harder_matched_wchg_wexac.sh`.
+
+### Step 2b anchor two-curves (per activation) — the "softplus wins" headline is NUANCED, not clean (2026-08-13)
+
+The anchor α-sweep run for softplus/silu/gelu/relu (N=2) + softplus/gelu/relu (N=10) at T=10 — the
+first time the anchor sweep has been run for any activation besides GELU. Read via **control margin**
+(raw SSIM is background-dominated) and the **function-space lin-error** curve.
+
+- **Smoothness → LINEARIZATION holds (robust, clean):** function-space lin-error at α=0 ranks
+  **silu 0.006 < gelu 0.008 < softplus 0.028 ≪ relu 0.30** — the kinked baseline linearizes ~40×
+  worse than the smooth ones. But **within the smooth family softplus is NOT the best linearizer**
+  (silu/gelu are), so the Step-1 hypothesis "the recon winner also linearizes best" is **false**.
+- **Smoothness → LEAKAGE does NOT hold — the key dissociation.** On the **LoRA path** (the thesis
+  target), control margin at N=2: **relu is HIGHEST across all α (+0.123 → +0.233)**, softplus middling
+  (+0.06 → +0.11), gelu/silu low at α=0 (+0.03) rising to +0.14 only with the anchor. At N=10 the LoRA
+  margins are: **relu +0.035–0.049 > gelu +0.007 ≈ softplus ~0 (softplus barely leaks on LoRA at N=10)**.
+  So the *kinked* relu leaks the most on the adapter path, despite linearizing the worst. Linearization
+  quality and leakage are **different axes**.
+- **⚠ The "softplus wins" from Step 1 was premature/incomplete:** it (a) EXCLUDED relu (the 857271
+  CONTROL_SET never ran), (b) was T=1 only, (c) was at a single matched weight_change. With relu
+  included and at T=10, softplus is NOT the LoRA-leakage winner.
+- **⚠ CONFOUND to resolve:** the anchor sweep runs at a fixed lr (T=10) so activations are NOT at
+  matched weight_change — relu (kinked) likely trains more per step, so its higher margin may be a
+  "trained-more" artifact, not a real relu advantage. A **matched-weight_change anchor sweep** is
+  needed before ranking activations on the anchor path. (Same unmatched-wchg confound as fashion/flowers.)
+- **The anchor's value is ACTIVATION-DEPENDENT (a clean result that engages Gal's α idea):** the
+  anchor (α≈0.75) *rescues* gelu/silu (full-FT margin +0.18 → +0.28, LoRA +0.03 → +0.14) and helps relu,
+  but **softplus is anchor-independent** (flat in α — already recovers at α=0). Combined with the
+  N×lr ablation (softplus lr-invariant), softplus's robust signature is **linearization-STABILITY**,
+  not peak leakage. The α*≈0.75 full-FT peak replicates for gelu/silu (0.28 margin at 0.75, collapse at 0.9).
+- **Honest net:** there is **no single winning activation**. Smoothness → better linearization (clean);
+  smoothness → more leakage is **unsupported** (relu leaks most on LoRA). The durable findings are the
+  dissociation itself + softplus's linearization-stability, pending the matched-weight_change anchor
+  sweep to settle the relu-vs-smooth leakage question. Data: `results/rescored_batch_2026-08-13.csv` +
+  the `anchor_sweep_T10_r8_*_s42*.pth` tensors.
 
 ### Status review — final job outcomes from the Jul 23–26 batch (2026-08-11)
 
