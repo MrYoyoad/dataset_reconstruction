@@ -64,6 +64,38 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
   each sweep with the full metric suite; build the Q-A dimension-ladder curve + Q-B overlap-vs-novel
   contrast; send review grids (GT/recon/control, best+worst) per phase.
 
+### Gate-matrix test — the linearization-vs-leakage theory's feature ceiling CONFIRMED (2026-08-13)
+
+Ran the falsifiable test from [notes/linearization_leakage_theory.tex](notes/linearization_leakage_theory.tex)
+(§8): at θ₀, per activation, the gate matrix `M_ki=σ'(⟨w_k,x_i⟩)` + per-sample gradient features
+`φ(x_i)`; measured effective rank, per-neuron gate variance/range, `mean|σ''|`, pairwise cosine.
+Job 668832 (short-gpu, ~2 min). Data: `results/gate_matrix_test.csv`.
+
+- **eff_rank(M), N=10 — kinked ≫ smooth, and it PREDICTS the measured leakage ordering:**
+  relu 6.37 ≈ leaky_relu 6.33 ≫ **selu 3.39** > gelu 2.91 > mish 2.39 > silu 2.34 > softplus 1.73 >
+  tanh 1.59 > sigmoid 1.19. The kinked units are ~4× higher rank than softplus, and the ordering
+  matches the independently-measured LoRA leakage — including the earlier **selu surprise** (a C⁰ kink,
+  rank 3.39, above every smooth C∞ unit → why it out-leaked them on Fashion/Flowers). The three with
+  N=10 LoRA margins line up monotonically: relu (rank 6.37, +0.04) > gelu (2.91, +0.007) > softplus
+  (1.73, ~0).
+- **Softplus-β is a clean monotone dial of the whole frontier.** β 0.5→50: eff_rank(M) 1.40→5.30,
+  gate_range 0.037→0.555, `mean|σ''|` 0.125→3.26, cos_M 0.999→0.869 — traversing smooth→ReLU
+  (limit 6.37 / 0.585 / Dirac / 0.810). One-parameter confirmation that σ'' dials gate range dials
+  rank(M) dials leakage.
+- **The Dirac / total-variation point confirmed.** relu/leaky have autograd `mean|σ''|=0` (the kink's
+  curvature is a Dirac autograd can't see) **yet the maximal gate range (0.585)** — their info is in the
+  range, not pointwise σ''. cos_M: softplus **0.997** (collinear gates → rank≈1, entangled) vs relu
+  0.81; cos_phi (full gradient features): softplus **0.85** (entangled → least leakage) vs relu/gelu
+  ~0.39 (separable).
+- **⚠ Lemma B caveat (honest).** `mean|σ''|` at θ₀ does NOT order like the measured linearization error,
+  because lin-error ∝ σ''·‖δ‖² and the weight-change ‖δ‖ differs across activations (softplus trained
+  ~2× more). The σ''→lin-error link holds only at matched weight_change — the same matched-wchg caveat
+  as everywhere. The **feature-ceiling half is what is cleanly confirmed.**
+- **Net:** softplus's `eff_rank(M)≈1` (collinear gates) is exactly why it entangles samples and leaks
+  least on the adapter; kinked activations produce distinct (near-binary) gates → separable → leak. The
+  theory's feature ceiling is validated; the capacity ceiling (rank vs data-dim) is the separate,
+  untested-here bound.
+
 ### Step 1 first-pass results — activation rescore + LoRA-vs-full retrieval (2026-08-13)
 
 Executing the approved coupled activation×anchor×linearization plan ([notes/next_experiment_plan.md](notes/next_experiment_plan.md)).
