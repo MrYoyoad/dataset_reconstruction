@@ -64,6 +64,36 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
   each sweep with the full metric suite; build the Q-A dimension-ladder curve + Q-B overlap-vs-novel
   contrast; send review grids (GT/recon/control, best+worst) per phase.
 
+### Theory follow-ups — Lemma B (matched-wchg) + capacity/rank sweep (2026-08-13)
+
+Two tests closing out [notes/linearization_leakage_theory.tex](notes/linearization_leakage_theory.tex).
+Data: `results/linerr_matched_wchg.csv`, `results/gate_matrix_test.csv`, and the
+`exp_b_T1_r*_..._npc*_vw5` capacity tensors. Jobs 671378 (Lemma B) + 671386 (capacity).
+
+- **Lemma B at MATCHED weight_change (0.05, T=10) — half-confirmed, half-refuted (honest).** Function-
+  space lin-error: **kinked ≫ smooth even at matched ‖δ‖** — relu 0.576 / leaky 0.562 vs smooth
+  0.02–0.13 (softplus 0.070, gelu 0.026, sigmoid 0.020). So smoothness→linearization is **real, not a
+  weight-change artifact** (this *corrects* the earlier guess that softplus's high lin-error was purely
+  the ‖δ‖ confound — softplus > gelu **persists** at matched wchg). **BUT the fine ∝σ'' law is REFUTED
+  within the smooth family:** gelu has the *highest* σ'' (0.78) yet the *lowest* lin-error (0.026);
+  softplus low σ'' (0.25) but higher (0.070) — opposite of ∝σ''. Cause: the anchor metric is the
+  *relative* Taylor residual (÷‖ΔΦ‖), so it tracks **σ''/‖∇Φ‖**, not σ''. softplus-β is U-shaped
+  (b0.5 0.130 anomalous; b2 0.038 min; then b5 0.062 → b10 0.116 → b50 0.362 → relu). Lemma B needs
+  the /‖∇Φ‖ correction.
+- **Capacity / rank sweep (N=10, gelu vs relu, r∈{1..64}) — the LoRA-amplification mechanism confirmed.**
+  **relu is rank-robust** (margin +0.051 / norm 0.57 already at r=1, flat across ranks) — its distinct
+  binary gates survive even a rank-1 projection. **gelu is rank-climbing** (+0.014 / norm 0.44 at r=1,
+  rising to a plateau by ~r16) — its collinear gates collapse under low rank and need more of it. The
+  relu–gelu gap is largest at low rank. (The crisp "saturates at r≈rank(M)" was too clean; the
+  rank-robust-vs-rank-climbing split is the real, same-mechanism signature.)
+- **Capacity / large-N (gelu r=8, N∈{10,16,32,64}) — the superposition collapse.** Instance margin
+  decays monotonically **+0.033 → +0.023 → +0.012 → +0.006** and retrieval falls to chance
+  (0.10/0.12/0.03/0.02 vs 0.10/0.06/0.03/0.02) as N grows — leakage per-sample → 0 as kN eats the
+  ρ(m+d) budget. (ssim_norm stays ~0.48 = shared background, not instance info.)
+- **Net:** the two-ceiling picture is empirically supported — feature ceiling (gate rank, confirmed
+  below), its rank-dependence (amplification), and the capacity/N collapse — with the honest Lemma-B
+  refinement (relative lin-error is σ''/‖∇Φ‖).
+
 ### Gate-matrix test — the linearization-vs-leakage theory's feature ceiling CONFIRMED (2026-08-13)
 
 Ran the falsifiable test from [notes/linearization_leakage_theory.tex](notes/linearization_leakage_theory.tex)
