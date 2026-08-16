@@ -1,0 +1,220 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{remark}{Remark}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\x}{\bm{x}}
+\newcommand{\w}{\bm{w}}
+\newcommand{\g}{\bm{g}}
+\newcommand{\dbf}{\bm{\delta}}
+\newcommand{\dW}{\Delta W}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\ip}[2]{\langle #1, #2\rangle}
+\newcommand{\sig}{\sigma}
+
+\title{Why Linearization Accuracy and Adapter Leakage \emph{Decouple}:\\
+a curvature ($\sig''$) account of a single control variable}
+\author{Yoad Oxman}
+\date{2026-08-13}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Empirically (STATUS.md, 2026-08-13) two quantities that ``ought'' to move together do not: making
+the activation smoother \emph{lowers} the NTK/anchor linearization error (good for the
+reconstruction method), yet on the LoRA/adapter path the \emph{kinked} ReLU --- the worst
+linearizer --- \emph{leaks the most} instance-level information. This note explains why. The claim is
+not that the two are accidentally uncorrelated, but that to leading order they are two readouts of the
+\textbf{same} functional --- the activation's second derivative $\sig''$ evaluated at the
+pre-activations --- with \emph{opposite} sign of benefit. Large $\sig''$ (a kink) makes the
+per-sample gradient features \emph{diverse and separable} (leakage $\uparrow$) but the Taylor
+expansion \emph{inaccurate} (lin-error $\uparrow$); small $\sig''$ (a smooth unit) does the reverse.
+Hence no activation optimizes both; the attainable pairs lie on a frontier that the Softplus sharpness
+$\beta$ dials directly. The account reproduces the observed effective-rank collapse
+($\mathrm{rank}(\dW)\approx 1$ for Softplus), predicts why the effect is sharper on the LoRA path than
+on full fine-tuning, and yields a cheap, falsifiable test (forward $+$ one backward pass, no
+extraction).
+\end{abstract}
+
+\section{Setup}
+Take the two-layer network used throughout the project,
+\begin{equation}
+  f(\x;\theta) \;=\; \sum_{j=1}^{m} v_j\,\sig\!\big(\ip{\w_j}{\x}\big),
+  \qquad \theta = (W,\bm v),\quad W=[\w_1,\dots,\w_m]^\top\in\R^{m\times d}.
+\end{equation}
+A victim fine-tunes from a public $\theta_0$ on private data $\{(\x_i,y_i)\}_{i=1}^N$ by $T$ steps of
+gradient descent on $L(\theta)=\sum_i \ell\!\big(f(\x_i;\theta),y_i\big)$ (BCE). The attacker observes
+the weight change $\dW=\theta_T-\theta_0$ (full fine-tuning) or its low-rank LoRA factors $\dW=BA$,
+and tries to recover $\{\x_i\}$.
+
+\paragraph{Reconstruction.} Reconstruction linearizes $f$ around an anchor
+$\theta_{\mathrm a}=(1-\alpha)\theta_0+\alpha\theta_T$ and matches $\dW$ to a weighted sum of
+per-sample \emph{gradient features} $\phi(\x):=\nabla_\theta f(\x;\theta_{\mathrm a})$. To leading
+order (exactly at $T{=}1$, and as the NTK term for $T>1$),
+\begin{equation}\label{eq:obs}
+  \dW \;\approx\; \sum_{i=1}^N c_i\,\phi(\x_i),
+  \qquad c_i := -\eta\,\ell'\!\big(f(\x_i;\theta_{\mathrm a}),y_i\big)\in\R .
+\end{equation}
+
+\section{The observation is a low-rank factorization}
+Restrict to the first layer (the reconstruction target). Since
+$\partial f/\partial \w_j = v_j\,\sig'(\ip{\w_j}{\x})\,\x$, the first-layer gradient feature of a
+sample is a \emph{rank-one} matrix,
+\begin{equation}
+  \phi_W(\x) \;=\; \g(\x)\,\x^\top,
+  \qquad
+  \g(\x) := \big(v_1\sig'(z_1),\dots,v_m\sig'(z_m)\big)^\top\in\R^m,\quad z_k:=\ip{\w_k}{\x}.
+\end{equation}
+The vector $\g(\x)$ is the \emph{gating pattern}: how strongly each neuron responds to $\x$.
+Substituting into \eqref{eq:obs},
+\begin{equation}\label{eq:factor}
+  \boxed{\;\dW_1 \;=\; \sum_{i=1}^N c_i\,\g(\x_i)\,\x_i^\top \;=\; G\,\mathrm{diag}(\bm c)\,X^\top,\;}
+  \qquad G=[\g(\x_1),\dots,\g(\x_N)]\in\R^{m\times N},\;\; X=[\x_1,\dots,\x_N]\in\R^{d\times N}.
+\end{equation}
+Reconstruction is exactly the problem of recovering the columns of $X$ from this rank-$\le\!N$
+factorization.
+
+\begin{proposition}[Identifiability $=$ conditioning of the gating matrix]\label{prop:ident}
+The factorization \eqref{eq:factor} determines the individual $\x_i$ (up to the known per-column
+scales $c_i$) \emph{iff $G$ has full column rank $N$}. If $\mathrm{rank}(G)=r<N$, only $r$ linear
+combinations of the $c_i\x_i$ are observable; the remaining $N-r$ directions are a null space of
+indistinguishable recombinations --- the \textbf{superposition problem}. Thus leakage is governed by
+the conditioning $\kappa(G)=\sigma_1(G)/\sigma_N(G)$, \emph{not} by how accurate the linear model is.
+\end{proposition}
+\noindent (When $m<N$, $G$ cannot have rank $N$ and separation is impossible without extra structure;
+this is the analogue for the low-rank LoRA case, \S\ref{sec:lora}.)
+
+\section{The two quantities we care about}
+\paragraph{(A) Linearization error} --- the project's headline anchor metric, the function-space
+Taylor residual along the observed displacement $\dbf=\theta_T-\theta_{\mathrm a}$:
+\begin{equation}
+  \mathcal L_{\mathrm{lin}}
+  \;:=\; \Big\| f(\x;\theta_{\mathrm a}+\dbf) - \big[f(\x;\theta_{\mathrm a}) + \phi(\x)^\top\dbf\big]\Big\|
+  \;=\; \tfrac12\,\dbf^\top \nabla^2_\theta f(\x;\theta_\xi)\,\dbf + o(\norm{\dbf}^2).
+\end{equation}
+It measures how well the \emph{forward} map $\theta\mapsto f$ is approximated by its first-order model.
+
+\paragraph{(B) Identifiability / leakage} --- by Proposition~\ref{prop:ident}, the conditioning
+$\kappa(G)$ of the gating matrix; equivalently the effective rank of $\dW_1$. It measures whether the
+\emph{inverse} problem ``$\dW\mapsto\{\x_i\}$'' is well posed.
+
+\noindent These are different objects: (A) is forward-model accuracy, (B) is inverse-problem
+conditioning. A model can approximate $f$ beautifully and still carry gradient features that are
+nearly identical across samples (accurate but uninformative), or approximate $f$ terribly while
+carrying sharply sample-specific features.
+
+\section{The key lemma: both are first-order controlled by $\sig''$}
+Everything hinges on one observation: the pre-activation curvature $\sig''$ simultaneously sets the
+\emph{spread of the gates across samples} and the \emph{Taylor residual across the trajectory}.
+
+\begin{lemma}[Gate diversity $\propto\sig''$]\label{lem:gate}
+For two samples $\x_i,\x_j$ and neuron $k$, by the mean value theorem,
+\begin{equation}
+  \g_k(\x_i)-\g_k(\x_j) \;=\; v_k\big[\sig'(z_k^i)-\sig'(z_k^j)\big]
+  \;=\; v_k\,\sig''(\zeta_k)\,\big(z_k^i-z_k^j\big),\qquad \zeta_k\in(z_k^j,z_k^i).
+\end{equation}
+Hence the column spread of $G$ --- and thus $\kappa(G)^{-1}$ and $\mathrm{rank}(G)$ --- scales to first
+order with $\lvert\sig''\rvert$ at the pre-activations. If $\sig''\equiv0$ (affine unit) every column
+of $G$ is identical: $\mathrm{rank}(G)=1$, total superposition. Large $\lvert\sig''\rvert$ spreads the
+columns and lifts the rank toward $N$.
+\end{lemma}
+
+\begin{lemma}[Linearization residual $\propto\sig''$]\label{lem:lin}
+The Hessian block is $\partial^2 f/\partial\w_k\partial\w_k^\top = v_k\,\sig''(z_k)\,\x\x^\top$, so
+$\nabla^2_\theta f$ is linear in $\{\sig''(z_k)\}$ and
+\begin{equation}
+  \mathcal L_{\mathrm{lin}} \;=\; \tfrac12\sum_{k} v_k\,\sig''(\zeta_k)\,\big(\ip{\dbf_{\w_k}}{\x}\big)^2
+  + (\text{cross terms}) \;=\; O\!\big(\lvert\sig''\rvert\cdot\norm{\dbf}^2\big).
+\end{equation}
+\end{lemma}
+
+\begin{proposition}[The curvature tradeoff]\label{prop:tradeoff}
+To leading order both the feature diversity that \emph{enables} reconstruction and the linearization
+error that the NTK/anchor method must \emph{overcome} are proportional to the same functional, the
+activation curvature $\sig''$ evaluated at the pre-activations:
+\begin{equation}
+  \text{leakage } \sim \kappa(G)^{-1} \;\uparrow\; \text{with } \lvert\sig''\rvert,
+  \qquad\qquad
+  \mathcal L_{\mathrm{lin}} \;\uparrow\; \text{with } \lvert\sig''\rvert .
+\end{equation}
+Consequently \textbf{no activation simultaneously maximizes leakage and minimizes linearization
+error}; the attainable pairs lie on a frontier parameterized by $\sig''$. Smooth units
+($\sig''\!\approx\!0$: GELU, SiLU, small-$\beta$ Softplus) occupy the \emph{low-error, low-leakage}
+corner; the ReLU kink ($\sig''$ a Dirac mass at $0$, unbounded) occupies the \emph{high-error,
+high-leakage} corner.
+\end{proposition}
+
+\noindent This is the whole story: the property that makes the Taylor expansion accurate --- $\sig'$
+varying slowly --- is exactly the property that makes the gradient feature $\g(\x)=\sig'(\cdot)$
+insensitive to \emph{which} $\x$ produced it. Smoothness buys an accurate model of a \emph{blurred}
+signal.
+
+\section{The Softplus-$\beta$ knob dials the frontier}
+For $\sig_\beta(z)=\beta^{-1}\log(1+e^{\beta z})$ one has $\sig_\beta'(z)=s(\beta z)$ (logistic) and
+\begin{equation}
+  \sig_\beta''(z) \;=\; \beta\, s(\beta z)\big(1-s(\beta z)\big), \qquad \max_z \sig_\beta''=\tfrac\beta4 .
+\end{equation}
+So $\beta$ is a \emph{direct} dial on $\sig''$: $\beta\!\to\!0$ gives an affine unit ($\sig''\!\to\!0$,
+maximal linearity, maximal superposition), $\beta\!\to\!\infty$ gives ReLU ($\sig''$ concentrates,
+maximal identifiability, maximal lin-error). Proposition~\ref{prop:tradeoff} therefore makes a
+\textbf{sharp one-parameter prediction}: along the existing \texttt{SOFTPLUS\_BETA\_SWEEP}, both
+$\mathcal L_{\mathrm{lin}}$ and the leakage margin should increase monotonically with $\beta$, tracing
+the frontier. This is the theory-cleanest experiment in the whole activation study.
+
+\section{Consequences and consistency with the data}
+\begin{itemize}
+  \item \textbf{Effective-rank collapse (measured).} Proposition~\ref{prop:ident} predicts
+  $\mathrm{rank}(\dW_1)\approx\mathrm{rank}(G)$: $\approx 1$ for a smooth unit, $\to N$ for ReLU. The
+  rescore found Softplus \texttt{delta\_w\_effective\_rank}$=1$ vs.\ $2$ for the smooth family --- the
+  smoothest reconstruction winner is exactly the most rank-collapsed, as predicted, and hence the
+  least separable on the adapter path.
+  \item \textbf{Why LoRA amplifies (\S\ref{sec:lora}).} The adapter records $P\dW$ for a rank-$r$
+  projection $P$. Near-collinear (smooth) columns of $G$ collapse under $P$; distinct (ReLU) columns
+  survive. So the identifiability gap between kinked and smooth \emph{widens} under the low-rank
+  bottleneck --- which is why the empirical relu$>$smooth ordering is sharp on LoRA but muddier on
+  full fine-tuning.
+  \item \textbf{The anchor $\alpha$ is activation-dependent (observed).} Moving $\theta_{\mathrm a}$
+  toward $\theta_T$ changes the pre-activations $z_k$ and hence $\sig''(z_k)$; for a smooth unit near
+  saturation this can \emph{restore} some gate diversity (empirically the anchor rescues GELU/SiLU:
+  LoRA margin $+0.03\!\to\!+0.14$), while it does nothing structural for a kink that is already
+  maximally diverse (ReLU, best at $\alpha{=}0$) or for a curvature that is uniformly tiny.
+\end{itemize}
+
+\section{Falsifiable predictions and a cheap test}\label{sec:lora}
+Both predictions need only a forward pass and one backward pass at $\theta_{\mathrm a}$ (\emph{no}
+$50$k-epoch extraction):
+\begin{enumerate}
+  \item \textbf{Feature-rank vs.\ leakage.} Form $G=[\g(\x_1),\dots,\g(\x_N)]$ per activation and
+  compute (i) the mean pairwise cosine of its columns and (ii) its numerical rank / $\kappa(G)$.
+  Prediction: \emph{ReLU} $\Rightarrow$ low cosine, high rank (separable); \emph{smooth} $\Rightarrow$
+  high cosine, rank $\approx 1$ (entangled). The rank should track the leakage margins while
+  $\mathcal L_{\mathrm{lin}}$ tracks $-\!\sig''$.
+  \item \textbf{Monotone $\beta$.} Along Softplus-$\beta$, both $\mathrm{rank}(G)$ and
+  $\mathcal L_{\mathrm{lin}}$ increase with $\beta$.
+\end{enumerate}
+If (1)--(2) hold, the dissociation collapses to a one-line law: \emph{smoothness trades gradient-feature
+identifiability for linearization accuracy, both governed by $\sig''$.} That is precisely the
+project's open identifiability question (Q-A: when is the map $\dW\mapsto\{\x_i\}$ well posed?) with an
+answer in terms of the model, not just the data.
+
+\section{Caveats}
+\begin{itemize}
+  \item \emph{Homogeneity.} KKT/max-margin recovery (Haim et al.) assumes positively-homogeneous nets;
+  smooth $\sig$ break homogeneity, so the relevant framework there is the NTK/gradient-feature account
+  used here --- which needs no homogeneity. The factorization \eqref{eq:factor} is exact regardless.
+  \item \emph{Leading order.} The ``$\propto\sig''$'' statements are first order for one hidden layer
+  (MVT / second-order Taylor). Depth introduces products of gates, but the \emph{sign} of the effect
+  (kink $\Rightarrow$ diverse features $+$ large residual) is preserved.
+  \item \emph{Empirical status.} The supporting numbers are single-seed, $N\in\{2,10\}$, $T=10$,
+  MNIST, oracle coefficients --- directional, not yet confirmed. The test in \S\ref{sec:lora} is what
+  turns this note from hypothesis into measurement.
+\end{itemize}
+
+\end{document}
