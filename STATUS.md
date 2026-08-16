@@ -149,10 +149,13 @@ first time the anchor sweep has been run for any activation besides GELU. Read v
 - **⚠ The "softplus wins" from Step 1 was premature/incomplete:** it (a) EXCLUDED relu (the 857271
   CONTROL_SET never ran), (b) was T=1 only, (c) was at a single matched weight_change. With relu
   included and at T=10, softplus is NOT the LoRA-leakage winner.
-- **⚠ CONFOUND to resolve:** the anchor sweep runs at a fixed lr (T=10) so activations are NOT at
-  matched weight_change — relu (kinked) likely trains more per step, so its higher margin may be a
-  "trained-more" artifact, not a real relu advantage. A **matched-weight_change anchor sweep** is
-  needed before ranking activations on the anchor path. (Same unmatched-wchg confound as fashion/flowers.)
+- **CONFOUND RESOLVED (from the job logs) — relu genuinely out-leaks the smooth activations on LoRA.**
+  Fine-tune weight_change (per activation, T=10, lr=0.01): **N=2 LoRA — softplus 0.183, relu 0.165,
+  silu 0.165** → essentially MATCHED, yet relu's control margin (+0.12→+0.23) beats softplus (+0.06→+0.11).
+  **N=10 LoRA — softplus 0.125 vs relu 0.072, gelu 0.069** → softplus trained ~2× MORE yet leaks LESS
+  (softplus margin ~0 vs relu +0.035–0.049). So the weight_change confound runs *against* softplus, and
+  relu still wins — the kinked-relu adapter-leakage advantage is **real, not a training-amount artifact.**
+  A matched-weight_change anchor sweep is therefore **not needed** to settle this.
 - **The anchor's value is ACTIVATION-DEPENDENT (a clean result that engages Gal's α idea):** the
   anchor (α≈0.75) *rescues* gelu/silu (full-FT margin +0.18 → +0.28, LoRA +0.03 → +0.14) and helps relu,
   but **softplus is anchor-independent** (flat in α — already recovers at α=0). Combined with the
