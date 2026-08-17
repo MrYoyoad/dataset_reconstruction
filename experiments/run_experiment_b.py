@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'dataset_recons
 from CreateModel import NeuralNetwork, ModifiedRelu
 
 from experiments.configs import (
-    INPUT_DIM, OUTPUT_DIM, MODEL_HIDDEN_LIST,
+    INPUT_DIM, OUTPUT_DIM, MODEL_HIDDEN_LIST, DATASET_SPECS,
     EXTRACTION_EPOCHS, EXTRACTION_EVAL_EVERY, RESULTS_DIR, TRAIN_LR,
     PRETRAINED_MNIST_PATH, EXTRACTION_RELU_ALPHA,
     COEFF_LR, COEFF_BOX_WEIGHT, COEFF_CONSISTENCY_WEIGHT,
@@ -100,6 +100,16 @@ def build_base_name(args):
         parts.append(f"lr{args.lr:g}")
     if args.anchor_alpha != 0.0:
         parts.append(f"anch{args.anchor_alpha:g}")
+    # Harden against swept-dimension collisions (LESSONS_LEARNED 2026-07-21): any dimension we
+    # sweep MUST appear here. Appended only when non-default so existing filenames stay stable.
+    if getattr(args, 'finetune_optimizer', 'sgd') != 'sgd':
+        parts.append(str(args.finetune_optimizer))
+    if getattr(args, 'lr_schedule', 'constant') != 'constant':
+        parts.append(str(args.lr_schedule))
+    if getattr(args, 'verify_weight', 1.0) != 1.0:
+        parts.append(f"vw{args.verify_weight:g}")
+    if getattr(args, 'source', 'all') != 'all':
+        parts.append(str(args.source))   # Phase-D Q-B: 'seen' / 'novel'
     return "_".join(parts)
 
 
@@ -143,27 +153,28 @@ def make_activation(activation_name, relu_alpha=EXTRACTION_RELU_ALPHA):
     raise ValueError(f"Unknown activation: {activation_name}")
 
 
-def create_model(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPHA,
-                 activation_name=None):
-    """Create a NeuralNetwork matching the MNIST architecture.
+def _build_network(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPHA,
+                   activation_name=None, input_dim=None, hidden=None):
+    """Build a NeuralNetwork. input_dim/hidden default to the MNIST arch
+    (INPUT_DIM=784, MODEL_HIDDEN_LIST); the flowers-native track passes 3072/12288
+    and the matching hidden list from configs.DATASET_SPECS.
 
     Args:
         device: computation device
         extraction: if True and activation_name is None, use ModifiedRelu
             (smooth backward pass). If False and activation_name is None,
             use standard ReLU.
-        relu_alpha: alpha parameter for ModifiedRelu (default: 149.87 from
-            Haim et al. W&B sweep).
-        activation_name: explicit activation override. If provided, ignores
-            the extraction flag. One of 'relu', 'leaky_relu', 'modified_relu'.
+        relu_alpha: alpha parameter for ModifiedRelu (default: 149.87).
+        activation_name: explicit activation override; if provided, ignores extraction.
+        input_dim/hidden: model geometry (None → MNIST defaults).
     """
     if activation_name is not None:
         activation = make_activation(activation_name, relu_alpha)
     else:
         activation = ModifiedRelu(relu_alpha) if extraction else nn.ReLU()
     model = NeuralNetwork(
-        input_dim=INPUT_DIM,
-        hidden_dim_list=MODEL_HIDDEN_LIST,
+        input_dim=INPUT_DIM if input_dim is None else input_dim,
+        hidden_dim_list=MODEL_HIDDEN_LIST if hidden is None else hidden,
         output_dim=OUTPUT_DIM,
         activation=activation,
         use_bias=False,
@@ -171,13 +182,27 @@ def create_model(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPH
     return model.to(device).double()
 
 
-def load_pretrained(device='cpu', pretrained_path=None):
-    """Load the pre-trained MNIST odd/even model as θ₀."""
+def create_model(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPHA,
+                 activation_name=None, input_dim=None, hidden=None):
+    """Public builder (MNIST arch by default). run_single_config shadows this with a
+    dim-bound local closure so its many call sites need no threading — see _build_network."""
+    return _build_network(device=device, extraction=extraction, relu_alpha=relu_alpha,
+                          activation_name=activation_name, input_dim=input_dim, hidden=hidden)
+
+
+def _load_theta0(device='cpu', pretrained_path=None, input_dim=None, hidden=None):
     path = pretrained_path or PRETRAINED_MNIST_PATH
     checkpoint = torch.load(path, map_location=device, weights_only=False)
-    model = create_model(device=device)
+    model = _build_network(device=device, input_dim=input_dim, hidden=hidden)
     model.load_state_dict(checkpoint['state_dict'])
     return model
+
+
+def load_pretrained(device='cpu', pretrained_path=None, input_dim=None, hidden=None):
+    """Load a base checkpoint as θ₀. Defaults to the MNIST base; the flowers-native
+    track passes the flowers32/64 checkpoint + matching input_dim/hidden."""
+    return _load_theta0(device=device, pretrained_path=pretrained_path,
+                        input_dim=input_dim, hidden=hidden)
 
 
 def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,
@@ -193,6 +218,7 @@ def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,
                     optimizer_type='lbfgs', lora_B0=None,
                     verify_weight=1.0,
                     x_init=None, init_seed=None,
+                    input_shape=(1, 28, 28),
                     device='cpu', verbose=True):
     """Run NTK extraction in oracle, free, or N-sweep mode."""
     extra_kwargs = dict(
@@ -200,6 +226,7 @@ def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,
         coeff_sign_weight=coeff_sign_weight,
         coeff_min_magnitude=coeff_min_magnitude,
         loss_type=loss_type,
+        input_shape=input_shape,   # x̂-init shape; forwarded to run_ntk_extraction (both paths)
     )
     if n_sweep and free_coefficients:
         # N sweep: try multiple dataset sizes
@@ -273,24 +300,49 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
                       weight_decay=0.01,
                       anchor_alpha=0.0,
                       dataset='mnist',
+                      source='all',
+                      holdout_species=None,
                       x_init=None,
                       init_seed=None,
                       device='cpu', verbose=True):
     """Run Experiment B for one (n_steps, rank) configuration.
 
-    Loads pre-trained weights as θ₀, fine-tunes on held-out MNIST test
+    Loads pre-trained weights as θ₀, fine-tunes on held-out `dataset` test
     samples, then reconstructs using NTK loss.
 
     If rank is None, runs full-model (no LoRA) only.
+
+    `source`/`holdout_species` drive the Phase-D (Q-B) overlap contrast: 'seen' restricts
+    the fine-tune set to species θ₀ trained on, 'novel' to the held-out species.
 
     Returns dict with all results and metrics.
     """
     torch.set_default_dtype(torch.float64)
     torch.manual_seed(seed)
 
+    # Resolve per-dataset geometry + base checkpoint (single source of truth: DATASET_SPECS).
+    spec = DATASET_SPECS[dataset]
+    input_dim = spec['input_dim']
+    hidden = spec['hidden']
+    input_shape = spec['shape']
+    resolved_pretrained = pretrained_path or spec['pretrained']
+
+    # Dim-bound local builders: every create_model(...)/load_pretrained(...) call below
+    # (including the nested _make_model closures) resolves to these via lexical scope, so the
+    # whole config runs at the right input_dim without threading it through ~10 call sites.
+    def create_model(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPHA,
+                     activation_name=None):
+        return _build_network(device=device, extraction=extraction, relu_alpha=relu_alpha,
+                              activation_name=activation_name, input_dim=input_dim, hidden=hidden)
+
+    def load_pretrained(device='cpu', pretrained_path=None):
+        return _load_theta0(device=device, pretrained_path=pretrained_path or resolved_pretrained,
+                            input_dim=input_dim, hidden=hidden)
+
     # Load held-out fine-tuning data (from the TEST set of `dataset`, not train)
     x_ft, y_ft, digits, indices = get_finetuning_data(
-        n_per_class, seed=seed, device=device, dataset=dataset
+        n_per_class, seed=seed, device=device, dataset=dataset,
+        source=source, holdout_species=holdout_species,
     )
     mode_str = "free-coefficient" if free_coefficients else "oracle"
     if verbose:
@@ -342,7 +394,9 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
                'seed': seed, 'digits': digits, 'mode': mode_str,
                'relu_alpha': relu_alpha, 'finetune_activation': finetune_activation,
                'lr_schedule': lr_schedule, 'effective_lr': effective_lr_train,
-               'finetune_optimizer': finetune_optimizer}
+               'finetune_optimizer': finetune_optimizer,
+               'dataset': dataset, 'input_shape': input_shape,
+               'source': source}
 
     if verbose and finetune_activation:
         print(f"  finetune_activation={finetune_activation} (same for extraction)")
@@ -452,6 +506,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
             lora_B0=None,
             verify_weight=verify_weight,
             x_init=x_init, init_seed=init_seed,
+            input_shape=input_shape,
             device=device, verbose=verbose,
         )
 
@@ -568,6 +623,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
             lora_B0=None,
             verify_weight=verify_weight,
             x_init=x_init, init_seed=init_seed,
+            input_shape=input_shape,
             device=device, verbose=verbose,
         )
 
@@ -687,11 +743,24 @@ if __name__ == '__main__':
                              '(makes sweeps resumable after LSF preemption/requeue)')
     parser.add_argument('--save_results', action='store_true',
                         help='Save tensors (.pth) and figure (.png) to results/')
-    parser.add_argument('--dataset', type=str, default='mnist', choices=['mnist', 'fashion', 'flowers'],
-                        help="Private fine-tuning dataset: 'mnist' (default), 'fashion' (Fashion-MNIST), "
-                             "or 'flowers' (Flowers102 as 28x28 grayscale — real natural images through "
-                             "the SAME MLP cookbook). All harder than MNIST (dataset mean != each image). "
-                             "theta_0 stays the MNIST-pretrained base -> a realistic transfer/PEFT setup.")
+    parser.add_argument('--dataset', type=str, default='mnist',
+                        choices=['mnist', 'fashion', 'flowers', 'flowers32', 'flowers64'],
+                        help="Private fine-tuning dataset. 'mnist'/'fashion'/'flowers' all run on the "
+                             "784-MLP MNIST base (28x28; flowers is grayscale-downsampled — a transfer "
+                             "attack). 'flowers32' (RGB 32x32, D=3072) and 'flowers64' (RGB 64x64, "
+                             "D=12288) are the NATIVE-dimension track: they load their own flowers-trained "
+                             "theta_0 from DATASET_SPECS.")
+    parser.add_argument('--pretrained_path', type=str, default=None,
+                        help='Override the base theta_0 checkpoint (default: resolved from '
+                             'DATASET_SPECS[dataset]).')
+    # Phase-D (Q-B pretrain/finetune overlap): restrict fine-tune species relative to the base
+    # model's held-out set. Requires --holdout_species when not 'all'.
+    parser.add_argument('--source', type=str, default='all', choices=['all', 'seen', 'novel'],
+                        help="Fine-tune species pool: 'all' (default), 'seen' (species theta_0 trained "
+                             "on — the overlap regime), or 'novel' (held-out species).")
+    parser.add_argument('--holdout_species', type=int, nargs='*', default=None,
+                        help='Species (class indices) HELD OUT of the base model training; required '
+                             'when --source is seen/novel.')
 
     args = parser.parse_args()
 
@@ -730,6 +799,9 @@ if __name__ == '__main__':
         weight_decay=args.weight_decay,
         anchor_alpha=args.anchor_alpha,
         dataset=args.dataset,
+        pretrained_path=args.pretrained_path,
+        source=args.source,
+        holdout_species=args.holdout_species,
         n_sweep=args.n_sweep,
         optimizer_type=args.optimizer,
         relu_alpha=args.relu_alpha,
@@ -768,9 +840,10 @@ if __name__ == '__main__':
             print(f"{label} N sweep winner: n_per_class={results[key]['n_sweep_winner']}")
             print(f"{label} N sweep losses: {results[key]['n_sweep_all']}")
 
-    # Generate figure
+    # NOTE: figure generation is gated on --save_results below. The previous unconditional call
+    # here wrote to figures/sprint1/experiment_b_grid_oracle.png on EVERY run, clobbering the
+    # canonical Sprint-1 figure (LESSONS_LEARNED 2026-07-21). Smoke runs no longer touch figures/.
     from experiments.plotting import generate_experiment_b_figure
-    generate_experiment_b_figure(results)
 
     # Save results if requested
     if args.save_results:
@@ -789,9 +862,12 @@ if __name__ == '__main__':
                    'full_lin_error_fs', 'lora_lin_error_fs', 'anchor_alpha']:
             if k in results:
                 save_dict[k] = results[k]
-        # Compute actual param counts for figure labels
+        # Compute actual param counts for figure labels (build θ₀ at the right dims for this dataset)
         from experiments.lora_wrapper import apply_lora, get_lora_param_count
-        _m = load_pretrained(device='cpu')
+        _spec = DATASET_SPECS[args.dataset]
+        _m = load_pretrained(device='cpu',
+                             pretrained_path=args.pretrained_path or _spec['pretrained'],
+                             input_dim=_spec['input_dim'], hidden=_spec['hidden'])
         full_params = sum(p.numel() for p in _m.parameters())
         lora_params = None
         if args.rank is not None:
@@ -804,9 +880,16 @@ if __name__ == '__main__':
             'n_per_class': args.n_per_class, 'seed': args.seed,
             'lr': args.lr, 'mode': mode,
             'dataset': args.dataset,
+            'input_shape': _spec['shape'],
             'relu_alpha': args.relu_alpha,
             'optimizer': args.optimizer,
             'anchor_alpha': args.anchor_alpha,
+            'finetune_activation': args.finetune_activation,
+            'lr_schedule': args.lr_schedule,
+            'finetune_optimizer': args.finetune_optimizer,
+            'verify_weight': args.verify_weight,
+            'loss_type': args.loss_type,
+            'source': args.source,
             'full_params': full_params,
             'lora_params': lora_params,
         }
@@ -814,7 +897,11 @@ if __name__ == '__main__':
         torch.save(save_dict, pth_path)
         print(f"\nSaved tensors to {pth_path}")
 
-        # Save figure (.png)
+        # Save figure (.png). Non-mnist datasets get their own subdir so per-config grids never
+        # clobber the MNIST canonical figures (and stay grouped by dataset for review).
         sprint1_dir = os.path.join(FIGURES_DIR, 'sprint1')
+        if args.dataset != 'mnist':
+            sprint1_dir = os.path.join(sprint1_dir, args.dataset)
+            os.makedirs(sprint1_dir, exist_ok=True)
         generate_experiment_b_figure(results, save_dir=sprint1_dir, base_name=base_name)
         print(f"Saved figure to {sprint1_dir}/")

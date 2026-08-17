@@ -30,13 +30,13 @@ import torch
 torch.set_default_dtype(torch.float64)
 
 from experiments.configs import (
-    RESULTS_DIR, FIGURES_DIR, EXTRACTION_EPOCHS, ANCHOR_ALPHA_SWEEP,
+    RESULTS_DIR, FIGURES_DIR, EXTRACTION_EPOCHS, ANCHOR_ALPHA_SWEEP, TRAIN_LR,
 )
 
 
 def run_alpha_sweep(alphas, n_steps, rank, n_per_class, seed,
                     finetune_activation, extraction_epochs, device, verbose=True,
-                    verify_weight=1.0):
+                    verify_weight=1.0, dataset='mnist', lr=TRAIN_LR):
     """Run Experiment B once per α (both full-FT and LoRA paths). Returns {α: results}."""
     from experiments.run_experiment_b import run_single_config
 
@@ -44,10 +44,11 @@ def run_alpha_sweep(alphas, n_steps, rank, n_per_class, seed,
     for i, a in enumerate(alphas):
         print(f"\n{'='*60}")
         print(f"[{i+1}/{len(alphas)}] anchor_alpha={a}, T={n_steps}, rank={rank}, "
-              f"act={finetune_activation}, verify_weight={verify_weight}")
+              f"act={finetune_activation}, dataset={dataset}, lr={lr}, verify_weight={verify_weight}")
         print(f"{'='*60}")
         res = run_single_config(
             n_steps=n_steps, rank=rank, n_per_class=n_per_class, seed=seed,
+            lr=lr, dataset=dataset,
             run_baseline=True, anchor_alpha=a,
             finetune_activation=finetune_activation,
             extraction_epochs=extraction_epochs,
@@ -118,9 +119,16 @@ if __name__ == '__main__':
     parser.add_argument('--verify_weight', type=float, default=1.0,
                         help='soft box-constraint weight passed to run_single_config '
                              '(raise to reduce [0,1] pixel saturation; default 1.0 = baseline)')
+    parser.add_argument('--dataset', type=str, default='mnist',
+                        choices=['mnist', 'fashion', 'flowers', 'flowers32', 'flowers64'],
+                        help="fine-tune dataset (flowers32/64 load their own theta_0)")
+    parser.add_argument('--lr', type=float, default=TRAIN_LR,
+                        help='fine-tune learning rate (default configs.TRAIN_LR)')
     parser.add_argument('--device', type=str, default=None)
     parser.add_argument('--save', action='store_true',
                         help='save per-α tensors + grids and the aggregate sweep .pth')
+    parser.add_argument('--skip_if_exists', action='store_true',
+                        help='exit 0 if the aggregate sweep .pth already exists (LSF-requeue safe)')
     parser.add_argument('--tag', type=str, default=None, help='filename tag override')
     args = parser.parse_args()
 
@@ -129,10 +137,20 @@ if __name__ == '__main__':
     alphas = args.alphas if args.alphas is not None else list(ANCHOR_ALPHA_SWEEP)
     print(f"Anchor alphas: {alphas}")
 
+    # Default tag encodes dataset+lr so flowers/lr sweeps never collide with the MNIST ones.
+    ds_tag = '' if args.dataset == 'mnist' else f"{args.dataset}_"
+    lr_tag = '' if args.lr == TRAIN_LR else f"lr{args.lr:g}_"
+    tag = args.tag or f"{ds_tag}T{args.n_steps}_r{args.rank}_{args.finetune_activation}_{lr_tag}s{args.seed}"
+
+    sweep_pth = os.path.join(RESULTS_DIR, f"anchor_sweep_{tag}.pth")
+    if args.skip_if_exists and os.path.exists(sweep_pth):
+        print(f"SKIP (already exists): {sweep_pth}")
+        sys.exit(0)
+
     all_results = run_alpha_sweep(
         alphas, args.n_steps, args.rank, args.n_per_class, args.seed,
         args.finetune_activation, args.extraction_epochs, device,
-        verify_weight=args.verify_weight)
+        verify_weight=args.verify_weight, dataset=args.dataset, lr=args.lr)
 
     curves = collect_curves(all_results, alphas)
     print("\n=== Anchor sweep curves (α: SSIM / lin-error function-space) ===")
@@ -141,15 +159,13 @@ if __name__ == '__main__':
               f"LoRA SSIM={curves['lora_ssim'][j]} lin_fs={curves['lora_lin_fs'][j]}")
 
     from experiments.plotting import generate_experiment_b_figure, plot_anchor_two_curve
-    tag = args.tag or f"T{args.n_steps}_r{args.rank}_{args.finetune_activation}_s{args.seed}"
     fig_dir = os.path.join(FIGURES_DIR, 'anchor_sweep')
 
     if args.save:
         for a, res in all_results.items():
             generate_experiment_b_figure(res, save_dir=fig_dir,
                                          base_name=f"anchor_{tag}_a{a:g}")
-        save_sweep(all_results, curves,
-                   os.path.join(RESULTS_DIR, f"anchor_sweep_{tag}.pth"))
+        save_sweep(all_results, curves, sweep_pth)
 
     # Two-curve validation plots (always emitted — the headline deliverable)
     os.makedirs(fig_dir, exist_ok=True)

@@ -38,7 +38,20 @@ def _load_dataset(name='mnist', train=True, root=None):
         ])
         return torchvision.datasets.Flowers102(
             root, split=('train' if train else 'test'), transform=flowers_tfm, download=True)
-    raise ValueError(f"Unknown dataset: {name} (expected 'mnist', 'fashion', or 'flowers')")
+    if name in ('flowers32', 'flowers64'):
+        # Flowers-native track: RGB at NATIVE resolution (no grayscale downsample). The base theta_0
+        # is trained separately (dataset_reconstruction/problems/flowers102_parity.py) on train+val;
+        # here we only load the TEST split (train=False) for fine-tune/control, so the fine-tune data
+        # is disjoint from theta_0's training set. hw = 32 (D=3072) or 64 (D=12288).
+        hw = 32 if name == 'flowers32' else 64
+        flowers_tfm = torchvision.transforms.Compose([
+            torchvision.transforms.Resize((hw, hw)),
+            torchvision.transforms.ToTensor(),
+        ])
+        return torchvision.datasets.Flowers102(
+            root, split=('train' if train else 'test'), transform=flowers_tfm, download=True)
+    raise ValueError(
+        f"Unknown dataset: {name} (expected 'mnist', 'fashion', 'flowers', 'flowers32', or 'flowers64')")
 
 
 def _get_binary_label(digit_label):
@@ -85,8 +98,9 @@ def get_few_shot_mnist(n_per_class, seed=42, root=None, device='cpu'):
     return x_train, y_train, digit_list, idx_list
 
 
-def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='mnist'):
-    """Load few-shot fine-tuning data from the TEST set of `dataset` ('mnist' or 'fashion').
+def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='mnist',
+                        source='all', holdout_species=None):
+    """Load few-shot fine-tuning data from the TEST set of `dataset`.
 
     These samples are guaranteed non-overlapping with the pre-trained model's
     training data (which used MNIST train set, first 250/class sequential).
@@ -95,12 +109,23 @@ def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='
     a pre-trained model on these samples, and the attacker tries to
     reconstruct them from the weight change.
 
+    Phase-D (Q-B pretrain/finetune overlap): `source` filters which classes/species are eligible,
+    relative to `holdout_species` (the set of species HELD OUT of the base model's training):
+      - 'all'   (default): no filter — current behavior, byte-identical for MNIST/fashion/flowers.
+      - 'seen'  : only species the base model DID train on (species NOT in holdout_species) — the
+                  overlap regime (theta_0 already partially fits them).
+      - 'novel' : only the held-out species (species IN holdout_species) — the no-overlap regime.
+    `holdout_species` is a set/list of raw class indices; required when source != 'all'.
+
     Returns:
-        x_ft: tensor [2*n_per_class, 1, 28, 28], float64
+        x_ft: tensor [2*n_per_class, C, H, W], float64
         y_ft: tensor [2*n_per_class], float64, values in {0, 1}
-        digit_labels: list of int, the actual MNIST digit labels
+        digit_labels: list of int, the actual class labels
         indices: list of int, the test set indices
     """
+    if source != 'all' and holdout_species is None:
+        raise ValueError(f"source={source!r} requires holdout_species (the base model's held-out set)")
+    holdout = set(int(s) for s in holdout_species) if holdout_species is not None else set()
     dataset = _load_dataset(dataset, train=False, root=root)  # TEST set
     rng = torch.Generator().manual_seed(seed)
     perm = torch.randperm(len(dataset), generator=rng)
@@ -110,6 +135,10 @@ def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='
 
     for idx in perm.tolist():
         img, digit = dataset[idx]
+        if source == 'seen' and int(digit) in holdout:
+            continue          # skip held-out species -> only species theta_0 trained on
+        if source == 'novel' and int(digit) not in holdout:
+            continue          # skip trained species -> only held-out (novel) species
         binary_label = _get_binary_label(digit)
         if counts[binary_label] < n_per_class:
             counts[binary_label] += 1

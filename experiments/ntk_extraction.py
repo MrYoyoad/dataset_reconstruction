@@ -202,6 +202,7 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
                        verify_weight=1.0,
                        x_init=None,
                        init_seed=None,
+                       input_shape=(1, 28, 28),
                        device='cpu', verbose=True):
     """Run NTK-based reconstruction.
 
@@ -253,7 +254,8 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
     else:
         if init_seed is not None:
             torch.manual_seed(init_seed)
-        x = torch.randn(extraction_amount, 1, 28, 28, device=device) * init_scale
+        # input_shape defaults to MNIST (1,28,28); flowers32=(3,32,32), flowers64=(3,64,64).
+        x = torch.randn(extraction_amount, *input_shape, device=device) * init_scale
     x.requires_grad_(True)
 
     # Initialize coefficients

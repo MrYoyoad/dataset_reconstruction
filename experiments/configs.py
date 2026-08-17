@@ -11,6 +11,10 @@ DATASET_RECON_DIR = os.path.join(PROJECT_ROOT, 'dataset_reconstruction')
 DATASETS_DIR = os.path.join(DATASET_RECON_DIR, 'data')
 MODELS_DIR = os.path.join(DATASET_RECON_DIR, 'models')
 PRETRAINED_MNIST_PATH = os.path.join(MODELS_DIR, 'weights-mnist_odd_even_d250_mnist_odd_even.pth')
+# Flowers-native base models (trained by problems/flowers102_parity.py, copied to these canonical
+# names — see notes plan Phase A). D=3072 (32x32x3) and D=12288 (64x64x3).
+PRETRAINED_FLOWERS32_PATH = os.path.join(MODELS_DIR, 'weights-flowers32.pth')
+PRETRAINED_FLOWERS64_PATH = os.path.join(MODELS_DIR, 'weights-flowers64.pth')
 RESULTS_DIR = os.path.join(PROJECT_ROOT, 'results')
 FIGURES_DIR = os.path.join(PROJECT_ROOT, 'figures')
 
@@ -22,6 +26,23 @@ OUTPUT_DIM = 1
 MODEL_HIDDEN_LIST = [1000, 1000]
 MODEL_INIT_LIST = [0.0001, 0.0001]
 MODEL_USE_BIAS = False  # only first layer gets default bias=True
+
+# ---------------------------------------------------------------------------
+# Per-dataset model/geometry specs — single source of truth for input shape,
+# flattened dim, hidden widths, and the base checkpoint (theta_0) to load.
+#
+# mnist/fashion/flowers all reuse the 784 MNIST theta_0 (the 28x28 transfer-attack
+# cookbook). flowers32/flowers64 are the NATIVE-dimension track: RGB, their own
+# max-margin-trained base model. 'hidden' is config-driven so flowers64 can be
+# widened (e.g. [2048, 2048]) if the D=12288 model struggles to reach max-margin.
+# ---------------------------------------------------------------------------
+DATASET_SPECS = {
+    'mnist':     {'shape': (1, 28, 28), 'input_dim': 784,   'hidden': [1000, 1000], 'pretrained': PRETRAINED_MNIST_PATH},
+    'fashion':   {'shape': (1, 28, 28), 'input_dim': 784,   'hidden': [1000, 1000], 'pretrained': PRETRAINED_MNIST_PATH},
+    'flowers':   {'shape': (1, 28, 28), 'input_dim': 784,   'hidden': [1000, 1000], 'pretrained': PRETRAINED_MNIST_PATH},
+    'flowers32': {'shape': (3, 32, 32), 'input_dim': 3072,  'hidden': [1000, 1000], 'pretrained': PRETRAINED_FLOWERS32_PATH},
+    'flowers64': {'shape': (3, 64, 64), 'input_dim': 12288, 'hidden': [1000, 1000], 'pretrained': PRETRAINED_FLOWERS64_PATH},
+}
 
 # ---------------------------------------------------------------------------
 # Training (matching Main.py)

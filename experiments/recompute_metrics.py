@@ -101,9 +101,20 @@ def rescore_file(path):
         if 'loss_type' not in cfg:
             row['loss_type'] = 'cosine' if '_cosine' in os.path.basename(path) else 'l2'
         for c in ('n_steps', 'rank', 'seed', 'finetune_activation', 'lr',
-                  'n_per_class', 'loss_type', 'anchor_alpha'):
+                  'n_per_class', 'loss_type', 'anchor_alpha', 'dataset', 'source',
+                  'finetune_optimizer', 'verify_weight'):
             if c in cfg:
                 row[c] = cfg[c]
+        # Fallback: recover dataset from the filename prefix (exp_b_T1_<dataset>_...) for older
+        # runs whose config predates the 'dataset' key. 'mnist' carries no prefix token.
+        if 'dataset' not in row:
+            base = os.path.basename(path)
+            for ds in ('flowers32', 'flowers64', 'flowers', 'fashion'):
+                if f'_{ds}_' in base:
+                    row['dataset'] = ds
+                    break
+            else:
+                row['dataset'] = 'mnist'
         rows.append(row)
     return rows
 

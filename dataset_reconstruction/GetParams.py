@@ -48,6 +48,10 @@ def get_args(*args):
     parser.add_argument('--data_per_class_val', default=0,type=int, help='')
     parser.add_argument('--data_per_class_test', default=1000, type=int, help='')
     parser.add_argument('--data_reduce_mean', default='true', type=str2bool, help='')
+    # flowers102_parity (native-dimension flowers base model)
+    parser.add_argument('--flowers_hw', default=32, type=int, help='flowers102_parity: square resize side (32=D3072, 64=D12288)')
+    parser.add_argument('--flowers_gray', default='false', type=str2bool, help='flowers102_parity: grayscale (default RGB)')
+    parser.add_argument('--flowers_holdout', default='[]', type=str2list, help='flowers102_parity: species (class idx) HELD OUT of base training (Phase-D Q-B)')
 
     # model_train
     parser.add_argument('--model_type', default='mlp', help='options: mlp')

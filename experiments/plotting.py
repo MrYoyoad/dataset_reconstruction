@@ -51,7 +51,7 @@ def plot_reconstruction_grid(x_train, x_recon_lora=None, x_recon_full=None,
                              ssim_lora=None, ssim_full=None,
                              ssim_ctrl=None, ssim_ood=None,
                              ds_mean=None, save_path=None, title=None,
-                             rank=None, digits=None):
+                             rank=None, digits=None, class_label='Digit'):
     """Plot reconstruction comparison grid with clear labels and per-image SSIM.
 
     Row structure:
@@ -104,21 +104,33 @@ def plot_reconstruction_grid(x_train, x_recon_lora=None, x_recon_full=None,
     fig.subplots_adjust(left=0.28, right=0.96, top=0.88,
                         bottom=0.04, hspace=0.55, wspace=0.2)
 
-    ds_mean_np = ds_mean.squeeze().cpu().numpy() if ds_mean is not None else None
+    # Keep the channel dim for RGB: squeeze only the leading batch dim (dim 0), not channels.
+    # (1,1,H,W)->(H,W) for grayscale; (1,3,H,W)->(3,H,W) for RGB.
+    ds_mean_np = ds_mean[0].cpu().numpy() if ds_mean is not None else None
+
+    def _to_displayable(arr):
+        """CHW->HWC for 3-channel RGB so imshow accepts it; leave 2-D grayscale as-is."""
+        if arr.ndim == 3 and arr.shape[0] in (3, 4):
+            return np.transpose(arr, (1, 2, 0))
+        return arr
 
     for r, (label, images, scores, is_centered) in enumerate(row_specs):
         per_img = _scores_to_list(scores, n_cols)
 
         for c in range(n_cols):
             ax = axes[r, c]
-            img = images[c].squeeze().cpu().numpy()
+            img = images[c].cpu().numpy()   # (C,H,W); (1,H,W) grayscale or (3,H,W) RGB
 
-            # Add dataset mean back for images in centered space
+            # Add dataset mean back for images in centered space (shapes align: both C,H,W)
             if is_centered and ds_mean_np is not None:
                 img = img + ds_mean_np
 
             img = np.clip(img, 0, 1)
-            ax.imshow(img, cmap='gray', vmin=0, vmax=1)
+            img_disp = _to_displayable(img.squeeze() if img.shape[0] == 1 else img)
+            if img_disp.ndim == 2:
+                ax.imshow(img_disp, cmap='gray', vmin=0, vmax=1)
+            else:
+                ax.imshow(img_disp, vmin=0, vmax=1)   # RGB (H,W,3), no colormap
             ax.set_xticks([])
             ax.set_yticks([])
             for spine in ax.spines.values():
@@ -133,7 +145,7 @@ def plot_reconstruction_grid(x_train, x_recon_lora=None, x_recon_full=None,
             # Column headers on first row
             if r == 0 and digits is not None and c < len(digits):
                 parity = 'even' if digits[c] % 2 == 0 else 'odd'
-                ax.set_title(f'Digit {digits[c]} ({parity})',
+                ax.set_title(f'{class_label} {digits[c]} ({parity})',
                              fontsize=11, fontweight='bold', pad=8)
 
     # Row labels using fig.text (visible regardless of layout)
@@ -379,10 +391,19 @@ def generate_experiment_b_figure(results, save_dir=None, base_name=None):
     rank = results.get('rank')
     n_steps = results.get('n_steps', 1)
     digits = results.get('digits', [])
+    dataset_name = results.get('dataset') or results.get('config', {}).get('dataset', 'mnist')
+    class_label = 'Digit' if dataset_name == 'mnist' else 'Class'
 
     x_train_c = x_train - ds_mean if ds_mean is not None else x_train
-    ds_mean_np = ds_mean.squeeze().cpu().numpy() if ds_mean is not None else None
+    # Keep channel dim for RGB (squeeze only the batch dim): (1,C,H,W)->(C,H,W).
+    ds_mean_np = ds_mean[0].cpu().numpy() if ds_mean is not None else None
     n_samples = x_train.shape[0]
+
+    def _to_displayable(arr):
+        """CHW->HWC for 3-channel RGB so imshow accepts it; leave 2-D grayscale as-is."""
+        if arr.ndim == 3 and arr.shape[0] in (3, 4):
+            return np.transpose(arr, (1, 2, 0))
+        return arr
 
     # Per-image SSIM
     ssim_full = ssim_lora = ssim_ctrl = None
@@ -419,7 +440,7 @@ def generate_experiment_b_figure(results, save_dir=None, base_name=None):
         cols.append((f'LoRA {rank_str}Recon{_fmt_params(lora_params)}', '#E65100',
                      x_recon_lora, True, ssim_lora))
     if x_ctrl is not None:
-        cols.append(('Negative Control\n(diff instance, same digit)', '#777777',
+        cols.append((f'Negative Control\n(diff instance, same {class_label.lower()})', '#777777',
                      x_ctrl, False, ssim_ctrl))
 
     n_cols = len(cols)
@@ -459,18 +480,22 @@ def generate_experiment_b_figure(results, save_dir=None, base_name=None):
         parity = 'odd' if int(digit) % 2 == 1 else 'even'
         pos = axes[r, 0].get_position()
         fig.text(0.02, (pos.y0 + pos.y1) / 2,
-                 f'Sample {r+1}\nDigit {digit}\n({parity})',
+                 f'Sample {r+1}\n{class_label} {digit}\n({parity})',
                  va='center', ha='left', fontsize=10, fontweight='bold',
                  color='#333333', linespacing=1.4)
 
         for c, (_, color, images, is_centered, ssim_vals) in enumerate(cols):
             ax = axes[r, c]
-            img = images[r].squeeze().cpu().numpy()
+            img = images[r].cpu().numpy()   # (C,H,W)
             if is_centered and ds_mean_np is not None:
                 img = img + ds_mean_np
             img = np.clip(img, 0, 1)
 
-            ax.imshow(img, cmap='gray', vmin=0, vmax=1)
+            img_disp = _to_displayable(img.squeeze() if img.shape[0] == 1 else img)
+            if img_disp.ndim == 2:
+                ax.imshow(img_disp, cmap='gray', vmin=0, vmax=1)
+            else:
+                ax.imshow(img_disp, vmin=0, vmax=1)   # RGB (H,W,3)
             ax.set_xticks([])
             ax.set_yticks([])
             for spine in ax.spines.values():

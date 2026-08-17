@@ -4,6 +4,50 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Flowers-native track: dim-threading, FP64 GPU, RGB plotting (2026-08-13)
+
+### Threading a new input_dim through ~10 create_model/load_pretrained call sites — use local shadowing, not 10 edits
+- **Design decision:** `run_experiment_b.run_single_config` builds the model at ~10 sites (both FT
+  paths, lin-error models, extraction models, nested `_make_model` closures). To run at D=3072/12288
+  without editing every site, the module functions were split into `_build_network`/`_load_theta0`
+  (accept `input_dim`/`hidden`) + public `create_model`/`load_pretrained` shims; then
+  `run_single_config` defines **local closures named `create_model`/`load_pretrained`** that bind the
+  dataset's dims and call the `_build_*` base. All existing call sites resolve to the locals via lexical
+  scope — zero call-site edits, no recursion (the closures call the differently-named base). Public API
+  stays intact for tests. Pattern to reuse when a config value must reach many call sites in one function.
+
+### The pipeline is FP64 → request an A100, not the shared-queue default
+- **What:** `--precision=double` + `configs.get_dtype` force float64 on CUDA. The `long-gpu` default
+  `GPU_REQ` is `j_exclusive=no:gmem=6248` — a *shared* card, often a poor-FP64 A40/L40S (~0.6 TFLOPS
+  FP64). A100 is ~9.7 TFLOPS FP64 → **~15× faster** for this workload.
+- **Fix:** `#BSUB -gpu "num=1:j_exclusive=yes:gmem=16000:gmodel=NVIDIAA100_SXM4"`. Discovery:
+  `bhosts -gpu` (idle cards = NJOBS 0), `lsload -gpu`, `bqueues -l long-gpu | grep GPU_REQ`. Full recipe
+  in the `reference_wexac_good_gpu` memory.
+
+### RGB broke only plotting; metrics were already channel-safe
+- **What:** kornia SSIM, NCC, mean-baseline, ds_mean all reduce/flatten channel-agnostically, so RGB
+  needed **no** metric changes. The only break was `imshow` on a (3,H,W) array. **Fix:** squeeze just
+  the batch dim (`ds_mean[0]`, not `.squeeze()` which would drop a channel), then CHW→HWC transpose for
+  3-channel and drop `cmap='gray'`.
+
+### `--pretrained_path` must use the full `dataset_reconstruction/models/...` path (2026-08-16)
+- **Bug:** the Phase-D Q-B job script passed `--pretrained_path models/weights-flowers32_holdout.pth`
+  (relative to the repo-root cwd), but the models dir is `dataset_reconstruction/models/`. Stage 0's
+  `torch.load` hit `FileNotFoundError` and the job aborted in 18s (`STAGE 0 FAILED`).
+- **Why the other sweeps were fine:** they pass only `--dataset flowers32` and resolve the checkpoint
+  through `DATASET_SPECS[...]['pretrained']` = `os.path.join(MODELS_DIR, ...)` (correct absolute path).
+  Only the Q-B script hardcoded a relative `models/` path for the holdout θ₀.
+- **Fix / rule:** any explicit `--pretrained_path` must be `dataset_reconstruction/models/<file>.pth`
+  (or better, `configs.MODELS_DIR`). `models/` is NOT at the repo root.
+
+### Figure-clobber (LESSONS 2026-07-21) now actually fixed
+- `run_experiment_b.__main__` called `generate_experiment_b_figure(results)` **unconditionally**,
+  rewriting `figures/sprint1/experiment_b_grid_oracle.png` on every run (incl. smoke tests). Removed the
+  unconditional call; figures are written only under `--save_results`, and non-mnist datasets route to
+  `figures/sprint1/<dataset>/`.
+
+---
+
 ## Activation rescore (job 857271): softplus wins, but the whole sweep is sub-NTK (2026-08-13)
 
 ### The "matched weight_change" comparison was in a degenerate regime — a directional read, not a verdict
