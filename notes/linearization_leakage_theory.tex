@@ -289,8 +289,17 @@ backward pass, no extraction). Summary:
   \item \textbf{Capacity ceiling / $N$-collapse --- CONFIRMED.} gelu, $r{=}8$: the instance-leakage
   margin decays $+0.033\to+0.023\to+0.012\to+0.006$ and retrieval falls to chance as $N:10\to64$ ---
   leakage per sample $\to0$ as $kN$ eats the $\rho(m+d)$ budget. (ssim\_norm stays $\sim0.48$: shared
-  background, not instance information.) The \emph{true high-$k$} regime, where $m+d$ no longer swamps
-  $kN$, is under test on the flowers-native MLP ($d{=}3072$).
+  background, not instance information.)
+  \item \textbf{High-$k$ test on the flowers-native MLP ($d{=}3072$) --- N-collapse replicates, the
+  \emph{specific} high-$k$ prediction FAILS (honest).} The N-collapse and rank-climbing both replicate on
+  this harder dataset with its own $\theta_0$. But the intrinsic-dim proxy came out \emph{backwards}:
+  eff\_rank$(X)$ at $N{=}64$ is MNIST $46.3 > $ flowers32 $37.3$ --- $32{\times}32$-downsampled flowers
+  are \emph{lower} effective-rank than MNIST (correlated ``blob-on-green'' vs.\ ten spread-out digit
+  shapes), so $kN$ does \emph{not} tighten faster and the margin decay matches MNIST. The capacity
+  ceiling did not bind distinctly earlier; the only clear difference is far lower reconstruction quality
+  (ssim\_norm $0.09$ vs.\ $0.48$), i.e.\ the harder ambient space, not the capacity term. Seeing capacity
+  bind earlier needs genuinely high-$k$ data (the $d{=}12288$ flowers64 model, or full resolution) ---
+  $32{\times}32$ flowers are not it.
 \end{itemize}
 
 \section{Caveats}

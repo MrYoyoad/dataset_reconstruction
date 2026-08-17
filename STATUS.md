@@ -64,6 +64,80 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
   each sweep with the full metric suite; build the Q-A dimension-ladder curve + Q-B overlap-vs-novel
   contrast; send review grids (GT/recon/control, best+worst) per phase.
 
+#### ⭐ DE-CONFOUNDED activation result (2026-08-17) — "smoothness → leakage" is REFUTED on native flowers
+- **The weight_change confound is resolved.** Sweeping each activation's lr over a **10× weight_change range**:
+  softplus (wc 0.057→0.571), selu (0.040→0.395), relu (0.018→0.178) keep **ssim FLAT** (~0.69/0.70/0.71) and
+  ctrl_margin flat (~+0.28) — the clean **linearization-stability** signature. silu (wc 0.013→**0.132**),
+  gelu, mish keep ssim **DEAD** (~0.05/0.09) at *any* weight_change. So the ranking is a **genuine activation
+  property, not a training-motion artifact.**
+- **Smoothness does NOT predict leakage** (contra MNIST/Additions-2/3 spine): softplus smooth+strong, silu/gelu
+  smooth+DEAD, relu kinked+strong. **The real divide is self-gated/swish (silu, gelu, gelu_tanh, mish, hardswish
+  → dead, margin ~0) vs ReLU-like/saturating (relu, leaky_relu, softplus, selu, tanh, sigmoid, elu, celu → strong,
+  margin +0.25–0.30).** Mechanism hypothesis: the swish family's non-monotone bump near 0 (x·σ(x) dips negative)
+  kills the reconstruction signal at these input scales. **This revises the "smoother → better linearization →
+  better leakage" argument** — take to Gal as the headline flowers finding.
+- Matched-wc (≈0.04) ranking, flowers32: selu +0.297, tanh +0.296, relu +0.281, softplus +0.278, elu/celu +0.273,
+  leaky_relu +0.268, sigmoid +0.250 ≫ mish +0.011, gelu −0.007, silu −0.011. flowers64 (D=12288) same pattern
+  (leaky_relu +0.253 top; swish family dead). **Q-A ladder holds at matched wc** — leakage degrades 3072→12288.
+- All configs still `ntk_passed:False` (the strict wc<0.01 gate); feature_stability high. Data: 78 flowers32 +
+  39 flowers64 result .pth. Figures: `figures/sprint1/flowers32/REVIEW_*`.
+
+#### First flowers32 results (2026-08-16) — richer data gives CLEANER leakage; MNIST activation ranking does NOT transfer
+- **All three θ₀ trained** (capped 150k epochs after finding the 1e-20 threshold unreachable — loss ~t^-1.77):
+  `weights-flowers32.pth`, `weights-flowers32_holdout.pth` (Phase-D), `weights-flowers64.pth`. All reached
+  max-margin (train-error 0 by ep5k, p-val ~11, test-error ~0.44 = chance = the expected memorization signature).
+- **flowers32 activation sweep** (lr=0.01, N=2, T=1, r=8, oracle), ranked by control margin:
+  **selu +0.284 (ssim .697) ≈ tanh +0.283 ≈ softplus +0.278 (.688) ≈ celu/elu +0.273 ≈ sigmoid +0.250**
+  ≫ mish +0.011 ≫ gelu/silu/hardswish ~0.00/−0.01 (ssim ~.05).
+- **Headline (plan prediction confirmed):** control margins are **~2× MNIST** (+0.25–0.28 vs +0.11–0.18) and
+  **selu (.697) & softplus (.688) BEAT the mean-baseline (.646)** — on MNIST recons sat *below* baseline. Native
+  RGB flowers (where `ds_mean ≠ each image`) is a **stronger, cleaner instance-leakage demonstration.** Softplus/
+  selu/sigmoid clip 0.00 (vs 0.44–0.62 on MNIST). Grids: `figures/sprint1/flowers32/REVIEW_flowers32_{selu,softplus,gelu}_oracle.png`.
+- **The MNIST "softplus ≫ all" ranking does NOT cleanly transfer** — bounded/saturating acts (selu/tanh/sigmoid/celu/elu)
+  are comparable to softplus here.
+- **⚠ CAVEAT (metric law):** *every* config is `ntk_passed:False` and **weight_change is unmatched** — the high-margin
+  acts simply moved the net more (wc 0.05–0.11) than gelu/silu/hardswish (wc~0.027, barely trained = the same lr-confound
+  as MNIST GELU). This ranking is **confounded, not a verdict**; the clean comparison is the matched-weight_change read
+  from the lr-cal runs (other lr values in the sweep, on disk).
+- **Addition-3 anchor two-curve (flowers32, T=10, r=8) — interior optimum REPLICATES.** gelu **full-FT** SSIM
+  `0.629→0.746→0.977(α=0.5)→0.630→0.403` while lin-error falls monotonically `0.0048→0.0006`: SSIM peaks at the
+  **midpoint α*≈0.5** (MNIST was ≈0.75), then falls past it even as linearization improves — the clean attribution
+  signature (linearization win up to the peak; identifiability degradation past it). **softplus barely benefits**
+  from the anchor (α=0 already near-best) → the anchor gain is **activation-dependent**. Figs:
+  `figures/anchor_sweep/anchor_two_curve_{full,lora_r8}_flowers32_T10_r8_{gelu,softplus}_s42.png`;
+  data `results/anchor_sweep_flowers32_T10_r8_{gelu,softplus}_s42.pth`. (silu arm still running.)
+- **Q-B (Phase D) path bug fixed + rerunning** (job 727508): the sweep referenced the holdout θ₀ via a repo-root-relative
+  `models/` path instead of `dataset_reconstruction/models/` → Stage-0 FileNotFoundError (18s abort). Fixed; 4 seen/novel
+  results landing. flowers64 activation sweep (Q-A ladder rung) still running (10 results).
+- **Q-B RESULT (Phase D, overlap vs novel; softplus r=8, holdout θ₀, avg 3 seeds) — familiarity AIDS leakage (flips the naive prediction).**
+  seen (overlap): ssim 0.619, ctrl_margin **+0.389**, weight_change 0.0965. novel: ssim 0.412, ctrl_margin +0.339, weight_change 0.1070.
+  ✅ overlap → **smaller weight_change** (the cᵢ-shrink mechanism: θ₀ already fits → smaller residual → smaller ΔW). ❌ but overlap →
+  **HIGHER faithfulness, not lower** (ssim 0.619 vs 0.412) — contradicting the plan's "recovers only novelty" prediction. The richer
+  feature map θ₀ has for *known* species makes the instance recover *better* from a *smaller* ΔW ⇒ Gal's feature-map-injectivity worry is
+  NOT borne out; familiarity helps the attack. (Minor caveat: seen species 20–101 vs novel 0–19 are different flower sets.)
+- **Q-A RESULT (dimension ladder, softplus lr=0.01 N=2 r=8) — leakage clearest at the MIDDLE rung.**
+  D=784 (MNIST, prior ~+0.11) → D=3072 (flowers32 **+0.278**) → D=12288 (flowers64 **+0.227**); ssim 0.688→0.618, weight_change
+  0.114→0.066. Non-monotonic: richer-than-MNIST helps (ds_mean ≠ image), but past ~3072 the higher pixel dim reduces well-posedness
+  (Q-A prediction). **Caveat:** lr=0.01 unmatched weight_change → part of the 3072→12288 drop is the training-motion confound; the
+  matched-wc ladder (lr-cal runs) is the clean version. flowers64 full activation sweep still running (~11h, heavy D=12288 extraction).
+
+### High-k capacity test on the flowers-native MLP — N-collapse replicates, but the specific high-k prediction FAILS (2026-08-17)
+
+Ran the capacity test on the flowers-NATIVE MLP (D=3072, RGB 32×32, its own θ₀; job 830630, gelu).
+- **Replicates (robustness):** the **N-collapse** (LoRA margin peaks ~N=8 then decays +0.030→+0.008 as
+  N 8→64; retrieval → below chance at N=64) and the **rank-climbing** (margin rises with r: −0.001 at
+  r=1 → +0.033 at r=16) both hold on a genuinely different, harder dataset with a native base model.
+- **Fails the specific "high-k binds capacity earlier" prediction (honest negative):** the data
+  intrinsic-dim proxy came out **backwards** — `eff_rank(X)` at N=64: **MNIST 46.3 > flowers32 37.3**.
+  32×32-downsampled flowers are *lower* effective-rank than MNIST (they reduce to correlated
+  "colored-blob-on-green"; 10 digit shapes spread wider), so kN does not tighten faster and the margin
+  decay is **nearly identical to MNIST** (+0.033→+0.006). The capacity ceiling did not bind distinctly
+  earlier. The only clear flowers difference is far lower reconstruction quality (ssim_norm 0.09 vs
+  0.48) — the harder D=3072 ambient space, not the capacity term.
+- **Takeaway:** the capacity ceiling is theoretically sound and the N-collapse is confirmed, but 32×32
+  flowers are NOT high-k (proxy below MNIST), so this test cannot isolate the capacity effect. To see it
+  bind earlier needs genuinely high-k data — the **D=12288 flowers64** model or full-resolution.
+
 ### Theory follow-ups — Lemma B (matched-wchg) + capacity/rank sweep (2026-08-13)
 
 Two tests closing out [notes/linearization_leakage_theory.tex](notes/linearization_leakage_theory.tex).
