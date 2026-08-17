@@ -20,7 +20,7 @@
 \title{Why Linearization Accuracy and Adapter Leakage \emph{Decouple}:\\
 the gate-range account}
 \author{Yoad Oxman}
-\date{2026-08-13 (rev.\ 2)}
+\date{2026-08-13 (rev.\ 3 --- adds measured results \& the $\sigma''/\norm{\nabla\Phi}$ correction)}
 
 \begin{document}
 \maketitle
@@ -42,7 +42,9 @@ high leakage) at the cost of linearizability. A \emph{second}, independent ceili
 distinct features must be carried through a rank-$\rho$ channel, and if that rank falls far below the
 data manifold's intrinsic dimension $k$ (so $\rho(m+d)\ll kN$), the best possible reconstruction of the
 unobserved directions is exactly zero --- regardless of activation. A cheap gate-matrix diagnostic makes
-the feature ceiling falsifiable.
+the feature ceiling falsifiable; the measurements (\S\ref{sec:measured}) \textbf{confirm} it (eff\_rank$(M)$
+predicts the leakage ordering; Softplus-$\beta$ is a monotone dial), and force one correction: the
+\emph{relative} linearisation error tracks $\sigma''/\norm{\nabla\Phi}$, not $\sigma''$.
 \end{abstract}
 
 \section{Setup}
@@ -133,10 +135,16 @@ So ReLU's gate spans its \emph{full} range $0\!\to\!1$ (samples on opposite side
 largest possible per-sample distinction, hence the largest $\rank(M)$.
 \end{remark}
 
-\begin{lemma}[Linearization residual $\propto\sigma''$]\label{lem:lin}
+\begin{lemma}[Linearization residual: absolute $\propto\sigma''$, relative $\propto\sigma''/\norm{\nabla\Phi}$]\label{lem:lin}
 The Hessian block is $\partial^2 f/\partial w_k\partial w_k^\top=v_k\,\sigma''(z_k)\,x x^\top$, so
-$\nabla^2_\theta f$ is linear in $\{\sigma''(z_k)\}$ and $\mathcal L_{\mathrm{lin}}=O\!\big(|\sigma''|\cdot\norm{\delta}^2\big)$
-along the trajectory.
+$\nabla^2_\theta f$ is linear in $\{\sigma''(z_k)\}$ and the \emph{absolute} residual is
+$O\!\big(|\sigma''|\,\norm{\delta}^2\big)$. The headline anchor metric, however, is the \emph{relative}
+residual (normalised by $\norm{\Delta\Phi}\approx\norm{\nabla\Phi\cdot\delta}$), so at matched
+$\norm{\delta}$ it tracks $\sigma''/\norm{\nabla\Phi}$ --- curvature \emph{relative to} gradient
+magnitude --- not $\sigma''$ alone. \textbf{This distinction is decisive empirically}
+(\S\ref{sec:measured}): the coarse kinked-vs-smooth split survives (there $\sigma''$ jumps by orders of
+magnitude), but the fine within-smooth ordering follows $\sigma''/\norm{\nabla\Phi}$, so a high-$\sigma''$
+smooth unit (GELU) can linearise \emph{better} than a low-$\sigma''$ one (Softplus).
 \end{lemma}
 
 \begin{proposition}[The curvature tradeoff]\label{prop:tradeoff}
@@ -246,10 +254,44 @@ Form the gate matrix $M_{ki}=\sigma'(\ip{w_k}{x_i})$ per activation and report:
   \item \textbf{Monotone $\beta$.} along Softplus-$\beta$, both $\rank(M)$ and $\mathcal L_{\mathrm{lin}}$
   increase with $\beta$; the leakage rise concentrates near $\beta\Delta z\sim1$.
 \end{enumerate}
-If these hold, the dissociation collapses to one law: \emph{a wide gate range across the samples buys
-leakage; a flat gate along the trajectory buys linearization accuracy; both are $\sigma''$, read on
-different arguments.} That is the project's open identifiability question (Q-A: when is
-$\dW\mapsto\{x_i\}$ well posed?) answered in terms of the model.
+These were run (\S\ref{sec:measured}) and the dissociation collapses to one law: \emph{a wide gate range
+across the samples buys leakage; a flat gate along the trajectory buys linearization accuracy; both are
+$\sigma''$ (the relative lin-error being $\sigma''/\norm{\nabla\Phi}$), read on different arguments.} That
+is the project's open identifiability question (Q-A: when is $\dW\mapsto\{x_i\}$ well posed?) answered in
+terms of the model.
+
+\section{Measured results (2026-08)}\label{sec:measured}
+The tests of \S\ref{sec:test} were run (MNIST MLP, $\theta_0$ anchor, seed 42; a forward $+$ one
+backward pass, no extraction). Summary:
+\begin{itemize}
+  \item \textbf{Feature ceiling --- CONFIRMED.} eff\_rank$(M)$ at $N{=}10$:
+  relu $6.37\approx$ leaky $6.33 \gg$ \textbf{selu $3.39$} $>$ gelu $2.91 >$ silu $2.34 >$ softplus
+  $1.73 >$ tanh $1.59 >$ sigmoid $1.19$ --- kinked $\sim\!4\times$ smooth, and it \emph{predicts} the
+  independently-measured leakage ordering, including the surprise that the C$^0$ kink \emph{selu}
+  out-leaks every smooth C$^\infty$ unit. cos$_M$: softplus $0.997$ (collinear, rank$\approx1$) vs relu
+  $0.81$; on the full gradient features cos$_\Phi$: softplus $0.85$ (entangled) vs relu/gelu $\sim0.39$.
+  \item \textbf{Softplus-$\beta$ is a clean monotone dial.} $\beta\!:0.5\to50$ gives eff\_rank$(M)$
+  $1.40\to5.30$, gate range $0.037\to0.555$, $\overline{|\sigma''|}$ $0.125\to3.26$, cos$_M$
+  $0.999\to0.869$ --- a one-parameter traversal of the frontier toward the ReLU limit
+  ($6.37/0.585/\text{Dirac}/0.810$).
+  \item \textbf{Lemma~\ref{lem:lin} --- half-confirmed, and it forced the $\sigma''/\norm{\nabla\Phi}$
+  correction.} At \emph{matched} weight-change, kinked $\gg$ smooth linearisation error is robust
+  (relu $0.576$/leaky $0.562$ vs smooth $0.02$--$0.13$): smoothness$\to$linearisation is \emph{real},
+  not a $\norm{\delta}$ artifact. But the fine $\propto\sigma''$ law fails within the smooth family ---
+  gelu (highest $\sigma''$, $0.78$) has the \emph{lowest} lin-error ($0.026$), softplus (low $\sigma''$)
+  higher ($0.070$) --- exactly the relative-metric ($\sigma''/\norm{\nabla\Phi}$) prediction of the
+  revised Lemma~\ref{lem:lin}.
+  \item \textbf{LoRA amplification --- CONFIRMED (rank sweep).} At $N{=}10$: \emph{relu is rank-robust}
+  (control margin $+0.05$, ssim\_norm $0.57$ already at $r{=}1$, flat across $r$) --- its distinct
+  binary gates survive even a rank-one projection; \emph{gelu is rank-climbing} ($+0.01$/$0.44$ at
+  $r{=}1$, rising to a plateau by $r\!\approx\!16$) --- its collinear gates collapse under low rank and
+  need more of it. The gap is largest at low rank.
+  \item \textbf{Capacity ceiling / $N$-collapse --- CONFIRMED.} gelu, $r{=}8$: the instance-leakage
+  margin decays $+0.033\to+0.023\to+0.012\to+0.006$ and retrieval falls to chance as $N:10\to64$ ---
+  leakage per sample $\to0$ as $kN$ eats the $\rho(m+d)$ budget. (ssim\_norm stays $\sim0.48$: shared
+  background, not instance information.) The \emph{true high-$k$} regime, where $m+d$ no longer swamps
+  $kN$, is under test on the flowers-native MLP ($d{=}3072$).
+\end{itemize}
 
 \section{Caveats}
 \begin{itemize}
