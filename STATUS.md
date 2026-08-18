@@ -121,7 +121,31 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
   (Q-A prediction). **Caveat:** lr=0.01 unmatched weight_change → part of the 3072→12288 drop is the training-motion confound; the
   matched-wc ladder (lr-cal runs) is the clean version. flowers64 full activation sweep still running (~11h, heavy D=12288 extraction).
 
-### GB-Phase 2 RESOLVED — two-sided measurement recovers the image (partial); the inverter needs the INPUT layer (2026-08-18)
+### GB-Phase 2 — the SVD inversion was the weak link; decode ↑ ≠ image ↑; model-based extraction is the fix (2026-08-18)
+
+A 5-experiment learning chain on turning the bridge's decoded input-layer gradient into an image:
+- **Priors don't help (determined factorization).** TV (job 383791) HURT monotonically (softplus best λ=0
+  SSIM 0.15; gelu 0.11) — wrong prior (digits are sharp, TV smooths). L1-sparsity + non-negativity —
+  the *right* prior for digits (job 389521) — ALSO lost to raw SVD on both activations. The bridge
+  inversion x=row-factor of g_err·xᵀ is *determined*, so no prior has a null-space to resolve.
+- **Higher rank hurts (job 392328).** Two-sided r∈{8,32,64}: decode/SSIM DROP monotonically (softplus
+  0.888/0.136 → 0.632/0.037); the bigger decoder input under-fits / dilutes. r=128 OOM'd. Best = r=8.
+- **Decode was under-trained, not capped (job 400603).** Two-sided r=8 at 4× data / 3× epochs: softplus
+  decode **0.888 → 0.945** (the ViT-milestone cosine!), gelu 0.634 → 0.717. So more proxy data lifts the
+  decode.
+- **But decode ↑ ≠ image ↑ — the Q-A decoupling.** Pushing decode 0.89 → 0.945 barely moved SSIM
+  (0.136 → **0.172**). Even a 0.945-cosine gradient, via raw SVD, gives a coarse blob — exactly Gal's
+  deck slides 21-23 ("cos saturates, SSIM varies, the PRIOR is the lever").
+- **The fix my own data shows: the SVD was the wrong inverter.** Exp 2's corruption test — the
+  MODEL-BASED Experiment-B extraction fed a ΔW with the input layer at cosine 0.64 → **SSIM 0.52**, vs
+  the SVD's 0.10 at the same cosine. The model-based inverter uses θ₀ + all-layer structure as an
+  implicit prior (the ViT trick), closing the cosine→pixel gap the SVD can't.
+- **Next (culminating): real decoded ΔW → Experiment-B extraction** (not SVD): train per-layer decoders,
+  measure a victim, assemble the decoded ΔW, extract. Predicted SSIM ~0.5 (per Exp 2). Would close the
+  bridge attack end-to-end at recognizable fidelity. Data: `results/gb_decoder_*`, jobs 383791/389521/
+  392328/400603, `figures/gradient_bridge/phase2_*`.
+
+### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)
 
 Two follow-ups (jobs 366577 Exp 1, 367539 Exp 2) resolve the GB-Phase 2 negative into a nuanced positive
 with a clean mechanism.
