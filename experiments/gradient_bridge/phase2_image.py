@@ -25,16 +25,24 @@ def _norm01(t):
     return ((t - mn) / (mx - mn + 1e-8)).float()
 
 
-def phase2(activation, device, n_train, n_eval, rank, epochs):
-    tb = generate_pair_bank(n_train, 0, rank, activation=activation, seed=0, device=device, verbose=False)
-    eb = generate_pair_bank(n_eval, 0, rank, activation=activation, seed=1, device=device, verbose=False)
+def phase2(activation, device, n_train, n_eval, rank, epochs, two_sided=False):
+    tb = generate_pair_bank(n_train, 0, rank, activation=activation, seed=0, device=device,
+                            verbose=False, two_sided=two_sided, a_init_scale=0.1)
+    eb = generate_pair_bank(n_eval, 0, rank, activation=activation, seed=1, device=device,
+                            verbose=False, two_sided=two_sided, a_init_scale=0.1)
     dec, _, summ = train(tb, epochs=epochs, out_mode='lowrank', out_rank=16, batch=128, device=device)
     dec.eval()
 
+    ts = eb['meta'].get('two_sided', False)
     A = eb['A'].float().to(device); B0 = eb['B0'].float().to(device)
     xtrue = eb['g_inp'].float().to(device)                                     # [n, 784] = true images
+    if ts:
+        inp = _adapter_input(A, B0, two_sided=True, grad_A=eb['grad_A'].float().to(device),
+                             grad_B=eb['grad_B'].float().to(device), A0=eb['A0'].float().to(device))
+    else:
+        inp = _adapter_input(A, B0)
     with torch.no_grad():
-        pred = dec(_adapter_input(A, B0).to(device))                           # [n, out*in]
+        pred = dec(inp.to(device))                                             # [n, out*in]
         G = pred.reshape(-1, dec.out_features, dec.in_features).double()        # [n, 1000, 784]
         U, S, V = torch.svd_lowrank(G, q=6)                                     # top components
         xhat = V[:, :, 0]                                                       # [n, 784] input direction
@@ -56,16 +64,20 @@ def main():
     p.add_argument('--n_eval', type=int, default=128)
     p.add_argument('--rank', type=int, default=8)
     p.add_argument('--epochs', type=int, default=100)
+    p.add_argument('--two_sided', action='store_true',
+                   help='nonzero-A measurement (observes col(B0)+row(A0)) — stronger, single-sample')
     p.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     args = p.parse_args()
     torch.set_default_dtype(torch.float32)
 
+    print(f"# rank={args.rank} two_sided={args.two_sided}")
     print(f"{'activation':13s} {'decoder_cos':>11s} {'img_cos':>8s} {'img_SSIM':>9s}")
     print('-' * 45)
     grids = {}
     for act in args.activations:
         try:
-            dcos, icos, iss, xh, xt = phase2(act, args.device, args.n_train, args.n_eval, args.rank, args.epochs)
+            dcos, icos, iss, xh, xt = phase2(act, args.device, args.n_train, args.n_eval,
+                                             args.rank, args.epochs, two_sided=args.two_sided)
         except Exception as e:
             print(f"  SKIP {act}: {type(e).__name__}: {e}"); continue
         print(f"{act:13s} {dcos:11.4f} {icos:8.4f} {iss:9.4f}")
