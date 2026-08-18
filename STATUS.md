@@ -121,7 +121,29 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
   (Q-A prediction). **Caveat:** lr=0.01 unmatched weight_change → part of the 3072→12288 drop is the training-motion confound; the
   matched-wc ladder (lr-cal runs) is the clean version. flowers64 full activation sweep still running (~11h, heavy D=12288 extraction).
 
-### GB-Phase 2 — the bridge does NOT recover images end-to-end (important honest negative) (2026-08-18)
+### GB-Phase 2 RESOLVED — two-sided measurement recovers the image (partial); the inverter needs the INPUT layer (2026-08-18)
+
+Two follow-ups (jobs 366577 Exp 1, 367539 Exp 2) resolve the GB-Phase 2 negative into a nuanced positive
+with a clean mechanism.
+- **Exp 1 — two-sided measurement rescues the input-layer decode.** softplus input-layer (layer 0)
+  decoder cosine **0.637 → 0.912** and image `img_cos` **0.49 → 0.90** under a two-sided (nonzero-A)
+  single-sample measurement; higher rank (r=32/64) does NOT help (stays 0.64). Mechanism: x is the
+  **row factor** of `∂L/∂W₀ = g_err·xᵀ`; single-sided observes only `col(B₀)` (misses the row space),
+  two-sided observes `row(A₀)` — exactly where x lives. So the failure was a measurement-CHANNEL mistake,
+  not fundamental. Caveat: `img_SSIM` still 0.151 — strong *coarse/directional* recovery but blurry
+  (low-freq structure, not fine strokes); a visual confirms recognizable-but-blurry.
+- **Exp 2 — the full inverter depends on the INPUT layer, not the hidden layer (overturns the hypothesis).**
+  Corrupting the true single-step ΔW per layer to measured decoder cosines and running the Experiment-B
+  extraction: for gelu, `hidden-only bad (1/0.64/1)` → ssim **0.982** (≈ the true-baseline 1.000), but
+  `input-only bad (0.64/1/1)` → **0.521**. So corrupting the hidden layer barely hurts; corrupting the
+  input layer breaks it. **The bridge's 0.997 hidden-layer decode is useless to the inverter — it needs
+  the input layer.** (softplus: true 0.676 → input-bad 0.576, milder but same direction.)
+- **Combined resolution:** the inverter needs the input layer → single-sided decodes it poorly (0.64,
+  row-space missed) → GB-Phase 2 fails → **two-sided decodes it well (0.91) → partial image recovery**
+  (`img_cos` 0.90, blurry). The bridge CAN recover images end-to-end with two-sided measurement, coarse
+  fidelity only. Data: `figures/gradient_bridge/phase2_*.png`, job logs 366577/367539.
+
+### GB-Phase 2 (first pass) — single-sided bridge does NOT recover images; the layer it decodes ≠ the layer with the image (2026-08-18)
 
 Ran the end-to-end bridge attack (job 357050): decode the INPUT-layer gradient (layer 0, the only one
 whose per-sample gradient contains x, since ∂L/∂W₀ = g_err·xᵀ), take x̂ = top right singular vector,
