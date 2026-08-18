@@ -20,7 +20,7 @@
 \title{Why Linearization Accuracy and Adapter Leakage \emph{Decouple}:\\
 the gate-range account}
 \author{Yoad Oxman}
-\date{2026-08-13 (rev.\ 3 --- adds measured results \& the $\sigma''/\norm{\nabla\Phi}$ correction)}
+\date{2026-08-13 (rev.\ 4 --- the bridge-connection duality; walks back the $\sigma''/\norm{\nabla\Phi}$ claim)}
 
 \begin{document}
 \maketitle
@@ -43,8 +43,11 @@ distinct features must be carried through a rank-$\rho$ channel, and if that ran
 data manifold's intrinsic dimension $k$ (so $\rho(m+d)\ll kN$), the best possible reconstruction of the
 unobserved directions is exactly zero --- regardless of activation. A cheap gate-matrix diagnostic makes
 the feature ceiling falsifiable; the measurements (\S\ref{sec:measured}) \textbf{confirm} it (eff\_rank$(M)$
-predicts the leakage ordering; Softplus-$\beta$ is a monotone dial), and force one correction: the
-\emph{relative} linearisation error tracks $\sigma''/\norm{\nabla\Phi}$, not $\sigma''$.
+predicts the leakage ordering; Softplus-$\beta$ is a monotone dial) and reveal a \textbf{duality} --- the
+collinearity that makes a smooth unit \emph{least} leaky to direct inversion makes its gradient
+\emph{most} decodable by the bridge (softplus: $0.997$). They also \emph{walk back} the linearisation
+side: no simple fine-grained $\sigma''$ law (neither $\sigma''$ nor $\sigma''/\norm{\nabla\Phi}$) predicts
+the relative lin-error; only the coarse kinked-vs-smooth (Dirac) split is robust.
 \end{abstract}
 
 \section{Setup}
@@ -141,10 +144,12 @@ $\nabla^2_\theta f$ is linear in $\{\sigma''(z_k)\}$ and the \emph{absolute} res
 $O\!\big(|\sigma''|\,\norm{\delta}^2\big)$. The headline anchor metric, however, is the \emph{relative}
 residual (normalised by $\norm{\Delta\Phi}\approx\norm{\nabla\Phi\cdot\delta}$), so at matched
 $\norm{\delta}$ it tracks $\sigma''/\norm{\nabla\Phi}$ --- curvature \emph{relative to} gradient
-magnitude --- not $\sigma''$ alone. \textbf{This distinction is decisive empirically}
+magnitude --- not $\sigma''$ alone. \textbf{Empirically, however, even this is too clean}
 (\S\ref{sec:measured}): the coarse kinked-vs-smooth split survives (there $\sigma''$ jumps by orders of
-magnitude), but the fine within-smooth ordering follows $\sigma''/\norm{\nabla\Phi}$, so a high-$\sigma''$
-smooth unit (GELU) can linearise \emph{better} than a low-$\sigma''$ one (Softplus).
+magnitude via the Dirac kink), but \emph{within} the smooth family neither $\sigma''$ nor
+$\sigma''/\norm{\nabla\Phi}$ predicts the relative lin-error (Pearson $+0.11$ and $+0.04$) --- GELU
+linearises better than Softplus, but no simple curvature ratio captures the ordering. This lemma holds
+only at the coarse level.
 \end{lemma}
 
 \begin{proposition}[The curvature tradeoff]\label{prop:tradeoff}
@@ -274,13 +279,24 @@ backward pass, no extraction). Summary:
   $1.40\to5.30$, gate range $0.037\to0.555$, $\overline{|\sigma''|}$ $0.125\to3.26$, cos$_M$
   $0.999\to0.869$ --- a one-parameter traversal of the frontier toward the ReLU limit
   ($6.37/0.585/\text{Dirac}/0.810$).
-  \item \textbf{Lemma~\ref{lem:lin} --- half-confirmed, and it forced the $\sigma''/\norm{\nabla\Phi}$
-  correction.} At \emph{matched} weight-change, kinked $\gg$ smooth linearisation error is robust
+  \item \textbf{Lemma~\ref{lem:lin} --- only the coarse split holds; no fine $\sigma''$ law (rev.4
+  walk-back).} At \emph{matched} weight-change, kinked $\gg$ smooth linearisation error is robust
   (relu $0.576$/leaky $0.562$ vs smooth $0.02$--$0.13$): smoothness$\to$linearisation is \emph{real},
-  not a $\norm{\delta}$ artifact. But the fine $\propto\sigma''$ law fails within the smooth family ---
-  gelu (highest $\sigma''$, $0.78$) has the \emph{lowest} lin-error ($0.026$), softplus (low $\sigma''$)
-  higher ($0.070$) --- exactly the relative-metric ($\sigma''/\norm{\nabla\Phi}$) prediction of the
-  revised Lemma~\ref{lem:lin}.
+  not a $\norm{\delta}$ artifact. But \emph{within} the smooth family neither $\sigma''$ nor the
+  proposed $\sigma''/\norm{\nabla\Phi}$ correction predicts the relative lin-error ---
+  Pearson$(\text{lin\_err},\sigma'')=+0.11$ vs Pearson$(\text{lin\_err},\sigma''/\norm{\nabla\Phi})=+0.04$
+  (\emph{worse}). gelu still linearises better than softplus, but no simple curvature ratio orders the
+  smooth family. \textbf{The rev.3 $\sigma''/\norm{\nabla\Phi}$ claim is withdrawn}; Lemma~\ref{lem:lin}
+  holds only coarsely (kink vs.\ no kink).
+  \item \textbf{Bridge connection --- a DUALITY between the two attacks (new).} Training the R2F decoder
+  $f_\phi:(A,B)\to\nabla_W L$ per activation (hidden layer, $r{=}8$; projection ceiling $\approx0.087$),
+  the decoded full-cosine is \textbf{softplus $0.997$} (stable; the $>\!0.9$ milestone met on a
+  \emph{single-sample} gradient) $\gg$ softplus\_b50 $0.773 >$ relu $0.750 >$ gelu $0.685 >$ silu $0.664$.
+  The \emph{same} collinearity that makes softplus the \emph{worst} for direct inversion
+  ($\text{cos}_M=0.997$, $\rank(M)\approx1$: entangled samples, least leakage) makes its gradient the
+  \emph{most decodable} by the bridge. \textbf{The two attacks have opposite activation preferences} ---
+  and GELU (the deployment C$^\infty$ unit) is the \emph{least} decodable, so the bridge is hardest on
+  the deployment-realistic activation.
   \item \textbf{LoRA amplification --- CONFIRMED (rank sweep).} At $N{=}10$: \emph{relu is rank-robust}
   (control margin $+0.05$, ssim\_norm $0.57$ already at $r{=}1$, flat across $r$) --- its distinct
   binary gates survive even a rank-one projection; \emph{gelu is rank-climbing} ($+0.01$/$0.44$ at
@@ -293,13 +309,14 @@ backward pass, no extraction). Summary:
   \item \textbf{High-$k$ test on the flowers-native MLP ($d{=}3072$) --- N-collapse replicates, the
   \emph{specific} high-$k$ prediction FAILS (honest).} The N-collapse and rank-climbing both replicate on
   this harder dataset with its own $\theta_0$. But the intrinsic-dim proxy came out \emph{backwards}:
-  eff\_rank$(X)$ at $N{=}64$ is MNIST $46.3 > $ flowers32 $37.3$ --- $32{\times}32$-downsampled flowers
-  are \emph{lower} effective-rank than MNIST (correlated ``blob-on-green'' vs.\ ten spread-out digit
-  shapes), so $kN$ does \emph{not} tighten faster and the margin decay matches MNIST. The capacity
-  ceiling did not bind distinctly earlier; the only clear difference is far lower reconstruction quality
-  (ssim\_norm $0.09$ vs.\ $0.48$), i.e.\ the harder ambient space, not the capacity term. Seeing capacity
-  bind earlier needs genuinely high-$k$ data (the $d{=}12288$ flowers64 model, or full resolution) ---
-  $32{\times}32$ flowers are not it.
+  eff\_rank$(X)$ at $N{=}64$ is MNIST $\mathbf{46.3} > $ flowers64 $\mathbf{39.7} > $ flowers32 $37.3$
+  --- \emph{even} $d{=}12288$ flowers64 is \emph{lower} effective-rank than MNIST (downsampled natural
+  images collapse to a few global ``blob-on-green'' modes vs.\ ten spread-out digit shapes), so $kN$
+  does \emph{not} tighten faster and the margin decay matches MNIST. The capacity ceiling did not bind
+  distinctly earlier; the only clear difference is far lower reconstruction quality (ssim\_norm $0.09$
+  vs.\ $0.48$), i.e.\ the harder ambient space, not the capacity term. \textbf{The high-$k$ item is
+  closed negatively:} downsampled flowers are not high-$k$ at all; isolating the capacity ceiling needs
+  genuinely high-frequency (full-resolution) data.
 \end{itemize}
 
 \section{Caveats}

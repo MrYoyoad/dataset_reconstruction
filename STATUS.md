@@ -121,6 +121,37 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
   (Q-A prediction). **Caveat:** lr=0.01 unmatched weight_change → part of the 3072→12288 drop is the training-motion confound; the
   matched-wc ladder (lr-cal runs) is the clean version. flowers64 full activation sweep still running (~11h, heavy D=12288 extraction).
 
+### Bridge connection — softplus is the MOST decodable: a duality between the two attacks (2026-08-18)
+
+Ran the never-tested link between direct inversion and the gradient bridge (job 106085): trained the
+R2F decoder `f_φ:(A,B)→∇_W L` on the hidden layer (L1, r=8) per activation. Decoder full-cosine
+(single-sample gradient; projection ceiling ≈0.087 for all):
+- **softplus 0.997 (final 0.996, STABLE) — the >0.9 milestone MET on a single-sample gradient** (11×
+  above the ceiling; previously only the m=8 *batch* gradient hit 0.95). softplus_b50 0.773, relu 0.750,
+  gelu 0.685 (final 0.560, unstable), silu 0.664.
+- **DUALITY (the headline):** the same collinearity that makes softplus the *worst* for the
+  direct-inversion attacker (`cos_M=0.997`, `eff_rank(M)≈1` → entangles samples → least leakage) makes
+  it the *best* for the **bridge** attacker — its gradient is so predictable that the decoder recovers
+  the full gradient nearly perfectly. **The two thesis attacks have opposite activation preferences**;
+  gelu/silu (the deployment C∞ units) are the worst-decodable. Data: `results/gb_decoder_L1_r8_*.json`.
+- Bears on the thesis: a softplus-based victim is highly vulnerable to the *bridge*, weakly to *direct
+  inversion*; a relu victim the reverse. Real ViTs use GELU — the least-decodable here — so the bridge
+  is hardest exactly on the deployment-realistic activation.
+
+### Theory closure — the σ''/||∇Φ|| correction is NOT supported; flowers64 also not high-k (2026-08-18)
+
+Two quantitative checks (job 106084, `results/theory_closure_test.csv`):
+- **Corrected Lemma B REFUTED quantitatively.** Pearson(lin_err, σ'')=+0.109 vs
+  Pearson(lin_err, σ''/‖∇Φ‖)=**+0.042** — the rev.3 "fix" is *worse*, not better, and neither predicts
+  the relative lin-error within the smooth family (no clean law: softplus_b0.5 low-ratio/high-lin, gelu
+  mid-ratio/low-lin, softplus_b50 high-ratio/high-lin). **Honest walk-back:** only the *coarse* kinked≫
+  smooth split (the Dirac kink, robust at matched wchg) holds; there is **no simple fine-grained
+  σ''-based law** for the relative lin-error. rev.3's σ''/‖∇Φ‖ claim is withdrawn (→ note rev.4).
+- **High-k item CLOSED (negative).** eff_rank(X) at N=64: MNIST **46.3** > flowers64 **39.7** >
+  flowers32 37.3. Even D=12288 flowers64 is *lower* effective-rank than MNIST — downsampled natural
+  images collapse to a few global modes. The capacity ceiling cannot be isolated with downsampled
+  flowers; it needs genuinely high-frequency (full-res) data.
+
 ### High-k capacity test on the flowers-native MLP — N-collapse replicates, but the specific high-k prediction FAILS (2026-08-17)
 
 Ran the capacity test on the flowers-NATIVE MLP (D=3072, RGB 32×32, its own θ₀; job 830630, gelu).
