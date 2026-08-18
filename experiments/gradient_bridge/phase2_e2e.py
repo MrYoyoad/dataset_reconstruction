@@ -106,10 +106,12 @@ def extract(m0, dw, coeffs, npc, epochs, device):
 
 
 def run(activation, device, npc, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale):
-    torch.set_default_dtype(torch.float64)
     layers = [0, 1, 2]
 
     # --- 1. train a two-sided decoder per layer on public proxy pairs ---
+    # Decoders train in float32 (matches phase2_image; the loaded model stays float64 internally);
+    # the victim measurement + extraction below switch to float64 (matches phase2_full).
+    torch.set_default_dtype(torch.float32)
     decs, dcos = {}, {}
     for li in layers:
         tb = generate_pair_bank(n_train, li, rank, activation=activation, seed=0, device=device,
@@ -122,9 +124,9 @@ def run(activation, device, npc, seed, n_train, dec_epochs, ext_epochs, rank, a_
         print(f"  layer {li}: decoder proxy full-cos = {summ['best_full_cos']:.4f}")
 
     # --- 2. victim: true single-step ΔW + oracle coefficients (matches phase2_full) ---
+    torch.set_default_dtype(torch.float64)
     x_ft, y_ft, digits, _ = get_finetuning_data(npc, seed=seed, device=device)
-    m_meas = load_pretrained(device=device)                       # frozen θ0 model for measurement
-    m_meas = create_model(device=device, activation_name=activation)
+    m_meas = create_model(device=device, activation_name=activation)   # frozen θ0 model for measurement
     m_meas.load_state_dict(load_pretrained(device=device).state_dict())
     m_meas.eval()
     for p in m_meas.parameters():
