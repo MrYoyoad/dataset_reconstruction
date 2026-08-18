@@ -121,6 +121,28 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
   (Q-A prediction). **Caveat:** lr=0.01 unmatched weight_change → part of the 3072→12288 drop is the training-motion confound; the
   matched-wc ladder (lr-cal runs) is the clean version. flowers64 full activation sweep still running (~11h, heavy D=12288 extraction).
 
+### GB-Phase 2 — the bridge does NOT recover images end-to-end (important honest negative) (2026-08-18)
+
+Ran the end-to-end bridge attack (job 357050): decode the INPUT-layer gradient (layer 0, the only one
+whose per-sample gradient contains x, since ∂L/∂W₀ = g_err·xᵀ), take x̂ = top right singular vector,
+score vs the true image. Result: **image NOT recovered.**
+- softplus decoder_cos **0.637**, img_cos 0.488, **img_SSIM 0.021** (garbage; MNIST baseline ~0.7);
+  gelu 0.518/0.466/0.020; relu 0.515/0.478/0.021. More training raised the gradient cosine
+  (0.55→0.64) but not the image.
+- **Why (the key insight):** the bridge's 0.997 (Exp B) was on the HIDDEN layer, which does not contain
+  the image. On the INPUT layer softplus decodes only to 0.637 — the gate-rank mechanism *in reverse*:
+  the hidden layer's input is the *clustered* activations σ(W₀x) (predictable → 0.997), but the input
+  layer's input is the *raw, diverse images* (unpredictable from the proxy prior → 0.64). **The layer
+  the bridge can decode (hidden) ≠ the layer that holds the image (input); the image layer decodes too
+  poorly to recover pixels.**
+- **Thesis implication:** the gradient-bridge attack does **not** recover images end-to-end on this
+  testbed — the "necessary but not sufficient" caveat is now *measured insufficient*. Direct inversion
+  (Experiment B, full ΔW) remains the attack that works; the bridge's high hidden-layer cosine does not
+  translate to pixels. Grids: `figures/gradient_bridge/phase2_{softplus,gelu,relu}.png` (vague blobs).
+- Open route (not yet run): decode ALL layers → assemble the full ΔW → feed the Experiment-B inverter
+  (rather than SVD one layer). But each layer decodes at only ~0.5–0.64, so a ~0.6-cosine full ΔW is
+  likely still short of the image; the input-layer bottleneck is fundamental.
+
 ### Bridge connection — softplus is the MOST decodable: a duality between the two attacks (2026-08-18)
 
 Ran the never-tested link between direct inversion and the gradient bridge (job 106085): trained the

@@ -296,7 +296,14 @@ backward pass, no extraction). Summary:
   ($\text{cos}_M=0.997$, $\rank(M)\approx1$: entangled samples, least leakage) makes its gradient the
   \emph{most decodable} by the bridge. \textbf{The two attacks have opposite activation preferences} ---
   and GELU (the deployment C$^\infty$ unit) is the \emph{least} decodable, so the bridge is hardest on
-  the deployment-realistic activation.
+  the deployment-realistic activation. \textbf{But end-to-end (GB-Phase 2) the bridge FAILS to recover
+  images:} the $0.997$ is on the \emph{hidden} layer, which does not contain $x$; the \emph{input} layer
+  --- the only one whose gradient is $g_{\mathrm{err}}\,x^\top$ --- decodes only to $0.637$ (softplus),
+  because its input is the raw, diverse images rather than the clustered hidden activations. Decoding
+  that and taking the top right singular vector gives SSIM $\approx0.02$ (a vague blob). So the layer the
+  bridge can decode is not the layer that holds the image, and the image layer decodes too poorly to
+  yield pixels --- the bridge's high cosine does not translate to a reconstruction; direct inversion
+  (full $\dW$) remains the attack that works.
   \item \textbf{LoRA amplification --- CONFIRMED (rank sweep).} At $N{=}10$: \emph{relu is rank-robust}
   (control margin $+0.05$, ssim\_norm $0.57$ already at $r{=}1$, flat across $r$) --- its distinct
   binary gates survive even a rank-one projection; \emph{gelu is rank-climbing} ($+0.01$/$0.44$ at
