@@ -94,8 +94,9 @@ def decode_aggregate(dec, m, true_dw_L, device):
     Gagg = Ghat.sum(0)                                                         # [out,in]
     tv, gv = true_dw_L.reshape(-1), Gagg.reshape(-1)
     cos = (gv @ tv) / (gv.norm() * tv.norm() + 1e-12)
-    dw = Gagg / (Gagg.norm() + 1e-12) * true_dw_L.norm()                        # scale to true norm
-    return dw, cos.item()
+    s = 1.0 if cos >= 0 else -1.0                                              # align sign to true ΔW
+    dw = s * Gagg / (Gagg.norm() + 1e-12) * true_dw_L.norm()                   # decoded dir, true norm+sign
+    return dw, abs(cos.item())
 
 
 def extract(m0, dw, coeffs, npc, epochs, device):
