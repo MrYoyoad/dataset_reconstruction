@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'dataset_
 import torch
 import torch.nn.functional as F
 
-from experiments.configs import TRAIN_LR, FIGURES_DIR, RESULTS_DIR
+from experiments.configs import TRAIN_LR, FIGURES_DIR, RESULTS_DIR, DATASET_SPECS
 from experiments.run_experiment_b import create_model, load_pretrained
 from experiments.data_utils import get_finetuning_data
 from experiments.ntk_steps import compute_multi_step_update, compute_known_coefficients
@@ -106,32 +106,31 @@ def extract(m0, dw, coeffs, npc, epochs, device):
     return x_recon
 
 
-def run(activation, device, npc, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale):
-    layers = [0, 1, 2]
-
-    # --- 1. train a two-sided decoder per layer on public proxy pairs ---
-    # Decoders train in float32 (matches phase2_image; the loaded model stays float64 internally);
-    # the victim measurement + extraction below switch to float64 (matches phase2_full).
-    torch.set_default_dtype(torch.float32)
+def train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale, layers):
+    """Train one two-sided decoder per layer on the dataset's PUBLIC (train-set) proxy pairs."""
+    torch.set_default_dtype(torch.float32)                    # decoder phase (model stays float64)
     decs, dcos = {}, {}
     for li in layers:
         tb = generate_pair_bank(n_train, li, rank, activation=activation, seed=0, device=device,
-                                verbose=False, two_sided=True, a_init_scale=a_init_scale)
+                                verbose=False, two_sided=True, a_init_scale=a_init_scale, dataset=dataset)
         dec, _, summ = train(tb, epochs=dec_epochs, out_mode='auto', out_rank=16, batch=128,
                              device=device, verbose=False)
-        dec.eval()
-        decs[li] = dec
-        dcos[li] = summ['best_full_cos']
+        dec.eval(); decs[li] = dec; dcos[li] = summ['best_full_cos']
         print(f"  layer {li}: decoder proxy full-cos = {summ['best_full_cos']:.4f}")
+    return decs, dcos
 
-    # --- 2. victim: true single-step ΔW + oracle coefficients (matches phase2_full) ---
-    torch.set_default_dtype(torch.float64)
-    x_ft, y_ft, digits, _ = get_finetuning_data(npc, seed=seed, device=device)
-    m_meas = create_model(device=device, activation_name=activation)   # frozen θ0 model for measurement
-    m_meas.load_state_dict(load_pretrained(device=device).state_dict())
+
+def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank, a_init_scale, layers):
+    """Run the end-to-end bridge attack at one N (=2*npc): measure victim, decode, extract, grid."""
+    torch.set_default_dtype(torch.float64)                    # measurement + extraction phase
+    spec = DATASET_SPECS[dataset]
+    kw = dict(input_dim=spec['input_dim'], hidden=spec['hidden'])
+    x_ft, y_ft, digits, _ = get_finetuning_data(npc, seed=seed, device=device, dataset=dataset)
+    m_meas = create_model(device=device, activation_name=activation, **kw)
+    m_meas.load_state_dict(load_pretrained(device=device, pretrained_path=spec['pretrained'], **kw).state_dict())
     m_meas.eval()
-    for p in m_meas.parameters():
-        p.requires_grad_(False)
+    for pr in m_meas.parameters():
+        pr.requires_grad_(False)
     for li in layers:
         m_meas.layers[li].weight.requires_grad_(True)
 
@@ -140,7 +139,6 @@ def run(activation, device, npc, seed, n_train, dec_epochs, ext_epochs, rank, a_
     ds_mean, true_dw = upd['ds_mean'], upd['delta_w']
     x_cen = x_ft - ds_mean
 
-    # --- 3. measure victim per-sample, decode, aggregate ---
     gen = torch.Generator(device=device).manual_seed(123)
     meas = measure_victim(m_meas, x_ft.clone(), y_ft.clone(), layers, rank, a_init_scale,
                           TRAIN_LR, gen, device)
@@ -148,11 +146,9 @@ def run(activation, device, npc, seed, n_train, dec_epochs, ext_epochs, rank, a_
     for li in layers:
         key = _layer_key(true_dw, li)
         dw_L, cos_L = decode_aggregate(decs[li], meas[li], true_dw[key], device)
-        decoded_dw[key] = dw_L
-        agg_cos[li] = cos_L
+        decoded_dw[key] = dw_L; agg_cos[li] = cos_L
 
-    # --- 4. extraction arms ---
-    m0 = create_model(device=device, activation_name=activation)
+    m0 = create_model(device=device, activation_name=activation, **kw)
     m0.load_state_dict(upd['theta_0']); m0.eval()
     coeffs = compute_known_coefficients(m0, x_cen, y_ft)
 
@@ -163,58 +159,71 @@ def run(activation, device, npc, seed, n_train, dec_epochs, ext_epochs, rank, a_
 
     input_key = _layer_key(true_dw, 0)
     arms = {
-        'TRUE ΔW (ceiling)':      dict(true_dw),
-        'DECODED all-layers':     dict(decoded_dw),
-        'DECODED input-only':     {input_key: decoded_dw[input_key]},
-        'TRUE input-only':        {input_key: true_dw[input_key]},
+        'TRUE ΔW (ceiling)':  dict(true_dw),
+        'DECODED all-layers': dict(decoded_dw),
+        'DECODED input-only': {input_key: decoded_dw[input_key]},
+        'TRUE input-only':    {input_key: true_dw[input_key]},
     }
-    print(f"\n# {activation}  N={2*npc}  aggregate decode cos: "
+    N = 2 * npc
+    print(f"\n# {activation} {dataset} N={N}  aggregate decode cos: "
           f"L0={agg_cos[0]:.3f} L1={agg_cos[1]:.3f} L2={agg_cos[2]:.3f}")
     print(f"{'arm':22s} {'ssim':>7s} {'ssim_norm':>9s} {'baseline':>9s}")
     print('-' * 52)
     results, recons = {}, {}
     for name, dw in arms.items():
         try:
-            xr, (s, sn, base) = run_arm(dw)
-            print(f"{name:22s} {s:7.3f} {sn:9.3f} {base:9.3f}")
-            results[name] = (s, sn, base); recons[name] = xr.detach().cpu()
+            xr, (sv, sn, base) = run_arm(dw)
+            print(f"{name:22s} {sv:7.3f} {sn:9.3f} {base:9.3f}")
+            results[name] = (sv, sn, base); recons[name] = xr.detach().cpu()
         except Exception as e:
             print(f"{name:22s} SKIP: {type(e).__name__}: {e}")
-    # persist tensors + visual grid (experiment-output rule)
     try:
         os.makedirs(RESULTS_DIR, exist_ok=True)
-        torch.save({'x_cen': x_cen.detach().cpu(), 'ds_mean': ds_mean.detach().cpu(),
-                    'recons': recons, 'results': results, 'agg_cos': agg_cos, 'dcos': dcos,
-                    'activation': activation, 'npc': npc},
-                   os.path.join(RESULTS_DIR, f'gb_e2e_{activation}.pth'))
-        _save_grid(activation, x_cen, ds_mean, recons, results, npc)
+        tag = f"{dataset}_N{N}_{activation}"
+        torch.save({'x_cen': x_cen.detach().cpu(), 'ds_mean': ds_mean.detach().cpu(), 'recons': recons,
+                    'results': results, 'agg_cos': agg_cos, 'dcos': dcos, 'activation': activation,
+                    'dataset': dataset, 'npc': npc}, os.path.join(RESULTS_DIR, f'gb_e2e_{tag}.pth'))
+        _save_grid(tag, spec['shape'], x_cen, ds_mean, recons, results, N)
     except Exception as e:
         print(f"  (save skipped: {type(e).__name__}: {e})")
-    return results, agg_cos, dcos
+    return results, agg_cos
 
 
-def _save_grid(activation, x_cen, ds_mean, recons, results, npc):
-    """Grid: true digits vs each arm's reconstruction (de-centered, per-image normalized)."""
+def run(activation, device, dataset, npc_list, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale):
+    layers = [0, 1, 2]
+    decs, dcos = train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale, layers)
+    for npc in npc_list:
+        attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank, a_init_scale, layers)
+
+
+def _save_grid(tag, shape, x_cen, ds_mean, recons, results, N):
+    """Grid: true vs each arm's reconstruction, de-centered + per-image normalized. Handles RGB."""
     import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
-    N = 2 * npc
+    C, H, W = shape
 
     def disp(x):
-        img = (x.detach().cpu() + ds_mean.detach().cpu()).reshape(N, 28, 28)
-        mn = img.amin((1, 2), keepdim=True); mx = img.amax((1, 2), keepdim=True)
+        img = (x.detach().cpu() + ds_mean.detach().cpu()).reshape(N, C, H, W)
+        mn = img.amin((1, 2, 3), keepdim=True); mx = img.amax((1, 2, 3), keepdim=True)
         return (img - mn) / (mx - mn + 1e-8)
 
     order = ['TRUE ΔW (ceiling)', 'DECODED all-layers', 'DECODED input-only', 'TRUE input-only']
     rows = [('true', disp(x_cen))] + [(n, disp(recons[n])) for n in order if n in recons]
-    fig, axs = plt.subplots(len(rows), N, figsize=(1.7 * N, 1.7 * len(rows)), squeeze=False)
+    ncol = min(N, 8)
+    fig, axs = plt.subplots(len(rows), ncol, figsize=(1.7 * ncol, 1.7 * len(rows)), squeeze=False)
     for r, (lab, imgs) in enumerate(rows):
-        for c in range(N):
-            axs[r][c].imshow(imgs[c], cmap='gray'); axs[r][c].axis('off')
+        for c in range(ncol):
+            im = imgs[c]
+            if C == 1:
+                axs[r][c].imshow(im[0], cmap='gray')
+            else:
+                axs[r][c].imshow(im.permute(1, 2, 0).numpy())
+            axs[r][c].axis('off')
             if c == 0:
                 sub = f"\nssim {results[lab][0]:.2f}" if lab in results else ''
                 axs[r][c].set_title(lab + sub, loc='left', fontsize=8)
-    fig.suptitle(f'GB-Phase 2 end-to-end ({activation}): decoded ΔW -> model-based extraction')
+    fig.suptitle(f'GB-Phase 2 end-to-end ({tag}): decoded ΔW -> model-based extraction')
     fig.tight_layout()
-    out = os.path.join(FIGURES_DIR, 'gradient_bridge', f'phase2_e2e_{activation}.png')
+    out = os.path.join(FIGURES_DIR, 'gradient_bridge', f'phase2_e2e_{tag}.png')
     os.makedirs(os.path.dirname(out), exist_ok=True)
     fig.savefig(out, dpi=130, facecolor='white'); plt.close(fig)
     print(f"grid -> {out}")
@@ -223,7 +232,8 @@ def _save_grid(activation, x_cen, ds_mean, recons, results, npc):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--activations', nargs='+', default=['softplus', 'gelu'])
-    p.add_argument('--npc', type=int, default=1)              # N = 2*npc
+    p.add_argument('--dataset', default='mnist')
+    p.add_argument('--npc_list', type=int, nargs='+', default=[1])     # N = 2*npc for each
     p.add_argument('--seed', type=int, default=42)
     p.add_argument('--n_train', type=int, default=15000)
     p.add_argument('--dec_epochs', type=int, default=120)
@@ -233,10 +243,10 @@ def main():
     p.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     args = p.parse_args()
     for act in args.activations:
-        print(f"\n########## {act} ##########")
+        print(f"\n########## {act} ({args.dataset}) ##########")
         try:
-            run(act, args.device, args.npc, args.seed, args.n_train, args.dec_epochs,
-                args.ext_epochs, args.rank, args.a_init_scale)
+            run(act, args.device, args.dataset, args.npc_list, args.seed, args.n_train,
+                args.dec_epochs, args.ext_epochs, args.rank, args.a_init_scale)
         except Exception as e:
             import traceback; traceback.print_exc()
             print(f"  SKIP {act}: {type(e).__name__}: {e}")

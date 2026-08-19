@@ -30,23 +30,24 @@ import torch
 
 torch.set_default_dtype(torch.float64)
 
-from experiments.configs import DATASETS_DIR, RESULTS_DIR, TRAIN_LR, LABELS_DICT
+from experiments.configs import DATASETS_DIR, RESULTS_DIR, TRAIN_LR, LABELS_DICT, DATASET_SPECS
 from experiments.run_experiment_b import create_model, load_pretrained
+from experiments.data_utils import _load_dataset, _get_binary_label
 
-# Layer geometry for the 784-1000-1000-1 MLP.
-_LAYER_SHAPE = {0: (1000, 784), 1: (1000, 1000), 2: (1, 1000)}  # (out, in)
+def _layer_shapes(dataset):
+    """(out, in) per layer for the input_dim-h0-h1-1 MLP of `dataset` (from DATASET_SPECS)."""
+    spec = DATASET_SPECS[dataset]; h = spec['hidden']; d = spec['input_dim']
+    return {0: (h[0], d), 1: (h[1], h[0]), 2: (1, h[1])}
 
 
-def _load_proxy_mnist(n, seed, device):
-    """Load n MNIST *train* images (public proxy) as [n,1,28,28] + odd/even labels."""
-    from torchvision import datasets, transforms
-    ds = datasets.MNIST(root=DATASETS_DIR, train=True, download=False,
-                        transform=transforms.ToTensor())
+def _load_proxy(dataset, n, seed, device):
+    """Load n *train*-set images of `dataset` as public proxy: [n,C,H,W] + binary parity labels."""
+    ds = _load_dataset(dataset, train=True, root=DATASETS_DIR)
     g = torch.Generator().manual_seed(seed)
     idx = torch.randperm(len(ds), generator=g)[:n]
-    xs = torch.stack([ds[i][0] for i in idx]).to(device).double()          # [n,1,28,28]
-    ys = torch.tensor([LABELS_DICT[int(ds[i][1])] for i in idx],
-                      device=device, dtype=torch.float64)                   # odd/even
+    xs = torch.stack([ds[i][0] for i in idx]).to(device).double()          # [n,C,H,W]
+    ys = torch.tensor([_get_binary_label(ds[i][1]) for i in idx],
+                      device=device, dtype=torch.float64)
     return xs, ys
 
 
@@ -62,7 +63,7 @@ def _kaiming_B(out, rank, device, gen):
 def generate_pair_bank(n_pairs, layer_idx, rank, lr=TRAIN_LR, scaling=1.0,
                        activation='gelu', batch=256, seed=0, device='cuda',
                        grad_tol=1e-2, samples_per_pair=1, two_sided=False,
-                       a_init_scale=0.1, verbose=True):
+                       a_init_scale=0.1, dataset='mnist', verbose=True):
     """Generate n_pairs single-step LoRA measurements for one layer.
 
     Each pair aggregates ``samples_per_pair`` (=m) informative proxy samples, so
@@ -82,11 +83,14 @@ def generate_pair_bank(n_pairs, layer_idx, rank, lr=TRAIN_LR, scaling=1.0,
         grad_A  [n, rank, in]       ∇_A L = scaling·B0ᵀ∇_W L
         grad_B  [n, out, rank]      ∇_B L = scaling·∇_W L·A0ᵀ
     """
-    out_f, in_f = _LAYER_SHAPE[layer_idx]
+    spec = DATASET_SPECS[dataset]
+    out_f, in_f = _layer_shapes(dataset)[layer_idx]
     m = int(samples_per_pair)
     # Use the smooth activation (matches the DI / anchor tracks). θ₀ is frozen.
-    base = create_model(device=device, activation_name=activation)
-    base.load_state_dict(load_pretrained(device=device).state_dict())
+    base = create_model(device=device, activation_name=activation,
+                        input_dim=spec['input_dim'], hidden=spec['hidden'])
+    base.load_state_dict(load_pretrained(device=device, pretrained_path=spec['pretrained'],
+                                         input_dim=spec['input_dim'], hidden=spec['hidden']).state_dict())
     base.eval()
     for p in base.parameters():
         p.requires_grad_(False)
@@ -106,7 +110,7 @@ def generate_pair_bank(n_pairs, layer_idx, rank, lr=TRAIN_LR, scaling=1.0,
     # and the ceiling metric).
     need = n_pairs * m
     pool = min(60000, max(need + batch, 3 * need))
-    xs, ys = _load_proxy_mnist(pool, seed, device)
+    xs, ys = _load_proxy(dataset, pool, seed, device)
     gen = torch.Generator(device=device).manual_seed(seed + 1)
 
     err_all, inp_all = [], []
@@ -167,7 +171,7 @@ def generate_pair_bank(n_pairs, layer_idx, rank, lr=TRAIN_LR, scaling=1.0,
         'meta': {'layer_idx': layer_idx, 'rank': rank, 'lr': lr, 'scaling': scaling,
                  'activation': activation, 'out': out_f, 'in': in_f,
                  'n_pairs': n_pairs, 'grad_tol': grad_tol, 'survival_rate': survival,
-                 'samples_per_pair': m, 'two_sided': two_sided,
+                 'samples_per_pair': m, 'two_sided': two_sided, 'dataset': dataset,
                  'a_init_scale': a_init_scale if two_sided else 0.0},
     }
 
