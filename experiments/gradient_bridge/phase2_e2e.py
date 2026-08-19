@@ -156,9 +156,10 @@ def run(activation, device, npc, seed, n_train, dec_epochs, ext_epochs, rank, a_
     m0.load_state_dict(upd['theta_0']); m0.eval()
     coeffs = compute_known_coefficients(m0, x_cen, y_ft)
 
-    def metrics_of(dw):
-        met = compute_all_metrics(extract(m0, dw, coeffs, npc, ext_epochs, device), x_cen, ds_mean)
-        return met['ssim']['mean'], met['ssim_norm']['mean'], met['ssim_mean_baseline']['mean']
+    def run_arm(dw):
+        xr = extract(m0, dw, coeffs, npc, ext_epochs, device)
+        met = compute_all_metrics(xr, x_cen, ds_mean)
+        return xr, (met['ssim']['mean'], met['ssim_norm']['mean'], met['ssim_mean_baseline']['mean'])
 
     input_key = _layer_key(true_dw, 0)
     arms = {
@@ -171,15 +172,52 @@ def run(activation, device, npc, seed, n_train, dec_epochs, ext_epochs, rank, a_
           f"L0={agg_cos[0]:.3f} L1={agg_cos[1]:.3f} L2={agg_cos[2]:.3f}")
     print(f"{'arm':22s} {'ssim':>7s} {'ssim_norm':>9s} {'baseline':>9s}")
     print('-' * 52)
-    results = {}
+    results, recons = {}, {}
     for name, dw in arms.items():
         try:
-            s, sn, base = metrics_of(dw)
+            xr, (s, sn, base) = run_arm(dw)
             print(f"{name:22s} {s:7.3f} {sn:9.3f} {base:9.3f}")
-            results[name] = (s, sn, base)
+            results[name] = (s, sn, base); recons[name] = xr.detach().cpu()
         except Exception as e:
             print(f"{name:22s} SKIP: {type(e).__name__}: {e}")
+    # persist tensors + visual grid (experiment-output rule)
+    try:
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        torch.save({'x_cen': x_cen.detach().cpu(), 'ds_mean': ds_mean.detach().cpu(),
+                    'recons': recons, 'results': results, 'agg_cos': agg_cos, 'dcos': dcos,
+                    'activation': activation, 'npc': npc},
+                   os.path.join(RESULTS_DIR, f'gb_e2e_{activation}.pth'))
+        _save_grid(activation, x_cen, ds_mean, recons, results, npc)
+    except Exception as e:
+        print(f"  (save skipped: {type(e).__name__}: {e})")
     return results, agg_cos, dcos
+
+
+def _save_grid(activation, x_cen, ds_mean, recons, results, npc):
+    """Grid: true digits vs each arm's reconstruction (de-centered, per-image normalized)."""
+    import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
+    N = 2 * npc
+
+    def disp(x):
+        img = (x.detach().cpu() + ds_mean.detach().cpu()).reshape(N, 28, 28)
+        mn = img.amin((1, 2), keepdim=True); mx = img.amax((1, 2), keepdim=True)
+        return (img - mn) / (mx - mn + 1e-8)
+
+    order = ['TRUE ΔW (ceiling)', 'DECODED all-layers', 'DECODED input-only', 'TRUE input-only']
+    rows = [('true', disp(x_cen))] + [(n, disp(recons[n])) for n in order if n in recons]
+    fig, axs = plt.subplots(len(rows), N, figsize=(1.7 * N, 1.7 * len(rows)), squeeze=False)
+    for r, (lab, imgs) in enumerate(rows):
+        for c in range(N):
+            axs[r][c].imshow(imgs[c], cmap='gray'); axs[r][c].axis('off')
+            if c == 0:
+                sub = f"\nssim {results[lab][0]:.2f}" if lab in results else ''
+                axs[r][c].set_title(lab + sub, loc='left', fontsize=8)
+    fig.suptitle(f'GB-Phase 2 end-to-end ({activation}): decoded ΔW -> model-based extraction')
+    fig.tight_layout()
+    out = os.path.join(FIGURES_DIR, 'gradient_bridge', f'phase2_e2e_{activation}.png')
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    fig.savefig(out, dpi=130, facecolor='white'); plt.close(fig)
+    print(f"grid -> {out}")
 
 
 def main():
