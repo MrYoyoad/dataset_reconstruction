@@ -41,12 +41,19 @@ def _layer_shapes(dataset):
 
 
 def _load_proxy(dataset, n, seed, device):
-    """Load n *train*-set images of `dataset` as public proxy: [n,C,H,W] + binary parity labels."""
-    ds = _load_dataset(dataset, train=True, root=DATASETS_DIR)
+    """Load up to n public-proxy images of `dataset`: [<=n,C,H,W] + binary parity labels.
+
+    Flowers splits are tiny (train=1020), so for flowers* we pool train+test (all public flowers;
+    the victim's 2 test images are a negligible fraction). MNIST/fashion use train only (byte-compat)."""
+    dss = [_load_dataset(dataset, train=True, root=DATASETS_DIR)]
+    if dataset in ('flowers', 'flowers32', 'flowers64'):
+        dss.append(_load_dataset(dataset, train=False, root=DATASETS_DIR))
+    items = [(d, i) for d in dss for i in range(len(d))]
     g = torch.Generator().manual_seed(seed)
-    idx = torch.randperm(len(ds), generator=g)[:n]
-    xs = torch.stack([ds[i][0] for i in idx]).to(device).double()          # [n,C,H,W]
-    ys = torch.tensor([_get_binary_label(ds[i][1]) for i in idx],
+    order = torch.randperm(len(items), generator=g)[:n]
+    sel = [items[j][0][items[j][1]] for j in order]                        # one __getitem__ each
+    xs = torch.stack([im for im, _ in sel]).to(device).double()           # [<=n,C,H,W]
+    ys = torch.tensor([_get_binary_label(lab) for _, lab in sel],
                       device=device, dtype=torch.float64)
     return xs, ys
 
@@ -116,7 +123,7 @@ def generate_pair_bank(n_pairs, layer_idx, rank, lr=TRAIN_LR, scaling=1.0,
     err_all, inp_all = [], []
     kept, seen = 0, 0
     pos = 0
-    while kept < need and pos < pool:
+    while kept < need and pos < xs.shape[0]:
         xb = xs[pos:pos + batch]
         yb = ys[pos:pos + batch]
         pos += xb.shape[0]
