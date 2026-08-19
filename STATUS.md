@@ -140,10 +140,28 @@ A 5-experiment learning chain on turning the bridge's decoded input-layer gradie
   MODEL-BASED Experiment-B extraction fed a ΔW with the input layer at cosine 0.64 → **SSIM 0.52**, vs
   the SVD's 0.10 at the same cosine. The model-based inverter uses θ₀ + all-layer structure as an
   implicit prior (the ViT trick), closing the cosine→pixel gap the SVD can't.
-- **Next (culminating): real decoded ΔW → Experiment-B extraction** (not SVD): train per-layer decoders,
-  measure a victim, assemble the decoded ΔW, extract. Predicted SSIM ~0.5 (per Exp 2). Would close the
-  bridge attack end-to-end at recognizable fidelity. Data: `results/gb_decoder_*`, jobs 383791/389521/
-  392328/400603, `figures/gradient_bridge/phase2_*`.
+- **CULMINATION CONFIRMED (job 445780): the bridge attack closes end-to-end.** Real per-layer decoders
+  (trained on PUBLIC proxy only) -> decode each victim sample's per-layer LoRA update -> model-based
+  `run_ntk_extraction` (NOT SVD). N=2, oracle coefficients + oracle per-layer sign (upper bound):
+
+  | arm | softplus ssim / norm | gelu ssim / norm |
+  |---|---|---|
+  | TRUE ΔW (ceiling) | 0.692 / 0.825 | 0.995 / 0.997 |
+  | **DECODED all-layers** (the attack) | **0.458 / 0.622** | **0.554 / 0.740** |
+  | DECODED input-only | 0.482 / 0.629 | 0.557 / 0.742 |
+  | TRUE input-only | 0.688 / 0.829 | 1.000 / 1.000 |
+  | SVD (old inverter) | 0.17 | 0.10 |
+
+  Headline: the model-based inverter recovers **recognizable digits (SSIM ~0.5, ssim_norm 0.62-0.74),
+  3-5x the SVD** -- the deck's Q-A lesson made literal (the base-model structure, not the cosine, is the
+  lever). Gap to the ceiling = the **input-layer AGGREGATE decode cosine (0.42 softplus / 0.37 gelu)**:
+  per-sample the input decoder is 0.92/0.67, but two OPPOSITE-LABEL victim samples partially cancel in the
+  sum (signal cancels, decode error does not), and the input layer is the one carrying x. Near-perfect
+  hidden/output decoders (0.99) add nothing beyond input-only; `TRUE input-only`=1.00/0.69 confirms the
+  input layer alone suffices. Code: `experiments/gradient_bridge/phase2_e2e.py`. Jobs 383791/389521/
+  392328/400603 (diagnostic chain) + 424120/445780 (e2e). Optional refinement: converged input decoder
+  (30k/200ep, per-sample 0.945) to lift the aggregate cos toward the ceiling; N=1 to remove the
+  opposite-label cancellation entirely.
 
 ### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)
 

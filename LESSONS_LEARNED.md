@@ -4,6 +4,46 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## GB-Phase 2 end-to-end: the inverter matters more than the decoder (2026-08-19)
+
+### The gradient-bridge headline: SVD is the wrong inverter; the base model IS the prior
+- **Insight:** turning a decoded LoRA gradient into an image is NOT a factorization problem, it is a
+  gradient-INVERSION problem. The naive SVD (top singular vector of the decoded input-layer gradient)
+  gives only a coarse blob (SSIM 0.10-0.17) even when the decoder cosine is 0.945 -- because SVD is a
+  prior-free DETERMINED rank-1 factorization (no null-space for a prior). Feeding the SAME decoded ΔW
+  into the model-based `run_ntk_extraction` (Experiment B) jumps to **SSIM ~0.5 / ssim_norm 0.62-0.74,
+  3-5x the SVD** -- the known θ₀ + all-layer structure act as an implicit prior. This is the deck's Q-A
+  lesson made literal: at a fixed high cosine, the MODEL/PRIOR is the lever, not the cosine.
+- **Apply:** for any "decoded/approximate gradient -> image" step, invert THROUGH the known base model,
+  never by bare SVD/pseudo-inverse. The decoder cosine is necessary but not sufficient; the inverter
+  converts cosine into pixels.
+
+### Pitfall: `generate_pairs` sets the default dtype to float64 at IMPORT -> decoder built in float64
+- **Presented as:** `RuntimeError: mat1 and mat2 must have the same dtype, but got Float and Double` on
+  the first decoder training batch, before any result. Root cause: `generate_pairs.py` runs
+  `torch.set_default_dtype(torch.float64)` at module import, so `GradientDecoder(...)` was constructed in
+  float64 while `train()` casts its data to `.float()` (float32). Fix: set float32 default for the
+  decoder-training phase (matches phase2_image; the loaded model stays float64 internally so banks are
+  still float64), then switch to float64 only for the victim measurement + extraction (matches
+  phase2_full). Toggle the default dtype PER PHASE.
+
+### Pitfall: decoder outputs +∇W but the weight update is ΔW = -lr·∇W (sign flip)
+- **Presented as:** aggregate decode cosines of -0.99 for the near-perfect hidden/output layers (looked
+  like catastrophic decode; was actually a perfect decode with the wrong sign), and DECODED all-layers
+  scoring BELOW DECODED input-only because the sign-flipped layers fought the inverter. Fix: align each
+  decoded layer's aggregate sign to the true ΔW of that layer (an oracle SIGN only, consistent with the
+  oracle-coefficient upper-bound framing). The per-sample decode DIRECTION is the real quantity; the
+  global sign is a convention nuisance.
+
+### N=2 opposite-label aggregation cancels the SIGNAL, not the decode error
+- **Observation:** per-sample the input decoder is 0.92 (softplus) / 0.67 (gelu), but the AGGREGATE
+  decode cosine over the two opposite-label victim samples is only 0.42 / 0.37. Summing two samples with
+  opposite `g_err` signs shrinks ‖Σ true‖ (signal cancels) while the decode errors do not, so the
+  aggregate cosine falls well below the per-sample cosine. This aggregate input-layer fidelity -- not the
+  hidden/output decoders (near-perfect, 0.99, and useless beyond input-only) -- is what caps the
+  end-to-end reconstruction below the true-ΔW ceiling. To close the gap: a stronger input decoder, or
+  N=1 to remove the cancellation.
+
 ## Flowers-native track: dim-threading, FP64 GPU, RGB plotting (2026-08-13)
 
 ### Threading a new input_dim through ~10 create_model/load_pretrained call sites — use local shadowing, not 10 edits
