@@ -70,6 +70,25 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
   the batch dim (`ds_mean[0]`, not `.squeeze()` which would drop a channel), then CHW→HWC transpose for
   3-channel and drop `cmap='gray'`.
 
+### Free-coefficient reconstruction: the RECIPE, and read settings off the artifact before theorizing (2026-08-18)
+- **What broke:** re-running the flowers sweeps in `--free_coefficients` (the realistic Haim attack)
+  produced garbage — NTK loss stuck flat at 9.6, coefficients **sign-flipped** (`[-0.68, +1.00]`,
+  c_err 0.71), ~0 SSIM, and ~11 h/config (never converges → runs to the epoch cap).
+- **How it presented / my error:** I first *theorized* it was fundamental (outside the NTK regime, too
+  high-dimensional). The user correctly pushed back — they remembered free-c *working* (0.686 on MNIST,
+  the numbers shown to Gal). It was **all-default settings**, not a real limitation.
+- **Root cause:** three defaults are wrong for free-c, all documented in STATUS's Sprint-2 section:
+  (1) `consistency_weight=0` → the sign-flip local minimum (the consistency penalty
+  `‖c − (σ(f(x))−y)/N‖²` is what prevents it); (2) `relu_alpha=149` (ModifiedReLU) — STATUS: "ModifiedReLU
+  actively harms extraction" (0.183 vs 0.744); (3) `optimizer=lbfgs` — LBFGS overfits x to the current c
+  and stalls; the working runs used **SGD**.
+- **The fix (verified, reproduces Sprint-2 ~0.59):** `--optimizer sgd --relu_alpha 10000
+  --consistency_weight 1.0 --n_restarts N`. On flowers32 this lands 0.60–0.65 (within ~0.04 of oracle).
+- **Meta-lesson (the important one):** when reproducing a documented result, **`torch.load` a known-good
+  saved `.pth` and read its `config` FIRST** — the working free-c files literally had `optimizer='sgd',
+  relu_alpha=10000` in their config. That one look would have skipped hours of wrong theorizing. Don't
+  theorize a mechanism when the ground-truth settings are sitting on disk.
+
 ### `--pretrained_path` must use the full `dataset_reconstruction/models/...` path (2026-08-16)
 - **Bug:** the Phase-D Q-B job script passed `--pretrained_path models/weights-flowers32_holdout.pth`
   (relative to the repo-root cwd), but the models dir is `dataset_reconstruction/models/`. Stage 0's

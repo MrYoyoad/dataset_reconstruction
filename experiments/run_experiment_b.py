@@ -49,7 +49,10 @@ from experiments.ntk_steps import (
     compute_known_coefficients,
     FINETUNE_OPTIMIZER_CHOICES,
 )
-from experiments.ntk_extraction import run_ntk_extraction, run_ntk_extraction_n_sweep
+from experiments.ntk_extraction import (
+    run_ntk_extraction, run_ntk_extraction_n_sweep, run_ntk_extraction_with_restarts,
+    svd_subspace_init, run_sequential_peeling,
+)
 from experiments.ntk_verification import (
     ntk_smoke_test, compute_linearization_error, compute_function_space_lin_error,
 )
@@ -218,14 +221,37 @@ def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,
                     optimizer_type='lbfgs', lora_B0=None,
                     verify_weight=1.0,
                     x_init=None, init_seed=None,
+                    n_restarts=1,
+                    closed_form_coeff=False,
+                    diversity_weight=0.0,
+                    tv_weight=0.0,
+                    sequential_peel=False,
+                    peel_refine=False,
                     input_shape=(1, 28, 28),
                     device='cpu', verbose=True):
-    """Run NTK extraction in oracle, free, or N-sweep mode."""
+    """Run NTK extraction in oracle, free, closed-form, peeling, or N-sweep mode (optionally restarts)."""
+    if sequential_peel:
+        # Greedy source peeling — reconstruct one image at a time from the residual ΔW (LoRA-native
+        # attack on the N>1 superposition wall).
+        x_peeled, peel_res = run_sequential_peeling(
+            model_theta0, delta_w, n_per_class * 2, lr, n_steps, input_shape,
+            tv_weight=tv_weight, verify_weight=verify_weight, lora_B0=lora_B0,
+            device=device, verbose=verbose)
+        if not peel_refine:
+            return x_peeled, peel_res
+        # PEEL-THEN-JOINT-REFINE: warm-start the joint N-image extraction from the separated peeled
+        # images — combines peeling's source separation with joint refinement's accuracy.
+        x_init = x_peeled.detach()
+        if verbose:
+            print("  peel_refine: joint-refining from the peeled separated init")
     extra_kwargs = dict(
         coeff_init=coeff_init,
         coeff_sign_weight=coeff_sign_weight,
         coeff_min_magnitude=coeff_min_magnitude,
         loss_type=loss_type,
+        closed_form_coeff=closed_form_coeff,   # analytic least-squares coefficient recovery
+        diversity_weight=diversity_weight,     # SPEAR-spirit repulsion (source separation for N>1)
+        tv_weight=tv_weight,                   # natural-image total-variation prior
         input_shape=input_shape,   # x̂-init shape; forwarded to run_ntk_extraction (both paths)
     )
     if n_sweep and free_coefficients:
@@ -254,9 +280,10 @@ def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,
             for n, (_, r) in all_results.items()
         }
     else:
-        # Single N extraction (oracle or free)
-        x_recon, extract_res = run_ntk_extraction(
-            model_theta0, delta_w, oracle_coefficients,
+        # Single N extraction (oracle or free), optionally with random restarts (keep best by NTK
+        # loss). Restarts escape free-c local minima like the coefficient collapse (Sprint-2 recipe).
+        single_kwargs = dict(
+            model_at_theta0=model_theta0, delta_w=delta_w, coefficients=oracle_coefficients,
             lr_train=lr, n_steps=n_steps, n_per_class=n_per_class,
             extraction_epochs=extraction_epochs,
             optimizer_type=optimizer_type,
@@ -269,10 +296,14 @@ def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,
             coeff_optimizer_type=coeff_optimizer_type,
             verify_weight=verify_weight,
             x_init=x_init,
-            init_seed=init_seed,
             device=device, verbose=verbose,
             **extra_kwargs,
         )
+        if n_restarts and n_restarts > 1:
+            x_recon, extract_res = run_ntk_extraction_with_restarts(
+                n_restarts=n_restarts, base_seed=(init_seed or 0), **single_kwargs)
+        else:
+            x_recon, extract_res = run_ntk_extraction(init_seed=init_seed, **single_kwargs)
     return x_recon, extract_res
 
 
@@ -291,6 +322,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
                       loss_type='l2',
                       n_sweep=False,
                       optimizer_type='lbfgs',
+                      extract_activation=None,
                       relu_alpha=EXTRACTION_RELU_ALPHA,
                       verify_weight=1.0,
                       save_results=False,
@@ -304,6 +336,13 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
                       holdout_species=None,
                       x_init=None,
                       init_seed=None,
+                      n_restarts=1,
+                      closed_form_coeff=False,
+                      svd_init=False,
+                      diversity_weight=0.0,
+                      tv_weight=0.0,
+                      sequential_peel=False,
+                      peel_refine=False,
                       device='cpu', verbose=True):
     """Run Experiment B for one (n_steps, rank) configuration.
 
@@ -382,13 +421,15 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
         training_lr = lr
         training_schedule = 'constant'
 
-    # Determine extraction activation: if finetune_activation is set,
-    # use the same activation for extraction (consistency principle).
-    # If not set, use the default behavior (ReLU finetune, ModifiedRelu extract).
-    if finetune_activation is not None:
+    # Determine extraction activation. Precedence:
+    #   1. explicit extract_activation  -> decouple extraction from the fine-tune activation (the
+    #      realistic "fixed-extraction attacker" — e.g. a ReLU/ModifiedReLU attacker inverting a
+    #      softplus victim's ΔW; required for the free-c activation study, since free-c needs a
+    #      ReLU-like extraction while the study varies the *fine-tune* activation that shaped ΔW).
+    #   2. else match finetune_activation (consistency principle).
+    #   3. else None -> default ModifiedRelu extraction.
+    if extract_activation is None and finetune_activation is not None:
         extract_activation = finetune_activation
-    else:
-        extract_activation = None  # use default extraction=True behavior
 
     results = {'n_steps': n_steps, 'rank': rank, 'n_per_class': n_per_class,
                'seed': seed, 'digits': digits, 'mode': mode_str,
@@ -487,6 +528,10 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
         model_theta0_extract.load_state_dict(theta_anchor)
         model_theta0_extract.eval()
 
+        # SPEAR-inspired SVD subspace init (low-rank source separation for N>1) — full path.
+        if svd_init:
+            x_init = svd_subspace_init(update_result['delta_w'], n_per_class * 2, input_shape,
+                                       seed=init_seed, device=device)
         # NTK reconstruction (anchor-consistent oracle coefficients)
         x_recon_full, extract_res = _run_extraction(
             model_theta0_extract, update_result['delta_w'],
@@ -506,6 +551,12 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
             lora_B0=None,
             verify_weight=verify_weight,
             x_init=x_init, init_seed=init_seed,
+            n_restarts=n_restarts,
+            closed_form_coeff=closed_form_coeff,
+            diversity_weight=diversity_weight,
+            tv_weight=tv_weight,
+            sequential_peel=sequential_peel,
+            peel_refine=peel_refine,
             input_shape=input_shape,
             device=device, verbose=verbose,
         )
@@ -604,6 +655,10 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
         model_theta0_lora_extract.load_state_dict(theta_anchor_lora)
         model_theta0_lora_extract.eval()
 
+        # SPEAR-inspired SVD subspace init (low-rank source separation for N>1) — LoRA path.
+        if svd_init:
+            x_init = svd_subspace_init(update_result_lora['delta_w'], n_per_class * 2, input_shape,
+                                       seed=init_seed, device=device)
         # NTK reconstruction (anchor-consistent oracle coefficients)
         x_recon_lora, extract_res_lora = _run_extraction(
             model_theta0_lora_extract, update_result_lora['delta_w'],
@@ -623,6 +678,12 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
             lora_B0=None,
             verify_weight=verify_weight,
             x_init=x_init, init_seed=init_seed,
+            n_restarts=n_restarts,
+            closed_form_coeff=closed_form_coeff,
+            diversity_weight=diversity_weight,
+            tv_weight=tv_weight,
+            sequential_peel=sequential_peel,
+            peel_refine=peel_refine,
             input_shape=input_shape,
             device=device, verbose=verbose,
         )
@@ -711,6 +772,29 @@ if __name__ == '__main__':
     # N sweep
     parser.add_argument('--n_sweep', action='store_true',
                         help='Try multiple N values (attacker guesses dataset size)')
+    parser.add_argument('--n_restarts', type=int, default=1,
+                        help='Random restarts for extraction; keep best by NTK loss (Sprint-2 free-c '
+                             'recipe — escapes the coefficient-collapse local minimum)')
+    parser.add_argument('--closed_form_coeff', action='store_true',
+                        help='Analytic least-squares coefficient recovery (ANA-GIA): re-solve c from '
+                             'the current x each refresh instead of SGD-optimizing it. No sign-flip / '
+                             'no coefficient collapse. Use WITH --free_coefficients (realistic; c not from true x).')
+    parser.add_argument('--svd_init', action='store_true',
+                        help='SPEAR-inspired init: seed the N reconstructions from the top-N right '
+                             'singular vectors of the first-layer ΔW (correct low-rank subspace). '
+                             'Fights the N>1 superposition collapse.')
+    parser.add_argument('--diversity_weight', type=float, default=0.0,
+                        help='Repulsion penalty weight between reconstructed images (source separation '
+                             'for N>1). 0 = off.')
+    parser.add_argument('--tv_weight', type=float, default=0.0,
+                        help='Total-variation natural-image prior weight ("the lever is the prior"). '
+                             'Applies to LoRA and natural images (flowers). 0 = off.')
+    parser.add_argument('--sequential_peel', action='store_true',
+                        help='Greedy source peeling for N>1: reconstruct one image at a time from the '
+                             'residual ΔW, subtract, repeat. LoRA-native attack on the superposition wall.')
+    parser.add_argument('--peel_refine', action='store_true',
+                        help='After --sequential_peel, warm-start a joint N-image extraction from the '
+                             'peeled (separated) images — separation + joint refinement.')
 
     # Extraction activation & loss weights
     parser.add_argument('--relu_alpha', type=float, default=EXTRACTION_RELU_ALPHA,
@@ -722,6 +806,11 @@ if __name__ == '__main__':
     parser.add_argument('--finetune_activation', type=str, default=None,
                         choices=ACTIVATION_CHOICES,
                         help='Activation for both fine-tuning and extraction (default: ReLU fine-tune, ModifiedRelu extract)')
+    parser.add_argument('--extract_activation', type=str, default=None,
+                        choices=ACTIVATION_CHOICES,
+                        help='Extraction activation, DECOUPLED from --finetune_activation (realistic '
+                             'fixed-extraction attacker; needed for free-c activation study). '
+                             'Default: match finetune_activation.')
     parser.add_argument('--lr_schedule', type=str, default='constant',
                         choices=LR_SCHEDULE_CHOICES,
                         help='LR schedule: constant, inv_sqrt_T, inv_T, cosine, linear, cosine_warmup')
@@ -794,6 +883,7 @@ if __name__ == '__main__':
         coeff_min_magnitude=args.min_coeff,
         loss_type=args.loss_type,
         finetune_activation=args.finetune_activation,
+        extract_activation=args.extract_activation,
         lr_schedule=args.lr_schedule,
         finetune_optimizer=args.finetune_optimizer,
         weight_decay=args.weight_decay,
@@ -806,6 +896,13 @@ if __name__ == '__main__':
         optimizer_type=args.optimizer,
         relu_alpha=args.relu_alpha,
         verify_weight=args.verify_weight,
+        n_restarts=args.n_restarts,
+        closed_form_coeff=args.closed_form_coeff,
+        svd_init=args.svd_init,
+        diversity_weight=args.diversity_weight,
+        tv_weight=args.tv_weight,
+        sequential_peel=args.sequential_peel,
+        peel_refine=args.peel_refine,
         save_results=args.save_results,
         device=device,
     )

@@ -121,6 +121,36 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
   (Q-A prediction). **Caveat:** lr=0.01 unmatched weight_change → part of the 3072→12288 drop is the training-motion confound; the
   matched-wc ladder (lr-cal runs) is the clean version. flowers64 full activation sweep still running (~11h, heavy D=12288 extraction).
 
+#### REALISTIC free-coefficient results (2026-08-18) — the activation ranking FLIPS; oracle was misleading
+All of the above is **oracle** (cᵢ from the true x = cheating). Re-ran the whole program in the
+**realistic free-coefficient attack** (Haim-style). **The free-c recipe was the crux** (see LESSONS):
+default free-c is broken (sign-flip + ModifiedReLU + LBFGS); the working recipe is **SGD extraction +
+`relu_alpha=10000` (≈ReLU) + `consistency_weight=1.0` + random restarts** (reproduces the Sprint-2
+known-good ~0.59 on MNIST). For the activation study, extraction is **decoupled** to fixed ReLU-like
+(`--extract_activation modified_relu --relu_alpha 10000`) — the realistic fixed-ReLU attacker.
+
+- **Rank curve (N=2):** flat, ssim 0.60–0.65, ctrl-margin +0.10–0.15 across r=4→64.
+- **N curve:** collapse at N≥4 (N=2 **0.604** → N=4 0.191 → N=8 0.190 → N=16 0.226) — the superposition
+  wall is real in the realistic attack.
+- **Q-B REPLICATES in free-c:** seen (overlap) **0.587** > novel 0.368 — familiarity aids leakage. ✓
+- **Q-A ladder holds:** flowers32 0.604 → flowers64 (D=12288) 0.604 (ctrl-margin +0.10 → +0.08).
+- **★ ACTIVATION RANKING FLIPS (overturns the oracle "softplus wins / swish dead"):** under the
+  realistic fixed-ReLU attacker, **silu 0.711 > gelu/gelu_tanh 0.692 > mish 0.689 > elu 0.643 >
+  softplus 0.609** — the swish family (what real ViTs use) is the **most** vulnerable, and silu leaks at
+  *lower* weight-change (0.026 vs softplus 0.114). The oracle "softplus wins" was a **matched-extraction
+  artifact** (softplus/gelu extraction is a bad free-c inverter). **The defensible headline is the
+  realistic one: silu/gelu leak most to a ReLU attacker.**
+
+#### Optimization improvements (SPEAR / ANA-GIA / priors) — what helped (2026-08-18)
+Tested closed-form-c (ANA-GIA least-squares), SVD-init (SPEAR low-rank), diversity, TV prior, and
+sequential peeling on the LoRA N-collapse. **Result: the coefficient *recipe* is the win, not the
+structural additions.** SVD-init *hurts* on raw LoRA (0.38→0.22) — its SVD spans the **adapter's**
+subspace, not the data (SPEAR/ICA need the **full gradient** → concrete motivation for the Gradient
+Bridge; see `notes/related_work_spear.md`). TV is marginal on clean MLP gradients (its leverage is for
+ViT). Peeling helps modestly at N≥8 (0.235 vs 0.156). New flags in `run_experiment_b`:
+`--closed_form_coeff --svd_init --diversity_weight --tv_weight --sequential_peel --peel_refine`; SPEAR
+note written. **N-separation on LoRA needs the bridge** — a thesis argument, now measured.
+
 ### GB-Phase 2 — the SVD inversion was the weak link; decode ↑ ≠ image ↑; model-based extraction is the fix (2026-08-18)
 
 A 5-experiment learning chain on turning the bridge's decoded input-layer gradient into an image:

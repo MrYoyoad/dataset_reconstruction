@@ -45,6 +45,71 @@ def _project_to_lora_subspace(matrix, B0):
     return B0 @ C  # [d_out, d_in]
 
 
+def compute_lstsq_coefficients(model_at_theta0, delta_w, x, lr, n_steps, lora_B0=None):
+    """Analytic least-squares coefficients (ANA-GIA / R-GAP family).
+
+    ΔW = -lr*T * Σ_i c_i ∇_θ f(θ₀; x_i). For a FIXED x the per-sample gradients ∇f(x_i) are constant,
+    so this is a *linear* least-squares in c: c* = argmin_c ‖vec(ΔW) - G c‖², G[:,i] = -lr*T·vec(∇f(x_i)).
+    Solving c in closed form removes the SGD-on-c failure modes entirely — no sign-flip, no coefficient
+    collapse, no local minima. Alternated with the x-optimization this is analytic coefficient recovery.
+    Returns c detached (used as fixed coefficients until the next refresh).
+    """
+    N = x.shape[0]
+    params = list(model_at_theta0.parameters())
+    names = [n for n, _ in model_at_theta0.named_parameters()]
+    cols = []
+    for i in range(N):
+        out_i = model_at_theta0(x[i:i+1]).sum()               # scalar f(θ₀; x_i)
+        grads = torch.autograd.grad(out_i, params, retain_graph=True, create_graph=False,
+                                    allow_unused=True)
+        parts = []
+        for name, g in zip(names, grads):
+            if name in delta_w and g is not None:
+                gg = -lr * n_steps * g
+                if lora_B0 is not None and name in lora_B0:
+                    gg = _project_to_lora_subspace(gg, lora_B0[name])
+                parts.append(gg.reshape(-1))
+        cols.append(torch.cat(parts))
+    G = torch.stack(cols, dim=1)                               # [P, N]
+    tparts = []
+    for name in names:
+        if name in delta_w:
+            t = delta_w[name]
+            if lora_B0 is not None and name in lora_B0:
+                t = _project_to_lora_subspace(t, lora_B0[name])
+            tparts.append(t.reshape(-1))
+    b = torch.cat(tparts).reshape(-1, 1)                        # [P, 1]
+    sol = torch.linalg.lstsq(G, b).solution                    # [N, 1]
+    return sol.reshape(-1).detach()
+
+
+def svd_subspace_init(delta_w, n, input_shape, first_layer_key='layers.0.weight',
+                      scale=0.5, noise=0.15, seed=None, device='cpu'):
+    """SPEAR-inspired initialization for the N>1 superposition problem.
+
+    The first-layer weight change ΔW₁ = -lr·Σ_i c_i g_i x_iᵀ has rank ≤ N, and (SPEAR Thm 3.1–3.2)
+    the inputs are a linear mixture of its right-singular-vectors: Xᵀ = Q⁻¹R with ΔW₁ = L·R (SVD).
+    So the N images live in the row-space of R. Initializing the reconstructions from the top-N right
+    singular vectors places them in the correct low-rank subspace from the start — far better than
+    random noise, which is what lets the joint optimization collapse to superpositions. The
+    optimization (+ a repulsion/diversity penalty) then finds the unmixing Q within that subspace.
+
+    Returns x_init: [N, *input_shape].
+    """
+    W = delta_w[first_layer_key].detach().to(device)          # [hidden, input_dim]
+    _, _, Vh = torch.linalg.svd(W, full_matrices=False)        # Vh: [k, input_dim], rows span inputs
+    k = min(n, Vh.shape[0])
+    dirs = Vh[:k]                                              # top-k input-space directions
+    dirs = dirs / (dirs.abs().amax(dim=1, keepdim=True) + 1e-8) * scale   # to a sane image scale
+    if k < n:                                                 # pad if fewer components than samples
+        dirs = torch.cat([dirs, torch.randn(n - k, W.shape[1], device=device) * scale], dim=0)
+    x0 = dirs.reshape(n, *input_shape)
+    if noise > 0:
+        gen = torch.Generator(device=device).manual_seed(seed) if seed is not None else None
+        x0 = x0 + torch.randn(x0.shape, device=device, generator=gen) * (noise * scale)
+    return x0
+
+
 def get_ntk_loss(model_at_theta0, delta_w, x, coefficients, lr, n_steps,
                  lora_B0=None, loss_type='l2'):
     """Compute the NTK reconstruction loss.
@@ -203,6 +268,10 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
                        x_init=None,
                        init_seed=None,
                        input_shape=(1, 28, 28),
+                       closed_form_coeff=False,
+                       coeff_refresh_every=500,
+                       diversity_weight=0.0,
+                       tv_weight=0.0,
                        device='cpu', verbose=True):
     """Run NTK-based reconstruction.
 
@@ -283,6 +352,14 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
         c = coefficients  # fixed, no grad
         oracle_c = coefficients
 
+    # Analytic closed-form coefficients (ANA-GIA): c is NOT a free SGD variable — it is re-solved by
+    # least-squares from the current x each refresh interval. Overrides free_coefficients bookkeeping.
+    if closed_form_coeff:
+        free_coefficients = False
+        oracle_c = coefficients
+        c = compute_lstsq_coefficients(model_at_theta0, delta_w, x.detach(), lr_train, n_steps,
+                                       lora_B0=lora_B0)
+
     # Build optimizers
     # For free-coefficient mode, c always gets its own separate optimizer with small lr
     # (mirroring Haim et al.'s separate opt_l with lr=1e-4 for λ).
@@ -324,6 +401,11 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
                 verify_loss = get_ntk_verify_loss(x)
                 loss = ntk_loss + verify_weight * verify_loss
 
+                if diversity_weight > 0:  # SPEAR-spirit source separation: repel superpositions
+                    loss = loss + diversity_weight * get_diversity_penalty(x)
+                if tv_weight > 0:         # natural-image TV prior ("the lever is the prior")
+                    loss = loss + tv_weight * get_tv_penalty(x)
+
                 if free_coefficients:
                     coeff_loss = get_coeff_penalty(
                         c, model_at_theta0, x, y,
@@ -344,6 +426,12 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
             # Step the separate c optimizer (uses gradients computed in closure)
             if opt_c is not None:
                 opt_c.step()
+            # Analytic coefficient refresh: re-solve c by least-squares from the current x.
+            if closed_form_coeff and (epoch % coeff_refresh_every == 0):
+                new_c = compute_lstsq_coefficients(model_at_theta0, delta_w, x.detach(),
+                                                   lr_train, n_steps, lora_B0=lora_B0)
+                with torch.no_grad():
+                    c.copy_(new_c)
 
             if _last_ntk[0] != _last_ntk[0]:  # NaN check
                 if verbose:
@@ -359,7 +447,7 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
             if verbose and epoch % eval_every == 0:
                 msg = (f"  NTK extraction epoch {epoch}: ntk={_last_ntk[0]:.4e} "
                        f"verify={_last_verify[0]:.4e}")
-                if free_coefficients:
+                if free_coefficients or closed_form_coeff:
                     c_vals = c.detach().cpu().tolist()
                     c_err = (c.detach() - oracle_c.to(c.device)).abs().mean().item() if (oracle_c is not None and oracle_c.shape[0] == c.shape[0]) else 0
                     msg += f" coeff_pen={_last_coeff[0]:.4e} c={[f'{v:.3f}' for v in c_vals]} c_err={c_err:.4f}"
@@ -373,6 +461,11 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
             )
             verify_loss = get_ntk_verify_loss(x)
             loss = ntk_loss + verify_weight * verify_loss
+
+            if diversity_weight > 0:  # SPEAR-spirit source separation: repel superpositions
+                loss = loss + diversity_weight * get_diversity_penalty(x)
+            if tv_weight > 0:         # natural-image TV prior ("the lever is the prior")
+                loss = loss + tv_weight * get_tv_penalty(x)
 
             if free_coefficients:
                 coeff_loss = get_coeff_penalty(
@@ -396,6 +489,12 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
             opt.step()
             if opt_c is not None:
                 opt_c.step()
+            # Analytic coefficient refresh: re-solve c by least-squares from the current x.
+            if closed_form_coeff and (epoch % coeff_refresh_every == 0):
+                new_c = compute_lstsq_coefficients(model_at_theta0, delta_w, x.detach(),
+                                                   lr_train, n_steps, lora_B0=lora_B0)
+                with torch.no_grad():
+                    c.copy_(new_c)
 
             loss_history.append(loss.item())
             ntk_loss_history.append(ntk_loss.item())
@@ -406,7 +505,7 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
             if verbose and epoch % eval_every == 0:
                 msg = (f"  NTK extraction epoch {epoch}: ntk={ntk_loss.item():.4e} "
                        f"verify={verify_loss.item():.4e}")
-                if free_coefficients:
+                if free_coefficients or closed_form_coeff:
                     c_vals = c.detach().cpu().tolist()
                     c_err = (c.detach() - oracle_c.to(c.device)).abs().mean().item() if (oracle_c is not None and oracle_c.shape[0] == c.shape[0]) else 0
                     msg += f" coeff_pen={coeff_loss.item():.4e} c={[f'{v:.3f}' for v in c_vals]} c_err={c_err:.4f}"
@@ -438,6 +537,16 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
     return x_recon, result_dict
 
 
+def get_tv_penalty(x):
+    """Total-variation prior for NATURAL images — the dominant, highest-leverage prior in gradient
+    inversion ("the lever is the prior, not the gradient match"; the thesis ViT work went 0.02->0.55
+    with TV). Penalizes mean |neighbouring-pixel difference|. Unlike SVD-init this is an x-space prior,
+    so it applies to the LoRA case too. x: [N, C, H, W]."""
+    dh = (x[:, :, 1:, :] - x[:, :, :-1, :]).abs().mean()
+    dw = (x[:, :, :, 1:] - x[:, :, :, :-1]).abs().mean()
+    return dh + dw
+
+
 def get_diversity_penalty(x, min_dist=0.5):
     """Repulsive penalty for reconstructed images closer than min_dist.
 
@@ -461,6 +570,53 @@ def get_diversity_penalty(x, min_dist=0.5):
     if relevant_nns.shape[0] > 0:
         return relevant_nns.mul(-20).sigmoid().mean()
     return torch.tensor(0.0, device=x.device, dtype=x.dtype)
+
+
+def run_sequential_peeling(model_at_theta0, delta_w, n, lr, n_steps, input_shape,
+                           extraction_epochs=6000, lr_x=0.05, init_scale=0.03,
+                           tv_weight=0.1, verify_weight=1.0, lora_B0=None,
+                           seed=0, device='cpu', verbose=False):
+    """Greedy source peeling for the N>1 superposition wall (LoRA-native — an x-space method).
+
+    Reconstruct ONE source (single image x_j + its scalar coefficient c_j) from the current residual
+    ΔW, subtract its NTK contribution (-lr·T·c_j·∇f(x_j)) from the residual, and repeat n times. Each
+    step is a single-source problem, so the N sources can't blend into a superposition. A TV prior
+    steadies each single-image recovery. Returns x_recon [n, *input_shape] and a small results dict.
+    """
+    residual = {k: v.detach().clone() for k, v in delta_w.items()}
+    params = list(model_at_theta0.parameters())
+    names = [nm for nm, _ in model_at_theta0.named_parameters()]
+    recons, coeffs = [], []
+    for j in range(n):
+        g = torch.Generator(device=device).manual_seed(seed + 1000 * j)
+        x = (torch.randn(1, *input_shape, device=device, generator=g) * init_scale).requires_grad_(True)
+        c = torch.zeros(1, device=device, requires_grad=True)              # single free coefficient
+        opt = torch.optim.Adam([x, c], lr=lr_x)
+        for _ in range(extraction_epochs):
+            opt.zero_grad()
+            loss = get_ntk_loss(model_at_theta0, residual, x, c, lr, n_steps, lora_B0=lora_B0)
+            loss = loss + verify_weight * get_ntk_verify_loss(x)
+            if tv_weight > 0:
+                loss = loss + tv_weight * get_tv_penalty(x)
+            loss.backward()
+            opt.step()
+        recons.append(x.detach())
+        coeffs.append(float(c.detach()))
+        # Subtract this source's contribution from the residual (compute grad WITH autograd, edit under no_grad).
+        out = model_at_theta0(x.detach()).sum()
+        grads = torch.autograd.grad(out, params, retain_graph=False, allow_unused=True)
+        with torch.no_grad():
+            for name, gg in zip(names, grads):
+                if name in residual and gg is not None:
+                    contrib = -lr * n_steps * c.detach() * gg
+                    if lora_B0 is not None and name in lora_B0:
+                        contrib = _project_to_lora_subspace(contrib, lora_B0[name])
+                    residual[name] = residual[name] - contrib
+        if verbose:
+            print(f"  peel {j+1}/{n}: c={coeffs[-1]:.3f}")
+    x_recon = torch.cat(recons, dim=0)
+    return x_recon, {'loss_history': [], 'ntk_loss_history': [], 'peel_coefficients': coeffs,
+                     'verify_weight': verify_weight}
 
 
 def run_ntk_extraction_with_restarts(n_restarts=1, base_seed=0, **kwargs):

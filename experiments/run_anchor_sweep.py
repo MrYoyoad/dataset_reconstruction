@@ -31,12 +31,16 @@ torch.set_default_dtype(torch.float64)
 
 from experiments.configs import (
     RESULTS_DIR, FIGURES_DIR, EXTRACTION_EPOCHS, ANCHOR_ALPHA_SWEEP, TRAIN_LR,
+    EXTRACTION_RELU_ALPHA, ACTIVATION_CHOICES,
 )
 
 
 def run_alpha_sweep(alphas, n_steps, rank, n_per_class, seed,
                     finetune_activation, extraction_epochs, device, verbose=True,
-                    verify_weight=1.0, dataset='mnist', lr=TRAIN_LR):
+                    verify_weight=1.0, dataset='mnist', lr=TRAIN_LR,
+                    free_coefficients=False, optimizer_type='lbfgs',
+                    relu_alpha=EXTRACTION_RELU_ALPHA, consistency_weight=0.0,
+                    n_restarts=1, extract_activation=None):
     """Run Experiment B once per α (both full-FT and LoRA paths). Returns {α: results}."""
     from experiments.run_experiment_b import run_single_config
 
@@ -44,16 +48,21 @@ def run_alpha_sweep(alphas, n_steps, rank, n_per_class, seed,
     for i, a in enumerate(alphas):
         print(f"\n{'='*60}")
         print(f"[{i+1}/{len(alphas)}] anchor_alpha={a}, T={n_steps}, rank={rank}, "
-              f"act={finetune_activation}, dataset={dataset}, lr={lr}, verify_weight={verify_weight}")
+              f"act={finetune_activation}, dataset={dataset}, lr={lr}, verify_weight={verify_weight}, "
+              f"free_c={free_coefficients}")
         print(f"{'='*60}")
         res = run_single_config(
             n_steps=n_steps, rank=rank, n_per_class=n_per_class, seed=seed,
             lr=lr, dataset=dataset,
+            free_coefficients=free_coefficients,
+            coeff_consistency_weight=consistency_weight,
+            relu_alpha=relu_alpha, n_restarts=n_restarts,
+            extract_activation=extract_activation,
             run_baseline=True, anchor_alpha=a,
             finetune_activation=finetune_activation,
             extraction_epochs=extraction_epochs,
             verify_weight=verify_weight,
-            optimizer_type='lbfgs', device=device, verbose=verbose,
+            optimizer_type=optimizer_type, device=device, verbose=verbose,
         )
         all_results[a] = res
         fm, lm = res.get('full_metrics', {}), res.get('lora_metrics', {})
@@ -129,6 +138,19 @@ if __name__ == '__main__':
                         help='save per-α tensors + grids and the aggregate sweep .pth')
     parser.add_argument('--skip_if_exists', action='store_true',
                         help='exit 0 if the aggregate sweep .pth already exists (LSF-requeue safe)')
+    parser.add_argument('--free_coefficients', action='store_true',
+                        help='realistic free-coefficient attack (optimize c jointly with x, like Haim et al.)')
+    # Free-c recipe knobs (verified: sgd + relu_alpha 10000 + consistency 1.0 + restarts):
+    parser.add_argument('--optimizer', type=str, default='lbfgs', choices=['lbfgs', 'sgd', 'adam'],
+                        help='extraction optimizer (free-c wants sgd)')
+    parser.add_argument('--relu_alpha', type=float, default=EXTRACTION_RELU_ALPHA,
+                        help='ModifiedReLU alpha for extraction (free-c wants ~10000 = ReLU-like)')
+    parser.add_argument('--consistency_weight', type=float, default=0.0,
+                        help='free-c consistency penalty (=1.0 prevents sign-flip collapse)')
+    parser.add_argument('--n_restarts', type=int, default=1,
+                        help='extraction random restarts, keep best by NTK loss')
+    parser.add_argument('--extract_activation', type=str, default=None, choices=ACTIVATION_CHOICES,
+                        help='extraction activation decoupled from --finetune_activation')
     parser.add_argument('--tag', type=str, default=None, help='filename tag override')
     args = parser.parse_args()
 
@@ -137,10 +159,11 @@ if __name__ == '__main__':
     alphas = args.alphas if args.alphas is not None else list(ANCHOR_ALPHA_SWEEP)
     print(f"Anchor alphas: {alphas}")
 
-    # Default tag encodes dataset+lr so flowers/lr sweeps never collide with the MNIST ones.
+    # Default tag encodes dataset+lr(+free) so sweeps never collide across modes.
     ds_tag = '' if args.dataset == 'mnist' else f"{args.dataset}_"
     lr_tag = '' if args.lr == TRAIN_LR else f"lr{args.lr:g}_"
-    tag = args.tag or f"{ds_tag}T{args.n_steps}_r{args.rank}_{args.finetune_activation}_{lr_tag}s{args.seed}"
+    fc_tag = 'free_' if args.free_coefficients else ''
+    tag = args.tag or f"{ds_tag}{fc_tag}T{args.n_steps}_r{args.rank}_{args.finetune_activation}_{lr_tag}s{args.seed}"
 
     sweep_pth = os.path.join(RESULTS_DIR, f"anchor_sweep_{tag}.pth")
     if args.skip_if_exists and os.path.exists(sweep_pth):
@@ -150,7 +173,10 @@ if __name__ == '__main__':
     all_results = run_alpha_sweep(
         alphas, args.n_steps, args.rank, args.n_per_class, args.seed,
         args.finetune_activation, args.extraction_epochs, device,
-        verify_weight=args.verify_weight, dataset=args.dataset, lr=args.lr)
+        verify_weight=args.verify_weight, dataset=args.dataset, lr=args.lr,
+        free_coefficients=args.free_coefficients, optimizer_type=args.optimizer,
+        relu_alpha=args.relu_alpha, consistency_weight=args.consistency_weight,
+        n_restarts=args.n_restarts, extract_activation=args.extract_activation)
 
     curves = collect_curves(all_results, alphas)
     print("\n=== Anchor sweep curves (α: SSIM / lin-error function-space) ===")
