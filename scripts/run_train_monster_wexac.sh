@@ -13,5 +13,5 @@ export PYTHONPATH="/home/projects/galvardi/yoado/dataset_reconstruction:$PYTHONP
 echo "=== START $(date) on $(hostname) ==="
 python -c "import torch; print(f'CUDA={torch.cuda.is_available()}')"
 python -u -m experiments.train_monster_base --hidden 2048 2048 2048 2048 --dpc 250 \
-    --epochs 60000 --lr 0.05 --init_scale 1e-4 --device cuda
+    --epochs 40000 --lr 1e-3 --init_scale 0.5 --device cuda
 echo "=== DONE $(date) ==="

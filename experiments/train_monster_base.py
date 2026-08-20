@@ -60,17 +60,19 @@ def main():
     print(f"monster arch: 3072 -> {args.hidden} -> 1  "
           f"({sum(w.numel() for w in model.parameters())/1e6:.1f}M params)")
 
-    # small init (max-margin implicit-bias regime)
-    with torch.no_grad():
-        for m in model.modules():
-            if isinstance(m, torch.nn.Linear):
-                s = m.weight.std()
-                if s > 0:
-                    m.weight.mul_(args.init_scale / s)
-                if m.bias is not None:
-                    m.bias.zero_()
+    # Depth note: a global 1e-4 rescale collapses the forward pass through a 5-layer net (signal
+    # vanishes -> logits~0 -> no gradient). Keep the variance-preserving default init and OPTIONALLY
+    # shrink modestly; Adam trains the deep net to interpolation robustly. Max-margin purity is not
+    # needed for the T=1 bridge (a trained theta_0 at near-zero loss suffices).
+    if args.init_scale < 1.0:
+        with torch.no_grad():
+            for m in model.modules():
+                if isinstance(m, torch.nn.Linear):
+                    m.weight.mul_(args.init_scale)
+                    if m.bias is not None:
+                        m.bias.zero_()
 
-    opt = torch.optim.SGD(model.parameters(), lr=args.lr)
+    opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     sgn = 2 * y - 1
     for ep in range(args.epochs):
         opt.zero_grad()
