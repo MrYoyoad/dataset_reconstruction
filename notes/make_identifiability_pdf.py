@@ -214,7 +214,7 @@ for s,d in [
     ("⟨w_k, x_i⟩","the pre-activation of neuron k on sample i (a scalar)."),
     ("M_{ki}","the GATE MATRIX entry: M_{ki} = σ'(⟨w_k, x_i⟩)."),
     ("c_i ∈ ℝ","a per-sample scalar coefficient coming from the loss (defined in §1)."),
-    ("Ω","the observed first-layer signal — an m×d matrix (a gradient or a weight change)."),
+    ("Ω","the observed first-layer weight signal — an m×d matrix (the trained weights, or a fine-tuning weight change)."),
 ]:
     notation_row(s,d)
 pdf.ln(1)
@@ -251,23 +251,21 @@ para("The attacker sees a weight change ΔW = −η ∇L from one fine-tuning st
 para("Both scenarios give Ω = Σ_i c_i · (first-layer gradient of f at x_i), with c_i a nonzero "
      "per-sample scalar. The proof below uses ONLY that c_i is a nonzero scalar per sample, so it "
      "covers both attacks at once. We now derive that per-sample gradient.")
-para("Differentiate L with respect to a single neuron's weights w_k. Writing "
-     "c_i := ℓ'(f(x_i), y_i) for the loss slope at sample i, the chain rule gives (only the "
-     "k-th term of the sum defining f depends on w_k, and ∂⟨w_k, x_i⟩/∂w_k = x_i)")
-eqn(r"\frac{\partial L}{\partial w_k}=\sum_{i=1}^{N} c_i\,"
-    r"\frac{\partial f(x_i)}{\partial w_k},\qquad "
-    r"\frac{\partial f(x_i)}{\partial w_k}=v_k\,\sigma'(\langle w_k,x_i\rangle)\,x_i.",
+para("The ingredient both scenarios share is the per-sample gradient of the network OUTPUT, "
+     "∂f(x_i)/∂w_k (NOT the loss gradient — in Scenario A the loss gradient is ≈ 0 at "
+     "convergence; the signal is the weights themselves). By the chain rule — only the k-th term "
+     "of f depends on w_k, and ∂⟨w_k, x_i⟩/∂w_k = x_i:")
+eqn(r"\frac{\partial f(x_i)}{\partial w_k}=v_k\,\sigma'(\langle w_k,x_i\rangle)\,x_i.",
     fontsize=15)
-para("Substituting, the (k, l) entry of the observed matrix Ω := ∂L/∂W — row k (neuron), "
-     "column l (input coordinate) — is")
-eqn(r"\Omega_{k,l}=\sum_{i=1}^{N} c_i\,v_k\,\sigma'(\langle w_k,\,x_i\rangle)\,x_{i,l},"
-    r"\quad\text{equivalently}\quad "
-    r"\Omega_{k,:}=\sum_{i=1}^{N} c_i\,v_k\,\sigma'(\langle w_k,\,x_i\rangle)\,x_i^{\top}"
-    r"\ \ (\text{row } k).", fontsize=13.5)
-para("Two facts about c_i that matter: it is a single scalar per sample, and it is the SAME for "
-     "every neuron k (it does not carry a k index). For the max-margin / KKT form of the attack "
-     "the identical structure appears with c_i = λ_i y_i (a Lagrange multiplier times the label). "
-     "Everything below only uses that c_i is a nonzero scalar shared across neurons.")
+para("So in EITHER scenario, row k of the observed signal Ω is a c_i-weighted sum of these "
+     "per-sample gradients, Ω_{k,:} = Σ_i c_i ∂f(x_i)/∂w_k, with (k, l) entry (row k = neuron, "
+     "column l = input coordinate)")
+eqn(r"\Omega_{k,l}=\sum_{i=1}^{N} c_i\,v_k\,\sigma'(\langle w_k,\,x_i\rangle)\,x_{i,l}.",
+    fontsize=14.5)
+para("(Note Ω is the WEIGHT SIGNAL — the trained weights in Scenario A, the weight change in "
+     "Scenario B — not the loss gradient ∂L/∂W, which is only Scenario B's special case, "
+     "c_i = −η ℓ'.) The one fact used below: c_i is a single scalar per sample, the SAME for "
+     "every neuron k (it carries no k index).")
 intuition([
     "Each neuron reports a weighted sum of the training images. The weight it puts on image "
     "x_i is its gate σ'(⟨w_k, x_i⟩) — how sensitive that neuron is to that image. The image "
@@ -308,7 +306,7 @@ barbox("Dimension check.",
         "•  the gate σ'(⟨w_k, x_i⟩) is a scalar, so the gate matrix M is m×N.",
         "•  the two diagonal scalings are m×m and N×N, so G stays m×N.",
         "•  Ω = G Xᵀ multiplies an m×N by an N×d — the inner N's cancel — giving an m×d "
-        "matrix, the same shape as W (as it must be, since Ω is the gradient with respect to W)."],
+        "matrix, the same shape as the weight matrix W (as it must be — Ω lives in weight space)."],
        AMBBAR, AMB,
        eqs=[r"\Omega\ (m\times d)\ =\ G\ (m\times N)\ \cdot\ X^{\top}\ (N\times d)"])
 thm("Lemma 2  (rescaling does not change rank).",
@@ -488,8 +486,8 @@ para("(b)  Necessary vs. sufficient.  rank(M) ≥ N is necessary. In the fixed-g
      "full bilinear problem — exactly when ΔW determines {x_i} uniquely — is the open "
      "identifiability question the thesis targets.")
 para("(c)  One layer.  We used the first-layer factorization, where the data appears explicitly "
-     "(∂L/∂W₁ carries x_iᵀ). Deeper layers may add constraints; the bound is a lower bound on "
-     "difficulty, tight in the linearized regime.")
+     "(the per-sample gradient ∂f/∂w_k carries x_i). Deeper layers may add constraints; the bound "
+     "is a lower bound on difficulty, tight in the linearized regime.")
 
 # ===================== 9. CONSEQUENCE =====================
 h1("9.  Why this matters for the thesis")

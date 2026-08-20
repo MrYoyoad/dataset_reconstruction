@@ -81,18 +81,22 @@ The attacker has $\theta$, so it is a known sum over the data; here $c_i=\lambda
 \paragraph{Scenario B --- a fine-tuning update (gradient inversion / LoRA).} The attacker sees
 $\Delta W=-\eta\,\nabla_W L$ (one step, or a LoRA adapter), directly proportional to the gradient;
 here $c_i=\ell'(f(x_i),y_i)$. Both give $\Om=\sum_i c_i\cdot(\text{first-layer gradient at }x_i)$
-with $c_i$ a nonzero scalar; the proof uses only that. Writing $c_i:=\ell'(f(x_i),y_i)$ and
-differentiating (only the $k$-th term of $f$ depends on $w_k$, and
+with $c_i$ a nonzero scalar; the proof uses only that. The shared ingredient is the per-sample
+gradient of the network \emph{output} $\partial f(x_i)/\partial w_k$ (\emph{not} the loss gradient
+--- in Scenario A that is $\approx0$ at convergence, the signal being the weights themselves). By
+the chain rule (only the $k$-th term of $f$ depends on $w_k$, and
 $\partial\ip{w_k}{x_i}/\partial w_k=x_i$),
 \[
-\frac{\partial L}{\partial w_k}=\sum_{i=1}^{N} c_i\,\frac{\partial f(x_i)}{\partial w_k},
-\qquad \frac{\partial f(x_i)}{\partial w_k}=v_k\,\sigma'(\ip{w_k}{x_i})\,x_i,
+\frac{\partial f(x_i)}{\partial w_k}=v_k\,\sigma'(\ip{w_k}{x_i})\,x_i .
 \]
-so the $(k,l)$ entry of the observation $\Om:=\partial L/\partial W$ (row $k$ = neuron, column
-$l$ = input coordinate) is
+So in either scenario, row $k$ of the observed signal is
+$\Om_{k,:}=\sum_i c_i\,\partial f(x_i)/\partial w_k$, with $(k,l)$ entry (row $k$ = neuron,
+column $l$ = input coordinate)
 \begin{equation}\label{eq:obs}
 \Om_{k,l}=\sum_{i=1}^{N} c_i\, v_k\,\sigma'(\ip{w_k}{x_i})\,x_{i,l}.
 \end{equation}
+Here $\Om$ is the weight signal (trained weights in A, weight change in B), \emph{not} the loss
+gradient $\partial L/\partial W$ --- that is only Scenario B's special case ($c_i=-\eta\ell'$).
 Crucially $c_i$ is a single scalar per sample, \emph{shared across neurons} (for the KKT form,
 $c_i=\lambda_i y_i$). Everything below only uses that $c_i$ is a nonzero shared scalar.
 
@@ -129,8 +133,8 @@ $N\times N$, so $G=D_v M D_c$ is $m\times N$. Hence
 \[
 \underbrace{\Om}_{m\times d}=\underbrace{G}_{m\times N}\underbrace{X^{\top}}_{N\times d}
 \]
---- the inner $N$'s cancel, giving an $m\times d$ matrix, the same shape as $W$ (as it must, since
-$\Om=\partial L/\partial W$).
+--- the inner $N$'s cancel, giving an $m\times d$ matrix, the same shape as the weight matrix $W$
+(as it must --- $\Om$ lives in weight space).
 
 \begin{lemma}[Rank]\label{lem:rank}
 Under \emph{(H3)} $v_k\neq0\ \forall k$, $c_i\neq0\ \forall i$, the diagonals $D_v,D_c$ are
