@@ -35,9 +35,15 @@ from experiments.run_experiment_b import create_model, load_pretrained
 from experiments.data_utils import _load_dataset, _get_binary_label
 
 def _layer_shapes(dataset):
-    """(out, in) per layer for the input_dim-h0-h1-1 MLP of `dataset` (from DATASET_SPECS)."""
+    """(out, in) per Linear layer for the input_dim -> hidden... -> 1 MLP of `dataset`.
+
+    Generalizes to any depth (2-hidden MNIST or the 4-hidden monster): hidden layer i has shape
+    (h[i], dims[i]) where dims = [input_dim, h0, h1, ...]; the output layer is (1, h[-1])."""
     spec = DATASET_SPECS[dataset]; h = spec['hidden']; d = spec['input_dim']
-    return {0: (h[0], d), 1: (h[1], h[0]), 2: (1, h[1])}
+    dims = [d] + list(h)
+    shapes = {i: (h[i], dims[i]) for i in range(len(h))}
+    shapes[len(h)] = (1, h[-1])
+    return shapes
 
 
 def _load_proxy(dataset, n, seed, device):

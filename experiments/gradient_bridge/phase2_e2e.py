@@ -190,7 +190,7 @@ def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank,
 
 
 def run(activation, device, dataset, npc_list, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale):
-    layers = [0, 1, 2]
+    layers = list(range(len(DATASET_SPECS[dataset]['hidden']) + 1))   # all Linear layers (depth-agnostic)
     decs, dcos = train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale, layers)
     for npc in npc_list:
         attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank, a_init_scale, layers)
