@@ -56,13 +56,28 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
 2/3 as inner axes; the **dimension ladder is the Q-A** (well-posedness) probe; **Phase D is Q-B**
 (pretrain/finetune overlap = "additional *similar* images").
 
-#### Clean Q-B re-run with a proper [0,1] pixel box (2026-08-20)
-The first Q-B seen>novel gap was partly a **clipping artifact** (novel clipped ~50% on display because
-only the centered `x` was boxed, not the image `x+ds_mean`; raw SSIM collapsed while `ssim_norm` barely
-moved: seen 0.580 vs novel 0.495). Added `--pixel_box` (`get_pixel_box_loss` boxes the *image* to
-`[0,1]`; `build_base_name` tags it `pbox` so it never overwrites the old clipped runs; default off →
-MNIST byte-identical). Re-running Q-B seen/novel in free-c *with* `--pixel_box` and re-scoring on
-`ssim_norm`/NCC to get an honest, clip-free seen-vs-novel contrast. Job: `run_flowers_qb_free_wexac.sh`.
+#### Clean Q-B re-run with a proper [0,1] pixel box — RESULT: novel leaks MORE, not less (2026-08-20, job 952081)
+The first Q-B "seen>novel" gap was a **clipping artifact**. Added `--pixel_box` (`get_pixel_box_loss`
+boxes the *image* `x+ds_mean` to `[0,1]`, not just centered `x in [-1,1]`; `build_base_name` tags it
+`pbox`; default off -> MNIST byte-identical) and re-ran Q-B seen/novel in the validated free-c recipe
+(sgd + relu_alpha 10000 + consistency 1.0 + n_restarts 5), 3 seeds each. The box killed the clip
+(overflow `pre_clamp_max`->1.00006, ~1e-4 vs the old ~50%), and **the conclusion reversed**:
+
+| arm | ssim_norm | ctrl margin | NCC dist (lower=better) | weight_change | feat_stab |
+|-----|-----------|-------------|-----------|---------------|-----------|
+| seen (overlap) | 0.477 | +0.265 | 5044 | 0.035 | 0.75 |
+| **novel** (held-out) | **0.531** | **+0.421** | **1032** | **0.160** | 0.47 |
+
+Chain: overlap -> theta_0 already fits the species -> tiny residual -> `weight_change` ~4-5x smaller
+(~30x dropping the noisy seen-43 config) -> *less* instance-specific leakage (control margin +0.26 vs
++0.42, NCC 5044 vs 1032). Novel species force a large, instance-bearing dW that reconstructs the
+specific image better. Raw SSIM still marginally favors seen (0.47 vs 0.42) only because novel touches
+the pixel boundary (28% of pixels at the edge, overflow ~1e-4) -- every scale-robust metric favors
+novel. **Takeaway for Gal**: overlap does NOT protect the instance; it weakens leakage of the specific
+image (theta_0 absorbs the class-generic content). Feature-map-injectivity story, sign made explicit.
+Tensors: `results/exp_b_T1_flowers32_r8_free_s4{2,3,4}_a10000_vw5_{seen,novel}_pbox.pth`.
+**Next:** regenerate seen-vs-novel example grids from these tensors (the old `figures/pdf_examples/FREEC_QB_*`
+show the stale clipped run).
 
 - **Dimension ladder:** two base models — `flowers32` (RGB 32×32, **D=3072**, exact Haim CIFAR recipe)
   and `flowers64` (RGB 64×64, **D=12288**, rich target). Task = species-index **parity** over 102

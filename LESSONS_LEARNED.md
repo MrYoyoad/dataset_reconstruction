@@ -80,6 +80,14 @@ scratch + `__file__`-relative output). Same pattern for any math-heavy PDF here.
 ### Apply
 - **Never trust raw SSIM when `clipped_fraction` is non-trivial.** Pair it with `ssim_norm`/NCC, and if
   a natural-image reconstruction clips, constrain the *image* `[0,1]`, not the centered variable.
+### Result: fixing the clip REVERSED the Q-B conclusion (job 952081)
+- The old clipped run said "seen (overlap) leaks more than novel." With the proper `[0,1]` box the
+  novel arm stopped clipping and the direction flipped: **novel leaks MORE** (ctrl margin +0.42 vs
+  +0.26; NCC-dist 1032 vs 5044; ssim_norm 0.53 vs 0.48), because novel species produce a ~4-5x larger
+  `weight_change` (0.160 vs 0.035) that carries the specific instance, while overlap leaves only a tiny
+  class-generic residual. A metric artifact didn't just add noise -- it inverted the headline. Lesson:
+  a clipping artifact can flip the SIGN of a comparison, not merely its magnitude; fix the box before
+  drawing any seen-vs-novel / overlap conclusion.
 
 ## GB-Phase 2 end-to-end: the inverter matters more than the decoder (2026-08-19)
 
