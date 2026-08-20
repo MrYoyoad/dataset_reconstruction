@@ -317,6 +317,17 @@ MNIST 0.62/0.75 ✓ · Fashion 0.62/0.58 ✓ · Flowers 0.57/0.26 ✗(starved) �
 The bridge leaks when it has abundant proxy AND a shallow net; it fails on scarce/high-dim data (flowers)
 and on deep nets (monster). Direct inversion leaks in ALL four. N>2 collapses both (superposition wall).
 
+**⚠ METRIC-HYGIENE CAVEAT (folded in from sibling session, 2026-08-21).** Raw SSIM on a CLIPPED recon is
+an artifact: extraction only softly boxes the CENTERED x∈[-1,1], so hard recons let x+ds_mean leave [0,1]
+and clip. Measured clipped_fraction on the bridge recons: **MNIST 32-47%, Fashion 22-30%, monster
+all-layers 17-20%, flowers 0-7%, monster input-only/TRUE 0-5%.** So the RAW ssim columns above are
+inflated for MNIST/Fashion/monster-all-layers. **The conclusions are stated on `ssim_norm`, which matches
+mean/std to target before scoring and REMOVES the clip artifact (per metrics.py) — so the 4-axis story,
+the ordering, and the depth/starvation findings all HOLD.** Re-running the headline + generalization set
+with the new `--pixel_box` flag (boxes x+ds_mean to [0,1]) for clean raw SSIM + grids; ssim_norm should
+be unchanged. Rule going forward: print clipped_fraction before trusting any raw-SSIM number; if >~0.05,
+read ssim_norm/NCC/margin or re-run with --pixel_box.
+
 ### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)
 
 ### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)

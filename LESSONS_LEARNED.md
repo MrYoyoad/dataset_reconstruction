@@ -4,6 +4,21 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Raw SSIM on a clipped reconstruction is a metric artifact (2026-08-21, from sibling session)
+
+- **What:** the extraction softly boxes only the CENTERED x∈[-1,1]; the DISPLAYED image x+ds_mean can
+  leave [0,1] and get silently clamped before SSIM. On hard reconstructions this clips a LOT — measured
+  on the bridge recons: MNIST 32-47%, Fashion 22-30%, monster all-layers 17-20% (flowers/easy cases <7%).
+  Raw SSIM on such a clamped image is inflated/distorted; the sibling found it FLIPPED the sign of the
+  Q-B seen-vs-novel result (not just the magnitude).
+- **Robust metrics (unaffected):** `ssim_norm` (matches recon mean/std to the target before scoring),
+  NCC, control margin, retrieval. Our bridge conclusions were on ssim_norm, so they held; but any raw-SSIM
+  number was suspect.
+- **Fix:** `--pixel_box` (run_ntk_extraction pixel_box=True + ds_mean) boxes x+ds_mean to [0,1] during
+  extraction -> clipped_fraction ~0 -> raw SSIM trustworthy again. Default off (MNIST byte-identical).
+- **Rule:** print/check `clipped_fraction` before trusting ANY free-c/raw-SSIM number; if >~0.05, use
+  ssim_norm/NCC/margin or re-run with --pixel_box. Never rank reconstructions on raw SSIM alone.
+
 ## Scaling the reconstruction testbed to a deeper net: two lessons (2026-08-20)
 
 ### The tiny-init max-margin recipe does NOT transfer to a deep net (forward collapse)
