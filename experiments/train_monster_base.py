@@ -60,17 +60,17 @@ def main():
     print(f"monster arch: 3072 -> {args.hidden} -> 1  "
           f"({sum(w.numel() for w in model.parameters())/1e6:.1f}M params)")
 
-    # Depth note: a global 1e-4 rescale collapses the forward pass through a 5-layer net (signal
-    # vanishes -> logits~0 -> no gradient). Keep the variance-preserving default init and OPTIONALLY
-    # shrink modestly; Adam trains the deep net to interpolation robustly. Max-margin purity is not
-    # needed for the T=1 bridge (a trained theta_0 at near-zero loss suffices).
-    if args.init_scale < 1.0:
-        with torch.no_grad():
-            for m in model.modules():
-                if isinstance(m, torch.nn.Linear):
+    # Variance-preserving Kaiming init. PyTorch's default Linear init undershoots the ReLU-preserving
+    # scale by ~2.4x/layer, so a 5-layer forward COLLAPSES (logit std 0.002 -> stuck at ln2). Kaiming
+    # (relu gain) restores O(1) logits (std ~0.26). Optional <1 multiplier for a small-init flavor.
+    with torch.no_grad():
+        for m in model.modules():
+            if isinstance(m, torch.nn.Linear):
+                torch.nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+                if args.init_scale != 1.0:
                     m.weight.mul_(args.init_scale)
-                    if m.bias is not None:
-                        m.bias.zero_()
+                if m.bias is not None:
+                    m.bias.zero_()
 
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
     sgn = 2 * y - 1
