@@ -275,9 +275,34 @@ bridge LEAKS:
   extraction still recovers 0.62 — the hidden/output layers 0.98/0.997 carry it.)
 - N=4/10 collapse toward baseline again — the superposition wall, shared with MNIST/flowers/direct.
 
-**Monster-network track (CIFAR-10, wide+deep 3072-2048x4-1, ~19M): base-model training bug fixed.** First
-attempt stuck (loss=ln2, acc 0.508) — a global 1e-4 init collapses the 5-layer forward pass; fixed with
-default init + Adam (job 956281). Bridge run on the trained θ₀ next.
+**Monster-network track (CIFAR-10, wide+deep 3072-2048x4-1, ~19M, 5 layers) — the BRIDGE DOES NOT SCALE
+TO DEPTH (job 997876).** θ₀ trained to max-margin (100% acc, margin +24.8, loss 5e-13) after the init fix
+(Kaiming — a global 1e-4/default init collapses the 5-layer forward pass: logit std 0.002, stuck at ln2
+with flowing grads; jobs 953913/956281/978619). Bridge N=2 (CIFAR 50k proxy = abundant, so NOT starved):
+
+| arm | softplus ssim/norm | gelu ssim/norm |
+|---|---|---|
+| TRUE ΔW (direct) | 0.774 / 0.776 | **1.000 / 1.000** |
+| **DECODED all-layers (bridge)** | **0.299 / 0.316** | **0.247 / 0.271** |
+| DECODED input-only | 0.562 / 0.558 | 0.533 / 0.544 |
+| per-layer decoders | 0.86 0.92 0.95 0.92 0.96 | 0.38 0.69 0.70 0.72 0.89 |
+
+Three things cleanly separated: (1) the **decoders scale** — all 5 hit 0.86-0.96 (softplus), not starved;
+(2) **direct inversion scales** — TRUE ΔW 0.77 / **1.000**, the extraction handles the deep net perfectly
+with the exact ΔW; (3) **but the end-to-end bridge FAILS** — DECODED all-layers 0.30-0.32, BELOW baseline
+(0.615). The depth-specific signature: on shallow nets all-layers≈input-only, but on the monster
+**all-layers (0.30) << input-only (0.56)** — the 4 decoded HIDDEN layers HURT. **Per-layer decode errors
+compound when assembling the full ΔW across depth**, so deeper = more noise not more signal. This is a
+BRIDGE-SPECIFIC depth limitation (direct inversion, using the exact ΔW, has no such problem). Code:
+`experiments/train_monster_base.py` + `phase2_e2e.py --dataset cifar10`. Grids:
+`figures/gradient_bridge/phase2_e2e_cifar10_N2_{softplus,gelu}.png`.
+
+**4-AXIS GENERALIZATION SUMMARY (bridge = DECODED all-layers, ssim_norm at N=2; 0.5 = leak line):**
+MNIST 0.62/0.75 ✓ · Fashion 0.62/0.58 ✓ · Flowers 0.57/0.26 ✗(starved) · Monster 0.32/0.27 ✗(depth).
+The bridge leaks when it has abundant proxy AND a shallow net; it fails on scarce/high-dim data (flowers)
+and on deep nets (monster). Direct inversion leaks in ALL four. N>2 collapses both (superposition wall).
+
+### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)
 
 ### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)
 

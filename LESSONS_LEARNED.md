@@ -4,6 +4,27 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Scaling the reconstruction testbed to a deeper net: two lessons (2026-08-20)
+
+### The tiny-init max-margin recipe does NOT transfer to a deep net (forward collapse)
+- **Presented as:** a wide+deep MLP (3072-2048x4-1) stuck at loss=ln2, train-acc 0.508, margin 0 for
+  40k epochs — with NONZERO gradients (so it looked like it was training but never moved). Root cause:
+  the MNIST 2-layer recipe uses a tiny init (1e-4), and even PyTorch's DEFAULT Linear init undershoots
+  the variance-preserving (Kaiming) scale by ~2.4x/layer; over 5 layers the forward signal COLLAPSES
+  (logit std 0.002 = input-independent), so BCE sits at ln2. Fix: `kaiming_normal_(nonlinearity='relu')`
+  restores logit std ~0.26 and the net trains to interpolation. **Apply:** when scaling a shallow-net
+  recipe to depth, always use variance-preserving init; diagnose "stuck at ln2 with flowing grads" by
+  checking the forward logit std, not the gradient norms.
+
+### The gradient-bridge attack does not scale to network DEPTH (per-layer errors compound)
+- **Finding:** on the 5-layer monster, every per-layer decoder trained well (0.86-0.96) AND direct
+  inversion from the exact ΔW was near-perfect (gelu 1.000), but the end-to-end bridge (assemble all 5
+  decoded layers -> extract) FELL BELOW baseline (0.30 vs 0.615). Signature: on shallow nets
+  all-layers≈input-only; on the deep net all-layers (0.30) << input-only (0.56) — the decoded HIDDEN
+  layers HURT. Assembling many imperfectly-decoded layers compounds error across depth. **Why it matters:**
+  a bridge-specific limitation (direct inversion, using the exact ΔW, is immune) — the adapter-only attack
+  weakens with depth even when each decoder is individually good.
+
 ## Math-quality PDFs on WEXAC: fpdf2 prose + matplotlib mathtext equations (2026-08-20)
 
 ### Context

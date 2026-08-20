@@ -168,8 +168,8 @@ def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank,
         'TRUE input-only':    {input_key: true_dw[input_key]},
     }
     N = 2 * npc
-    print(f"\n# {activation} {dataset} N={N}  aggregate decode cos: "
-          f"L0={agg_cos[0]:.3f} L1={agg_cos[1]:.3f} L2={agg_cos[2]:.3f}")
+    cos_str = " ".join(f"L{li}={agg_cos[li]:.3f}" for li in sorted(agg_cos))
+    print(f"\n# {activation} {dataset} N={N}  aggregate decode cos: {cos_str}")
     print(f"{'arm':22s} {'ssim':>7s} {'ssim_norm':>9s} {'baseline':>9s}")
     print('-' * 52)
     results, recons = {}, {}
