@@ -106,7 +106,7 @@ def extract(m0, dw, coeffs, npc, epochs, device, input_shape=(1, 28, 28)):
     return x_recon
 
 
-def train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale, layers):
+def train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale, layers, dec_batch=128):
     """Train one two-sided decoder per layer on the dataset's PUBLIC (train-set) proxy pairs."""
     torch.set_default_dtype(torch.float32)                    # decoder phase (model stays float64)
     decs, dcos = {}, {}
@@ -192,9 +192,10 @@ def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank,
     return results, agg_cos
 
 
-def run(activation, device, dataset, npc_list, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale):
+def run(activation, device, dataset, npc_list, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale, dec_batch=128):
     layers = list(range(len(DATASET_SPECS[dataset]['hidden']) + 1))   # all Linear layers (depth-agnostic)
-    decs, dcos = train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale, layers)
+    decs, dcos = train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale,
+                                layers, dec_batch=dec_batch)
     for npc in npc_list:
         attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank, a_init_scale, layers)
 
@@ -243,13 +244,14 @@ def main():
     p.add_argument('--ext_epochs', type=int, default=50000)
     p.add_argument('--rank', type=int, default=8)
     p.add_argument('--a_init_scale', type=float, default=0.1)
+    p.add_argument('--dec_batch', type=int, default=128)
     p.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     args = p.parse_args()
     for act in args.activations:
         print(f"\n########## {act} ({args.dataset}) ##########")
         try:
             run(act, args.device, args.dataset, args.npc_list, args.seed, args.n_train,
-                args.dec_epochs, args.ext_epochs, args.rank, args.a_init_scale)
+                args.dec_epochs, args.ext_epochs, args.rank, args.a_init_scale, dec_batch=args.dec_batch)
         except Exception as e:
             import traceback; traceback.print_exc()
             print(f"  SKIP {act}: {type(e).__name__}: {e}")
