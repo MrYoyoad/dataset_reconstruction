@@ -99,10 +99,10 @@ def decode_aggregate(dec, m, true_dw_L, device):
     return dw, abs(cos.item())
 
 
-def extract(m0, dw, coeffs, npc, epochs, device):
+def extract(m0, dw, coeffs, npc, epochs, device, input_shape=(1, 28, 28)):
     x_recon, _ = run_ntk_extraction(m0, dw, coeffs, TRAIN_LR, 1, npc,
                                     extraction_epochs=epochs, optimizer_type='lbfgs',
-                                    device=device, verbose=False)
+                                    device=device, input_shape=input_shape, verbose=False)
     return x_recon
 
 
@@ -153,7 +153,7 @@ def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank,
     coeffs = compute_known_coefficients(m0, x_cen, y_ft)
 
     def run_arm(dw):
-        xr = extract(m0, dw, coeffs, npc, ext_epochs, device)
+        xr = extract(m0, dw, coeffs, npc, ext_epochs, device, input_shape=spec['shape'])
         met = compute_all_metrics(xr, x_cen, ds_mean)
         return xr, (met['ssim']['mean'], met['ssim_norm']['mean'], met['ssim_mean_baseline']['mean'])
 
