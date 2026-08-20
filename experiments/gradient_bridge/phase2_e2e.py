@@ -113,9 +113,12 @@ def train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_ini
     for li in layers:
         tb = generate_pair_bank(n_train, li, rank, activation=activation, seed=0, device=device,
                                 verbose=False, two_sided=True, a_init_scale=a_init_scale, dataset=dataset)
-        dec, _, summ = train(tb, epochs=dec_epochs, out_mode='auto', out_rank=16, batch=128,
+        dec, _, summ = train(tb, epochs=dec_epochs, out_mode='auto', out_rank=16, batch=64,
                              device=device, verbose=False)
         dec.eval(); decs[li] = dec; dcos[li] = summ['best_full_cos']
+        del tb
+        if str(device).startswith('cuda'):
+            torch.cuda.empty_cache()
         print(f"  layer {li}: decoder proxy full-cos = {summ['best_full_cos']:.4f}")
     return decs, dcos
 
