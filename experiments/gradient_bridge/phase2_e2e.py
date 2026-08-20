@@ -99,10 +99,12 @@ def decode_aggregate(dec, m, true_dw_L, device):
     return dw, abs(cos.item())
 
 
-def extract(m0, dw, coeffs, npc, epochs, device, input_shape=(1, 28, 28)):
+def extract(m0, dw, coeffs, npc, epochs, device, input_shape=(1, 28, 28),
+            pixel_box=False, ds_mean=None):
     x_recon, _ = run_ntk_extraction(m0, dw, coeffs, TRAIN_LR, 1, npc,
                                     extraction_epochs=epochs, optimizer_type='lbfgs',
-                                    device=device, input_shape=input_shape, verbose=False)
+                                    device=device, input_shape=input_shape,
+                                    pixel_box=pixel_box, ds_mean=ds_mean, verbose=False)
     return x_recon
 
 
@@ -123,7 +125,7 @@ def train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_ini
     return decs, dcos
 
 
-def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank, a_init_scale, layers):
+def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank, a_init_scale, layers, pixel_box=False):
     """Run the end-to-end bridge attack at one N (=2*npc): measure victim, decode, extract, grid."""
     torch.set_default_dtype(torch.float64)                    # measurement + extraction phase
     spec = DATASET_SPECS[dataset]
@@ -156,7 +158,8 @@ def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank,
     coeffs = compute_known_coefficients(m0, x_cen, y_ft)
 
     def run_arm(dw):
-        xr = extract(m0, dw, coeffs, npc, ext_epochs, device, input_shape=spec['shape'])
+        xr = extract(m0, dw, coeffs, npc, ext_epochs, device, input_shape=spec['shape'],
+                     pixel_box=pixel_box, ds_mean=ds_mean)
         met = compute_all_metrics(xr, x_cen, ds_mean)
         return xr, (met['ssim']['mean'], met['ssim_norm']['mean'], met['ssim_mean_baseline']['mean'])
 
@@ -192,12 +195,12 @@ def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank,
     return results, agg_cos
 
 
-def run(activation, device, dataset, npc_list, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale, dec_batch=128):
+def run(activation, device, dataset, npc_list, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale, dec_batch=128, pixel_box=False):
     layers = list(range(len(DATASET_SPECS[dataset]['hidden']) + 1))   # all Linear layers (depth-agnostic)
     decs, dcos = train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale,
                                 layers, dec_batch=dec_batch)
     for npc in npc_list:
-        attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank, a_init_scale, layers)
+        attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank, a_init_scale, layers, pixel_box=pixel_box)
 
 
 def _save_grid(tag, shape, x_cen, ds_mean, recons, results, N):
@@ -245,13 +248,17 @@ def main():
     p.add_argument('--rank', type=int, default=8)
     p.add_argument('--a_init_scale', type=float, default=0.1)
     p.add_argument('--dec_batch', type=int, default=128)
+    p.add_argument('--pixel_box', action='store_true',
+                   help='Box the DISPLAYED image x+ds_mean to [0,1] during extraction (removes the '
+                        'clipped-SSIM metric artifact; recommended when clipped_fraction>0.05).')
     p.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     args = p.parse_args()
     for act in args.activations:
         print(f"\n########## {act} ({args.dataset}) ##########")
         try:
             run(act, args.device, args.dataset, args.npc_list, args.seed, args.n_train,
-                args.dec_epochs, args.ext_epochs, args.rank, args.a_init_scale, dec_batch=args.dec_batch)
+                args.dec_epochs, args.ext_epochs, args.rank, args.a_init_scale, dec_batch=args.dec_batch,
+                pixel_box=args.pixel_box)
         except Exception as e:
             import traceback; traceback.print_exc()
             print(f"  SKIP {act}: {type(e).__name__}: {e}")
