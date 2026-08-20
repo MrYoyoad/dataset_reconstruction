@@ -50,8 +50,14 @@ def _load_dataset(name='mnist', train=True, root=None):
         ])
         return torchvision.datasets.Flowers102(
             root, split=('train' if train else 'test'), transform=flowers_tfm, download=True)
+    if name == 'cifar10':
+        # 'Monster network' track: CIFAR-10 at NATIVE 32x32 RGB (D=3072). Binary label = class parity
+        # (class%2), which matches LABELS_DICT so _get_binary_label needs no change. theta_0 is the
+        # wide+deep monster trained by experiments/train_monster_base.py on the TRAIN split; the victim
+        # fine-tune/control here loads the TEST split (disjoint from theta_0's training set).
+        return torchvision.datasets.CIFAR10(root, train=train, transform=transform, download=True)
     raise ValueError(
-        f"Unknown dataset: {name} (expected 'mnist', 'fashion', 'flowers', 'flowers32', or 'flowers64')")
+        f"Unknown dataset: {name} (expected 'mnist', 'fashion', 'flowers', 'flowers32', 'flowers64', or 'cifar10')")
 
 
 def _get_binary_label(digit_label):
