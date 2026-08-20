@@ -596,6 +596,7 @@ def get_diversity_penalty(x, min_dist=0.5):
 def run_sequential_peeling(model_at_theta0, delta_w, n, lr, n_steps, input_shape,
                            extraction_epochs=6000, lr_x=0.05, init_scale=0.03,
                            tv_weight=0.1, verify_weight=1.0, lora_B0=None,
+                           pixel_box=False, ds_mean=None,
                            seed=0, device='cpu', verbose=False):
     """Greedy source peeling for the N>1 superposition wall (LoRA-native — an x-space method).
 
@@ -606,6 +607,10 @@ def run_sequential_peeling(model_at_theta0, delta_w, n, lr, n_steps, input_shape
     """
     residual = {k: v.detach().clone() for k, v in delta_w.items()}
     params = list(model_at_theta0.parameters())
+    if pixel_box and ds_mean is not None:                 # box the IMAGE (x+ds_mean) to [0,1]
+        if not torch.is_tensor(ds_mean):
+            ds_mean = torch.as_tensor(ds_mean)
+        ds_mean = ds_mean.to(device=device, dtype=params[0].dtype).detach()
     names = [nm for nm, _ in model_at_theta0.named_parameters()]
     recons, coeffs = [], []
     for j in range(n):
@@ -617,6 +622,8 @@ def run_sequential_peeling(model_at_theta0, delta_w, n, lr, n_steps, input_shape
             opt.zero_grad()
             loss = get_ntk_loss(model_at_theta0, residual, x, c, lr, n_steps, lora_B0=lora_B0)
             loss = loss + verify_weight * get_ntk_verify_loss(x)
+            if pixel_box and ds_mean is not None:
+                loss = loss + verify_weight * get_pixel_box_loss(x, ds_mean)
             if tv_weight > 0:
                 loss = loss + tv_weight * get_tv_penalty(x)
             loss.backward()

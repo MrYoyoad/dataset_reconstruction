@@ -79,6 +79,18 @@ Tensors: `results/exp_b_T1_flowers32_r8_free_s4{2,3,4}_a10000_vw5_{seen,novel}_p
 **Next:** regenerate seen-vs-novel example grids from these tensors (the old `figures/pdf_examples/FREEC_QB_*`
 show the stale clipped run).
 
+#### Re-doing the two clip-contaminated experiments with --pixel_box (2026-08-21, jobs 38528/38529)
+Audit (LESSONS_LEARNED) found only two experiments we rely on are clip-contaminated; both are being
+re-run honestly. First threaded `--pixel_box` into `run_sequential_peeling` too (the N>=4 canonical
+path used `--sequential_peel`, which had bypassed the box).
+- **38528 N-sweep** (npc 1/2/4/8, 3 seeds): canonical recipe + `--pixel_box --verify_weight 5.0`.
+  Expect the collapse to hold (it shows on ssim_norm+margin) but N>=4 absolute numbers to rise off the
+  clip floor (npc=4 had 47% clip).
+- **38529 optimizer** (matched-wc): removes all three old confounds (lbfgs extraction, wc=0.60
+  out-of-band, clip) via validated sgd extraction + `--pixel_box` + an adamw fine-tune-lr ladder
+  {0.002,0.005} bracketing sgd@0.01's wc~0.11; loss l2 vs cosine.
+The activation / rank / Q-A axes were clip-free (<0.05) and are NOT re-run.
+
 - **Dimension ladder:** two base models — `flowers32` (RGB 32×32, **D=3072**, exact Haim CIFAR recipe)
   and `flowers64` (RGB 64×64, **D=12288**, rich target). Task = species-index **parity** over 102
   species; base trained on **train+val pooled** (~2040 imgs, 500/class); fine-tune/reconstruct from the

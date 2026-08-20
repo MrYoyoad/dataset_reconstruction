@@ -240,6 +240,7 @@ def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,
         x_peeled, peel_res = run_sequential_peeling(
             model_theta0, delta_w, n_per_class * 2, lr, n_steps, input_shape,
             tv_weight=tv_weight, verify_weight=verify_weight, lora_B0=lora_B0,
+            pixel_box=pixel_box, ds_mean=ds_mean,
             device=device, verbose=verbose)
         if not peel_refine:
             return x_peeled, peel_res
