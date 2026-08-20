@@ -272,6 +272,8 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
                        coeff_refresh_every=500,
                        diversity_weight=0.0,
                        tv_weight=0.0,
+                       pixel_box=False,
+                       ds_mean=None,
                        device='cpu', verbose=True):
     """Run NTK-based reconstruction.
 
@@ -326,6 +328,13 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
         # input_shape defaults to MNIST (1,28,28); flowers32=(3,32,32), flowers64=(3,64,64).
         x = torch.randn(extraction_amount, *input_shape, device=device) * init_scale
     x.requires_grad_(True)
+
+    # Proper [0,1] pixel box operates on the DISPLAYED image (x + ds_mean); coerce ds_mean to a
+    # broadcastable device tensor once (shape (1,C,H,W) or (C,H,W)).
+    if pixel_box and ds_mean is not None:
+        if not torch.is_tensor(ds_mean):
+            ds_mean = torch.as_tensor(ds_mean)
+        ds_mean = ds_mean.to(device=device, dtype=x.dtype).detach()
 
     # Initialize coefficients
     if free_coefficients:
@@ -405,6 +414,8 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
                     loss = loss + diversity_weight * get_diversity_penalty(x)
                 if tv_weight > 0:         # natural-image TV prior ("the lever is the prior")
                     loss = loss + tv_weight * get_tv_penalty(x)
+                if pixel_box and ds_mean is not None:  # proper [0,1] box on the IMAGE (x+ds_mean)
+                    loss = loss + verify_weight * get_pixel_box_loss(x, ds_mean)
 
                 if free_coefficients:
                     coeff_loss = get_coeff_penalty(
@@ -466,6 +477,8 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
                 loss = loss + diversity_weight * get_diversity_penalty(x)
             if tv_weight > 0:         # natural-image TV prior ("the lever is the prior")
                 loss = loss + tv_weight * get_tv_penalty(x)
+            if pixel_box and ds_mean is not None:  # proper [0,1] box on the IMAGE (x+ds_mean)
+                loss = loss + verify_weight * get_pixel_box_loss(x, ds_mean)
 
             if free_coefficients:
                 coeff_loss = get_coeff_penalty(
@@ -535,6 +548,14 @@ def run_ntk_extraction(model_at_theta0, delta_w, coefficients,
             result_dict['coeff_error'] = (c.detach().cpu() - oracle_c.cpu()).abs().mean().item()
 
     return x_recon, result_dict
+
+
+def get_pixel_box_loss(x, ds_mean):
+    """Proper [0,1] pixel box: the reconstruction lives in centered space, so the DISPLAYED image is
+    x + ds_mean. The default box only bounds x to [-1,1]; it lets x + ds_mean escape [0,1] and clip
+    (novel Q-B clipped 50%, tanking its raw SSIM). This penalizes the *image* leaving [0,1] directly."""
+    img = x + ds_mean
+    return (img - 1.0).relu().pow(2).sum() + (-img).relu().pow(2).sum()
 
 
 def get_tv_penalty(x):

@@ -113,6 +113,8 @@ def build_base_name(args):
         parts.append(f"vw{args.verify_weight:g}")
     if getattr(args, 'source', 'all') != 'all':
         parts.append(str(args.source))   # Phase-D Q-B: 'seen' / 'novel'
+    if getattr(args, 'pixel_box', False):
+        parts.append("pbox")             # proper [0,1] image box — distinct from the old clipped Q-B runs
     return "_".join(parts)
 
 
@@ -225,6 +227,8 @@ def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,
                     closed_form_coeff=False,
                     diversity_weight=0.0,
                     tv_weight=0.0,
+                    pixel_box=False,
+                    ds_mean=None,
                     sequential_peel=False,
                     peel_refine=False,
                     input_shape=(1, 28, 28),
@@ -252,6 +256,8 @@ def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,
         closed_form_coeff=closed_form_coeff,   # analytic least-squares coefficient recovery
         diversity_weight=diversity_weight,     # SPEAR-spirit repulsion (source separation for N>1)
         tv_weight=tv_weight,                   # natural-image total-variation prior
+        pixel_box=pixel_box,                   # proper [0,1] box on the image (x+ds_mean), kills clip artifact
+        ds_mean=ds_mean,
         input_shape=input_shape,   # x̂-init shape; forwarded to run_ntk_extraction (both paths)
     )
     if n_sweep and free_coefficients:
@@ -341,6 +347,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
                       svd_init=False,
                       diversity_weight=0.0,
                       tv_weight=0.0,
+                      pixel_box=False,
                       sequential_peel=False,
                       peel_refine=False,
                       device='cpu', verbose=True):
@@ -555,6 +562,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
             closed_form_coeff=closed_form_coeff,
             diversity_weight=diversity_weight,
             tv_weight=tv_weight,
+            pixel_box=pixel_box, ds_mean=update_result['ds_mean'],
             sequential_peel=sequential_peel,
             peel_refine=peel_refine,
             input_shape=input_shape,
@@ -682,6 +690,7 @@ def run_single_config(n_steps, rank=None, n_per_class=1, seed=42,
             closed_form_coeff=closed_form_coeff,
             diversity_weight=diversity_weight,
             tv_weight=tv_weight,
+            pixel_box=pixel_box, ds_mean=update_result_lora['ds_mean'],
             sequential_peel=sequential_peel,
             peel_refine=peel_refine,
             input_shape=input_shape,
@@ -789,6 +798,10 @@ if __name__ == '__main__':
     parser.add_argument('--tv_weight', type=float, default=0.0,
                         help='Total-variation natural-image prior weight ("the lever is the prior"). '
                              'Applies to LoRA and natural images (flowers). 0 = off.')
+    parser.add_argument('--pixel_box', action='store_true',
+                        help='Proper [0,1] box on the DISPLAYED image (x+ds_mean), not just x∈[-1,1]. '
+                             'Kills the clipping artifact that tanked raw SSIM in high-clip cases (Q-B novel '
+                             'clipped 50%). Weighted by --verify_weight. Rescore on ssim_norm/NCC too.')
     parser.add_argument('--sequential_peel', action='store_true',
                         help='Greedy source peeling for N>1: reconstruct one image at a time from the '
                              'residual ΔW, subtract, repeat. LoRA-native attack on the superposition wall.')
@@ -901,6 +914,7 @@ if __name__ == '__main__':
         svd_init=args.svd_init,
         diversity_weight=args.diversity_weight,
         tv_weight=args.tv_weight,
+        pixel_box=args.pixel_box,
         sequential_peel=args.sequential_peel,
         peel_refine=args.peel_refine,
         save_results=args.save_results,

@@ -4,6 +4,23 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Raw-SSIM on a clipped reconstruction is a metric artifact, not a leakage result (2026-08-20)
+
+### The bug
+- The Q-B seen-vs-novel gap (seen SSIM > novel) was partly a **clipping artifact**: the extraction
+  only bounds the *centered* variable `x∈[-1,1]` via `get_ntk_verify_loss`, but the DISPLAYED image is
+  `x+ds_mean`. Nothing stopped `x+ds_mean` from leaving `[0,1]`, so the novel arm clipped ~50% of its
+  pixels on display → raw SSIM collapsed while `ssim_norm` (scale-invariant) barely moved (seen 0.580
+  vs novel 0.495, a much smaller gap). Reporting raw SSIM alone made the gap look bigger than it is.
+### The fix
+- Added `get_pixel_box_loss(x, ds_mean)` + a `--pixel_box` flag (`ntk_extraction.py` /
+  `run_experiment_b.py`): penalize the **image** `x+ds_mean` leaving `[0,1]` directly (weighted by
+  `--verify_weight`), not just the centered `x`. `build_base_name` appends `pbox` so the clean run
+  never collides with the old clipped Q-B `.pth`. Default off → all existing paths byte-identical.
+### Apply
+- **Never trust raw SSIM when `clipped_fraction` is non-trivial.** Pair it with `ssim_norm`/NCC, and if
+  a natural-image reconstruction clips, constrain the *image* `[0,1]`, not the centered variable.
+
 ## GB-Phase 2 end-to-end: the inverter matters more than the decoder (2026-08-19)
 
 ### The gradient-bridge headline: SVD is the wrong inverter; the base model IS the prior

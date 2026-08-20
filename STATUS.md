@@ -43,6 +43,14 @@ study on it. Framed to Gal's meeting: **Addition 1** (harder data) at native dim
 2/3 as inner axes; the **dimension ladder is the Q-A** (well-posedness) probe; **Phase D is Q-B**
 (pretrain/finetune overlap = "additional *similar* images").
 
+#### Clean Q-B re-run with a proper [0,1] pixel box (2026-08-20)
+The first Q-B seen>novel gap was partly a **clipping artifact** (novel clipped ~50% on display because
+only the centered `x` was boxed, not the image `x+ds_mean`; raw SSIM collapsed while `ssim_norm` barely
+moved: seen 0.580 vs novel 0.495). Added `--pixel_box` (`get_pixel_box_loss` boxes the *image* to
+`[0,1]`; `build_base_name` tags it `pbox` so it never overwrites the old clipped runs; default off →
+MNIST byte-identical). Re-running Q-B seen/novel in free-c *with* `--pixel_box` and re-scoring on
+`ssim_norm`/NCC to get an honest, clip-free seen-vs-novel contrast. Job: `run_flowers_qb_free_wexac.sh`.
+
 - **Dimension ladder:** two base models — `flowers32` (RGB 32×32, **D=3072**, exact Haim CIFAR recipe)
   and `flowers64` (RGB 64×64, **D=12288**, rich target). Task = species-index **parity** over 102
   species; base trained on **train+val pooled** (~2040 imgs, 500/class); fine-tune/reconstruct from the
