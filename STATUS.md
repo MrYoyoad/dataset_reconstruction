@@ -245,6 +245,27 @@ Results (ssim_norm, DECODED all-layers / TRUE ΔW; baseline-adjusted, 0.5 = leak
   50k, same 32×32) as the flowers-geometry decoder's training set — R2F explicitly allows proxy≠private.
   Grids: `figures/gradient_bridge/phase2_e2e_flowers32_N{2,4}_{softplus,gelu}.png`.
 
+**Fashion-MNIST (job 953487) — DECISIVE: flowers failed from STARVATION, not hardness.** Fashion is
+harder than MNIST but reuses the 784-MLP (small decoder) with an abundant corresponding proxy (60k). The
+decoders trained MNIST-quality (softplus L0 **0.934**, L1 0.9997, L2 0.9999 — NOT starved), and the
+bridge LEAKS:
+
+| N | softplus DECODED / TRUE (ssim_norm) | gelu DECODED / TRUE |
+|---|---|---|
+| 2 | **0.619** / 0.798 | **0.584** / 0.597 |
+| 4 | 0.383 / 0.410 | 0.314 / 0.490 |
+| 10 | 0.205 / 0.212 | 0.268 / 0.278 |
+
+- softplus N=2 ssim_norm **0.619 ≈ MNIST's 0.623** — the bridge handles harder *content* fine when the
+  proxy is abundant. Confirms the differentiator is **proxy abundance vs input dimension**, NOT data
+  difficulty. (Aside: Fashion's input-layer AGGREGATE decode is low, L0 0.167, yet the model-based
+  extraction still recovers 0.62 — the hidden/output layers 0.98/0.997 carry it.)
+- N=4/10 collapse toward baseline again — the superposition wall, shared with MNIST/flowers/direct.
+
+**Monster-network track (CIFAR-10, wide+deep 3072-2048x4-1, ~19M): base-model training bug fixed.** First
+attempt stuck (loss=ln2, acc 0.508) — a global 1e-4 init collapses the 5-layer forward pass; fixed with
+default init + Adam (job 956281). Bridge run on the trained θ₀ next.
+
 ### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)
 
 Two follow-ups (jobs 366577 Exp 1, 367539 Exp 2) resolve the GB-Phase 2 negative into a nuanced positive
