@@ -193,6 +193,35 @@ A 5-experiment learning chain on turning the bridge's decoded input-layer gradie
   (30k/200ep, per-sample 0.945) to lift the aggregate cos toward the ceiling; N=1 to remove the
   opposite-label cancellation entirely.
 
+### GB-Phase 2 e2e — generalization: large N (MNIST) + flowers (2026-08-19)
+
+Extended `phase2_e2e.py` to be **dataset-aware** (threads DATASET_SPECS geometry/base-model/proxy;
+flowers32 D=3072 RGB) and **N-sweeping** (train decoders once, attack at each npc). Jobs 807059 (MNIST
+N-sweep) + 949874 (flowers32).
+
+**MNIST large-N (`ssim_norm`, DECODED all-layers / TRUE ΔW; baseline-adjusted, 0.5 = leak line):**
+
+| N | softplus DECODED / TRUE | gelu DECODED / TRUE |
+|---|---|---|
+| 2  | 0.623 / 0.825 | 0.745 / 0.997 |
+| 4  | 0.555 / 0.668 | 0.601 / 0.835 |
+| 10 | 0.479 / 0.559 | 0.540 / 0.648 |
+
+Findings:
+- **The bridge is NOT the extra bottleneck for softplus** — DECODED ≈ TRUE at every N; softplus's *direct*
+  attack also collapses toward baseline and the adapter tracks it down.
+- **For gelu the bridge IS the extra bottleneck at large N** — the *direct* attack (TRUE) stays strong
+  (0.997→0.835→0.648) but DECODED collapses faster because the input-layer AGGREGATE decode falls to ≈0
+  (L0: 0.39→0.07→**0.00** at N=10). The adapter loses information the full ΔW still has.
+- **"More than 2" verdict:** the bridge clearly leaks at N=2 (0.62–0.75), is marginal at N=4, and is
+  essentially gone by N=10 (softplus 0.48 < 0.5). The **superposition wall** — shared with direct
+  inversion (raw SSIM drops below the mean-baseline by N=4 for both). N, not the adapter, is the limit.
+
+**Flowers32:** decoders are WEAKER than MNIST (softplus L0 0.33 / gelu L0 0.66 vs MNIST 0.92) — only 7169
+public flowers images (vs 15k) and 4× the input dim (3072). Aggregate decode still decent at N=2 (softplus
+L0 0.40, L1 0.99, L2 0.99). Extraction numbers pending job 949874 (first two flowers runs hit fixed bugs:
+Flowers-train=1020 broke the proxy sampler; run_ntk_extraction input_shape defaulted to MNIST 784).
+
 ### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)
 
 Two follow-ups (jobs 366577 Exp 1, 367539 Exp 2) resolve the GB-Phase 2 negative into a nuanced positive
