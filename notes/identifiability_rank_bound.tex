@@ -61,10 +61,29 @@ Two-layer network with $m$ hidden units and activation $\sigma$,
 f(x;\theta)=\sum_{k=1}^{m} v_k\,\sigma(\ip{w_k}{x}),\qquad w_k\in\R^d,\ v_k\in\R .
 \]
 With training set $\{(x_i,y_i)\}$, loss $\ell$, and $L(\theta)=\sum_i \ell(f(x_i;\theta),y_i)$,
-the attacker observes the first-layer weight signal: the gradient of $L$ w.r.t.\ the first-layer
-weights (a known function of the final weights at a stationary/KKT point), or the first-layer part
-of a fine-tuning weight change $\Delta W$. Writing $c_i:=\ell'(f(x_i),y_i)$ and differentiating
-(only the $k$-th term of $f$ depends on $w_k$),
+the attacker observes the first-layer weight signal. Where does it come from, and why is it a sum
+over the data? Two scenarios give the same object.
+
+\paragraph{Scenario A --- the trained weights (implicit bias / KKT).} Train a homogeneous net to
+convergence on a classification loss. Gradient descent's velocity is a \emph{non-negative}
+combination of the per-sample gradients,
+\[
+-\nabla_\theta L=\sum_i \alpha_i\,y_i\,\nabla_\theta f(x_i),\qquad \alpha_i=e^{-y_i f(x_i)}>0,
+\]
+so $\theta$ never leaves the cone those $N$ gradients span; in the limit it is a KKT point of the
+max-margin problem, i.e.\ a weighted sum over the training points,
+\[
+\theta=\sum_i \lambda_i\,y_i\,\nabla_\theta f(x_i;\theta),\qquad \lambda_i\ge0\ \text{(support
+vectors only)}.
+\]
+The attacker has $\theta$, so it is a known sum over the data; here $c_i=\lambda_i y_i$.
+
+\paragraph{Scenario B --- a fine-tuning update (gradient inversion / LoRA).} The attacker sees
+$\Delta W=-\eta\,\nabla_W L$ (one step, or a LoRA adapter), directly proportional to the gradient;
+here $c_i=\ell'(f(x_i),y_i)$. Both give $\Om=\sum_i c_i\cdot(\text{first-layer gradient at }x_i)$
+with $c_i$ a nonzero scalar; the proof uses only that. Writing $c_i:=\ell'(f(x_i),y_i)$ and
+differentiating (only the $k$-th term of $f$ depends on $w_k$, and
+$\partial\ip{w_k}{x_i}/\partial w_k=x_i$),
 \[
 \frac{\partial L}{\partial w_k}=\sum_{i=1}^{N} c_i\,\frac{\partial f(x_i)}{\partial w_k},
 \qquad \frac{\partial f(x_i)}{\partial w_k}=v_k\,\sigma'(\ip{w_k}{x_i})\,x_i,
@@ -85,6 +104,15 @@ X=[x_1,\dots,x_N]\in\R^{d\times N},\quad M_{ki}=\sigma'(\ip{w_k}{x_i})\in\R^{m\t
 \[
 D_v=\diag(v_1,\dots,v_m),\quad D_c=\diag(c_1,\dots,c_N),\quad G:=D_v M D_c\in\R^{m\times N}.
 \]
+
+In each term $c_i v_k\sigma'(\ip{w_k}{x_i})x_i$ the factor $v_k$ is neuron-only, $c_i$ is
+sample-only, and the gate $\sigma'(\ip{w_k}{x_i})$ is the \emph{only} factor coupling $k$ and $i$;
+the separable factors become the diagonals ($v_k$ scales row $k$, $c_i$ scales column $i$), the
+gate is $M$. Equivalently $\Om$ is a sum of rank-one outer products,
+\[
+\Om=\sum_i g_i x_i^\top=G X^\top,\qquad (g_i)_k=v_k\,c_i\,\sigma'(\ip{w_k}{x_i}),
+\]
+$g_i$ being column $i$ of $G$ --- the outer-product form of the matrix product.
 
 \begin{lemma}[Factorization]\label{lem:fact}
 $\Om = G\,X^{\top}$.

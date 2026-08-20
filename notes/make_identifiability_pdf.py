@@ -226,14 +226,34 @@ para("We use the standard two-layer network of the reconstruction literature. Wi
 eqn(r"f(x;\theta)=\sum_{k=1}^{m} v_k\,\sigma(\langle w_k,\,x\rangle),\qquad "
     r"w_k\in\mathbb{R}^{d},\ v_k\in\mathbb{R}.")
 para("Given the training set {(x_i, y_i)} and a per-sample loss ℓ, the empirical loss is "
-     "L(θ) = Σ_i ℓ(f(x_i; θ), y_i). The attacker observes the FIRST-LAYER weight signal — "
-     "either the gradient of the loss with respect to the first-layer weights (which, at a "
-     "stationary or KKT point of training, equals a known function of the final weights), or the "
-     "first-layer part of a fine-tuning weight change ΔW (one gradient step on those weights). "
-     "Both have the same structure, which we now derive.")
+     "L(θ) = Σ_i ℓ(f(x_i; θ), y_i). The attacker observes the FIRST-LAYER weight signal. Where "
+     "does that signal come from, and why is it a sum over the training data at all? Two "
+     "scenarios produce the identical algebraic object, which is why one proof covers both.")
+para("Scenario A — the trained weights themselves (implicit bias / KKT).",
+     gap=0.5, font=("sans","B"))
+para("Train a homogeneous net to convergence on a classification loss. Gradient descent's "
+     "velocity is a NON-NEGATIVE combination of the per-sample gradients (each coefficient "
+     "α_i = e^{−y_i f(x_i)} > 0):")
+eqn(r"-\nabla_\theta L=\sum_i \alpha_i\, y_i\,\nabla_\theta f(x_i),\qquad "
+    r"\alpha_i=e^{-y_i f(x_i)}>0,", fontsize=15)
+para("so the weights can never leave the cone those N gradients span. In the limit they "
+     "converge to a KKT point of the max-margin problem — the final parameters are literally a "
+     "weighted sum over the training points:")
+eqn(r"\theta=\sum_i \lambda_i\, y_i\,\nabla_\theta f(x_i;\theta),\qquad "
+    r"\lambda_i\geq 0\ \ (\text{nonzero only on support vectors}).", fontsize=15)
+para("The attacker HAS θ (public model), so θ is a known sum over the data; here the per-sample "
+     "scalar is c_i = λ_i y_i.")
+para("Scenario B — a fine-tuning update (gradient inversion / LoRA).",
+     gap=0.5, font=("sans","B"))
+para("The attacker sees a weight change ΔW = −η ∇L from one fine-tuning step (or a LoRA adapter "
+     "encoding it), directly proportional to the gradient; here c_i = ℓ'(f(x_i), y_i), the loss "
+     "slope.")
+para("Both scenarios give Ω = Σ_i c_i · (first-layer gradient of f at x_i), with c_i a nonzero "
+     "per-sample scalar. The proof below uses ONLY that c_i is a nonzero scalar per sample, so it "
+     "covers both attacks at once. We now derive that per-sample gradient.")
 para("Differentiate L with respect to a single neuron's weights w_k. Writing "
      "c_i := ℓ'(f(x_i), y_i) for the loss slope at sample i, the chain rule gives (only the "
-     "k-th term of the sum defining f depends on w_k)")
+     "k-th term of the sum defining f depends on w_k, and ∂⟨w_k, x_i⟩/∂w_k = x_i)")
 eqn(r"\frac{\partial L}{\partial w_k}=\sum_{i=1}^{N} c_i\,"
     r"\frac{\partial f(x_i)}{\partial w_k},\qquad "
     r"\frac{\partial f(x_i)}{\partial w_k}=v_k\,\sigma'(\langle w_k,x_i\rangle)\,x_i.",
@@ -261,8 +281,16 @@ eqn(r"X=[x_1,\dots,x_N]\in\mathbb{R}^{d\times N}\ \ (\text{columns are the sampl
     r"M_{ki}=\sigma'(\langle w_k,x_i\rangle)\in\mathbb{R}^{m\times N},")
 eqn(r"D_v=\mathrm{diag}(v_1,\dots,v_m),\quad D_c=\mathrm{diag}(c_1,\dots,c_N),\quad "
     r"G:=D_v\,M\,D_c\in\mathbb{R}^{m\times N}.")
-para("The two diagonal matrices merely rescale the rows and columns by the (nonzero) output "
-     "weights and loss coefficients; the informative content is the gate matrix M inside G.")
+para("Why exactly these three pieces: in each term c_i · v_k · σ'(⟨w_k, x_i⟩) · x_i, the factor "
+     "v_k depends on the NEURON only, c_i on the SAMPLE only, and the gate σ'(⟨w_k, x_i⟩) is the "
+     "ONLY factor coupling a neuron k to a sample i. The two separable factors become the "
+     "diagonals — v_k scales row k (the left diagonal), c_i scales column i (the right diagonal) — "
+     "and the coupled gate is M. Equivalently, Ω is a sum of rank-1 outer products "
+     "(g_i = column i of G):")
+eqn(r"\Omega=\sum_{i=1}^{N} g_i\, x_i^{\top}=G\,X^{\top},\qquad "
+    r"(g_i)_k=v_k\,c_i\,\sigma'(\langle w_k,x_i\rangle),", fontsize=14.5)
+para("which is the outer-product form of the matrix product: stack the g_i as columns of G and "
+     "the x_i as columns of X. This is proved index-by-index next.")
 thm("Lemma 1  (the observation factorizes).",
     ["The whole observation is a single matrix product of the gates and the data:"],
     eqs=[r"\Omega \;=\; G\,X^{\top}."])
