@@ -225,10 +225,25 @@ Findings:
   essentially gone by N=10 (softplus 0.48 < 0.5). The **superposition wall** — shared with direct
   inversion (raw SSIM drops below the mean-baseline by N=4 for both). N, not the adapter, is the limit.
 
-**Flowers32:** decoders are WEAKER than MNIST (softplus L0 0.33 / gelu L0 0.66 vs MNIST 0.92) — only 7169
-public flowers images (vs 15k) and 4× the input dim (3072). Aggregate decode still decent at N=2 (softplus
-L0 0.40, L1 0.99, L2 0.99). Extraction numbers pending job 949874 (first two flowers runs hit fixed bugs:
-Flowers-train=1020 broke the proxy sampler; run_ntk_extraction input_shape defaulted to MNIST 784).
+**Flowers32 (job 949874) — the bridge is DATA-HUNGRY; it mostly fails on flowers while direct inversion
+succeeds.** Only ~7k public flowers images → 5,810 proxy pairs (vs MNIST 15k) for a 134M-param input
+decoder at 3072 dims → the input-layer decode is STARVED (softplus L0 0.33 / gelu L0 0.66 proxy cosine).
+Results (ssim_norm, DECODED all-layers / TRUE ΔW; baseline-adjusted, 0.5 = leak line):
+
+| N | softplus DECODED / TRUE | gelu DECODED / TRUE |
+|---|---|---|
+| 2 | **0.565** / 0.753 | **0.260** / 0.999 |
+| 4 | 0.322 / 0.458 | 0.295 / 0.925 |
+
+- **Direct inversion leaks flowers cleanly** (softplus 0.75, gelu near-perfect 0.999) — full ΔW skips the
+  decoder, so RGB/high-dim doesn't hurt it.
+- **The bridge mostly does NOT**: softplus MARGINAL (0.57, just over 0.5, vs direct 0.75); gelu FAILS (0.26
+  vs 0.999) — the largest direct-vs-bridge gap seen. gelu additionally hurt by its OUTPUT-layer decode
+  collapsing to 0.016 on flowers (drags all-layers below input-only 0.378).
+- **Honest headline:** the LoRA/bridge attack needs enough public proxy relative to input dimension.
+  Flowers starves it; direct inversion has no such weakness. **Fix to try:** a larger RGB proxy (CIFAR-100,
+  50k, same 32×32) as the flowers-geometry decoder's training set — R2F explicitly allows proxy≠private.
+  Grids: `figures/gradient_bridge/phase2_e2e_flowers32_N{2,4}_{softplus,gelu}.png`.
 
 ### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)
 
