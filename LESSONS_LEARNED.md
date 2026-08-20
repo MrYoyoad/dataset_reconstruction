@@ -4,6 +4,37 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Math-quality PDFs on WEXAC: fpdf2 prose + matplotlib mathtext equations (2026-08-20)
+
+### Context
+Wrote a rigorous proof note (`notes/identifiability_rank_bound.pdf`, generator
+`notes/make_identifiability_pdf.py`). LaTeX engines are all broken here (glibc), so the recipe is
+fpdf2 for prose + matplotlib **mathtext** (`usetex=False`) for typeset equations rendered to PNGs and
+embedded via `pdf.image()`.
+
+### Pitfalls (found the hard way)
+- **mathtext ≠ LaTeX.** It rejects `\big`, `\begin{pmatrix}`/`array`/`cases`, `\underbrace`, and
+  `\ge`/`\le` (use `\geq`/`\leq`, `\left`/`\right`). Matrices must be drawn by hand (bracket lines +
+  text) and h-composited with the text pieces via PIL.
+- **fpdf2 `multi_cell` leaves the x-cursor at the RIGHT edge.** Two consecutive `multi_cell`s with no
+  `ln()`/`set_x()` between them make the second start at the right margin and run off-page (this was the
+  title→subtitle overflow). Always `set_x(left_margin)` before each stacked `multi_cell`.
+- **Inline math in prose must be converted to Unicode**, else `w_k`/`c_i`/`∇_W L` render as literal
+  underscores next to the crisp equations. A `mathify()` regex maps `_x`/`_{..}`/`^T`/`^d` to Unicode
+  sub/superscripts. DejaVu covers subscript i,j,k,l,m,n,x + digits + superscript T,d,n,m — but **no
+  subscript 'c' or capital N/W**, so reword `D_c`, `x_N`, `∇_W L` rather than emit a missing-glyph box.
+  Verify coverage with fontTools `getBestCmap()` first, then re-scan the built PDF text for any raw
+  `_`/`^`.
+- **Verify layout blind-spots with pymupdf** (`pip install pymupdf`): render pages to PNG and flag any
+  text block whose right edge exceeds the margin (the Read tool can't rasterize PDFs; poppler absent).
+
+### Apply
+Reusable generator at `notes/make_identifiability_pdf.py` is portable (matplotlib font dir + `tempfile`
+scratch + `__file__`-relative output). Same pattern for any math-heavy PDF here. See also the
+`reference_pdf_generation_method` memory.
+
+---
+
 ## Raw-SSIM on a clipped reconstruction is a metric artifact, not a leakage result (2026-08-20)
 
 ### The bug

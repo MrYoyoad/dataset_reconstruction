@@ -1,0 +1,201 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,bm,enumitem}
+\usepackage{xcolor}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{definition}
+\newtheorem{example}{Example}
+\newtheorem*{remark}{Remark}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\ip}[2]{\langle #1, #2\rangle}
+\newcommand{\Om}{\Omega}
+
+\title{\textbf{When Can Training Data Be Recovered?}\\[2pt]
+\large A rank condition for non-identifiability from the first-layer weight signal}
+\author{Yoad Oxman \\ \small thesis note}
+\date{2026-08-20}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}\noindent
+A detailed, self-contained proof: if the gate matrix $M_{ki}=\sigma'(\ip{w_k}{x_i})$ has rank
+below the number of training samples $N$, the inputs cannot be recovered from the first-layer
+weight signal --- no matter the algorithm. We derive what the attacker observes, show it is a
+matrix product ``gates $\times$ data,'' prove the rank condition step by step, count exactly how
+many indistinguishable alternative datasets exist, and exhibit two completely different datasets
+that produce identical weights.
+\end{abstract}
+
+\section*{In plain terms}
+Every training sample leaves a fingerprint in the first layer's weights, but that fingerprint is
+filtered through how strongly each neuron reacts to the sample --- a number we call the
+\emph{gate}. Collect the gates into a matrix $M$ (one row per neuron, one column per sample). The
+samples can be separated only if $\rank(M)\ge N$. If $\rank(M)<N$, several samples share
+essentially the same gating pattern, their fingerprints add into a blend, and no algorithm can
+un-mix them.
+
+\paragraph{Notation.}
+$d$ = input dimension; $N$ = number of samples; $m$ = hidden width;
+$x_i\in\R^d$ the $i$-th input (columns of $X$); $w_k\in\R^d$ neuron $k$'s weights (rows of $W$);
+$v_k\in\R$ its output weight; $\sigma,\sigma'$ the activation and its derivative;
+$M_{ki}=\sigma'(\ip{w_k}{x_i})$ the gate matrix; $c_i\in\R$ a per-sample loss coefficient;
+$\Om\in\R^{m\times d}$ the observed first-layer signal.
+
+\section{What the attacker sees, derived from scratch}
+Two-layer network with $m$ hidden units and activation $\sigma$,
+\[
+f(x;\theta)=\sum_{k=1}^{m} v_k\,\sigma(\ip{w_k}{x}),\qquad w_k\in\R^d,\ v_k\in\R .
+\]
+With training set $\{(x_i,y_i)\}$, loss $\ell$, and $L(\theta)=\sum_i \ell(f(x_i;\theta),y_i)$,
+the attacker observes the first-layer weight signal: the gradient of $L$ w.r.t.\ the first-layer
+weights (a known function of the final weights at a stationary/KKT point), or the first-layer part
+of a fine-tuning weight change $\Delta W$. Writing $c_i:=\ell'(f(x_i),y_i)$ and differentiating
+(only the $k$-th term of $f$ depends on $w_k$),
+\[
+\frac{\partial L}{\partial w_k}=\sum_{i=1}^{N} c_i\,\frac{\partial f(x_i)}{\partial w_k},
+\qquad \frac{\partial f(x_i)}{\partial w_k}=v_k\,\sigma'(\ip{w_k}{x_i})\,x_i,
+\]
+so the $(k,l)$ entry of the observation $\Om:=\partial L/\partial W$ (row $k$ = neuron, column
+$l$ = input coordinate) is
+\begin{equation}\label{eq:obs}
+\Om_{k,l}=\sum_{i=1}^{N} c_i\, v_k\,\sigma'(\ip{w_k}{x_i})\,x_{i,l}.
+\end{equation}
+Crucially $c_i$ is a single scalar per sample, \emph{shared across neurons} (for the KKT form,
+$c_i=\lambda_i y_i$). Everything below only uses that $c_i$ is a nonzero shared scalar.
+
+\section{The observation is ``gates $\times$ data''}
+Define
+\[
+X=[x_1,\dots,x_N]\in\R^{d\times N},\quad M_{ki}=\sigma'(\ip{w_k}{x_i})\in\R^{m\times N},
+\]
+\[
+D_v=\diag(v_1,\dots,v_m),\quad D_c=\diag(c_1,\dots,c_N),\quad G:=D_v M D_c\in\R^{m\times N}.
+\]
+
+\begin{lemma}[Factorization]\label{lem:fact}
+$\Om = G\,X^{\top}$.
+\end{lemma}
+\begin{proof}
+$(GX^\top)_{k,l}=\sum_i v_k M_{ki} c_i x_{i,l}=v_k\sum_i c_i\sigma'(\ip{w_k}{x_i})x_{i,l}
+=\Om_{k,l}$ by \eqref{eq:obs}, for all $k,l$.
+\end{proof}
+
+\paragraph{Dimension check.}
+$x_i\in\R^d$; $X$ is $d\times N$, so $X^\top$ is $N\times d$. $W$ is $m\times d$. The gate
+$\sigma'(\ip{w_k}{x_i})$ is a scalar, so $M$ is $m\times N$. $D_v$ is $m\times m$, $D_c$ is
+$N\times N$, so $G=D_v M D_c$ is $m\times N$. Hence
+\[
+\underbrace{\Om}_{m\times d}=\underbrace{G}_{m\times N}\underbrace{X^{\top}}_{N\times d}
+\]
+--- the inner $N$'s cancel, giving an $m\times d$ matrix, the same shape as $W$ (as it must, since
+$\Om=\partial L/\partial W$).
+
+\begin{lemma}[Rank]\label{lem:rank}
+Under \emph{(H3)} $v_k\neq0\ \forall k$, $c_i\neq0\ \forall i$, the diagonals $D_v,D_c$ are
+invertible, so $\rank(G)=\rank(M)$.
+\end{lemma}
+
+\section{Three linear-algebra facts}
+\begin{enumerate}[label=(\roman*)]
+\item If a linear map $\Phi$ has $\Phi(X)=\Om=\Phi(X')$ then $\Phi(X'-X)=0$; so the solution set is
+$X+\ker\Phi$, where $\ker\Phi=\{H:\Phi(H)=0\}$.
+\item Rank--nullity: for a matrix $A$ with $n$ columns, $\dim\ker A=n-\rank(A)$.
+\item A subspace of dimension $\ge1$ has uncountably many points.
+\end{enumerate}
+
+\section{What ``recoverable'' means}
+Fix the gates $M$ and scalars $v,c$ --- treat the gates as \emph{given} \emph{(H2)}; then
+$\Phi:\R^{d\times N}\to\R^{m\times d}$, $\Phi(X)=GX^\top$, is linear. $X$ is
+\emph{identifiable} from $\Om$ if the only $X'$ with $\Phi(X')=\Om$ are $X$ and its column
+permutations (a benign relabeling). Non-identifiability means a genuinely different dataset gives
+the identical observation.
+
+\section{The rank obstruction}
+\begin{theorem}\label{thm:main}
+Assume \emph{(H1)} $\Om=GX^\top$, \emph{(H2)} $G$ fixed, \emph{(H3)} $v_k,c_i\neq0$. If
+$\rank(M)=k<N$, then
+\[
+\Phi^{-1}(\Om)=X+K,\qquad K=\{H\in\R^{d\times N}:\ \text{every row of }H\in\ker G\},\qquad
+\dim K=d\,(N-k)\ge d\ge1 .
+\]
+Hence uncountably many distinct datasets produce the same $\Om$, and $X$ is not identifiable.
+\end{theorem}
+\begin{proof}
+\textbf{Step 1.} $\Phi$ is linear, so $\Phi^{-1}(\Om)=X+\ker\Phi$ by (i).
+\textbf{Step 2.} For $H\in\R^{d\times N}$,
+$(GH^\top)_{k,l}=\sum_i G_{ki}H_{l,i}=\big(G\,(\text{row }l\text{ of }H)^\top\big)_k$, which
+vanishes for all $k$ iff row $l$ of $H\in\ker G$; so $\ker\Phi=\{H:\text{each row}\in\ker G\}$.
+\textbf{Step 3.} The $d$ rows range independently over $\ker G$, so by (ii) and
+Lemma~\ref{lem:rank},
+\[
+\dim\ker\Phi=d\cdot\dim(\ker G)=d\,(N-\rank G)=d\,(N-k).
+\]
+\textbf{Step 4.} $k<N\Rightarrow\dim\ker\Phi\ge d\ge1$: by (iii) a continuum of datasets fit.
+\textbf{Step 5.} The benign symmetries ($N!$ permutations, finite) cannot fill a
+positive-dimensional continuum, so almost all consistent datasets are unrelated to $X$. No
+function of $\Om$ can recover $X$.
+\end{proof}
+
+\begin{corollary}
+Identifiability requires $\rank(M)\ge N$; since $\rank(M)\le\min(m,N)$, it requires width
+$m\ge N$: a layer narrower than the batch cannot expose its samples through this signal.
+\end{corollary}
+
+\section{A concrete example you can check by hand}
+Take $m=N=d=2$ and the fixed gate/coefficient matrix
+$G=\left(\begin{smallmatrix}1&2\\2&4\end{smallmatrix}\right)$ (column $2=2\times$ column $1$, so
+$\rank G=1<2=N$). With true samples $x_1=(1,0)^\top$, $x_2=(0,1)^\top$ (i.e.\ $X=I$),
+\[
+\Om=GX^\top=G=\begin{pmatrix}1&2\\2&4\end{pmatrix}.
+\]
+The completely different dataset $x_1'=(3,2)^\top$, $x_2'=(-1,0)^\top$ gives
+\[
+GX'^{\top}=\begin{pmatrix}1&2\\2&4\end{pmatrix}\begin{pmatrix}3&2\\-1&0\end{pmatrix}
+=\begin{pmatrix}1&2\\2&4\end{pmatrix}=\Om .
+\]
+Two datasets with nothing in common produce the identical $\Om$: an attacker cannot tell them
+apart. This is the theorem made concrete --- the consistent datasets form the $d(N-k)=2$-parameter
+family $x_1'=(1+2s,\,2t)$, $x_2'=(-s,\,1-t)$.
+
+\section{Why low rank blurs the samples}
+When two samples have proportional gate columns ($\rank=1$), every neuron reacts to them in
+lockstep, so $\Om$ depends on them only through one fixed combination $s=c_1x_1+\gamma c_2x_2$. The
+individual images slide freely along the line keeping $s$ fixed; the attacker recovers only the
+blend $s$. This is the observed ``superposition'' failure for $N\ge2$ once the per-sample gradients
+become collinear.
+
+\section{Scope and caveats}
+\begin{remark}[Fixed gates]
+In reality $M=M(X)$ depends on the data, so $X\mapsto\Om(X)=G(X)X^\top$ is bilinear and the
+alternatives generally have different gates. The theorem is thus the obstruction for the
+\emph{strongest} attacker --- one handed the true gates; a real attacker has less information.
+What is proved: the first-order (gate-factorization / NTK-linearized) information in $\Om$ is
+insufficient when $\rank(M)<N$, the regime the attack operates in. Self-consistency $M=M(X')$ can
+shrink the family in special cases, so this is a necessary condition, not unconditional
+impossibility.
+\end{remark}
+\begin{remark}[Necessary vs.\ sufficient]
+$\rank(M)\ge N$ is necessary; in the fixed-gate model it is generically sufficient
+($X=(G^{+}\Om)^\top$ uniquely when $\rank G=N$). Sufficiency in the full bilinear problem is the
+open identifiability question.
+\end{remark}
+
+\section{Consequence for the attack}
+$\rank(M)$ is a hard ceiling on how many samples separate from the first-layer signal. The
+\textbf{activation} sets $\sigma'$ (the entries of $M$); the \textbf{anchor}
+$\theta_{\mathrm{anchor}}=(1-\alpha)\theta_0+\alpha\theta_T$ shifts the pre-activations and
+reshapes $M$; a \textbf{LoRA} adapter replaces $\Om$ by a rank-$r$ projection, tightening the
+ceiling to
+\[
+\text{leakage}\ \le\ \min\big(\rank(M),\,r,\,N\big).
+\]
+Theorem~\ref{thm:main} is the first, information-theoretic, of these ceilings.
+
+\end{document}

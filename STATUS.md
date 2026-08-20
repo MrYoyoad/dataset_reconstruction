@@ -35,6 +35,19 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
+### Identifiability theorem written up — rank(M) < N ⟹ training data non-recoverable (2026-08-20)
+Formal proof note: the first-layer weight signal factorizes as **Ω = G Xᵀ** (G = the gate matrix
+M_{ki}=σ'(⟨w_k,x_i⟩), scaled by diagonal output-weight/loss matrices), and **rank(M) ≥ N is a
+necessary condition** for recovering the N training inputs. If rank(M) = k < N the datasets consistent
+with Ω form a **d(N−k)-dimensional affine family** (proof by kernel-dimension count via rank–nullity),
+so recovery is information-theoretically impossible — with a hand-checkable 2-sample example (two
+disjoint datasets giving identical weights). Scoped honestly: fixed-gate / NTK-linearized regime;
+**necessary not sufficient** (sufficiency in the full bilinear problem = the open identifiability
+question). This is the information-theoretic ceiling behind the activation/anchor/LoRA-rank study
+(leakage ≤ min(rank(M), r, N)); the activation sets σ' (M's entries), the anchor reshapes M, LoRA
+projects Ω to rank r. Deliverables: `notes/identifiability_rank_bound.pdf` (detailed, 7pp) +
+`.tex` (Overleaf source) + `make_identifiability_pdf.py` (reproducible generator).
+
 ### Flowers-native reconstruction track — infra built + jobs submitted (2026-08-13)
 
 New **native-dimension** flowers track (Step 4 "harder data" done properly, not the 28×28-grayscale
