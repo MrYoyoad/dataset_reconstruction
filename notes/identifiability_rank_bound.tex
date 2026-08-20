@@ -41,6 +41,13 @@ samples can be separated only if $\rank(M)\ge N$. If $\rank(M)<N$, several sampl
 essentially the same gating pattern, their fingerprints add into a blend, and no algorithm can
 un-mix them.
 
+\paragraph{The one analogy.} It is the same as being told $a+b=5$ and asked for $a$ and $b$: you
+cannot, because $(1,4),(2,3),(0,5),\dots$ all fit --- two unknowns, one equation. A low-rank gate
+matrix does exactly this: it gives fewer independent measurements than samples, so several images
+collapse into one sum you can never split back apart. Here $\rank(M)$ \emph{is} the number of
+independent measurements the neurons provide; below $N$ the system is under-determined and recovery
+is impossible. The worked example (\S\ref{sec:example}) walks this through with numbers.
+
 \paragraph{Notation.}
 $d$ = input dimension; $N$ = number of samples; $m$ = hidden width;
 $x_i\in\R^d$ the $i$-th input (columns of $X$); $w_k\in\R^d$ neuron $k$'s weights (rows of $W$);
@@ -148,21 +155,44 @@ Identifiability requires $\rank(M)\ge N$; since $\rank(M)\le\min(m,N)$, it requi
 $m\ge N$: a layer narrower than the batch cannot expose its samples through this signal.
 \end{corollary}
 
-\section{A concrete example you can check by hand}
-Take $m=N=d=2$ and the fixed gate/coefficient matrix
-$G=\left(\begin{smallmatrix}1&2\\2&4\end{smallmatrix}\right)$ (column $2=2\times$ column $1$, so
-$\rank G=1<2=N$). With true samples $x_1=(1,0)^\top$, $x_2=(0,1)^\top$ (i.e.\ $X=I$),
+\section{A worked example, walked through step by step}\label{sec:example}
+Smallest interesting world: $2$ images, each $d=2$ pixels, and $m=2$ neurons.
+
+\paragraph{Step 0 --- setup.} True images $x_1=(1,0)$, $x_2=(0,1)$. Gate matrix
+$G=\left(\begin{smallmatrix}1&2\\2&4\end{smallmatrix}\right)$, where $G_{ki}$ is how strongly neuron
+$k$ reacts to image $i$. Row $2=2\times$ row $1$: the neurons react in the \emph{same} proportion,
+so $\rank G=1<2=N$ --- not two independent viewpoints, really one.
+
+\paragraph{Step 1 --- what the attacker sees.} With $g_i=$ column $i$ of $G$ (so $g_1=(1,2)$,
+$g_2=(2,4)$), the weights are one fingerprint per image:
 \[
-\Om=GX^\top=G=\begin{pmatrix}1&2\\2&4\end{pmatrix}.
+\Om=g_1 x_1^\top+g_2 x_2^\top
+=\begin{pmatrix}1&0\\2&0\end{pmatrix}+\begin{pmatrix}0&2\\0&4\end{pmatrix}
+=\begin{pmatrix}1&2\\2&4\end{pmatrix}.
 \]
-The completely different dataset $x_1'=(3,2)^\top$, $x_2'=(-1,0)^\top$ gives
+
+\paragraph{Step 2 --- the collapse.} Since $g_2=2g_1$,
+$\Om=g_1x_1^\top+(2g_1)x_2^\top=g_1(x_1+2x_2)^\top$. So $\Om$ depends on the images only through
+$s:=x_1+2x_2=(1,2)$ --- one equation, two unknowns (the $a+b=5$ situation).
+
+\paragraph{Step 3 --- infinitely many fit.} Any $(x_1',x_2')$ with $x_1'+2x_2'=(1,2)$ works. E.g.\
+$x_2'=(-1,0)$ forces $x_1'=(3,2)$, and indeed
 \[
 GX'^{\top}=\begin{pmatrix}1&2\\2&4\end{pmatrix}\begin{pmatrix}3&2\\-1&0\end{pmatrix}
 =\begin{pmatrix}1&2\\2&4\end{pmatrix}=\Om .
 \]
-Two datasets with nothing in common produce the identical $\Om$: an attacker cannot tell them
-apart. This is the theorem made concrete --- the consistent datasets form the $d(N-k)=2$-parameter
-family $x_1'=(1+2s,\,2t)$, $x_2'=(-s,\,1-t)$.
+Two datasets with nothing in common --- $\{(1,0),(0,1)\}$ vs.\ $\{(3,2),(-1,0)\}$ --- give the
+identical $\Om$: the attacker cannot tell them apart.
+
+\paragraph{Step 4 --- this family is the kernel.} The difference $((2,2),(-1,-1))$ has
+$\Delta s=(2,2)+2(-1,-1)=(0,0)$: invisible. All invisible differences $(h_1,h_2)$ with
+$h_1+2h_2=0$ form the kernel; $h_2$ is free in $\R^2$, $h_1=-2h_2$ forced, so its dimension is
+$2=d(N-k)$.
+
+\paragraph{Step 5 --- the contrast.} Had the neurons been independent,
+$G=\left(\begin{smallmatrix}1&0\\0&1\end{smallmatrix}\right)$ (rank $2=N$), then row $k$ of $\Om$
+would be $x_k$ directly --- unique recovery. $\rank=N\Rightarrow$ recoverable;
+$\rank<N\Rightarrow$ not.
 
 \section{Why low rank blurs the samples}
 When two samples have proportional gate columns ($\rank=1$), every neuron reacts to them in

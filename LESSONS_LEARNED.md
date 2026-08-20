@@ -25,8 +25,16 @@ embedded via `pdf.image()`.
   subscript 'c' or capital N/W**, so reword `D_c`, `x_N`, `∇_W L` rather than emit a missing-glyph box.
   Verify coverage with fontTools `getBestCmap()` first, then re-scan the built PDF text for any raw
   `_`/`^`.
+- **Never `set_y()` with a y captured before a possible page break.** A two-column table row that did
+  `y0=get_y(); multi_cell(...); set_y(y0+h)` cascaded to one row per page once earlier content pushed
+  the table near the bottom: the `multi_cell` auto-broke to a new page, then `set_y(y0+h)` forced the
+  cursor back to the *old* page's bottom y on the new page → infinite one-row-per-page. Fix: page-break
+  *before* drawing the row (`if get_y()+rowh>h-margin: add_page()`), capture `y0` after, and advance
+  with `set_y(max(col_ends, y0+h))`.
 - **Verify layout blind-spots with pymupdf** (`pip install pymupdf`): render pages to PNG and flag any
-  text block whose right edge exceeds the margin (the Read tool can't rasterize PDFs; poppler absent).
+  text block whose right edge exceeds the margin, AND scan per-page text length for near-blank pages
+  (a page-break cascade shows up as many ~5-char pages). The Read tool can't rasterize PDFs (poppler
+  absent); pymupdf can.
 
 ### Apply
 Reusable generator at `notes/make_identifiability_pdf.py` is portable (matplotlib font dir + `tempfile`

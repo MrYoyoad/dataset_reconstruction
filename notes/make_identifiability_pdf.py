@@ -154,11 +154,14 @@ def rule():
     pdf.ln(1); pdf.set_draw_color(*RULE); pdf.set_line_width(0.2); y=pdf.get_y()
     pdf.line(20,y,pdf.w-20,y); pdf.ln(2.5)
 def notation_row(sym,desc):
+    if pdf.get_y()+12 > pdf.h-18: pdf.add_page()   # keep the whole row on one page
+    y0=pdf.get_y()
     pdf.set_font("sans","B",10.0); pdf.set_text_color(*ACC)
-    y0=pdf.get_y(); pdf.set_x(22); pdf.cell(44,5.6,mathify(sym))
+    pdf.set_xy(22,y0); pdf.multi_cell(42,5.6,mathify(sym))
+    y_sym=pdf.get_y()
     pdf.set_font("sans","",10.0); pdf.set_text_color(*INK)
-    pdf.set_xy(66,y0); pdf.multi_cell(W-46,5.6,mathify(desc));
-    if pdf.get_y()<y0+5.6: pdf.set_y(y0+5.6)
+    pdf.set_xy(66,y0); pdf.multi_cell(W-46,5.6,mathify(desc))
+    pdf.set_y(max(y_sym, pdf.get_y(), y0+5.6))
 
 # ===================== TITLE =====================
 pdf.set_font("sans","B",18); pdf.set_text_color(*INK)
@@ -186,10 +189,17 @@ barbox("",
         "samples. If rank(M) < N, several samples share essentially the same gating pattern, "
         "their fingerprints add together into a blend, and no algorithm can un-mix them."],
        ACC,ACC)
+intuition([
+    "It is the same as being told a + b = 5 and asked for a and b. You cannot: (1,4), (2,3), "
+    "(0,5) all fit — a whole line of answers, because there are two unknowns but only one "
+    "equation. A low-rank gate matrix does exactly this: it gives you fewer independent "
+    "measurements than samples, so several images collapse into one sum you can never split "
+    "back apart. 'rank(M)' is just the number of genuinely independent measurements the neurons "
+    "provide; when it drops below N, you are under-determined and recovery is impossible."])
 para("We (1) derive exactly what the attacker observes, (2) show it is a matrix product "
      "'gates × data', (3) prove the rank condition step by step, (4) count exactly how many "
-     "indistinguishable alternative datasets exist, and (5) exhibit two completely different "
-     "datasets that produce the identical weights — which you can verify by hand.")
+     "indistinguishable alternative datasets exist, and (5) walk a tiny numeric example through "
+     "every step by hand (§6).")
 
 # ===================== NOTATION =====================
 h2("Notation")
@@ -359,26 +369,62 @@ para("Step 5 (they are genuinely different, not relabelings).  The benign symmet
      "single out the true X.  ∎")
 
 # ===================== 6. NUMERIC EXAMPLE =====================
-h1("6.  A concrete example you can check by hand")
-para("Take the smallest interesting case: m = 2 neurons, N = 2 samples, input dimension d = 2. "
-     "Suppose the (fixed) gate-and-coefficient matrix is")
+h1("6.  A worked example, walked through step by step")
+para("Smallest interesting world: 2 training images, each with d = 2 pixels, and m = 2 neurons.",
+     font=("sans","I"))
+
+para("Step 0 — the setup.", gap=0.5, font=("sans","B"))
+para("The two secret images the attacker wants are x₁ = (1, 0) and x₂ = (0, 1). The gate matrix "
+     "G has entry G[k, i] = how strongly neuron k reacts to image i (times the loss weight); "
+     "take")
 eqn_composite([("t",r"G="),("m",[[1,2],[2,4]]),
-               ("t",r"\Rightarrow\ \mathrm{column\ 2}=2\times\mathrm{column\ 1},"
-                    r"\ \ \mathrm{rank}(G)=1<2=N.")])
-para("Let the true dataset have samples x₁ = (1, 0)ᵀ and x₂ = (0, 1)ᵀ, i.e. X = I. The "
-     "observation is")
-eqn_composite([("t",r"\Omega=G\,X^{\top}=G="),("m",[[1,2],[2,4]])])
-para("Now consider a completely different dataset x₁′ = (3, 2)ᵀ and x₂′ = (−1, 0)ᵀ. Multiplying "
-     "out (you can do it in your head):")
+               ("t",r"\Rightarrow\ \mathrm{row\ 2}=2\times\mathrm{row\ 1}:\ "
+                    r"\mathrm{rank}(G)=1<2=N.")])
+para("Notice the two neurons react to the images in the SAME proportion (1 : 2) — they are not "
+     "two independent viewpoints, really just one. That is what rank(G) = 1 means, and it is the "
+     "whole problem.")
+
+para("Step 1 — what the attacker sees.", gap=0.5, font=("sans","B"))
+para("The observed weights are Ω = G Xᵀ, which is the same as one fingerprint per image — each "
+     "image imprinted by how the neurons react to it (g_i = column i of G, so g₁ = (1,2), "
+     "g₂ = (2,4)):")
+eqn_composite([("t",r"\Omega=g_1 x_1^{\top}+g_2 x_2^{\top}="),
+               ("m",[[1,0],[2,0]]),("t",r"+"),("m",[[0,2],[0,4]]),
+               ("t",r"="),("m",[[1,2],[2,4]])])
+
+para("Step 2 — the collapse (why it breaks).", gap=0.5, font=("sans","B"))
+para("Because g₂ = 2·g₁, factor g₁ out of the sum:")
+eqn(r"\Omega=g_1 x_1^{\top}+(2g_1)\,x_2^{\top}=g_1\,(x_1+2x_2)^{\top}.", fontsize=15)
+para("The two images have merged: Ω depends on them ONLY through the single combination "
+     "s := x₁ + 2x₂. Reading it off Ω gives s = (1, 2) — and that is ALL the attacker can ever "
+     "learn. One equation, two unknown images. (This is the a + b = 5 situation, exactly.)")
+
+para("Step 3 — infinitely many datasets fit.", gap=0.5, font=("sans","B"))
+para("Any (x₁′, x₂′) with x₁′ + 2x₂′ = (1, 2) gives the identical Ω. Choose x₂′ freely; x₁′ is "
+     "then forced. For example x₂′ = (−1, 0) forces x₁′ = (1,2) − 2(−1,0) = (3, 2). Check that "
+     "this completely different dataset reproduces the weights:")
 eqn_composite([("t",r"G\,X'^{\top}="),("m",[[1,2],[2,4]]),("m",[[3,2],[-1,0]]),
                ("t",r"="),("m",[[1,2],[2,4]]),("t",r"=\Omega")])
 barbox("",
-       ["Two datasets with nothing in common — {(1,0), (0,1)} versus {(3,2), (−1,0)} — produce "
-        "the IDENTICAL observation Ω. An attacker seeing Ω cannot possibly know which one was "
-        "the training set. This is the theorem made concrete: with rank(G) = 1 < N = 2, the "
-        "consistent datasets form a d(N−k) = 2-parameter family (here x₁′ = (1+2s, 2t), "
-        "x₂′ = (−s, 1−t) for any s, t), all giving the same weights."],
+       ["{(1,0), (0,1)} and {(3,2), (−1,0)} — two datasets with nothing in common — produce the "
+        "IDENTICAL Ω. The attacker cannot tell which was the training set. That is "
+        "non-recoverability, concretely."],
        ACC,ACC)
+
+para("Step 4 — this family IS the kernel.", gap=0.5, font=("sans","B"))
+para("The difference between the impostor and the truth is (x₁′−x₁, x₂′−x₂) = ((2,2), (−1,−1)). "
+     "Its effect on the only thing Ω sees: Δs = (2,2) + 2(−1,−1) = (0, 0) — invisible. The set of "
+     "all such invisible differences (h₁, h₂) with h₁ + 2h₂ = 0 is the KERNEL: h₂ is free in ℝ² "
+     "(2 numbers), h₁ = −2h₂ is forced, so its dimension is 2 — matching the formula "
+     "d(N − rank) = 2(2 − 1) = 2. The 'maneuver' is just: count the directions you can move the "
+     "data without changing the measurement.")
+
+para("Step 5 — the contrast that shows rank is everything.", gap=0.5, font=("sans","B"))
+para("Had the neurons given INDEPENDENT views — say")
+eqn_composite([("t",r"G="),("m",[[1,0],[0,1]]),("t",r"\ (\mathrm{rank}\ 2=N)")])
+para("— then Ω = g₁x₁ᵀ + g₂x₂ᵀ with g₁ = (1,0), g₂ = (0,1) hands you the images directly: row 1 "
+     "of Ω is x₁ and row 2 is x₂. Unique recovery. Nothing collapsed because g₂ is not a "
+     "multiple of g₁. rank = N ⟹ recoverable; rank < N ⟹ not. That is the theorem.")
 
 # ===================== 7. WHY LOW RANK BLURS =====================
 h1("7.  Why low rank blurs the samples (the mechanism)")
