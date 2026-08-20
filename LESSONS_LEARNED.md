@@ -88,6 +88,25 @@ scratch + `__file__`-relative output). Same pattern for any math-heavy PDF here.
   class-generic residual. A metric artifact didn't just add noise -- it inverted the headline. Lesson:
   a clipping artifact can flip the SIGN of a comparison, not merely its magnitude; fix the box before
   drawing any seen-vs-novel / overlap conclusion.
+### Audit: which OTHER experiments are affected (2026-08-20)
+Clipping tracks reconstruction DIFFICULTY (poor/large-dW reconstructions leave [0,1]; good ones don't),
+so only the hard-case experiments are contaminated. Checked `clipped_fraction` per config across the
+flowers-native free-c logs:
+- **SAFE (clip < 0.05, raw≈ssim_norm):** activation ranking (flowers32 & flowers64, max clip 0.047),
+  the rank/leakage curve r=4..64 (clip ~0.002), and the Q-A dimension ladder 32 vs 64 (clip ~0.000).
+  These headline conclusions stand as-is.
+- **N-sweep (npc>=2, i.e. N>=4): PARTIALLY affected.** clip 0.10-0.47 (npc=4 clipped 47%). The N>=4
+  COLLAPSE is real -- it shows on the scale-robust `ssim_norm` (0.68 at N=2 -> ~0.12) AND the control
+  margin (+0.30 -> +0.01), which clipping can't fake -- but the ABSOLUTE numbers at N>=4 are depressed
+  by the clip. A `--pixel_box` re-run would give an honest (still-declining) N curve; the direction
+  will not reverse (unlike Q-B) because both scale-robust metrics already collapse.
+- **Optimizer axis (adamw): doubly confounded, unreliable.** adamw configs have `weight_change`=0.60
+  (far out of the NTK band) AND ~30% clipping AND a raw-vs-norm gap -- discard for any leakage claim.
+- **Q-B: fixed** (job 952081, sign flipped).
+Apply: before trusting ANY free-c leakage number, print `clipped_fraction`; if >~0.05 in the configs you
+compare, either read only `ssim_norm`/NCC/control-margin or re-run with `--pixel_box`. High clip is a
+symptom of a hard reconstruction (superposition at high N, large dW), so it clusters exactly where the
+result is most fragile.
 
 ## GB-Phase 2 end-to-end: the inverter matters more than the decoder (2026-08-19)
 
