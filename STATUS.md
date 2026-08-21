@@ -86,10 +86,19 @@ path used `--sequential_peel`, which had bypassed the box).
 - **38528 N-sweep** (npc 1/2/4/8, 3 seeds): canonical recipe + `--pixel_box --verify_weight 5.0`.
   Expect the collapse to hold (it shows on ssim_norm+margin) but N>=4 absolute numbers to rise off the
   clip floor (npc=4 had 47% clip).
-- **38529 optimizer** (matched-wc): removes all three old confounds (lbfgs extraction, wc=0.60
-  out-of-band, clip) via validated sgd extraction + `--pixel_box` + an adamw fine-tune-lr ladder
-  {0.002,0.005} bracketing sgd@0.01's wc~0.11; loss l2 vs cosine.
+- **Optimizer (matched-wc)**: jobs 38529 + 70216 (adamw low-lr ladder, since adamw makes ~3x larger
+  updates/lr than sgd — sgd@0.01 wc=0.036, adamw@0.0005 wc=0.029, a clean match).
 The activation / rank / Q-A axes were clip-free (<0.05) and are NOT re-run.
+
+**FINAL RESULTS (2026-08-21):**
+- *N-collapse* (margin, 3-seed mean): N=2 **+0.260** -> N=4 **+0.175** -> N=8 +0.021 -> N=16 +0.030.
+  Clean collapse: strong at N=2, ~halved at N=4, gone by N>=8. Box HELPED N=4 (+0.028->+0.175 vs the old
+  default run). Caveat: the N>=8 peel path clips unboxed (~0.36 at seeds 43/44) and blanks boxed, so the
+  N>=8 value carries +-0.05 -- but every treatment gives a small margin, so the collapse is robust.
+- *Optimizer* (matched wc~0.03, clip-controlled): sgd/cosine ssim_norm **0.790** margin **+0.277** >
+  sgd/l2 0.668/+0.195 > adamw/cosine 0.559/+0.176 ~ adamw/l2 0.540/+0.188. Two clean findings:
+  (1) **cosine >> l2 but only for sgd** (adamw shows no cosine gain); (2) **sgd leaks more than adamw at
+  matched wc** (adamw's per-parameter scaling makes dW harder to invert).
 
 - **Dimension ladder:** two base models — `flowers32` (RGB 32×32, **D=3072**, exact Haim CIFAR recipe)
   and `flowers64` (RGB 64×64, **D=12288**, rich target). Task = species-index **parity** over 102
