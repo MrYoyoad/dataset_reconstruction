@@ -344,9 +344,13 @@ and clip. Measured clipped_fraction on the bridge recons: **MNIST 32-47%, Fashio
 all-layers 17-20%, flowers 0-7%, monster input-only/TRUE 0-5%.** So the RAW ssim columns above are
 inflated for MNIST/Fashion/monster-all-layers. **The conclusions are stated on `ssim_norm`, which matches
 mean/std to target before scoring and REMOVES the clip artifact (per metrics.py) — so the 4-axis story,
-the ordering, and the depth/starvation findings all HOLD.** Re-running the headline + generalization set
-with the new `--pixel_box` flag (boxes x+ds_mean to [0,1]) for clean raw SSIM + grids; ssim_norm should
-be unchanged. Rule going forward: print clipped_fraction before trusting any raw-SSIM number; if >~0.05,
+the ordering, and the depth/starvation findings all HOLD.** **RE-RUN COMPLETE (--pixel_box, jobs 173383-173392 + monster 38538).** Clean DECODED all-layers
+ssim_norm at N=2: MNIST sp 0.607 / ge 0.566 · Fashion 0.609 / 0.584 · Flowers 0.566 / 0.305 · Monster
+0.328 / 0.247 (TRUE ceilings 0.74-1.00). **All conclusions HOLD.** Only real shift: MNIST gelu
+0.745->0.566 — pixel_box CHANGES the reconstruction (constrains it to valid pixels during optimization),
+not just the metric, so the old 'gelu leaks best on MNIST' was partly a clip benefit; the honest read is
+softplus~gelu comparable on MNIST. Everything else within noise. PDF + bar charts regenerated on clean
+ssim_norm. Rule going forward: print clipped_fraction before trusting any raw-SSIM number; if >~0.05,
 read ssim_norm/NCC/margin or re-run with --pixel_box.
 
 ### GB-Phase 2 (earlier) — two-sided measurement rescues the input-layer decode; the inverter needs the INPUT layer (2026-08-18)
