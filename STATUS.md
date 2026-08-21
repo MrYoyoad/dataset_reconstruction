@@ -1,6 +1,48 @@
 # Project Status
 
-Last updated: **2026-08-11** (status review after a ~2.5-week gap: committed the Jul 22–26 result batch, recorded outcomes of jobs 956997 / 957044 / 857271 / 863020. Cluster has been **idle since 2026-07-26**; experimental **results** last updated 2026-07-26)
+Last updated: **2026-08-21** (read MineGrad AISTATS 2026 and re-planned the gradient-bridge direction against it — see new section immediately below; prior update 2026-08-11)
+
+---
+
+## MineGrad (AISTATS 2026) teardown + bridge re-plan (2026-08-21)
+
+Read *MineGrad: Gradient Inversion Attacks on LoRA Fine-Tuning* (Sami, Sen, Güler; arXiv 2608.01521;
+code `info-ucr/MineGrad`) end-to-end + its source. Archived to `papers/`. Full analysis:
+**`notes/minegrad_analysis.md`**. Headlines:
+
+- **It is a malicious-server analytical attack**, the LoRA successor to PEFTLeak (2506.04453). Our
+  CLAUDE.md mislabels 2506.04453 as "honest CVPR2025" — it is malicious. **Fixed understanding.**
+- **How it beats the rank bound (the question that motivated the read):** *not* by making a rank-`r`
+  matrix leak >`r`. It uses `L≈2(S−1)` **independent coordinated LoRA modules** (V,O × encoders),
+  each engineered (orthogonal position fingerprints + identity attention + coordinate-selector `A`
+  init) to expose a **disjoint** set of ≤`r` tokens. Leakage `≈ L·r`. Fig 6: multi-encoder `r=2` =
+  single-encoder `r=16`. **Takeaway for us: leakage scales with #independent modules, not `r`.**
+- **All of its power is malice** (chosen parameterizations); **nothing transfers to our passive
+  setting** except the *ideas*: multi-module tiling, input/`A`-side is where data lives, batch=average
+  needs a codebook to de-mix (vision has none → our N≈10 superposition wall; a generative prior is the
+  codebook replacement).
+- **Vision:** ViT/CIFAR, LPIPS 0.20 (imperfect); **batch:** vocab-cosine de-mixing, no vision analog.
+- **Theory upgrade (supersedes the two standalone ceilings):** the predictor is the **restricted
+  composite Jacobian** `J = ∂vec(P_LoRA(∇_W L(g(z))))/∂z` and its `σ_min`/conditioning on the image
+  manifold — subsumes `rank(M)` (feature) and `dρ≳Nk` (capacity), computable cheaply at the anchor,
+  correlatable with SSIM. Retire `ρ_eff` and the standalone `dρ≳Nk` (its high-`k` prediction already
+  failed on flowers).
+- **Reframe the decoder target:** for the input layer `∇_{W₀}L = g_err·xᵀ`, the single-step
+  `A`-gradient is `U Xᵀ` (`U=B₀ᵀG`) — the *same* `Ω=GXᵀ` factorization, LoRA-projected. The
+  inversion-relevant statistic is **`X` (the row factor), not the full gradient**. The 0.997
+  hidden-layer decode optimized the wrong quantity; single-sided input `x`-cosine may already beat
+  0.637. **Re-score existing runs with `x`-cosine (Experiment B).**
+- **Closest passive competitor is NOT MineGrad but Yao 2024** (*Risks When Sharing LoRA Fine-Tuned
+  Diffusion Weights*, arXiv 2409.08482): learned passive map from final LoRA weights → private images,
+  vision. **Read next.** Our surviving novelty: honest + discriminative + ordinary-init + the
+  identifiability characterization (Yao is diffusion/black-box VAE + needs in-domain data).
+- **5 next experiments** (all runnable in the analytic sim): A rank-vs-#views (matched `L·r`) ·
+  B `x`-cos vs `g_err`-cos for A/B channels · C bridge-acc vs inversion-acc sensitivity map ·
+  D shuffle cross-module correspondence (coordination vs prior) · E two-collinear-datasets
+  (information vs hallucination). **A and D are decisive.**
+- **Novelty caveat (honesty):** MineGrad + Yao already publish "LoRA→image for vision"; we cannot claim that
+  per se. Claim the **honest, ordinary-LoRA, multi-module identifiability** result, reported under
+  **free-coefficient** (not oracle) with `x`-cosine and LPIPS.
 
 ---
 

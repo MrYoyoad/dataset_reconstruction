@@ -1,0 +1,2283 @@
+MineGrad: Gradient Inversion Attacks on LoRA Fine-Tuning
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+University of California, Riverside, CA
+hsami003@ucr.edu, ssen010@ucr.edu, bguler@ece.ucr.edu
+Abstract
+Parameter-efficient fine-tuning (PEFT), such
+as low-rank adaptation (LoRA), has recently
+been adopted in federated learning to reduce
+communication and computation costs. In
+this setup, users download a pretrained model
+from the server prior to fine-tuning, and then
+fine-tune lightweight LoRA modules locally
+while keeping the pretrained model frozen,
+sharing only the gradients of the fine-tuning
+parameters with the server. Despite its grow-
+ing popularity, robustness of federated fine-
+tuning against an adversarial server remains
+underexplored, where the server maliciously
+tampers with the training protocol to breach
+the privacy of users’ data. In this work, we in-
+vestigate gradient inversion attacks on LoRA
+fine-tuning. We propose an analytical attack
+that enables a malicious server to recover
+private user data by leveraging a poisoned
+pretrained model and fine-tuning parameters.
+Our design embeds fine-tuning data within
+the shared gradients, to allow the server to
+analytically reconstruct user data. Unlike
+prior works, our attack is applicable to both
+language and vision tasks, does not rely on
+computationally expensive (adversarial) pre-
+training with public datasets or require the
+number of training tokens to be less than
+the rank of LoRA modules. Experimental
+results on both language and vision tasks
+demonstrate high-fidelity data recovery across
+multiple baselines, revealing several critical
+vulnerabilities.
+∗Equal contribution.
+Proceedings of the 29 th International Conference on Arti-
+ficial Intelligence and Statistics (AISTATS) 2026, Tangier,
+Morocco. PMLR: Volume 300. Copyright 2026 by the au-
+thor(s).
+1 INTRODUCTION
+Large-scale pretrained models achieved remarkable suc-
+cess across various tasks. However, their immense
+size—often billions of parameters Radford et al. (2019);
+Devlin et al. (2019); Liu et al. (2019); Brown et al.
+(2020); He et al. (2021); Touvron et al. (2023)—renders
+full fine-tuning (FFT) computationally and storage
+intensive. Parameter-efficient fine-tuning (PEFT) miti-
+gates this by updating only a small subset of parame-
+ters, either integrated into the pretrained model Cai
+et al. (2020); Zhao et al. (2024a); Kowsher et al. (2024)
+or added as external modules Houlsby et al. (2019);
+Mahabadi et al. (2021); Hu et al. (2022); Hayou et al.
+(2024).
+To reduce communication, computation and memory
+overhead, PEFT is increasingly adopted in federated
+learning (FL) Zhang et al. (2023b); Kim et al. (2023);
+Shysheya et al. (2023); Cho et al. (2024), where users
+collaboratively train a shared model without reveal-
+ing local data. While FL’s core principle is on-device
+privacy, shared gradients remain vulnerable. Gradient
+inversion attacks can reconstruct training data Zhu
+et al. (2019); Geiping et al. (2020); Yin et al. (2021);
+Huang et al. (2021); Lu et al. (2022); Deng et al. (2021);
+Gupta et al. (2022); Fowl et al. (2023), while member-
+ship inference Shokri et al. (2016); Nasr et al. (2019);
+Song and Mittal (2021); Mireshghallah et al. (2022);
+Nguyen et al. (2023b) and data extraction Carlini et al.
+(2018, 2021); Tram` er et al. (2022); Panda et al. (2024)
+attacks expose additional risks. Among these, gradient
+inversion is especially dangerous since it requires no
+prior knowledge of target samples.
+Despite these concerns, gradient inversion attacks on
+PEFT remain largely underexplored. Feng and Tram` er
+(2024) recently introduced a gradient inversion attack
+by deploying a poisoned pretrained model, focusing
+on the FFT setup, where the attacker has access to
+gradients for the full model parameters. Liu et al.
+(2024) and Wen et al. (2024) explore manipulating the
+pretrained model for membership inference and data
+extraction attacks in FFT and PEFT settings. Recent
+arXiv:2608.01521v1  [cs.AI]  2 Aug 2026
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+observations suggest that PEFT methods may offer
+better privacy protections against inversion attacks
+by reducing the number of leaked parameters Zhang
+et al. (2023b). However, this setup does not consider
+stronger adversaries, such as an adversarial server that
+can manipulate the pretrained model along with shared
+PEFT parameters before sending it to users Fowl et al.
+(2022, 2023); Zhao et al. (2024b); Feng and Tram` er
+(2024). In such cases, a target user (victim) might
+inadvertently download a tampered pretrained model
+and fine-tuning parameters from a compromised server.
+This work investigates gradient inversion attacks on
+low-rank adaptation (LoRA) Hu et al. (2022), where
+users fine-tune small low-rank matrices while keeping
+the pretrained model frozen Zhang et al. (2023b); Sun
+et al. (2024); Bian et al. (2024); Cho et al. (2024). This
+reduced gradient space complicates inversion. While
+recent work has explored privacy-aware LoRA Yu et al.
+(2022); Sun et al. (2024); Li et al. (2024), practical
+gradient inversion attacks remain underexplored, for
+instance, whether adversarial servers can invert LoRA
+gradients for vision transformers (ViT) Dosovitskiy
+et al. (2021). Our work answers these questions in the
+affirmative.
+Recently, Yao (2024) considered attacks on LoRA-based
+fine-tuning of a pretrained diffusion model to generate
+private fine-tuning data. The attack leverages prior
+training of a neural network encoder using a publicly
+available dataset from a similar domain to the private
+fine-tuning data. In contrast, here we do not assume
+availability of publicly available datasets from the fine-
+tuning domain - as such data may not be available in
+practice, especially in privacy-sensitive settings such as
+FL. Gao et al. (2025) proposes a discrete optimization
+attack, which requires access to the gradients of the
+word embedding layer. In LoRA fine-tuning, however,
+word embedding layer is part of the frozen pretrained
+model and the server loses access to this gradient, hence
+the attack cannot be applied to our problem.
+Analytical attacks are proposed to recover fine-tuning
+data from gradients in the context of FFT Feng and
+Tram` er (2024) or PEFT with adapters Sami et al.
+(2025) of a pretrained model. These works utilize a
+carefully crafted pretrained model to facilitate undis-
+torted propagation of target token or patch embeddings
+through the network up to the trainable linear layer,
+followed by a non-linear activation function like GELU
+or ReLU. Subsequently, the weight and bias parameters
+are precisely designed to ensure that no two tokens or
+patches activate the same set of neurons. Thus, the
+corresponding weight and bias gradients can be utilized
+to accurately recover the original data. In contrast,
+in LoRA fine-tuning, trainable low-rank matrices are
+typically not followed by such an activation function,
+making the aforementioned attacks infeasible.
+Another notable work is Petrov et al. (2024), which
+proposed a gradient inversion attack, DAGER, to re-
+cover text data, by leveraging the low-rank structure
+of weight gradients. This attack can also be applied
+to LoRA fine-tuning. However, the attack requires the
+total number of training tokens in the batch to be less
+than or equal to the rank of LoRA matrices, which is
+often unrealistic in practice Hu et al. (2022). In addi-
+tion, DAGER relies on an exhaustive search across all
+the tokens in the vocabulary in all possible positions,
+hence it cannot be applied to datasets that do not have
+a predefined vocabulary such as vision datasets.
+To address these challenges, we introduce a novel gra-
+dient inversion attack, MineGrad, by leveraging the
+gradients corresponding to the trainable low-rank ma-
+trices. We design a poisoned pretrained model and
+low-rank matrices to embed the fine-tuning data within
+the victim’s gradients. Using these manipulated gra-
+dients, the server can analytically extract the fine-
+tuning data. Unlike prior methods, our attack can be
+applied to both language and vision tasks, does not
+rely on computationally expensive pretraining with a
+public dataset, and does not require that the num-
+ber of tokens be less than the rank of the LoRA ma-
+trices Petrov et al. (2024). Our code is available at
+https://github.com/info-ucr/MineGrad.
+2 RELATED WORKS
+Parameter-Efficient Fine Tuning and LoRA.PEFT
+mechanisms reduce the storage and computation costs
+of fine-tuning large pretrained models by freezing the
+model and updating lightweight modules Houlsby et al.
+(2019); Cai et al. (2020); Mahabadi et al. (2021); Li
+and Liang (2021); Hu et al. (2022). Among the PEFT
+techniques, LoRA and its variants are among the
+most widely-adopted due to their superior performance
+in resource-limited settings Hu et al. (2022); Zhang
+et al. (2023a); Wen and Chaudhuri (2024); Hayou et al.
+(2024). Recent works have further extended the appli-
+cation of LoRA to FL Zhang et al. (2023b); Cho et al.
+(2024); JianHao et al. (2024).
+Gradient inversion attacks.Gradient inversion attacks
+aim to reconstruct training data from shared gradients.
+To do so, earlier works retrieve data by solving a dis-
+tance minimization problem Zhu et al. (2019); Geiping
+et al. (2020) or training a generative adversarial net-
+work Hitaj et al. (2017); Wang et al. (2019); Zhang
+et al. (2020). More recent works leverage batch normal-
+ization statistics Yin et al. (2021); Hatamizadeh et al.
+(2022), dropout mask optimization Scheliga et al. (2023)
+or blind source separation Kariyappa et al. (2023) to
+enhance the attack performance. Beyond attacks to
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+recover image samples, several works propose mech-
+anisms to recover text or tabular data Deng et al.
+(2021); Gupta et al. (2022); Balunovic et al. (2022);
+Vero et al. (2023). Attack performance can further
+be enhanced by considering stronger adversaries who
+can tamper with model parameters or architectures
+Fowl et al. (2022); Chu et al. (2023); Fowl et al. (2023);
+Feng and Tram` er (2024). A gradient-inversion attack
+was recently demonstrated for PEFT with adapters
+Sami et al. (2025). To recover data, this work leverages
+weight and bias gradients from adapter modules, along
+with distinct neuron activations within a linear layer.
+Other lines of work consider membership inference and
+data extraction attacks Shokri et al. (2016); Nasr et al.
+(2019); Song and Mittal (2021); Mireshghallah et al.
+(2022); Nguyen et al. (2023b); Carlini et al. (2021); Liu
+et al. (2024).
+3 PRELIMINARIES AND
+PROBLEM SETUP
+LoRA fine-tuning.In a typical transformer Vaswani
+et al. (2017); Devlin et al. (2019); Liu et al. (2019), a
+distinct position encoding vector is added to each to-
+ken. These token embeddings are then passed through
+transformer encoders, where each encoder consists of
+stacked multi-head self-attention (MSA), multi-layer
+perceptron (MLP) and LayerNorm (LN) layers. For
+Figure 1:T ransformer encoder with LoRA mod-
+ules.Transformer encoder consists of stacked MSA,
+LayerNorm, MLP layers and residual connections. Low-
+rank matricesA , B(of rank r) are inserted within each
+MSA layer.
+LoRA fine-tuning, low-rank decomposition matrices
+A,B(of rank r) are used as additive modules within
+each MSA layer as illustrated in Fig. 1. The product
+BA is added to the pretrained MSA weights during
+inference. During backpropagation, only the gradients
+with respect toAandBare computed, while keeping
+the pretrained weights frozen.
+Figure 2:Federated LoRA with U = 4users.In
+each training round, users perform fine-tuning locally
+and send the LoRA gradients to the server. The server
+performs aggregation and sends the new global state
+of the LoRA modules to the users.
+Federated LoRA fine-tuning.We consider a cen-
+tralized FL setting with U users. For LoRA-based
+fine-tuning, we denote the low-rank matrices of user
+u∈ [U ] asW u
+F ≜{ Au, Bu}. Prior to training, the
+server shares a pretrained modelW P with the users.
+In each training round, user u∈ [U ] performs fine-
+tuning on its local dataset and sends a local update
+(gradient) ∆W u
+F to the server JianHao et al. (2024).
+After receiving the local updates, the server computes
+the current state of the global modelW F ≜{A,B}:
+WF =W F + 1
+U
+UX
+u=1
+∆Wu
+F (1)
+The goal is to minimize the global loss function, L≜
+1
+U
+PU
+u=1 Lu(WP , WF ), where Lu denotes the local loss
+of user u andW P denotes the frozen pretrained model.
+Threat model.We consider an adversarial server who
+can tamper with the model parameters shared with
+users. This includes: 1) disseminating a poisonous pre-
+trained model to users once prior to fine-tuning, and
+2) modifying the global fine-tuning parameters sent to
+the users in each training round after aggregation. As
+in Nguyen et al. (2023a); Shysheya et al. (2023); Chen
+et al. (2023), the server performs pretraining with pro-
+prietary data or publicly available proxy datasets and
+then releases the pretrained model to the edge users.
+Hence, the server can manipulate the pretrained model
+(once before training) and global fine-tuning parame-
+ters (at each round during training). The adversary
+aims to coerce a target user into producing gradients
+with respect to the poisonous fine-tuning modules, to
+reveal its local data. Malicious tampering with the
+training protocol is inspired by Fowl et al. (2022, 2023);
+Chu et al. (2023); Zhao et al. (2024b); Feng and Tram` er
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+(2024). Users often download a pretrained model with-
+out any formal verification protocol Feng and Tram` er
+(2024); Wen et al. (2024); Liu et al. (2024). Training is
+usually performed in the background e.g., during night
+time when the device is being charged or remains idle
+Ramaswamy et al. (2019); Fowl et al. (2023). Therefore,
+a user may not be observing the training loss on a con-
+tinual basis. Hence, even though a malicious pretrained
+model may adversely affect the training performance,
+a user may fail to detect such suspicious activity under
+the common practices of FL.
+Existing Attacks.The closest to our work is DAGER
+Petrov et al. (2024), which leverages rank-deficiency of
+weight gradients to recover the input tokens. Let us
+denote the total number of input tokens as N , where
+each token embedding is of dimension D. For a linear
+layer with stacked input tokensY ∈R N×D , weight
+W ∈R D×r, and biasb ∈R r, the output can be
+written asZ ≜ YW+ (b |. . .|b)T. Accordingly, the
+gradient of userucan be written as,
+∂Lu
+∂W ≜Y T ∂Lu
+∂Z (2)
+The rank of ∂Lu
+∂W is at most N if N≤min{D, r} . Due
+to the rank-deficiency of the gradient matrix ∂Lu
+∂W , its
+columns form a subspace of RD with dimension N .
+Next, DAGER initiates an exhaustive search algorithm
+with all possible tokens in the vocabulary in all possible
+positions. The goal is to find the set of target input em-
+beddings by checking whether they are in the column
+space of ∂Lu
+∂W . Overall, the success of the reconstruc-
+tion algorithm relies on the assumption that the total
+number of training tokens N satisfies: N≤min{D, r} .
+Challenges.With LoRA fine-tuning, the attacker
+has a much reduced space of observable gradients. The
+attacker only has access to r gradient vectors per low-
+rank matrix in each MSA layer. As noted in Hu et al.
+(2022), the value of r typically ranges from 1 to 64.
+When applying DAGER Petrov et al. (2024) to LoRA
+fine-tuning, the attack success requires the total number
+of training tokens to be less than or equal to the rank,
+r, of the LoRA matrices. This condition is often not
+satisfied in practice since the rank of the LoRA matrices
+is typically small as noted above. In addition, DAGER
+relies on an exhaustive search with all possible words
+in the vocabulary in all possible positions, which is not
+feasible for datasets without a predefined vocabulary
+such as vision datasets.
+Contributions.To address these challenges, we
+propose a novel inversion attack, MineGrad, for LoRA
+fine-tuning in FL. Our approach involves a carefully
+crafted design of the pretrained model, which remains
+fixed during fine-tuning but is utilized during inference.
+Additionally, we demonstrate an adversarial manipula-
+tion of the lightweight LoRA matrices, which are shared
+with the users in each training round during federated
+fine-tuning. These two adversarial components work
+in tandem to reveal fine-tuning data of a target user
+effectively. To maximize the number of tokens recon-
+structed, MineGrad mitigates the low-rank issue of a
+single matrix by utilizing the gradients from multiple
+LoRA matrices across different encoders. Unlike Petrov
+et al. (2024), MineGrad can successfully recover data
+even when the number of training tokens are greater
+than the rank of LoRA matrices and can be applied to
+vision datasets.
+4 MINEGRAD
+For simplicity, we initially consider text classification
+as the downstream task, and provide the key design
+principles of MineGrad. Details are deferred to Apps. B
+and C. For the pretrained model, we first consider
+encoder-based transformer architectures building on
+bidirectional self-attention, such as BERT Devlin et al.
+(2019) and its successor RoBERTa Liu et al. (2019),
+which has been used to demonstrate the efficacy of
+LoRA over other PEFT methods Hu et al. (2022).
+Our framework can also be applied to decoder-based
+architectures with unidirectional self-attention such as
+GPT-2 Radford et al. (2019), as we demonstrate in App.
+E.4. In our experiments, we also extend our results to
+vision transformers (ViT) for image classification.
+Fig. 1 illustrates the transformer encoder with LoRA
+modules. The typical layers within an encoder, i.e.,
+MSA, LN, and MLP are frozen, while only the LoRA
+matrices and classification head are trainable. For
+simplicity, here we consider fine-tuning on a single text
+sequence, consisting of N tokens. Our framework can
+also handle a batch of sequences, as shown in Section
+5 along with the theoretical analysis in App. D.
+Denote the word embedding of token n∈ [N ] as
+x(n) ∈R D, and the class token asx (0). Embedding
+x(n) is added to a position encoding vectore (n) ∈R D,
+resulting in a token embedding,
+y(n) ≜x (n) +e (n) forn∈ {0, . . . , N}(3)
+We now demonstrate a malicious parameterization of
+the pretrained model and global LoRA modules for the
+server to recover the private fine-tuning tokens for a
+set of target positions T , using the gradients shared by
+a victim useru.
+Key intuition.MineGrad is an adversarial design
+where each column of the low-rank adaptation matrix
+Breveals a token at a (different) targeted position via
+its gradient. SinceBhas rank r, at most r tokens can
+be revealed per encoder. To scale, we employ multiple
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+Figure 3: Overview of MineGrad with D = 6, r = 2, N = 2. Each token embeddingy (n) for n = 0, 1, 2 contains
+large values in two distinct positions (colored). The 1st encoder is designed to output identity mapping of the
+input tokens. The LoRA matricesA O,1,B O,1 in the 1st encoder are designed to recover tokens 1 and 2. The
+2nd encoder is designed to produce average of the tokens. In the classification layer, only the embedding for the
+class token is utilized. Only the 3rd and 5th elements of this embedding are connected to the 1st logit via large
+weights, leading the 1st logit to produce a softmax score of 1. In the gradient for the 1st column ofB O,1, each
+embedding is weighted byy (i)
+3 y(i)
+4 for token i, wherey (i)
+d is the dth element ofy (i). Token 1 has a larger weight
+compared to the other tokens, which enables the recovery of token 1. In the gradient for the 2nd column ofB O,1,
+each embedding is weighted byy (i)
+5 y(i)
+6 for tokeni, leading to the recovery of token 2.
+encoders and carefully structure self-attention and low-
+rank matricesAandBto preserve token embeddings
+via identity mappings in the forward pass. During back-
+propagation, each encoder then exposes private tokens
+from distinct target positions. Our design ensures that
+for each column n of the fine-tuning matrixB, the
+local gradient shared by the user contains a weighted
+average P
+i∈T αn,iy(i) of the token embeddingsy (i),
+where the weight αn,i is much larger for the target
+token compared to all other tokens. This enables recov-
+ery of a distinct token embedding from each gradient.
+The weighting is controlled by the position encoding
+vectore (n). We illustrate this idea in Fig. 3.
+Position Encoding.Since position encoding vectors
+are part of the pretrained model, the attacker has the
+capability to tamper with these parameters once Feng
+and Tram` er (2024). Let H be the total number of
+heads in the MSA layer and D be the dimension of
+each head, i.e., D≜D/H . The server designs the
+position encoding vectors as,
+e(n)
+d ≜
+
+
+
+c1 ifd= 2n+ 1
+−c1 ifd= 2n+ 2
+c2 ifd= 2n+ 1 + (h−1) Dfor 2≤h≤H
+−c2 ifd= 2n+ 2 + (h−1) Dfor 2≤h≤H
+0 otherwise
+(4)
+wheree (n)
+d is the dth element ofe (n), and c1 is a large
+positive value (∼ 102) such that c1 >> c2. We want c2
+to have negligible effect on the standard deviation of
+e(n) compared toc 1, while ensuring,
+(e(i))T
+h (e(i))h >>(e (i))T
+h (e(j))h ifi̸=j(5)
+for all heads h∈ [H], where (e (i))h ≜
+[e(i)
+hD+1 · · ·e(i)
+(h+1)D] represents the D elements that
+propagate through head h. As the word embeddings
+x(n) typically lie within the range [ −1, 1] Wolf et al.
+(2020),e (n) is the dominant factor in determining the
+mean and standard deviation across the elements in
+y(n) from (3). From (4), the mean across the elements
+iny (n) is,
+µ(n) ≜ 1
+D
+DX
+d=1
+y(n)
+d ≈ 1
+D
+DX
+i=1
+e(n)
+d = 0≜µ(6)
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+whereas the standard deviation is,
+σ(n) ≈
+vuut 1
+D
+DX
+d=1
+(e(n)
+d −µ (n))2 ≜σ(7)
+Figure 4:Token extraction from multiple en-
+coders.The rank of the LoRA modules is r = 2.
+Gradients from Encoder 1’s LoRA modules recover to-
+kens 1 and 2 in the target set T1 = {1, 2}. Gradients
+from Encoder 2’s LoRA modules recover tokens 3 and
+4, i.e.,T 2 ={3,4}.
+As we describe later, this design will be critical in
+ensuring that each target token can be recovered from
+the accumulated gradients for the LoRA modules.
+Target Encoders (Encoders1to S− 1).Let S
+be the total number of encoders. We call encoders 1 to
+S− 1 thetarget encoders, as the fine-tuning modules of
+these encoders will produce the gradients that reveal
+the target tokens. The set of tokens targeted by encoder
+t∈ [S− 1] is denoted by Tt. We denote the nth element
+in set Tt by Tt(n). LoRA modules are added to query,
+key, value, and output projection matrices, denoted
+byW Q,t, WK,t, WV,t andW O,t Hu et al. (2022). Our
+attack recovers tokens from the gradients of LoRA
+modules added toW V,t andW O,t. For simplicity, we
+describe our attack usingW O,t. Same principles also
+apply toW V,t.
+Embeddingsy (n) first enter the MSA layer. Our de-
+sign of query, key, value weights, biases, and LoRA
+matrices produces an attention matrixI (N+1)×(N+1)
+for all heads (App. B). Then, the self-attention out-
+put for head h∈ [H] becomes an identity mapping
+of the input. We set the output projection matrix as
+WO,t =0 D×D. After the trainable LoRA modules
+AO,t ∈R r×D,B O,t ∈R D×r are inserted toW O,t, the
+MSA output becomes,
+MSA([y(0), . . . ,y(N) ])
+≜
+
+SA1(y(0), . . . ,y(N) ), . . . , SAH (y(0), . . . ,y(N) )
+
+(WO,t +B O,tAO,t)
+=
+
+y(0) . . .y (N) T
+BO,tAO,t (8)
+The LoRA modules are then designed as,
+AO,t[p, q]≜
+(
+1 ifp=nandq= 2T t(n) + 2, n∈[r]
+0 otherwise
+BO,t =0 D×r (9)
+whereA O,t[p, q] is the element at row p, column q. The
+design in (9) ensures that for any tokeni,
+∂AT
+O,t[d,:]B T
+O,ty(i)
+∂BO,t[:, n] =
+
+y(i) ifd= 2T t(n) + 2
+0otherwise (10)
+whereA T
+O,t[d, :] is the dth row ofA T
+O,t, andB T
+O,t[:, n]
+is the nth column ofB O,t. As shown later, this enables
+the attacker to recover the nth token in Tt using the
+gradient with respect toB T
+O,t[:, n]. Since |Tt| ≤r, from
+a single encoder, at most r tokens can be recovered.
+From (9),B O,tAO,t =0 D×D, hence,
+
+y(0) · · ·y(N) T
+BO,tAO,t =0(11)
+and the output of the residual connection becomes,
+u(n) ≜y (n) +A T
+O,tBT
+O,ty(n) =y (n) (12)
+for n∈ {0, . . . , N}, which enters the next LN layer.
+The mean across the elements inu (n) is µ(n)
+2 ≈µ from
+(6) and standard deviation is σ(n)
+2 ≈σ from (7). We
+set the weight parameters of this LN layer to σ and
+bias parameters to 0. Then, the LN output becomes,
+p(n) ≜ u(n) −µ (n)
+2
+σ(n)
+2
+⊙σ×1 D + 0×1 D ≈y (n) (13)
+where1 D is a D-dimensional vector containing all 1s.
+Next, MLP and LN layers within this encoder are de-
+signed to propogate embeddings from (13) undistorted
+towards the next encoder (App. B.1).
+Last Encoder (Encoder S).Our goal in this stage
+is to ensure that the class token embedding contains
+the average of all token embeddings. As only the class
+token is used in the final layer for loss prediction, this is
+critical for the final gradient to carry information from
+all target tokens. Hence, the parameters within the
+MSA layer are designed to produce an attention matrix
+equal to 1
+N+1 1(N+1)×(N+1) . This leads the MSA layer
+to output the average of all input token embeddings.
+Next, the parameters within the MLP and LN layers
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+are designed to propagate the average of the token
+embeddings added to the class token (through the
+residual connection). We denote this final embedding
+asa (0) ≈ p(0) + 1
+N+1
+PN
+i=0 p(i). The detailed designs
+are delegated to App. B.2. Then,
+∂a(0)
+d
+∂BO,t[:, n]≈ − 1
+N+ 1
+1
+σ2D
+NX
+i=0
+y(i)
+d y(i)
+2Tt(n)+2y(i)
+≈
+
+
+
+c2
+1
+(N+1)σ 2D y(Tt(n)),ifd= 2T t(n) + 1
+0,otherwise
+(14)
+as demonstrated in App. C. Equation (14) follows from
+the design of the position encoding vector in(3) and (4),
+which ensures a large value for the multiplicative factor
+−y(i)
+2Tt(n)+1y(i)
+2Tt(n)+2 for the target token i = Tt(n).
+The detailed analysis is provided in App. C.
+Classification Layer.In the final layer, the class
+token embeddinga (0) is used to produce the logits for
+each class. This is a linear layer with a weight matrix
+WCLS ∈R D×C , where C is the number of classes. The
+bias parameters are set to 0. We set the weight matrix,
+WCLS [i, j]≜
+c3 ifi= 2n ′ + 1, n′ ∈ T, j= 1
+0 otherwise (15)
+where c3 is a large constant (∼ 102). Denote the output
+logit for classiasq i. Then,
+q1 =
+X
+n′∈T
+a(0)
+2n′+1WCLS [2n′ + 1,1] (16)
+Let zi ≜e qi / PC
+c=1 eqc denote the predicted score for
+class i after softmax. The weights in (15) ensure that
+the score for class 1 is z1 ≈ 1 and 0 for all other
+classes, which allows the server to estimate the par-
+tial derivative of the loss function with respect to
+the logits. The loss function of user u is given by
+Lu = − PC
+i=1 li log(zi), where li = 1 if the fine-tuning
+sample belongs to class i and 0 otherwise. Then, the
+gradient with respect to the nth column of the fine-
+tuning matrixB O,t in encoder t can be written as,
+∂Lu
+∂BO,t[:, n]=
+X
+n′∈T
+∂Lu
+∂q1
+∂q1
+∂a(0)
+2n′+1
+∂a(0)
+2n′+1
+∂BO,t[:, n]
+≈(z 1 −l 1)c3
+c2
+1
+(N+ 1)σ 2D y(Tt(n)) (17)
+where (17) follows from (14), (15), and (16). Note that
+the gradient in (17) is zero if the fine-tuning sample
+belongs to class 1 (i.e., l1 = 1), and non-zero otherwise
+(when l1 = 0). For the former, the server can predict
+the true class of the fine-tuning sample, and set the
+weights of a different class to c3 in (15) in the next
+round, to obtain a non-zero gradient. Finally, the server
+can recover the target token embeddingy (Tt(n)) by di-
+viding (17) by a factor c3c2
+1/((N + 1)σ2D), and recover
+the target word embeddingx (Tt(n)) by subtracting the
+position encoding vector,x (Tt(n)) =y (Tt(n)) − e(Tt(n)),
+for t∈ [S− 1], n∈ Tt. Fig. 4 illustrates token recon-
+struction from multiple encoders.
+Note that our work adopts the standard adversarial
+server model in FL Fowl et al. (2023); Sami et al. (2025),
+which attempts to recover user data by tampering with
+model parameters, without regard for preserving model
+accuracy. FL typically runs in the background without
+active monitoring, making malicious behavior less likely
+to be detected Ramaswamy et al. (2019); Fowl et al.
+(2023). Since our attack is one-shot and reconstructs
+data in a single training round (e.g., at an early stage
+when accuracy is low), even if a user later notices
+degraded performance, the server may already have
+recovered the sensitive data. Investigating stealthier
+attacks that preserve training performance such as Feng
+and Tram` er (2024) is an interesting future direction.
+5 EXPERIMENTS
+Our experiments seek to answer the following questions:
+• How does MineGrad perform in recovering tokens
+from text sequences?
+• How does MineGrad perform with different ranks
+of LoRA matrices?
+• How can recovery rate be increased by leveraging
+LoRA matrices from multiple encoders?
+• How is the reconstruction performance affected by
+increasing the sequence length and batch size?
+• How does MineGrad perform in recovering images?
+Setup.We initially consider federated fine-tuning for
+text classification with 100 users, each training locally
+and sending the LoRA gradients to the server. From
+each gradient, the server reconstructs the fine-tuning
+data using MineGrad. Experiments are run on a 24
+core AMD Ryzen with NVIDIA RTX4000.
+Datasets and model architecture.We demonstrate
+the results with multiple datasets, which includes Ya-
+hoo Answers Topics, Yelp Review, AG’s News, DB-
+Pedia and TREC-6 Zhang et al. (2015); Li and Roth
+(2002). For the pretrained model, we consider BERT-
+base, BERT-large Devlin et al. (2019), RoBERTa-base
+and RoBERTa-large Liu et al. (2019).
+Performance metrics.To evaluate the performance
+of MineGrad, we measure BLEU and ROUGE-L scores
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+Table 1: Average BLEU and ROUGE-L scores over 100 samples for different datasets and models.
+Dataset RoBER T a-base RoBER T a-large BER T-base BER T-large
+BLEU ROUGE-L BLEU ROUGE-L BLEU ROUGE-L BLEU ROUGE-L
+AG’s 1.0 1.0 1.0 1.0 1.0 1.0 0.82 0.94
+DBPedia 0.99 1.0 0.99 1.0 1.0 1.0 0.79 0.92
+Y ahoo 1.0 1.0 1.0 1.0 1.0 1.0 0.81 0.94
+Y elp 0.98 1.0 0.98 1.0 0.98 1.0 0.73 0.91
+TREC 1.0 1.0 1.0 1.0 0.98 1.0 0.82 0.94
+Table 2: Recovered tokens from different datasets (rankr= 4, RoBERTa-base).
+Dataset Fine-tuning sample
+AG’s
+Ground-truth Microsoft Sends Digital Business Cards New InterConnect 2004 software automatically updates contact info.
+Recovered ‘Microsoft’, ‘S’, ‘ends’, ‘Digital’, ‘Business’, ‘Cards’, ‘New’, ‘Inter’,
+‘Connect’, ‘2004’, ‘software’, ‘automatically’, ‘updates’, ‘contact’, ‘info’,‘.’
+DBPedia Ground-truth Palacete de Belomonte is a historic palace in Porto Portugal.
+Recovered ‘Pal’, ‘ac’, ‘ete’, ‘de’, ‘Bel’, ‘omon’, ‘te’, ‘is’, ‘a’, ‘historic’, ‘palace’, ‘in’, ‘Port’, ‘o’, ‘Portugal’, ‘.’
+Y ahoo
+Ground-truth Heavy water what is the role that heavy water plays in the nuclear explosion process?
+Recovered ‘Heavy’, ‘water’, ‘what’, ‘is’, ‘the’, ‘role’, ‘that’, ‘heavy’, ‘water’, ‘plays’, ‘in’, ‘the’, ‘nuclear’, ‘explosion’, ‘process’, ‘?’
+Y elp Ground-truth If you like eastern north carolina BBQ, you’ll be in heaven.
+Recovered ‘If’, ‘you’, ‘like’, ‘eastern’, ‘north’, ‘car’, ‘olina’, ‘BBQ’, ‘,’, ‘you’, ‘ ’ll ’, ‘be’, ‘in’, ‘heaven’, ‘.’
+TREC
+Ground-truth What American League baseball team ’s worst finish between 1926 and 1964 was fourth?
+Recovered ‘What’, ‘American’, ‘League’, ‘baseball’, ‘team’, ‘ ’ ’, ‘s’, ‘worst’,
+‘finish’, ‘between’, ‘1926’, ‘and’, ‘1964’, ‘was’, ‘fourth’, ‘?’
+(a) BLEU score
+ (b) ROUGE-L score
+Figure 5: Reconstruction quality with varyingr.
+Papineni et al. (2002); Lin (2004) between recovered
+and ground-truth texts. Higher score implies better
+reconstruction.
+Hyperparameters.We use c1 = 10 2, c2 = 3 and
+c3 = 102 in equations (4), (15). Unless stated otherwise,
+we show the results with RoBERTa-base, rank r = 4,
+and sequence length 16.
+(a) BLEU score
+ (b) ROUGE-L score
+Figure 6: Utilizing multiple encoders (r= 2).
+Results.In Table 1, we report the average scores
+across 100 samples for different datasets and architec-
+tures under the same hyperparameters. As we observe,
+for all the models and datasets, MineGrad achieves
+ROUGE-L and BLEU scores equal to (or close to) 1,
+implying perfect (or near perfect) reconstruction. In
+Table 2, we illustrate examples of tokens recovered from
+the shared gradients. From the gradients corresponding
+to each encoder, we recover 4 tokens (as r = 4). To
+recover all 16 tokens, we use 4 encoders.
+Reconstruction rate vs. rank of LoRA matri-
+ces.In Fig. 5, we study the impact of rank r on
+reconstruction for a single encoder. We observe that
+reconstruction quality enhances when r increases. This
+suggests adopting a small r could be suffiicent to pre-
+serve privacy. However, in Fig. 6 we show that this is
+not the case. By deploying multiple encoders, we can
+achieve the same BLEU and ROUGE-L scores for rank
+r= 2 as forr= 16 with a single encoder.
+Reconstruction rate vs. sequence length.Fig. 8
+shows our results for increasing sequence length with
+RoBERTa-base, using the same rank and number of
+encoders as Tables 1–2. As expected, reconstruction
+performance degrades as the sequence length increases.
+Performance can be further enhanced by tampering
+with pretrained word embeddings (App. E.1).
+Comparison with DAGER Petrov et al. (2024).
+In Fig. 9, we compare the performance of MineGrad
+and DAGER. We observe that the reconstruction per-
+formance of DAGER heavily degrades when the rank is
+lower than the sequence length 16. In contrast, Mine-
+Grad retains the attack success even with a rank as
+small as 4.
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+(a) Ground-truth
+ (b) Recovered
+Figure 7: Image reconstruction (r= 4) for CIF AR-100.
+(a) BLEU score
+ (b) ROUGE-L score
+Figure 8: Reconstruction with varying sequence length.
+(a) BLEU score
+ (b) ROUGE-L score
+Figure 9: Reconstruction performance for DAGER vs.
+MineGrad (Yahoo Answers dataset).
+Defense mechanisms.In App. E.2, we present the
+attack performance against popular defenses such as
+secure aggregation Bonawitz et al. (2017), pruning Lin
+et al. (2018), and noise Abadi et al. (2016).
+Reconstruction for a batch of sequences.We next
+discuss how our attack performs for larger batch sizes
+(i.e., multiple sequences). Under this setup, we recover
+an average of multiple word embeddings from the gra-
+dient each associated with a particular sequence in the
+batch. From this average, the target word embeddings
+can be retrieved via a similarity-based search method
+across the vocabulary. Details are provided in App. D.
+In Table 3, we report the recovery performance. As we
+observe, even for a batch size of 64, up to 52 .2% of the
+tokens can be recovered.
+Results for image recovery.We next study how
+MineGrad performs on vision transformers (ViT) to
+recover image samples Dosovitskiy et al. (2021). In
+Table 4, we report the mean and standard deviation for
+LPIPS scores Zhang et al. (2018) (between recovered
+and original images) across 100 images from CIF AR-
+Table 3: Percentage of tokens recovered under different
+batch sizes across multiple datasets.
+Batch size 8 16 32 64
+Yahoo 99.7 89.4 64.9 45.9
+Yelp 99.5 88.0 65.3 44.2
+AGnews 99.8 91.1 66.3 46.8
+Trec 97.8 85.8 65.9 52.2
+DBpedia 99.8 89.9 60.2 41.6
+Table 4: LPIPS score across 100 images.
+CIF AR-10 CIF AR-100
+LPIPS 0.20±0.04 0.21±0.06
+10 and CIF AR-100 datasets Krizhevsky and Hinton
+(2009). In Fig. 7, we provide the results for some
+sample images. We observe that the recovered images
+are close to original images.
+Decoder-based architectures.In App. E.4 we
+further provide our results with GPT-2 Radford et al.
+(2019).
+Ablation study .In App. E.3, we provide an ablation
+study by varying the hyperparameters c1, c2 and addi-
+tional examples of recovered images/text sequences in
+Apps. E.5 and E.6.
+App. E.7 further demonstrates attack performance
+when LayerNorm and word embeddings are trainable.
+In App. E.8, we consider the performance in the pres-
+ence of adaptive optimizers, such as Adam and Ada-
+Grad. Apps. E.9 and E.10 demonstrate the perfor-
+mance under regularization, including Label Smoothing
+and Dropout.
+6 CONCLUSION
+We study how an adversary can recover sensitive fine-
+tuning data through malicious tampering with the
+pretrained model and fine-tuning LoRA modules. In
+addition to new privacy threats, we also demonstrate
+several new design principles that can be utilized in
+future studies. We show the efficacy of our attack across
+multiple models and datasets. Our results highlight
+the need for verifiable defense mechanisms for PEFT.
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+ACKNOWLEDGEMENT
+This work was supported in part by the NSF CAREER
+Award CCF-2144927, UCR OASIS Fellowship, and
+OUSD (R&E)/RT&L and was accomplished under Co-
+operative Agreement Number W911NF-20-2-0267. The
+views and conclusions contained in this document are
+those of the authors and should not be interpreted as
+representing the official policies, either expressed or
+implied, of the ONR, ARL and OUSD(R&E)/RT&L
+or the U.S. Government. The U.S. Government is
+authorized to reproduce and distribute reprints for
+Government purposes notwithstanding any copyright
+notation herein.
+References
+Abadi, M., Chu, A., Goodfellow, I. J., McMahan,
+H. B., Mironov, I., Talwar, K., and Zhang, L. (2016).
+Deep learning with differential privacy.Proceedings
+of the ACM SIGSAC Conference on Computer and
+Communications Security.
+Alistarh, D., Hoefler, T., Johansson, M., Konstanti-
+nov, N., Khirirat, S., and Renggli, C. (2018). The con-
+vergence of sparsified gradient methods. InAdvances
+in Neural Information Processing Systems (Neurips),
+pages 5977–5987.
+Balunovic, M., Dimitrov, D. I., Jovanovic, N., and
+Vechev, M. T. (2022). LAMP: extracting text from
+gradients with language model priors. InAdvances in
+Neural Information Processing Systems (Neurips).
+Bell, J. H., Bonawitz, K. A., Gasc´ on, A., Lepoint,
+T., and Raykova, M. (2020). Secure single-server
+aggregation with (poly) logarithmic overhead. In
+Proceedings of the 2020 ACM SIGSAC Conference
+on Computer and Communications Security (CCS),
+pages 1253–1269.
+Bian, J., Wang, L., Zhang, L., and Xu, J. (2024).
+Lora-fair: Federated lora fine-tuning with aggregation
+and initialization refinement.Arxiv.
+Bonawitz, K., Ivanov, V., Kreuter, B., Marcedone, A.,
+McMahan, H. B., Patel, S., Ramage, D., Segal, A.,
+and Seth, K. (2017). Practical secure aggregation for
+privacy-preserving machine learning. InProceedings of
+the 2017 ACM SIGSAC Conference on Computer and
+Communications Security (CCS), pages 1175–1191.
+Brown, T. B., Mann, B., Ryder, N., Subbiah, M.,
+Kaplan, J., Dhariwal, P., Neelakantan, A., Shyam,
+P., Sastry, G., Askell, A., Agarwal, S., Herbert-Voss,
+A., Krueger, G., Henighan, T., Child, R., Ramesh,
+A., Ziegler, D. M., Wu, J., Winter, C., Hesse, C.,
+Chen, M., Sigler, E., Litwin, M., Gray, S., Chess,
+B., Clark, J., Berner, C., McCandlish, S., Radford,
+A., Sutskever, I., and Amodei, D. (2020). Language
+models are few-shot learners. InAdvances in Neural
+Information Processing Systems (NeurIPS).
+Cai, H., Gan, C., Zhu, L., and Han, S. (2020). Tinytl:
+Reduce memory, not parameters for efficient on-device
+learning. InNeural Information Processing Systems.
+Carlini, N., Liu, C., Erlingsson, ´U., Kos, J., and Song,
+D. X. (2018). The secret sharer: Evaluating and
+testing unintended memorization in neural networks.
+InUSENIX Security Symposium.
+Carlini, N., Tram` er, F., Wallace, E., Jagielski, M.,
+Herbert-Voss, A., Lee, K., Roberts, A., Brown, T. B.,
+Song, D., Erlingsson, ´U., Oprea, A., and Raffel, C.
+(2021). Extracting training data from large language
+models. In30th USENIX Security Symposium, pages
+2633–2650.
+Chen, H., Tu, C., Li, Z., Shen, H., and Chao, W.
+(2023). On the importance and applicability of pre-
+training for federated learning. InThe Eleventh In-
+ternational Conference on Learning Representations,
+ICLR.
+Cho, Y. J., Liu, L., Xu, Z., Fahrezi, A., and Joshi, G.
+(2024). Heterogeneous lora for federated fine-tuning
+of on-device foundation models. InProceedings of the
+Conference on Empirical Methods in Natural Language
+Processing, EMNLP, pages 12903–12913. Association
+for Computational Linguistics.
+Chu, H., Geiping, J., Fowl, L. H., Goldblum, M., and
+Goldstein, T. (2023). Panning for gold in federated
+learning: Targeted text extraction under arbitrarily
+large-scale aggregation. InThe Eleventh International
+Conference on Learning Representations, ICLR.
+Deng, J., Wang, Y., Li, J., Wang, C., Shang, C., Liu,
+H., Rajasekaran, S., and Ding, C. (2021). TAG: gradi-
+ent attack on transformer-based language models. In
+Findings of the Association for Computational Lin-
+guistics: EMNLP, pages 3600–3610. Association for
+Computational Linguistics.
+Devlin, J., Chang, M., Lee, K., and Toutanova, K.
+(2019). BERT: pre-training of deep bidirectional trans-
+formers for language understanding. InProceedings
+of the 2019 Conference of the North American Chap-
+ter of the Association for Computational Linguistics:
+Human Language Technologies, NAACL-HLT, pages
+4171–4186. Association for Computational Linguistics.
+Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weis-
+senborn, D., Zhai, X., Unterthiner, T., Dehghani,
+M., Minderer, M., Heigold, G., Gelly, S., Uszkoreit,
+J., and Houlsby, N. (2021). An image is worth 16x16
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+words: Transformers for image recognition at scale.
+In9th International Conference on Learning Repre-
+sentations, ICLR.
+Feng, S. and Tram` er, F. (2024). Privacy back-
+doors: Stealing data with corrupted pretrained models.
+InForty-first International Conference on Machine
+Learning, ICML.
+Fowl, L. H., Geiping, J., Czaja, W., Goldblum, M.,
+and Goldstein, T. (2022). Robbing the fed: Directly
+obtaining private data in federated learning with mod-
+ified models. InThe Tenth International Conference
+on Learning Representations, ICLR.
+Fowl, L. H., Geiping, J., Reich, S., Wen, Y., Czaja, W.,
+Goldblum, M., and Goldstein, T. (2023). Decepticons:
+Corrupted transformers breach privacy in federated
+learning for language models. InThe Eleventh In-
+ternational Conference on Learning Representations,
+ICLR.
+Gao, Y., Xie, Y., Deng, H., and Zhu, Z. (2025). Gra-
+dient inversion attack in federated learning: Exposing
+text data through discrete optimization. InProceed-
+ings of the 31st International Conference on Compu-
+tational Linguistics, pages 2582–2591.
+Geiping, J., Bauermeister, H., Dr¨ oge, H., and Moeller,
+M. (2020). Inverting gradients - how easy is it to
+break privacy in federated learning? InAdvances in
+Neural Information Processing Systems (NeurIPS).
+Gupta, S., Huang, Y., Zhong, Z., Gao, T., Li, K., and
+Chen, D. (2022). Recovering private text in federated
+learning of language models. InAdvances in Neural
+Information Processing Systems (NeurIPS).
+Hatamizadeh, A., Yin, H., Roth, H., Li, W., Kautz, J.,
+Xu, D., and Molchanov, P. (2022). Gradvit: Gradient
+inversion of vision transformers. InIEEE/CVF Con-
+ference on Computer Vision and Pattern Recognition,
+CVPR, pages 10011–10020. IEEE.
+Hayou, S., Ghosh, N., and Yu, B. (2024). Lora+:
+Efficient low rank adaptation of large models. InForty-
+first International Conference on Machine Learning,
+ICML.
+He, P., Liu, X., Gao, J., and Chen, W. (2021). Deberta:
+decoding-enhanced bert with disentangled attention.
+In9th International Conference on Learning Repre-
+sentations, ICLR 2021, Virtual Event, Austria, May
+3-7, 2021.
+Hitaj, B., Ateniese, G., and P´ erez-Cruz, F. (2017).
+Deep models under the gan: Information leakage from
+collaborative deep learning.Proceedings of the ACM
+SIGSAC Conference on Computer and Communica-
+tions Security.
+Houlsby, N., Giurgiu, A., Jastrzebski, S., Morrone, B.,
+de Laroussilhe, Q., Gesmundo, A., Attariyan, M., and
+Gelly, S. (2019). Parameter-efficient transfer learning
+for NLP. InProceedings of the 36th International
+Conference on Machine Learning, ICML, volume 97
+ofProceedings of Machine Learning Research, pages
+2790–2799. PMLR.
+Hu, E. J., Shen, Y., Wallis, P., Allen-Zhu, Z., Li, Y.,
+Wang, S., Wang, L., and Chen, W. (2022). Lora:
+Low-rank adaptation of large language models. In
+The Tenth International Conference on Learning Rep-
+resentations, ICLR.
+Huang, Y., Gupta, S., Song, Z., Li, K., and Arora,
+S. (2021). Evaluating gradient inversion attacks and
+defenses in federated learning. InAdvances in Neural
+Information Processing Systems (Neurips), pages 7232–
+7241.
+JianHao, Z., Lv, C., Wang, X., Wu, M., Liu, W.,
+Li, T., Ling, Z., Zhang, C., Zheng, X., and Huang,
+X. (2024). Promoting data and model privacy in
+federated learning through quantized LoRA. InFind-
+ings of the Association for Computational Linguistics:
+EMNLP 2024, pages 10501–10512. Association for
+Computational Linguistics.
+Kariyappa, S., Guo, C., Maeng, K., Xiong, W., Suh,
+G. E., Qureshi, M. K., and Lee, H. S. (2023). Cock-
+tail party attack: Breaking aggregation-based privacy
+in federated learning using independent component
+analysis. InInternational Conference on Machine
+Learning, ICML.
+Kim, Y., Kim, J., Mok, W., Park, J., and Lee, S.
+(2023). Client-customized adaptation for parameter-
+efficient federated learning. InFindings of the Asso-
+ciation for Computational Linguistics: ACL, pages
+1159–1172.
+Kowsher, M., Esmaeilbeig, T., Yu, C., Soltanalian, M.,
+and Yousefi, N. (2024). Rocoft: Efficient finetuning
+of large language models with row-column updates.
+Advances in Neural Information Processing Systems
+(NeurIPS).
+Krizhevsky, A. and Hinton, G. (2009). Learning mul-
+tiple layers of features from tiny images.
+Li, B., Hu, Y., Nie, X., Han, C., Jiang, X., Guo,
+T., and Liu, L. (2023). Dropkey for vision trans-
+former. InProceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition, pages
+22700–22709.
+Li, X. and Roth, D. (2002). Learning question classi-
+fiers. InInternational Conference on Computational
+Linguistics.
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+Li, X., Zmigrod, R., Ma, Z., Liu, X., and Zhu, X.
+(2024). Fine-tuning language models with differen-
+tial privacy through adaptive noise allocation. In
+Findings of the Association for Computational Lin-
+guistics: EMNLP, pages 8368–8375. Association for
+Computational Linguistics.
+Li, X. L. and Liang, P. (2021). Prefix-tuning: Optimiz-
+ing continuous prompts for generation. InProceedings
+of the 59th Annual Meeting of the Association for
+Computational Linguistics and the 11th International
+Joint Conference on Natural Language Processing,
+ACL/IJCNLP, pages 4582–4597.
+Lin, C.-Y. (2004). Rouge: A package for automatic
+evaluation of summaries. InAnnual Meeting of the
+Association for Computational Linguistics.
+Lin, Y., Han, S., Mao, H., Wang, Y., and Dally, B.
+(2018). Deep gradient compression: Reducing the
+communication bandwidth for distributed training. In
+6th International Conference on Learning Representa-
+tions, ICLR.
+Liu, R., Wang, T., Cao, Y., and Xiong, L. (2024). Pre-
+curious: How innocent pre-trained language models
+turn into privacy traps. InProceedings of the 2024 on
+ACM SIGSAC Conference on Computer and Commu-
+nications Security, CCS, pages 3511–3524. ACM.
+Liu, Y., Ott, M., Goyal, N., Du, J., Joshi, M., Chen,
+D., Levy, O., Lewis, M., Zettlemoyer, L., and Stoy-
+anov, V. (2019). Roberta: A robustly optimized BERT
+pretraining approach.Arxiv.
+Lu, J., Zhang, X. S., Zhao, T., He, X., and Cheng, J.
+(2022). APRIL: finding the achilles’ heel on privacy
+for vision transformers. InIEEE/CVF Conference
+on Computer Vision and Pattern Recognition, CVPR,
+pages 10041–10050. IEEE.
+Mahabadi, R. K., Henderson, J., and Ruder, S. (2021).
+Compacter: Efficient low-rank hypercomplex adapter
+layers. InAdvances in Neural Information Processing
+Systems (NeurIPS), pages 1022–1035.
+Mireshghallah, F., Goyal, K., Uniyal, A., Berg-
+Kirkpatrick, T., and Shokri, R. (2022). Quantify-
+ing privacy risks of masked language models using
+membership inference attacks. InProceedings of the
+Conference on Empirical Methods in Natural Language
+Processing, EMNLP, pages 8332–8347. Association for
+Computational Linguistics.
+Nasr, M., Shokri, R., and Houmansadr, A. (2019).
+Comprehensive privacy analysis of deep learning: Pas-
+sive and active white-box inference attacks against
+centralized and federated learning.IEEE Symposium
+on Security and Privacy (SP), pages 739–753.
+Nguyen, J., Wang, J., Malik, K., Sanjabi, M., and
+Rabbat, M. G. (2023a). Where to begin? on the
+impact of pre-training and initialization in federated
+learning. InThe Eleventh International Conference
+on Learning Representations, ICLR.
+Nguyen, T. D. T., Lai, P., Tran, K., Phan, N., and
+Thai, M. T. (2023b). Active membership inference
+attack under local differential privacy in federated
+learning. InInternational Conference on Artificial
+Intelligence and Statistics, volume 206, pages 5714–
+5730.
+Panda, A., Choquette-Choo, C. A., Zhang, Z., Yang,
+Y., and Mittal, P. (2024). Teach llms to phish: Steal-
+ing private information from language models. In
+The Twelfth International Conference on Learning
+Representations, ICLR.
+Papineni, K., Roukos, S., Ward, T., and Zhu, W.
+(2002). Bleu: a method for automatic evaluation
+of machine translation. InProceedings of the 40th
+Annual Meeting of the Association for Computational
+Linguistics (ACL), pages 311–318.
+Pasquini, D., Francati, D., and Ateniese, G. (2022).
+Eluding secure aggregation in federated learning via
+model inconsistency. InConference on Computer
+and Communications Security, CCS, pages 2429–2443.
+ACM.
+Petrov, I., Dimitrov, D. I., Baader, M., M¨ uller, M. N.,
+and Vechev, M. T. (2024). DAGER: exact gradient
+inversion for large language models. InAdvances in
+Neural Information Processing Systems (Neurips).
+Radford, A., Wu, J., Child, R., Luan, D., Amodei,
+D., and Sutskever, I. (2019). Language models are
+unsupervised multitask learners.
+Ramaswamy, S., Mathews, R., Rao, K., and Beaufays,
+F. (2019). Federated learning for emoji prediction in
+a mobile keyboard.Arxiv.
+Sami, H. U., Sen, S., Roy-Chowdhury, A. K., Kr-
+ishnamurthy, S. V., and Guler, B. (2025). Gradient
+inversion attacks on parameter-efficient fine-tuning.
+InProceedings of the Computer Vision and Pattern
+Recognition Conference, pages 10224–10234.
+Scheliga, D., Maeder, P., and Seeland, M. (2023).
+Dropout is NOT all you need to prevent gradient leak-
+age. InThirty-Seventh AAAI Conference on Artificial
+Intelligence, AAAI, pages 9733–9741.
+Shokri, R., Stronati, M., Song, C., and Shmatikov, V.
+(2016). Membership inference attacks against machine
+learning models.2017 IEEE Symposium on Security
+and Privacy (SP), pages 3–18.
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+Shysheya, A., Bronskill, J., Patacchiola, M., Nowozin,
+S., and Turner, R. E. (2023). Fit: Parameter effi-
+cient few-shot transfer learning for personalized and
+federated image classification. InThe Eleventh In-
+ternational Conference on Learning Representations,
+ICLR.
+Song, L. and Mittal, P. (2021). Systematic evalua-
+tion of privacy risks of machine learning models. In
+30th USENIX Security Symposium, pages 2615–2632.
+USENIX Association.
+Sun, Y., Li, Z., Li, Y., and Ding, B. (2024). Im-
+proving lora in privacy-preserving federated learning.
+InThe Twelfth International Conference on Learning
+Representations, ICLR.
+Szegedy, C., Vanhoucke, V., Ioffe, S., Shlens, J., and
+Wojna, Z. (2016). Rethinking the inception architec-
+ture for computer vision. InProceedings of the IEEE
+conference on computer vision and pattern recognition,
+pages 2818–2826.
+Touvron, H., Lavril, T., Izacard, G., Martinet, X.,
+Lachaux, M., Lacroix, T., Rozi` ere, B., Goyal, N.,
+Hambro, E., Azhar, F., Rodriguez, A., Joulin, A.,
+Grave, E., and Lample, G. (2023). Llama: Open and
+efficient foundation language models.Arxiv.
+Tram` er, F., Shokri, R., Joaquin, A. S., Le, H., Jagiel-
+ski, M., Hong, S., and Carlini, N. (2022). Truth serum:
+Poisoning machine learning models to reveal their se-
+crets. InProceedings of the ACM SIGSAC Conference
+on Computer and Communications Security, CCS,
+pages 2779–2792. ACM.
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J.,
+Jones, L., Gomez, A. N., Kaiser, L., and Polosukhin,
+I. (2017). Attention is all you need. InAdvances
+in Neural Information Processing Systems (Neurips),
+pages 5998–6008.
+Vero, M., Balunovic, M., Dimitrov, D. I., and Vechev,
+M. T. (2023). Tableak: Tabular data leakage in fed-
+erated learning. InInternational Conference on Ma-
+chine Learning, ICML, volume 202 ofProceedings of
+Machine Learning Research, pages 35051–35083.
+Wang, Y., Lin, L., and Chen, J. (2022).
+Communication-efficient adaptive federated learn-
+ing. InInternational conference on machine learning,
+pages 22802–22838. PMLR.
+Wang, Z., Song, M., Zhang, Z., Song, Y., Wang,
+Q., and Qi, H. (2019). Beyond inferring class repre-
+sentatives: User-level privacy leakage from federated
+learning. In2019 IEEE Conference on Computer
+Communications, INFOCOM, pages 2512–2520.
+Wen, Y. and Chaudhuri, S. (2024). Batched low-
+rank adaptation of foundation models. InThe Twelfth
+International Conference on Learning Representations,
+ICLR.
+Wen, Y., Marchyok, L., Hong, S., Geiping, J., Gold-
+stein, T., and Carlini, N. (2024). Privacy backdoors:
+Enhancing membership inference through poisoning
+pre-trained models.Arxiv.
+Wolf, T., Debut, L., Sanh, V., Chaumond, J., De-
+langue, C., Moi, A., Cistac, P., Rault, T., Louf, R.,
+Funtowicz, M., Davison, J., Shleifer, S., von Platen,
+P., Ma, C., Jernite, Y., Plu, J., Xu, C., Scao, T. L.,
+Gugger, S., Drame, M., Lhoest, Q., and Rush, A. M.
+(2020). Transformers: State-of-the-art natural lan-
+guage processing. InProceedings of the 2020 Con-
+ference on Empirical Methods in Natural Language
+Processing: System Demonstrations, pages 38–45. As-
+sociation for Computational Linguistics.
+Wu, X., Huang, F., Hu, Z., and Huang, H. (2023).
+Faster adaptive federated learning. InProceedings
+of the AAAI conference on artificial intelligence, vol-
+ume 37, pages 10379–10387.
+Yao, D. (2024). Risks when sharing lora fine-tuned
+diffusion model weights.Arxiv.
+Yin, H., Mallya, A., Vahdat, A., Alvarez, J. M., Kautz,
+J., and Molchanov, P. (2021). See through gradi-
+ents: Image batch recovery via gradinversion. In
+IEEE/CVF Conf. on Computer Vision and Pattern
+Recognition.
+Yu, D., Naik, S., Backurs, A., Gopi, S., Inan, H. A.,
+Kamath, G., Kulkarni, J., Lee, Y. T., Manoel, A.,
+Wutschitz, L., Yekhanin, S., and Zhang, H. (2022).
+Differentially private fine-tuning of language models.
+InThe Tenth International Conference on Learning
+Representations, ICLR.
+Zhang, Q., Chen, M., Bukharin, A., He, P., Cheng,
+Y., Chen, W., and Zhao, T. (2023a). Adaptive bud-
+get allocation for parameter-efficient fine-tuning. In
+The Eleventh International Conference on Learning
+Representations, ICLR.
+Zhang, R., Isola, P., Efros, A. A., Shechtman, E.,
+and Wang, O. (2018). The unreasonable effectiveness
+of deep features as a perceptual metric. In2018
+IEEE Conference on Computer Vision and Pattern
+Recognition, CVPR, pages 586–595.
+Zhang, X., Zhao, J. J., and LeCun, Y. (2015).
+Character-level convolutional networks for text classi-
+fication. InNeural Information Processing Systems.
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+Zhang, Y., Jia, R., Pei, H., Wang, W., Li, B., and
+Song, D. (2020). The secret revealer: Generative
+model-inversion attacks against deep neural networks.
+In2020 IEEE/CVF Conference on Computer Vision
+and Pattern Recognition, CVPR, pages 250–258.
+Zhang, Z., Yang, Y., Dai, Y., Wang, Q., Yu, Y., Qu,
+L., and Xu, Z. (2023b). Fedpetuning: When federated
+learning meets the parameter-efficient tuning meth-
+ods of pre-trained language models. InFindings of
+the Association for Computational Linguistics: ACL,
+pages 9963–9977.
+Zhao, B., Tu, H., Wei, C., Mei, J., and Xie, C.
+(2024a). Tuning layernorm in attention: Towards
+efficient multi-modal LLM finetuning. InThe Twelfth
+International Conference on Learning Representations,
+ICLR.
+Zhao, J., Sharma, A., Elkordy, A., Ezzeldin, Y. H.,
+Avestimehr, S., and Bagchi, S. (2024b). Loki: Large-
+scale data reconstruction attack against federated
+learning through model manipulation. In2024 IEEE
+Symposium on Security and Privacy (SP).
+Zhu, L., Liu, Z., and Han, S. (2019). Deep leakage
+from gradients. InAdvances in Neural Information
+Processing Systems (NeurIPS).
+APPENDIX
+A BROADER IMPACT
+We demonstrate how fine-tuning samples can be recovered from the LoRA gradients in an FL setup. In practice,
+an adversarial server can get access to private fine-tuning data of a victim user through malicious tampering with
+the fine-tuning protocol. Pretrained models can be downloaded from a compromised source without a stringent
+verification protocol. In FL, users implicitly trust the models shared by the server. The server can leverage this
+scenario and send a poisonous pretrained model to the users. In addition, users rely on the server for receiving
+the updated fine-tuning parameters in each training round. By deploying a poisonous design of the pretrained
+model and fine-tuning modules, the server can successfully captivate the fine-tuning data inside a user’s local
+gradient. Without adopting further defense mechanisms, such fine-tuning does not ensure privacy. Therefore,
+it is important to further adopt formal mechanisms to guarantee authenticity of the models received from the
+server. By demonstrating the recoverability of sensitive fine-tuning samples with lightweight analytical attacks,
+without access to heavy computational resources, we hope to motivate new incentives towards employing robust
+defense mechanisms with provable guarantees in practice.
+B DETAILS OF THE ATTACK DESIGN
+In this section, we describe the malicious design details of the encoders.
+B.1 Design of T arget Encoders
+MSA layer.In the MSA layer, we have the embeddingsy (n) as inputs. For head h∈ [H], we denote the query,
+key and value weight matrices of a target encoder t∈ [S− 1] asW h
+Q,t, Wh
+K,t andW h
+V,t, and biases asb h
+Q,t, bh
+K,t
+andb h
+V,t, respectively, which are designed as,
+Wh
+Q,t =W h
+K,t =W h
+V,t =I D×D (18)
+bh
+Q,t =b h
+K,t =b h
+V,t =0(19)
+The LoRA matrices added to query, key and value weights are set to0. Then, query, key and value for head h
+are computed as,
+Qh
+t ≜
+Wh
+Q,t(y(0))h · · ·Wh
+Q,t(y(N) )h
+T
+Kh
+t ≜
+Wh
+K,t(y(0))h · · ·Wh
+K,t(y(N) )h
+T
+Vh ≜
+Wh
+V,t(y(0))h · · ·Wh
+V,t(y(N) )h
+T
+(20)
+Now, following (5), the self-attention output for headhbecomes,
+SAh([y(0) · · ·y(N) ])≜sof tmax(Qh
+t (Kh
+t )T/
+p
+D)Vh
+t ∼= I(N+1)×(N+1) Vh
+t
+=
+
+(y(0))h · · ·(y(N) )h
+T
+(21)
+Hence, our malicious design of query, key, value weights, biases and LoRA matrices along with the condition from
+(5) produces an identity mapping of the input embeddings. Finally, as in (8), we have,
+M SA([y(0) · · ·y(N) ]) = =
+
+(y(0))· · ·(y (N) )
+T
+BO,tAO,t (22)
+MLP layer.Embeddingsp (n) from (13) enters the MLP layer. We set all the pretrained weight parameters in
+the MLP layer to 0 to produce zero output. Then, through the residual connection, input to the next LN layer is
+equal top (n) from (13). By following the same design as LN layer parameters in (13), the output of this LN layer
+is approximately equal top (n).
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+B.2 Design of the Last Encoder
+MSA layer.For the MSA layer in the last encoder (Encoder S), we have embeddingsp (n) as inputs for
+n∈ {0, . . . , N}. For head h∈ [H], the query, key and value parametersW h
+Q,S, Wh
+K,S andW h
+V,S are designed as,
+Wh
+Q,S =W h
+K,S =0 D×D,W h
+V,S =I D×D (23)
+and biasesb h
+Q,S,b h
+K,S,b h
+V,S are designed as,
+bh
+Q,S =b h
+Q,S =b h
+V,S =0(24)
+The LoRA modules added to query, key and value weights are set to0. Then, query, key and values for head h
+are,
+Qh
+S ≜
+Wh
+Q,S(p(0))h · · ·Wh
+Q,S(p(N) )h
+T
+=0(25)
+Kh
+S ≜
+Wh
+K,S(p(0))h · · ·Wh
+K,S(p(N) )h
+T
+=0(26)
+Vh
+S ≜
+Wh
+V,S (p(0))h · · ·Wh
+V,S (p(N) )h
+T
+=
+
+(p(0))h · · ·(p(N) )h
+T
+(27)
+Hence, the attention matrix becomes a matrix with all elements equal to 1
+N+1 ,
+sof tmax(Qh
+S(Kh
+S)T/
+p
+D) ∼= 1
+N+ 1 1(N+1)×(N+1)
+where1 (N+1)×(N+1) represents a matrix containing all 1s. The self-attention output for headhis computed as,
+SAh([p(0) · · ·p(N) ])≜sof tmax(Qh
+S(Kh
+S)T/
+p
+D)Vh
+S
+=
+h
+1
+N+1
+PN
+i=0(p(i))h · · ·1
+N+1
+PN
+i=0(p(i))h
+iT
+(28)
+We then setW O,S =I D×D, and LoRA modulesA O,S ,B O,S to0, after which the MSA output becomes,
+M SA([p(0) · · ·p(N) ])
+=
+h
+1
+N+1
+PN
+i=0 p(i) · · ·1
+N+1
+PN
+i=0 p(i)
+iT
+(29)
+and ensures the average embeddings propagate undistorted. After the residual connection, class token embedding
+is,
+v(0) ≜p (0) + 1
+N+ 1
+NX
+i=0
+p(i) (30)
+We design the parameters of the subsequent LN layer following the same intuition as the LN layer from the
+preceding encoders, which produces an identity mapping.
+MLP layer.All weight parameters in the MLP layer are set to 0 to produce zero output. After going through
+the residual connection and the LN layer (similar design intuition as the previous LN layer), the output of the
+last encoder is,
+a(n) ≈v (n) forn∈ {0, . . . , N}(31)
+C GRADIENT COMPUTATION
+In this section, we describe how we obtain (14). Sincea (0) ≈ v(0) from (31), we have for n′ ∈ T(the set of target
+tokens),
+∂a(0)
+2n′+1
+∂BO,t[:, n]≈ ∂v (0)
+2n′+1
+∂BO,t[:, n] (32)
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+=
+∂(p(0)
+2n′+1 + 1
+N+1
+PN
+i=0 p(i)
+2n′+1)
+∂BO,t[:, n] (33)
+= ∂p(0)
+2n′+1
+∂BO,t[:, n]+
+∂ 1
+N+1
+PN
+i=0 p(i)
+2n′+1
+∂BO,t[:, n] (34)
+where (33) follows from (30). From (13),p (i)
+2n′+1 =
+y(i)
+2n′ +1+AT
+O,t[2n′+1,:]BT
+O,ty(i)−µ(i)
+2
+σ(i)
+2
+σ. Hence,
+∂p(i)
+2n′+1
+∂BO,t[:, n]=
+∂
+y(i)
+2n′ +1+AT
+O,t[2n′+1,:]BT
+O,ty(i)−µ(i)
+2
+σ(i)
+2
+σ
+∂BO,t[:, n] (35)
+Note that the mean ofu (i) in (12) is,
+µ(i)
+2 = 1
+D
+DX
+d=1
+(y(i)
+d +A T
+O,t[d,:]B T
+O,ty(i)) = 1
+D
+DX
+d=1
+y(i)
+d ≈0 (36)
+which follows from (6). Now,
+∂µ(i)
+2
+∂BO,t[:, n]= ∂
+∂BO,t[:, n]
+1
+D
+DX
+d=1
+(y(i)
+d +A T
+O,t[d,:]B T
+O,ty(i)) (37)
+= ∂
+∂BO,t[:, n]
+1
+D
+DX
+d=1
+AT
+O,t[d,:]B T
+O,ty(i) = 1
+D y(i) (38)
+where (38) follows from (10). The standard deviation ofu (i) in (12) is,
+σ(i)
+2 ≜
+vuut 1
+D
+DX
+d=1
+(y(i)
+d +A T
+O,t[d,:]B T
+O,ty(i) −µ (i)
+2 )2 ≈
+vuut 1
+D
+DX
+d=1
+(y(i)
+d −0) 2 ≈σ(39)
+which follows from (7). Next,
+∂ µ(i)
+2
+σ(i)
+2
+∂BO,t[:, n]=
+(σ(i)
+2 ) ∂µ(i)
+2
+∂BO,t[:,n] −µ (i)
+2
+∂σ (i)
+2
+∂BO,t[:,n]
+(σ(i)
+2 )2
+(40)
+≈ 1
+σ(i)
+2
+∂µ(i)
+2
+∂BO,t[:, n] (41)
+= 1
+σ(i)
+2
+∂
+∂BO,t[:, n]
+1
+D
+DX
+d=1
+(y(i)
+d +A T
+O,t[d,:]B T
+O,ty(i)) (42)
+= 1
+σ(i)
+2
+∂
+∂BO,t[:, n]
+1
+D
+DX
+d=1
+AT
+O,t[d,:]B T
+O,ty(i) (43)
+≈ 1
+σ
+1
+D y(i) (44)
+where (41) follows sinceµ (i)
+2 ≈0 in (36) and (44) follows from (10) and (39). Next,
+∂
+y(i)
+2n′ +1
+σ(i)
+2
+∂BO,t[:, n]
+=y (i)
+2n′+1
+∂
+∂BO,t[:, n]
+1
+σ(i)
+2
+(45)
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+=−y (i)
+2n′+1
+1
+(σ(i)
+2 )2
+∂σ (i)
+2
+∂BO,t[:, n] (46)
+=−y (i)
+2n′+1
+1
+(σ(i)
+2 )2
+∂((σ (i)
+2 )2)
+1
+2
+∂BO,t[:, n] (47)
+=− 1
+2 y(i)
+2n′+1
+1
+(σ(i)
+2 )3
+∂((σ (i)
+2 )2)
+∂BO,t[:, n] (48)
+=− 1
+2 y(i)
+2n′+1
+1
+(σ(i)
+2 )3
+∂
+∂BO,t[:, n]
+1
+D
+DX
+d=1
+(y(i)
+d +A T
+O,t[d,:]B T
+O,ty(i) −µ (i)
+2 )2 (49)
+=− 1
+2 y(i)
+2n′+1
+1
+(σ(i)
+2 )3
+1
+D 2
+DX
+d=1
+(y(i)
+d +A T
+O,t[d,:]B T
+O,ty(i) −µ (i)
+2 )
+× ∂
+∂BO,t[:, n](y(i)
+d +A T
+O,t[d,:]B T
+O,ty(i) −µ (i)
+2 ) (50)
+≈ −y(i)
+2n′+1
+1
+(σ(i)
+2 )3
+1
+D
+DX
+d=1
+y(i)
+d
+∂
+∂BO,t[:, n](AT
+O,t[d,:]B T
+O,ty(i) −µ (i)
+2 ) (51)
+=y (i)
+2n′+1
+1
+(σ(i)
+2 )3D2
+DX
+d=1,d̸=2Tt(n)+2
+y(i)
+d
+
+
+y(i)
+1
+y(i)
+2
+...
+y(i)
+D
+
+
+− y(i)
+2n′+1
+(σ(i)
+2 )3D
+y(i)
+2Tt(n)+2
+
+
+y(i)
+1
+y(i)
+2
+...
+y(i)
+D
+
+
++y (i)
+2n′+1
+1
+(σ(i)
+2 )3
+1
+D2 y(i)
+2Tt(n)+2
+
+
+y(i)
+1
+y(i)
+2
+...
+y(i)
+D
+
+
+(52)
+≈y (i)
+2n′+1
+1
+σ3D2
+DX
+d=1,d̸=2Tt(n)+2
+y(i)
+d
+
+
+y(i)
+1
+y(i)
+2
+...
+y(i)
+D
+
+
+− y(i)
+2n′+1
+σ3D y(i)
+2Tt(n)+2
+
+
+y(i)
+1
+y(i)
+2
+...
+y(i)
+D
+
+
++y (i)
+2n′+1
+1
+σ3
+1
+D2 y(i)
+2Tt(n)+2
+
+
+y(i)
+1
+y(i)
+2
+...
+y(i)
+D
+
+
+(53)
+where (51) follows since µ(i)
+2 ≈ 0 andA T
+O,t[d, :]BT
+O,t = 0 for all d∈ [D]. Equation (52) follows from (10) and (38).
+Equation (53) follows since σ(i)
+2 ≈σ in (39). In (53), compared to second term, the first and third terms have
+negligible impact since they are multiplied by an additional factor of 1
+D , which is very small for D = 768 (base
+architecture) andD= 1024 (large architecture). For the second term, ifi=T t(n) andn ′ =T t(n), then
+−y(i)
+2n′+1
+1
+σ3
+1
+D y(i)
+2Tt(n)+2
+
+
+y(i)
+1
+y(i)
+2
+...
+y(i)
+D
+
+
+≈c 2
+1
+1
+σ3
+1
+D y(i) (54)
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+(a) RoBERTa-base
+ (b) RoBERTa-large
+ (c) BERT-base
+ (d) BERT-large
+Figure 10: Reconstruction quality for unmodified vs. modified word embeddings (Yelp Review dataset).
+which follows from the design of position encoding vectors in (4). For all other values of i and n′, the term is
+negligible. Thus,
+∂
+y(i)
+2n′ +1
+σ(i)
+2
+∂BO,t[:, n]≈
+
+c2
+1
+1
+σ3
+1
+D y(i) ifi=T t(n), n′ =T t(n)
+negligible otherwise (55)
+Next, as we know from (11),A T
+O,t[d,:]B T
+O,ty(i) = 0 for anyd∈[D], therefore,
+∂
+AT
+O,t[d,:]BT
+O,ty(i)
+σ(i)
+2
+∂BO,t[:, n] = 1
+σ(i)
+2
+∂AT
+O,t[d,:]B T
+O,ty(i)
+∂BO,t[:, n] =
+(
+y(i)
+σ(i)
+2
+ifd= 2T t(n) + 2
+0D otherwise
+(56)
+≈
+(
+y(i)
+σ ifd= 2T t(n) + 2
+0D otherwise (57)
+Hence, in (35),
+∂
+AT
+O,t[2n′+1,:]BT
+O,ty(i)
+σ(i)
+2
+∂BO,t[:, n] =0(58)
+Now, from (38) and (55), for i = Tt(n) and n′ = Tt(n),
+∂
+y(i)
+2n′+1
+σ(i)
+2
+∂BO,t[:,n] >>
+∂
+µ(i)
+2
+σ(i)
+2
+∂BO,t[:,n] since c2
+1
+σ3D >> 1
+σD (as observed
+from our experiments). Therefore, from (55) and (57); (35) can be rewritten as,
+∂p(i)
+2n′+1
+∂BO,t[:, n]≈
+
+c2
+1
+1
+σ2
+1
+D y(i) ifi=T t(n), n′ =T t(n)
+negligible otherwise (59)
+Finally, in (34),
+∂a(0)
+2n′+1
+∂BO,t[:, n]≈
+ 1
+N+1 c2
+1
+1
+σ2
+1
+D y(Tt(n)) ifi=T t(n), n′ =T t(n)
+negligible otherwise (60)
+from which the target tokeny (Tt(n)) can be retrieved. Similarly, different tokens can be recovered by leveraging
+different columns n∈ [r] of matrixB O,t and different encoders t∈ [S− 1], where r is the rank of LoRA matrices
+andSis the total number of encoders in the architecture.
+D EXTENSION OF MINEGRAD FOR A BATCH OF SAMPLES
+Assume there are M samples in the batch. Our attack described in Section 4 essentially recovers an average of M
+word embeddings in a target position from the gradient with respect to a particular column of LoRA matrix
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+Table 5: Recovered texts of the two target users from the gradient aggregate with respect to LoRA matrices. The
+recovered words are highlighted.
+Sequence length User Fine-tuning sample
+16
+1
+Ground-truth Will the raise in the minimum wage help you
+or anyone you know over 19 years
+Recovered Will the raise in the minimum wage help you
+or anyone you know over 19 years
+2
+Ground-truth iv been doing alot more excersise and
+eating approx 1200 cals per day
+Recovered iv been doing alot more excersise and
+eating approx 1200 cals per day
+32
+1
+Ground-truth Will the raise in the minimum wage help you
+or anyone you know over 19 years
+Recovered Will the raise in the minimum wage help you
+or anyone you know over 19 years
+2
+Ground-truth iv been doing alot more excersise and
+eating approx 1200 cals per day
+Recovered iv been doing alot more excersise and
+eating approx 1200 cals per day
+B. For simplicity, in the following, we keep the description restricted to a target position. We denote the word
+embedding (in the target position) for the mth sample in the batch byx( m) for m∈ [M ], and the set of these
+word embeddings is denoted byMwith|M|=M. From the gradient, the attacker can recover,
+g≜ 1
+M
+MX
+m=1
+x(m) (61)
+Now, we design a malicious word embedding layer, where each element is randomly generated from a uniform
+distributionU(− 1√
+D , 1√
+D ) andDis the embedding dimension as defined in Section 4.
+Note that the above distribution has a mean 0 and variance 1
+3D . Hence, for any word embeddingv,
+E[∥v∥2] =D· 1
+3D = 1
+3 (62)
+Now, for a word embeddingvfrom the vocabulary wherev∈ M, we have
+E[gTv] = 1
+M E
+" MX
+m=1
+(x(m))Tv
+#
+= 1
+M E[∥v∥2] + 1
+M
+X
+x(m)̸=v
+E[(x(m))Tv]
+= 1
+3M + 0 = 1
+3M (63)
+and for a word embeddingv, wherev/∈ M,
+E[gTv] = 1
+M E
+" MX
+m=1
+(x(m))Tv
+#
+= 0 (64)
+The above properties can be leveraged to find out whether a word embedding from the vocabulary is present in
+the batch or not. For this, after recovering the average of word embeddings from the gradient, we compute its dot
+product with the word embeddings in the vocabulary and select the top- M embeddings with highest similarity.
+We report the results in Table 3, which shows the high success rate of our approach.
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+Table 6: Average BLEU, ROUGE-L scores and percentage of recovered tokens from gradient aggregate for 100
+samples.
+Sequence length Number of usersBLEU ROUGE-L % tokens recovered
+16
+25 0.99 1.0 100
+50 0.99 1.0 100
+75 0.99 1.0 100
+100 0.99 1.0 100
+32
+25 0.45±0.27 0.78±0.12 80.2±11
+50 0.45±0.27 0.78±0.12 80.2±11
+75 0.45±0.27 0.78±0.12 80.2±11
+100 0.45±0.27 0.78±0.12 80.2±11
+(a) BLEU score
+ (b) Rouge-L score
+ (c) Percentage of tokens recovered
+Figure 11: Reconstruction performance under gradient noise and clipping (RoBERTa-base model).
+E ADDITIONAL EXPERIMENTS
+E.1 Modified W ord Embedding
+In Section 5, the experimental results are shown by using the original word embedding layer from the pretrained
+models. Since this layer is a part of the pretrained model, an adversarial server has the capability to tamper with
+this layer as well Feng and Tram` er (2024). The unmodified word embedding layers from pretrained models contain
+values with a very small standard deviation (close to 0). The server can deploy a malicious word embedding
+layer with a higher standard deviation, leading to a large difference between different word embeddings. This
+enables the server to distinguish between different word embeddings and recover corresponding words/sub-words
+with higher accuracy. In Fig. 10 we demonstrate how an adversarial embedding layer can further enhance the
+attack performance. For these experiments we consider a rank r = 4 and utilize 4 encoders to recover the first 16
+tokens. We then demonstrate how the recovery of these 16 tokens is impacted by increasing sequence length. As
+we observe in Fig. 10, for all architectures, performance is significantly improved by leveraging malicious word
+embeddings over unmodified word embeddings.
+E.2 Robustness Against Defense Mechanisms
+In this section, we study the robustness of MineGrad against existing defense mechanisms such as secure
+aggregation, pruning, gradient noise and clipping. For this, we run the experiments with the RoBERTa-base
+pretrained model (unmodified word-embedding layer) and Yahoo Answers dataset with rank r = 4. We use 4
+encoders to recover 16 tokens.
+Attack to secure aggregation.We first demonstrate the robustness of MineGrad against secure aggregation
+protocols. Secure aggregation builds on cryptographic primitives Bonawitz et al. (2017); Bell et al. (2020), where
+each user sends a masked gradient to the server. Upon receiving the masked local gradients, the server can
+decode the true gradient aggregate, but cannot access individual local gradients. Recent works Pasquini et al.
+(2022); Zhao et al. (2024b) show how secure aggregation can be bypassed by leveraging model inconsistency,
+i.e, the server sends different models to different users. However, prior works do not consider the PEFT setup,
+which is the focus of our work. We investigate how individual users can be trapped by MineGrad by using model
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+(a) BLEU score
+ (b) Rouge-L score
+ (c) Percentage of tokens recovered
+Figure 12: Reconstruction performance under gradient pruning (RoBERTa-base model).
+Table 7: Attack performance for varyingc 2 with Yahoo Answers dataset on RoBERTa-base model (c 1 = 100).
+c2 3 5 10 20 30
+Percentage of tokens recovered 100 100 100 98.6 39.2
+inconsistency under secure aggregation. Let us assume for a target encoder t, the server sends malicious LoRA
+matricesA u
+O,t,B u
+O,t designed according to (9) to a target user u, and sendsA v
+O,t =0,B v
+O,t =0to users v̸ = u.
+Then user u would produce the target gradient containing information about target tokens whereas users v̸ = u
+would produce zero gradients. To verify this, we target 2 users, without loss of generality, user 1 and user 2. We
+set the rank as r = 4 and leverage encoders 1 − 4 for user 1, and encoders 5 − 8 for user 2 to recover 16 tokens.
+For the pretrained model, we use RoBERTa-base. As we observe in Table 5, even from the gradient aggregate,
+MineGrad can recover fine-tuning texts of these two users. In Table 6, we report the average scores across 100
+different recovered samples from aggregated gradients for two different sequence lengths 16 and 32. We observe
+that even with the number of total users increasing, the reconstruction accuracy is not impacted.
+Table 8: Attack performance for varyingc 1 with Yahoo Answers dataset on RoBERTa-base model (c 2 = 3).
+c1 5 10 50 100
+Percentage of tokens recovered 34.6 98.6 100 100
+Robustness against added noise.Next, we investigate how well MineGrad performs under added noise to
+gradients Abadi et al. (2016). In Fig. 11, we demonstrate the results with added Gaussian noise with varying
+levels of standard deviation. As we observe, MineGrad successfully retrieves the fine-tuning data with high
+accuracy even in the presence of noise with standard deviation of up to 1. We further conduct experiments with
+gradient clipping, where gradients are clipped to 1. As we observe, the attack is unsuccessful under clipping,
+suggesting clipping could be a better defense.
+Robustness against pruning.We now demonstrate how MineGrad attack is affected by gradient pruning
+Lin et al. (2018); Alistarh et al. (2018), where gradient elements with magnitude below a certain percentage are
+set to 0. As we observe in Fig. 12, even for up to 99% pruning, reconstruction remains unaffected. This can be
+attributed to the fact that only the target gradients (gradients from LoRA modules of either value weights or
+output projection weights) are non-zero. Hence, mostly non-target zero gradients are pruned out, while retaining
+the target gradients.
+E.3 Impact of V aryingc 1 andc 2
+In Table 7, we report the attack performance with varying c2 while keeping c1 fixed. As we see, attack success
+degrades with higher c2. Moreover, under a fixed c2, choosing a lower value for c1 causes an approximation error
+in Eqs. (6) and (7), resulting in degraded attack performance as evident in Table 8.
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+Table 9: Mean and standard deviation of the performance metrics across 100 samples with sequence length 16 for
+different datasets (GPT-2).
+Dataset Metrics
+ROUGE-L BLEU%T okens Recovered
+AG’s News 0.99±0.04 0.96±0.02 99.7±1
+DBPedia 0.94±0.15 0.98±0.03 99.2±2
+Yahoo Answers 0.996±0.02 0.98±0.08 99.3±2
+Yelp Review 0.996±0.02 0.99±0.05 99.6±2
+TREC 0.998±0.01 0.994±0.03 99.7±1
+(a) Original
+(b) Recovered
+Figure 13: Reconstruction performance of MineGrad withr= 4 on CIF AR-10.
+E.4 Decoder-Based Architecture
+We now demonstrate the attack performance of MineGrad with GPT-2 Radford et al. (2019) as the pretrained
+model. Unlike encoder-based architectures like BERT or RoBERTa, GPT-2 follows a unidirectional self-attention
+mechanism. For classification tasks, either a class token is added to the end of all other tokens, or the last token
+is used for classification. Same design principles as described in Section 4 can also be utilized for GPT-2. In
+Table 9, we report the mean and standard deviation across 100 samples for different metrics. As we observe, the
+tokens are recovered with high success rate.
+E.5 Recovered Images from CIF AR-10 Dataset
+In Fig. 13, we demonstrate the reconstruction of sample images from CIF AR-10 dataset. As we observe, images
+are recovered with high fidelity.
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+Table 10: Recovered tokens for multiple datasets with both modified and unmodified word embeddings (rank
+r= 4). We leverage fine-tuning gradients from 8 encoders to recover 32 tokens.
+Dataset Fine-tuning sentences
+AG’s
+Ground-truth text Google gets a bounce, ends its first day up 18 percent
+Shares of Google leaped$15.34, or 18 percent, to$100.
+Recovered (unmodified) Google gets a bounce , ends its first day up 18 percent
+Shares of Google leaped$15.34, or 18 percent , to $100.
+Recovered (modified) Google gets a bounce , ends its first day up 18 percent
+Shares of Google leaped$15 . 34 , or 18 percent , to$100 .
+DBPedia
+Ground-truth text
+Takuma Kanaiwa is a New York City based musician and
+electrical engineer. His music is known for transcending
+genres such as free jazz and Japanese folk.
+Recovered (unmodified)
+Takuma Kanaiwa is a New York City based musician and
+electrical engineer . His music is known for transcending
+genres such as free jazz and Japanese folk .
+Recovered (modified)
+Takuma Kanaiwa is a New York City based musician and
+electrical engineer . His music is known for transcending
+genres such as free jazz and Japanese folk .
+Yahoo
+Ground-truth text
+In the san francisco bay area, does it make sense
+to rent or buy ? the prices of rent and the price
+of buying does not make sense to me
+Recovered (unmodified)
+In the san francisco bay area , does it make sense
+to rent or buy ? the prices of rent and the price
+of buying does not make sense to me
+Recovered (modified)
+In the san francisco bay area , does it make sense
+to rent or buy ? the prices of rent and the price
+of buying does not make sense to me
+Yelp
+Ground-truth text
+I try to visit every time I’m in L V because I like
+the food here but I’m only giving 3 stars because
+of the controversy around their calorie counts.
+Recovered (unmodified)
+I try to visit every time I ’m in L V because I like
+the food here but I ’m only giving 3 stars because
+of the controversy around their calorie counts .
+Recovered (modified)
+I try to visit every time I’m in L V because
+I like the food here but I’m only giving 3 stars because
+of the controversy around their calorie counts .
+TREC
+Ground-truth text Who was the author of the book about computer hackers
+called “ The Cuckoo ’s Egg : Tracking a Spy
+Through the Maze of Computer Espionage ” ?
+Recovered (unmodified)
+Who was the author of the book about computer hackers
+called “ The Cuckoo ’ s Egg : Tracking a Spy
+Through the Maze of Computer Espionage ” ?
+Recovered (modified)
+Who was the author of the book about computer hackers
+called “ The Cuckoo ’s Egg : Tracking a Spy
+Through the Maze of Computer Espionage ” ?
+Hasin Us Sami *, Swapneel Sen *, Ba¸ sak G¨ uler
+E.6 More Examples of Recovered Sequences
+In Table 10, we show reconstruction results for all 32 tokens from sequences with length 32. For this, we leverage
+gradients from 8 encoders with rankr= 4.
+E.7 T rainable LayerNorm/Embeddings
+Table 11: Average Scores in terms of BLEU and Percentage of tokens recovered (TokRec) over 100 samples with
+trainable LayerNorm and word-embeddings.
+Dataset RoBER T a-base RoBER T a-large BER T-base BER T-large
+BLEU %TokRec BLEU %TokRec BLEU %TokRec BLEU %TokRec
+Yahoo 1.0 100 1.0 100 1.0 100 0.81 95
+Yelp 0.98 100 0.98 100 0.98 100 0.73 93
+DBPedia 0.99 100 0.99 100 1.0 100 0.79 93
+TREC 1.0 100 1.0 100 0.98 100 0.82 94
+AG’s 1.0 100 1.0 100 1.0 100 0.82 94
+Our attack remains successful when LayerNorm/word embeddings are trainable. For LayerNorm, (13) guarantees
+that the target token embeddings reach the next encoder’s LoRA modules without distortion as in (8). Hence,
+target gradients with respect to the LoRA matrixBremain exactly as in (17) and still reveal the fine-tuning
+tokens - additional gradients with respect to LayerNorm do not affect this signal. A similar argument also holds
+for word embeddings. Table 11 demonstrates our results for reconstruction performance, where we report the
+BLEU Scores, as well as the percentage of tokens recovered for sequence length 16 andr= 4.
+E.8 Different Optimizers
+Table 12: Average scores across 100 samples from Yahoo Answers Dataset with different optimizers (RoBERTa-
+base).
+Seq. Length Optimizer Rouge-L BLEU % T okens Recovered
+16
+SGD 1.00 1.00 100
+Adam 1.00 1.00 100
+AdaGrad 1.00 1.00 100
+32
+SGD 0.77 0.45 79
+Adam 0.76 0.43 78
+AdaGrad 0.77 0.44 79
+Our original framework and derivations consider conventional SGD as the optimizer, as was typically considered
+also in prior attacks Chu et al. (2023); Fowl et al. (2022, 2023); Petrov et al. (2024); Zhao et al. (2024b), but
+adaptive optimizers such as Adam or AdaGrad can also be considered as follows. For server side optimizers Wang
+et al. (2022), note that an adversarial server can bypass such optimizers, so the attack is unchanged. For user-side
+optimization Wu et al. (2023), since first and second moments of Adam are initialized as zero, after one local step
+and bias correction, the model update becomes,
+ˆ gu =η gu
+|gu|+ϵ (65)
+whereg u is the gradient of user u, η is the step-size, and ϵ is a small parameter ( ∼ 10−8). Note that ˆ gu preserves
+the sign pattern ofg u. Since the target gradient in (17) is a scaled token embedding, cosine similarity still recovers
+the correct embedding and attack remains effective. The same also holds for AdaGrad. Because the attack is
+one-shot, the adversary only needs the first round. Table 12 reports our results with different optimizers.
+E.9 Label Smoothing
+We next demonstrate attack performance under label smoothing. In Table 13, we replace each label i∈ [C] with,
+li = (1−α)δ i + α
+C (66)
+MineGrad: Gradient Inversion Attacks on LoRA Fine-T uning
+Table 13: Average scores across 100 samples from Yahoo Answers Dataset with different levels of smoothing
+(RoBERTa-base).
+Seq. LengthαRouge-L BLEU % T okens Recovered
+16
+0.1 1.00 1.00 100
+0.2 1.00 1.00 100
+0.3 1.00 1.00 100
+0.4 1.00 1.00 100
+32
+0.1 0.76 0.41 78
+0.2 0.74 0.38 77
+0.3 0.74 0.37 76
+0.4 0.73 0.36 76
+where δi is the Dirac delta, C is the number of classes, and α is the smoothing parameter Szegedy et al. (2016). In
+(17) one-hot labels result in z1 −l 1 = 1. On the other hand, under smoothing, l1 = α/C, hence z1 −l 1 = 1 −α/C ,
+which stays close to 1 for typical α choices, e.g., 0 .1 Szegedy et al. (2016). Thus, embeddings remain almost
+undistorted, and attack succeeds.
+E.10 Dropout Rate
+Table 14: Average scores across 100 samples for different dropout rates (RoBERTa-base, sequence length 16).
+Dataset Dropout rate (p) Rouge-L BLEU % T okens Recovered
+Yahoo
+0.1 0.91 0.77 94.46
+0.2 0.79 0.52 82.68
+0.4 0.52 0.20 59.35
+Yelp
+0.1 0.90 0.72 92.58
+0.2 0.76 0.44 80.29
+0.4 0.60 0.21 63.42
+DBpedia
+0.1 0.90 0.74 92.17
+0.2 0.81 0.54 83.00
+0.4 0.56 0.25 60.50
+TREC
+0.1 0.91 0.79 95.28
+0.2 0.78 0.48 81.60
+0.4 0.49 0.16 58.03
+AG News
+0.1 0.91 0.78 94.46
+0.2 0.79 0.50 83.83
+0.4 0.49 0.16 58.63
+We evaluate our attack under DropKey Li et al. (2023), which applies dropout to the scaled dot-product scores in
+the attention layer, by adding a dropout mask before softmax, where each element is sampled as,
+x=
+ 0 with prob. 1−p
+−∞with prob.p (67)
+where the dropout rate is p∈ [0, 1]. Table 14 reports the reconstruction performance for different dropout rates p.
+As expected, lower dropout yields higher success.
