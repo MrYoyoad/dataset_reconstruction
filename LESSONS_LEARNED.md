@@ -122,6 +122,21 @@ Apply: before trusting ANY free-c leakage number, print `clipped_fraction`; if >
 compare, either read only `ssim_norm`/NCC/control-margin or re-run with `--pixel_box`. High clip is a
 symptom of a hard reconstruction (superposition at high N, large dW), so it clusters exactly where the
 result is most fragile.
+### Correction: the [0,1] box HELPS the joint path but BLANKS the sequential-peel path (2026-08-21)
+Re-running the N-sweep with --pixel_box exposed two mistakes:
+1. **Audit over-generalized the clip.** The 0.10-0.47 clip was the SOFTPLUS N-sweep (nrank_665601).
+   The DEFAULT-recipe N-sweep (main_427349) was already clip-clean at N>=4 (npc=4 clip 0.009, npc=8
+   0.001). Only the moderately-clipped joint config npc=2 (clip 0.104) actually needed a box. Lesson:
+   attribute a clip level to the SPECIFIC recipe that produced it, don't generalize across activations.
+2. **--pixel_box at verify_weight 5.0 over-constrains the low-signal sequential-peel path.** Peeling
+   recovers one weak source at a time (true c~0.06 for N=8); the box penalty (sum over 3072 pixels,
+   weight 5.0) dominates the tiny NTK signal and drives the peel coefficients to ~0 (c~0.005), blanking
+   the reconstruction: margin +0.045/+0.085 (old, unboxed, already clip-clean) -> ~0 (boxed). Even
+   though the *final* clean solution sits inside [0,1], the box blocks the optimization path to it.
+   FIX: box the joint configs (npc 1,2, where clip is real and the box HELPS: npc=2 margin
+   +0.028 -> +0.176), do NOT box the already-clean peel configs (npc 4,8). A penalty box is only safe
+   when the data term is strong enough to compete with it; for a weak/underdetermined reconstruction a
+   hard clamp (project x+ds_mean to [0,1] each step) would be the non-interfering alternative.
 
 ## GB-Phase 2 end-to-end: the inverter matters more than the decoder (2026-08-19)
 
