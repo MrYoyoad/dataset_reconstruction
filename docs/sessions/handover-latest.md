@@ -1,12 +1,16 @@
-# Handover — 2026-08-23 19:30
+# Handover — 2026-08-23 19:40
 
 ## State
-Branch `step1-activation-rescore-retrieval`, pushed to `myfork`. Phase J0 of the Jacobian-spectrum
-leakage program is **built, validated, and complete** (job 982855). AD is exact (toy FD 5.9e-10,
-jvp-vs-reverse 3.5e-18; MNIST FD 3.9e-9). **Next task = J1 (seed-whitening / q_eff), the first
-privacy-meaningful number.** See STATUS.md "Phase J0 COMPLETE" for the full result table + the
-critical honesty caveat (pre-whitening eff_rank is NOT leakage evidence — it conflates magnitude with
-recoverability and is confounded by LoRA-rank + T-underfitting).
+Branch `step1-activation-rescore-retrieval`, pushed to `myfork`. Jacobian-spectrum program: **J0 AND J1
+both built, validated, complete** (jobs 982855, 983139). AD exact (toy FD 5.9e-10, jvp-vs-reverse
+3.5e-18; MNIST FD 3.9e-9). **Two decisive de-confounds landed — see STATUS.md "Phase J1 COMPLETE":**
+(1) the J0 "N=4 collapse" is largely T=5 UNDERFITTING (eff_rank climbs 9.3→12.7 over T=5→50);
+(2) whitening is INOPERATIVE here — B0-init noise is ~orthogonal to J (J-energy in measured noise
+subspace = 0.0–0.1%), so q_eff is shrinkage-floor artifact, NOT a valid privacy number yet.
+
+**Next task = add a randomness source that lives in J's column space (minibatch SGD / data-order /
+augmentation) so Σ_seed spans J and q_eff becomes measurable.** Then re-run the leakage bracket with T
+large enough to converge and S≥4·Nk.
 
 ## Done this session
 - **Audited** the parallel-session plan against live infra; caught two real bugs before submit:
@@ -25,19 +29,23 @@ recoverability and is confounded by LoRA-rank + T-underfitting).
   locally — always submit a WEXAC job (user rule, emphatic).
 
 ## Next step(s)
-1. **Build/validate J1** (the first privacy-meaningful number). `snr_spectrum` (Woodbury) / `q_eff` /
-   `estimate_sigma_seed` are scaffolded in `jacobian_spectrum.py` but UNVALIDATED. Need: a
-   `ctx_factory(seed)` that redraws the LoRA B0 init (the ordinary-training randomness source; full
-   batch → B0 draw is the main stochasticity) holding data/frozen fixed; estimate `Σ_seed` over
-   S∈{16,32,64} seeds; whiten; test (a) whitening sanity (whitened seed samples ≈ isotropic), (b) `q_eff`
-   over a range of shrinkage ρ and ε, (c) CRLB per-coordinate scatter. Run as a bsub job.
-2. **T-sweep (5/20/50)** on the J0 configs to de-confound the eff_rank readout: eff_rank→Nk with T ⟹
-   underfitting; plateau <Nk ⟹ structural. (yoado-29's caution — do this before writing up the
-   N-dependence.)
-3. **Report σ-spectrum SHAPE** (gap vs gradual decay), not just scalar eff_rank; consolidated
-   eff_rank-vs-Nk figure (submit as a small plotting job — do not run locally).
-4. Only after J1: revisit the N=2(frac~1.0) vs N=4(frac~0.6) contrast as a possible identifiability
-   statement.
+1. **Add SGD/minibatch (or data-order/augmentation) noise to the training map** so `Σ_seed` spans J's
+   column space. This is THE blocker: with full-batch training the only randomness (B0 init) is
+   ~orthogonal to J (0% energy overlap), so q_eff is unmeasurable. Implement a `ctx_factory(seed)` that
+   varies minibatch order (needs switching `unrolled_lora_AB` to minibatch SGD) and re-run
+   `run_j1`; the energy diagnostic (`noise_subspace_energy`, already in code) should now report a
+   meaningful non-zero fraction. Only then is q_eff a real number.
+2. **Train to convergence** (T-sweep shows T=5 underfits N=4) and **scale S≥4·Nk** for headline configs
+   (adequacy print already flags this).
+3. Consolidated figures (eff_rank-vs-T curve; q_eff/q-vs-ε across configs) — submit as a plotting job,
+   do NOT run locally.
+4. Then J2 (the (N,r,L) phase diagram) once q_eff is trustworthy.
+
+## Infra ready to reuse
+`experiments/jacobian_spectrum.py`: `run_j0`, `run_j0_T_sweep`, `run_j1` (+ `--j0/--j1/--T_sweep`
+CLI), `exact_jacobian` (jvp_double), `snr_spectrum` (Woodbury), `q_eff`, `noise_subspace_energy`,
+`_draw_B0`. Scripts: `run_jacobian_spectrum_wexac.sh` (J0), `run_jacobian_j1_wexac.sh` (T-sweep+J1).
+Both put the toy-AD gate as Stage 0 (abort-on-fail). RULE: never run locally — always bsub.
 
 ## Open threads / gotchas
 - **Spec = `notes/jacobian_leakage_experiment_plan.md` (v3).** Self-contained; a fresh session can

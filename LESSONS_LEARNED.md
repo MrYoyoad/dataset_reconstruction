@@ -4,6 +4,36 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Whitening is inoperative when the noise source is orthogonal to the signal Jacobian (2026-08-23)
+
+- **Finding (job 983139, Phase J1):** whitening `J` by the LoRA-B0-init noise covariance `Σ_seed`
+  produced `q_eff` numbers that were **pure shrinkage-floor artifacts** — the reliability diagnostic
+  showed **0.0–0.1% of J's Frobenius energy lies inside the measured noise subspace** (across all
+  N/k/S). The B0-init noise perturbs the adapter in directions ~orthogonal to the data-perturbation
+  Jacobian, so there is nothing to whiten *in the directions that matter*.
+- **Why it's a trap:** the `q_eff` printout looks fine (8/8, 16/16 at small ρ) and only reveals itself
+  as meaningless via the energy diagnostic. Without that check you would report a spurious privacy number.
+- **The diagnostic that catches it:** project `J`'s columns onto span(the S noise samples) and report
+  `‖P·J‖²/‖J‖²`. Where it's ~0, the "noise floor" divided out is just `ρμ` (the regularizer), which is
+  exactly why `q_eff` is ρ-sensitive there. The adequacy ratio is **Nk vs S** (Fisher is Nk×Nk), NOT
+  dimY vs S — a small S can still be adequate for the column-space Fisher.
+- **Root mechanism:** full-batch GD from a fixed init is deterministic in the data; the only realizable
+  randomness (B0 init) doesn't overlap the data-signal subspace. To get a measurable noise floor you
+  need randomness that lives in J's column space — minibatch SGD / data-order / augmentation.
+- **General rule:** before trusting a whitened/SNR/Fisher quantity, verify the noise you divided by
+  actually spans the signal's subspace. An isotropic, well-behaved noise cloud that is *orthogonal* to
+  the signal gives a confident-looking but empty answer.
+
+## eff_rank of an unrolled-training Jacobian at small T conflates underfitting with structural rank (2026-08-23)
+
+- **Finding (job 983139, T-sweep):** at T=5 the data-latent Jacobian for N=4 looked rank-deficient
+  (eff_rank 9.3/16); sweeping T=5/20/50 it climbed to 12.7 and was still rising — the deficiency was
+  largely **underfitting** (some data directions simply hadn't moved the adapter yet), not a structural
+  identifiability limit. N=2 was flat near full-rank at all T.
+- **Lesson:** a low `eff_rank(∂θ_T/∂a)` at fixed small T is not evidence of privacy/identifiability
+  collapse — always T-sweep (or train to convergence) before attributing it to structure. Report the
+  eff_rank-vs-T curve, not a single-T scalar.
+
 ## `torch.no_grad()` around an unrolled-training forward kills the inner SGD gradient (2026-08-23)
 
 - **Bug:** `experiments/jacobian_spectrum.py` — the Phase J0 finite-difference gate aborted the first

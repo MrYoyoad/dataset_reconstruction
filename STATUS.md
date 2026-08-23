@@ -4,6 +4,42 @@ Last updated: **2026-08-23** (Phase J0 of the Jacobian-spectrum program implemen
 
 ---
 
+## Jacobian-spectrum leakage program — Phase J1 COMPLETE: two decisive de-confounds (2026-08-23)
+
+Job 983139 (T-sweep + seed-whitening / q_eff). **Two diagnostics turned the tentative J0 "N controls
+identifiability" story into an honest, sharper result — and neither the deterministic eff_rank nor the
+current q_eff is yet a clean privacy number.** Results: `results/jacobian_j1_*.pth`,
+`figures/jacobian_spectrum/j1_*.png`.
+
+**1. T-sweep (eff_rank vs T=5/20/50) — the N=4 "collapse" is largely UNDERFITTING, not structural.**
+- N=2, k=8: eff_rank ≈ 15.9/16 flat across T (genuinely preserves all coords).
+- N=4, k=4: eff_rank **climbs** 9.28 → 9.50 → 12.68 as T=5→20→50 (verdict: UNDERFITTING).
+- ⟹ the J0 "N=4 → frac≈0.6" was mostly a T=5 training artifact. Deterministic eff_rank at fixed small
+  T is NOT a structural identifiability number. (Vindicates the pre-registered caveat.)
+
+**2. J1 whitening — the B0-init noise is ~ORTHOGONAL to the data-signal, so q_eff is not yet
+measurable.** The key number is the new reliability diagnostic (yoado-29): **J-energy inside the
+measured seed-noise subspace = 0.0–0.1% across ALL configs** (N∈{2,4}, k∈{4,8}, S∈{16,32,64}).
+- The B0-init noise cloud is nearly isotropic (anisotropy 1.07–1.18) and ≈Gaussian (skew ≈0.1,
+  excess-kurt ≈ −0.5), i.e. a well-behaved noise — it just lives in different adapter directions than
+  the data-perturbation Jacobian.
+- ⟹ the reported `q_eff` (e.g. 8/8, 16/16 at small ρ) is **dominated by the shrinkage floor ρμ, not
+  measured noise** — exactly the ρ-artifact the diagnostic flags. `q_eff` is trustworthy only for the
+  ~0% of J-energy the noise spans, so it is **not a valid privacy number in this setup.**
+- **Leakage bracket:** known-init upper bound = raw eff_rank (N=2 full ~16/16; N=4 underfit ~9–20/32);
+  unknown-init q_eff = not trustworthily measurable from B0 noise here.
+
+**Why (mechanism):** full-batch GD from a fixed init is deterministic in the data; the ONLY realizable
+randomness is the B0 init, and it perturbs the adapter orthogonally to data-perturbations. So ordinary
+init randomness provides ~no measurable masking of the private directions.
+
+**Next (promoted from footnote to necessary):** introduce a randomness source that lives in J's column
+space — **minibatch SGD / data-order / augmentation noise** — so `Σ_seed` actually spans J and `q_eff`
+becomes a real measurement. Then re-run the bracket. Also: use T large enough to converge (T-sweep
+shows T=5 underfits N=4) and scale S≥4·Nk for headline configs.
+
+---
+
 ## Jacobian-spectrum leakage program — Phase J0 COMPLETE (machinery validated; NOT yet a privacy result) (2026-08-23)
 
 Job 982855 ran the full J0 sweep to completion. **The data-latent Jacobian machinery works and correctly
