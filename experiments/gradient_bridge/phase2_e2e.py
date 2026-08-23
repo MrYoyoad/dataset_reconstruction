@@ -108,13 +108,14 @@ def extract(m0, dw, coeffs, npc, epochs, device, input_shape=(1, 28, 28),
     return x_recon
 
 
-def train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale, layers, dec_batch=128):
+def train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale, layers, dec_batch=128, proxy_dataset=None):
     """Train one two-sided decoder per layer on the dataset's PUBLIC (train-set) proxy pairs."""
     torch.set_default_dtype(torch.float32)                    # decoder phase (model stays float64)
     decs, dcos = {}, {}
     for li in layers:
         tb = generate_pair_bank(n_train, li, rank, activation=activation, seed=0, device=device,
-                                verbose=False, two_sided=True, a_init_scale=a_init_scale, dataset=dataset)
+                                verbose=False, two_sided=True, a_init_scale=a_init_scale, dataset=dataset,
+                                proxy_dataset=proxy_dataset)
         dec, _, summ = train(tb, epochs=dec_epochs, out_mode='auto', out_rank=16, batch=64,
                              device=device, verbose=False)
         dec.eval(); decs[li] = dec; dcos[li] = summ['best_full_cos']
@@ -195,10 +196,10 @@ def attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank,
     return results, agg_cos
 
 
-def run(activation, device, dataset, npc_list, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale, dec_batch=128, pixel_box=False):
+def run(activation, device, dataset, npc_list, seed, n_train, dec_epochs, ext_epochs, rank, a_init_scale, dec_batch=128, pixel_box=False, proxy_dataset=None):
     layers = list(range(len(DATASET_SPECS[dataset]['hidden']) + 1))   # all Linear layers (depth-agnostic)
     decs, dcos = train_decoders(activation, device, dataset, n_train, dec_epochs, rank, a_init_scale,
-                                layers, dec_batch=dec_batch)
+                                layers, dec_batch=dec_batch, proxy_dataset=proxy_dataset)
     for npc in npc_list:
         attack(decs, dcos, activation, device, dataset, npc, seed, ext_epochs, rank, a_init_scale, layers, pixel_box=pixel_box)
 
@@ -248,6 +249,9 @@ def main():
     p.add_argument('--rank', type=int, default=8)
     p.add_argument('--a_init_scale', type=float, default=0.1)
     p.add_argument('--dec_batch', type=int, default=128)
+    p.add_argument('--proxy_dataset', default=None,
+                   help='Decoder-training proxy dataset (default: same as --dataset). Use a LARGER '
+                        'same-geometry set, e.g. cifar100 for flowers32, to test the starvation hypothesis.')
     p.add_argument('--pixel_box', action='store_true',
                    help='Box the DISPLAYED image x+ds_mean to [0,1] during extraction (removes the '
                         'clipped-SSIM metric artifact; recommended when clipped_fraction>0.05).')
@@ -258,7 +262,7 @@ def main():
         try:
             run(act, args.device, args.dataset, args.npc_list, args.seed, args.n_train,
                 args.dec_epochs, args.ext_epochs, args.rank, args.a_init_scale, dec_batch=args.dec_batch,
-                pixel_box=args.pixel_box)
+                pixel_box=args.pixel_box, proxy_dataset=args.proxy_dataset)
         except Exception as e:
             import traceback; traceback.print_exc()
             print(f"  SKIP {act}: {type(e).__name__}: {e}")

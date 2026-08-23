@@ -76,7 +76,7 @@ def _kaiming_B(out, rank, device, gen):
 def generate_pair_bank(n_pairs, layer_idx, rank, lr=TRAIN_LR, scaling=1.0,
                        activation='gelu', batch=256, seed=0, device='cuda',
                        grad_tol=1e-2, samples_per_pair=1, two_sided=False,
-                       a_init_scale=0.1, dataset='mnist', verbose=True):
+                       a_init_scale=0.1, dataset='mnist', proxy_dataset=None, verbose=True):
     """Generate n_pairs single-step LoRA measurements for one layer.
 
     Each pair aggregates ``samples_per_pair`` (=m) informative proxy samples, so
@@ -123,7 +123,7 @@ def generate_pair_bank(n_pairs, layer_idx, rank, lr=TRAIN_LR, scaling=1.0,
     # and the ceiling metric).
     need = n_pairs * m
     pool = min(60000, max(need + batch, 3 * need))
-    xs, ys = _load_proxy(dataset, pool, seed, device)
+    xs, ys = _load_proxy(proxy_dataset or dataset, pool, seed, device)
     gen = torch.Generator(device=device).manual_seed(seed + 1)
 
     err_all, inp_all = [], []
@@ -185,6 +185,7 @@ def generate_pair_bank(n_pairs, layer_idx, rank, lr=TRAIN_LR, scaling=1.0,
                  'activation': activation, 'out': out_f, 'in': in_f,
                  'n_pairs': n_pairs, 'grad_tol': grad_tol, 'survival_rate': survival,
                  'samples_per_pair': m, 'two_sided': two_sided, 'dataset': dataset,
+                 'proxy_dataset': proxy_dataset or dataset,
                  'a_init_scale': a_init_scale if two_sided else 0.0},
     }
 

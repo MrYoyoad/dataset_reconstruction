@@ -50,6 +50,11 @@ def _load_dataset(name='mnist', train=True, root=None):
         ])
         return torchvision.datasets.Flowers102(
             root, split=('train' if train else 'test'), transform=flowers_tfm, download=True)
+    if name == 'cifar100':
+        # PROXY-only (natural 32x32 RGB, 50k train) for the 'rescue flowers' test: decoder trains on
+        # abundant CIFAR-100 through the FLOWERS32 base model (same 3072 geometry). R2F: proxy need not
+        # match the private distribution. Binary label = class parity.
+        return torchvision.datasets.CIFAR100(root, train=train, transform=transform, download=True)
     if name == 'cifar10':
         # 'Monster network' track: CIFAR-10 at NATIVE 32x32 RGB (D=3072). Binary label = class parity
         # (class%2), which matches LABELS_DICT so _get_binary_label needs no change. theta_0 is the
