@@ -378,6 +378,24 @@ def q_eff(sigma_snr, eps):
     return int((eps * sigma_snr > 1.0).sum().item())
 
 
+def noise_subspace_energy(J, centered):
+    """Fraction of J's energy that lies inside the *measured* seed-noise subspace.
+
+    The Fisher Jᵀ Σ_seed^{-1} J only needs Σ_seed restricted to J's column space,
+    so the adequacy ratio is Nk-vs-S, not dimY-vs-S. Where J's columns fall in
+    span(the S noise samples), q_eff rests on measured noise (trustworthy); where
+    they fall in the orthogonal complement, their "noise" is only the shrinkage
+    floor ρμ — a ρ-artifact, which is exactly why those directions are ρ-sensitive.
+
+    Returns ‖P·J‖_F² / ‖J‖_F² with P = projection onto row-space(centered).
+    """
+    M = centered                                  # [S, dimY], rows = noise samples
+    Gram = M @ M.t()                              # [S, S]
+    MJ = M @ J                                     # [S, Nk]
+    PJ = M.t() @ (torch.linalg.pinv(Gram) @ MJ)   # projection of J's cols
+    return (PJ.norm() ** 2 / (J.norm() ** 2 + 1e-30)).item()
+
+
 # ---------------------------------------------------------------------------
 # 6. Contexts: toy (self-test) and real MNIST single-module
 # ---------------------------------------------------------------------------
@@ -674,6 +692,15 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
                  if abs(skew) > 1 or abs(exkurt) > 2 else "≈Gaussian")
         print(f"[J1] S={S}  noise top-dir moments: skew={skew:+.2f} "
               f"excess_kurt={exkurt:+.2f}  ({gflag})")
+        # Reliability: adequacy ratio (Nk vs S, NOT dimY vs S) + fraction of J's
+        # energy actually spanned by the measured noise (yoado-29). q_eff is
+        # trustworthy only for the J-energy the noise subspace supports.
+        adequacy = S / Nk
+        jenergy = noise_subspace_energy(J, centered)
+        aflag = "OK" if adequacy >= 4 else ("MARGINAL" if adequacy >= 2 else "UNDER-SAMPLED")
+        print(f"[J1] S={S}  adequacy S/Nk={adequacy:.1f} ({aflag})  |  "
+              f"J-energy in measured noise subspace = {100 * jenergy:.1f}%  "
+              f"(q_eff reliable for this fraction; rest is ρ-floor)")
         for shrink in shrink_list:
             sigma_snr, Fisher = snr_spectrum(J, centered, shrinkage=shrink)
             qeffs = {eps: q_eff(sigma_snr, eps) for eps in eps_list}
@@ -684,6 +711,7 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
                 'sigma_snr': sigma_snr.cpu(), 'q_eff': qeffs,
                 'noise_svals': noise_sv.cpu(),
                 'noise_skew': skew, 'noise_exkurt': exkurt,
+                'adequacy_S_over_Nk': adequacy, 'j_noise_energy_frac': jenergy,
             }
 
     # The leakage bracket (yoado-29): the deterministic raw eff_rank is the
