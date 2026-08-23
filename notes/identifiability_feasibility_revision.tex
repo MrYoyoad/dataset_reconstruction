@@ -1,0 +1,279 @@
+% =====================================================================
+% Revision for identifiability_rank_bound (v5): separate what is ESTABLISHED
+% from what is CONJECTURED, and replace the "capacity formula" emphasis with
+% the end-to-end Jacobian singular spectrum + a falsifiable experiment.
+%
+% HOW TO USE: drop the FRAMING box near the top (after the abstract / "read
+% this first"); replace the old feasibility sections (the "intersection view"
+% / "operative calculation" / "capacity" sections, i.e. old sec.9-11) with the
+% sections below; put the BOTTOM-LINE box at the very end. Boxes are written
+% as \begin{revbox}...\end{revbox}; either define that (a thin tcolorbox
+% wrapper) or replace with your existing highlight environment.
+%
+% Citations are inline placeholders [Author, venue]; give them real bib keys.
+% Numbers quoted from the literature are marked % VERIFY.
+% =====================================================================
+
+% ---- optional lightweight box (or reuse your own) ----
+% \usepackage[most]{tcolorbox}
+% \newtcolorbox{revbox}{colback=blue!4,colframe=blue!30,boxrule=0.4pt,arc=1pt,left=6pt,right=6pt,top=4pt,bottom=4pt}
+
+% =====================================================================
+% FRAMING BOX  (place near the top)
+% =====================================================================
+\begin{revbox}
+\textbf{What this note does and does not establish.}
+The rank theorem (Secs.~3--5) is exact, but only about an \emph{information-mixing
+mechanism}, under the assumption that the gate matrix $G$ is known and frozen. It is
+\emph{not} a reconstruction attack: a real attacker does not know $G$, and $G$ itself
+depends on the unknown images. So the rank condition is a necessary structural fact,
+not a proof of leakage. The constructive half of the note is therefore a
+\emph{conjecture with a test}, not a theorem:
+\begin{center}\itshape
+This note does not prove that an ordinary LoRA adapter leaks its training images.
+It gives a plausible mechanism for why it could, and --- more importantly --- a
+concrete experiment that decides whether the information needed for reconstruction is
+actually present in the released adapter.
+\end{center}
+\end{revbox}
+
+% =====================================================================
+\section{Read the rank theorem correctly: mechanism, not attack}
+Sections~3--5 prove one exact thing. If the gradient is $\Omega=GX^{\top}$, then every
+row of $\Omega$ is a fixed mixture $\sum_i G_{ki}\,x_i^{\top}$ of the private images, and
+the images survive \emph{in separable form} iff the neurons supply enough independent
+mixtures --- precisely $\rank(G)=\rank(M)=\rho$. When $\rho<N$ some images collapse into
+a single shared sum and cannot be told apart. This is exact under the
+\emph{frozen-known-$G$} reading.
+
+The limitation is equally exact: this is not yet an attack. The real attacker neither
+knows $G$ nor can hold it fixed, because $G=\sigma'(\langle w_k,x_i\rangle)$ is a
+function of the very images being sought. So treat Secs.~3--5 as characterising the
+\emph{information-mixing mechanism} of the measurement, and read $\rho\ge N$ as a
+necessary condition on the first-order signal --- the floor, not the verdict.
+
+% =====================================================================
+\section{Fine-tuning as a measurement system}
+Write the whole experiment as one map. A latent $z=(z_1,\dots,z_N)$ generates images
+$x=(x_1,\dots,x_N)=g(z)$, which are fine-tuned into an adapter:
+\[
+z \;\xrightarrow{\;g\;}\; x \;\xrightarrow{\text{LoRA training}}\; (A_T,B_T)
+\;=:\; F(z).
+\]
+$F$ is a measurement system with \emph{two} lossy stages, and both help the attacker:
+\begin{itemize}\itemsep2pt
+\item \textbf{Images are not arbitrary pixels.} Moving between realistic images requires
+coordinated changes (pose, lighting, shape, texture), so the data occupies a manifold
+$\mathcal M_X$ of local dimension $k\ll d$.
+\item \textbf{Gradients of real images are not arbitrary either.} The set
+$\mathcal M_G=\{\nabla_\theta L(X):X\ \text{realistic}\}$ is itself a thin subset of the
+ambient gradient space.
+\end{itemize}
+The whole privacy question is then sharp: \emph{is $F$ locally injective and
+well-conditioned on $\mathcal M_X$?} LoRA may destroy vast amounts of \emph{arbitrary}
+gradient information while still separating points of $\mathcal M_G$ --- a restricted
+inverse, not a full one.
+
+% =====================================================================
+\section{Dimension count $\to$ Jacobian rank $\to$ singular spectrum}
+The manifold argument gives a first, weak checkpoint. If image $i$ has $k_i$ local
+degrees of freedom, the private unknown has $q=\sum_i k_i$ directions, while a rank-$\rho$
+measurement spans at most $d\rho$ independent directions, so a regular locally invertible
+map needs
+\[
+d\rho \;\gtrsim\; q \;=\;\textstyle\sum_i k_i .
+\]
+This is worth stating plainly for what it is: a \textbf{dimensional plausibility check},
+necessary and nothing more. Having enough dimensions does not mean they point in useful
+directions. The map
+$A=\left(\begin{smallmatrix}1&0\\0&10^{-10}\end{smallmatrix}\right)$ preserves rank $2$,
+yet the second coordinate is gone for any practical purpose. So the honest progression is
+\[
+\boxed{\text{dimension count}}\;\longrightarrow\;
+\boxed{\text{Jacobian rank}}\;\longrightarrow\;
+\boxed{\text{singular spectrum}} ,
+\]
+and only the last object measures usable leakage. The earlier $d\rho\ge Nk$ inequality
+should be read as sizing the \emph{null space}, not as a capacity law.
+
+% =====================================================================
+\section{The object that actually decides it: the end-to-end Jacobian}
+Define the Jacobian of the entire data$\to$adapter map,
+\[
+J_{\mathrm{full}} \;=\;
+\frac{\partial\,\operatorname{vec}(A_T,B_T)}{\partial(z_1,\dots,z_N)} .
+\]
+Its meaning is concrete and testable. Take one tiny realistic change to one training
+image, retrain the LoRA, and ask whether the released adapter changed --- and whether a
+\emph{different} realistic change moves it \emph{differently}. If every private-data
+direction produces a distinguishable adapter change, the adapter has locally retained the
+information; if some direction alters the images substantially but barely moves the
+adapter, that direction has been erased. The singular values of $J_{\mathrm{full}}$ read
+this off directly, and the note's strongest empirical prediction is
+\[
+\boxed{\;\sigma_{\min}(J_{\mathrm{full}})\ \text{collapses in the same regimes where
+reconstruction collapses.}\;}
+\]
+This is a far cleaner claim than ``rank-$r$ LoRA allows $r$ examples'' or any
+$d\rho/N$ capacity number.
+
+% =====================================================================
+\section{The experiment that decides it}
+Do not begin by estimating the intrinsic dimension of Flowers --- that swaps the open
+question for a second open question. Instead make $k$ \textbf{known by construction}:
+take a generator $g:\mathbb R^{k}\to\text{images}$ and restrict each training image to
+$k\in\{4,8,16,32,\dots\}$ latent directions, so the private degrees of freedom are exactly
+$q=Nk$ (or, precisely, $\rank J_g$, which is directly measurable).
+
+For each $N$: sample $z\to$ train LoRA $\to$ release $Y=(A_T,B_T)$; compute the singular
+spectrum of $J_{\mathrm{full}}$; and \emph{separately} run the actual inversion attack on
+$Y$. Plot $N$ against $\sigma_{\min}(J_{\mathrm{full}})$ against reconstruction quality
+(LPIPS). Three outcomes, all informative:
+\begin{description}\itemsep2pt
+\item[World A (the dream).] $\sigma_{\min}$ and reconstruction collapse at the same $N$:
+an identifiability transition, with the theory explaining the attack.
+\item[World B.] $J_{\mathrm{full}}$ stays well-conditioned but the attack fails: the
+adapter \emph{does} preserve the information; the inversion/decoder is the bottleneck.
+\item[World C.] $J_{\mathrm{full}}$ collapses yet the decoder still emits plausible
+images: the decoder is \emph{hallucinating} from its prior rather than recovering
+information forced by the adapter --- a critical privacy distinction.
+\end{description}
+Distinguishing B from C is exactly what a rank/capacity number cannot do and this
+experiment can.
+
+% =====================================================================
+\section{The figure: what LoRA remembers vs.\ forgets}
+Once $J_{\mathrm{full}}=U\Sigma V^{\top}$ is computed, take the weakest right-singular
+vector $v_{\min}$ and perturb the data, $z'=z+\epsilon\,v_{\min}$; render the altered
+images; train both datasets and compare adapters. If the story holds, $v_{\min}$ is a
+\emph{meaningful change to the private images that the released adapter almost cannot
+see}, while $v_{\max}$ is a comparable image-space change that moves the adapter
+enormously. That turns the spectrum into a picture --- ``a private-data change LoRA
+remembers'' beside ``one it forgets'' --- a compelling thesis figure.
+
+% =====================================================================
+\section{Localising the activation effect}
+The same language sharpens the activation study. Compute progressively richer Jacobians
+along the pipeline:
+\[
+J_{\mathrm{grad}}=\frac{\partial\,\nabla_\theta L}{\partial z},\qquad
+J_{\text{LoRA-step}},\qquad
+J_{\mathrm{full}},
+\]
+for ReLU, GELU, SiLU, Softplus. Then ``GELU fails'' becomes a locatable claim:
+\begin{itemize}\itemsep1pt
+\item If $J_{\mathrm{grad}}$ is already ill-conditioned, the activation destroys data
+directions at the \emph{gradient} stage.
+\item If $J_{\mathrm{grad}}$ is healthy but the LoRA-stage spectrum collapses, the loss is
+in \emph{how LoRA observes} the gradient.
+\item If even $J_{\mathrm{full}}$ is healthy but the attack fails, the ReLU/GELU gap is an
+\emph{algorithmic inversion} phenomenon, not fundamental information loss.
+\end{itemize}
+This unifies the activation, anchor, and gradient-bridge tracks into one experimental
+language.
+
+% =====================================================================
+\section{The gradient bridge as a restricted inverse}
+The measurement view explains what the bridge could be exploiting: LoRA may be
+non-invertible on \emph{arbitrary} gradients yet nearly invertible on the thin set
+$\mathcal M_G$ of gradients that real images actually produce. This is consistent with
+R2F's premise (a decoder learns full-gradient directions from LoRA gradients via a proxy
+relationship) --- but R2F targets \emph{unlearning}, not training-image recovery
+[Liu et al., 2025], and a good decoder does \emph{not} prove LoRA preserved the
+full-gradient coordinates: it may be predicting missing coordinates from the gradient
+prior, exactly like an image model inpainting detail.
+
+That is testable. Run the bridge, then against controls that (i) shuffle adapters between
+examples, (ii) replace the LoRA observation with matched-norm noise, (iii) remove specific
+LoRA modules, (iv) feed only progressively smaller pieces of the adapter. If it still
+reconstructs, the public-data prior is doing the work. More decisively, measure the
+observation Jacobian $\partial Y/\partial z$ on the real gradient manifold: if
+\[
+\rank\!\left(\tfrac{\partial Y}{\partial z}\right)\;\approx\; Nk
+\quad\text{despite large null spaces in the ambient full-gradient space,}
+\]
+that is direct evidence for the restricted-inverse story --- ``LoRA is non-invertible on
+arbitrary gradients but nearly invertible on naturally occurring ones'' --- a far stronger
+statement than ``we trained a decoder that predicts gradients.''
+
+% =====================================================================
+\section{Two confounds to rule out before believing the spectrum}
+\paragraph{Local vs.\ global.} $J_{\mathrm{full}}$ answers a \emph{local} question. Run
+inversion twice: from $z_{\mathrm{init}}=z^\star+\text{small noise}$ (does the
+neighbourhood recover? --- should track $J_{\mathrm{full}}$), and from random init (can an
+attacker find the point globally?). If local succeeds while global fails, the Jacobian
+theory is intact and the obstacle is optimisation, not information.
+\paragraph{Seed vs.\ signal.} A deterministic $Y=F(X;\xi)$ fixes the training randomness
+$\xi$; a real attacker may not know minibatch order, augmentation, or dropout. Compare the
+\emph{data signal} $\|\mathbb E[Y\mid X+\delta X]-\mathbb E[Y\mid X]\|$ against the
+\emph{training noise} $\sqrt{\mathbb E\|Y-\mathbb E[Y\mid X]\|^2}$. If flipping one
+expression moves the adapter less than reshuffling the minibatch does, deterministic
+$J_{\mathrm{full}}$ overstates usable leakage; if the data signal dominates, the privacy
+argument is much stronger. Not experiment~\#1, but essential once the deterministic story
+holds.
+
+% =====================================================================
+\section{The \texorpdfstring{$k$}{k} you are allowed to use}
+A subtle but important point: you do not get to plug a natural-image intrinsic-dimension
+estimate into the formula. If the attack optimises a $512$-dim generator latent $z$ with
+$\rank J_g(z)=512$ locally, the unknown has $512$ local directions, regardless of any
+paper reporting $\sim\!40$ for ImageNet. The relevant $k$ is the dimension of the
+\emph{hard prior the attacker is actually restricted to}, $k=\rank J_g$. That is another
+reason to control $k$ by construction first, and only later ask what effective $k$ a real
+decoder imposes.
+
+% =====================================================================
+\section{Where this sits in the literature}
+Malicious-server results establish that low rank is not itself a privacy guarantee, but
+answer a different question. MineGrad [AISTATS 2026] and the CVPR'25 PEFT attack recover
+data from LoRA/PEFT gradients only after the server \emph{maliciously} alters the
+pretrained model / adapter setup so the data is encoded into the shared gradients. They
+show ``LoRA's low rank does not make inversion impossible,'' not ``an ordinary honest
+final checkpoint contains enough to reconstruct its images.''
+
+On the honest-checkpoint side, neighbouring evidence is suggestive but not recovery: final
+LoRA weights reveal fine-tune \emph{dataset size} to within $\sim\!0.36$ images (DSiRe)
+% VERIFY: DSiRe MAE ~0.36
+and weight-space studies show customised LoRA weights carry strong signal about visual
+identity and semantic attributes. These make ``the final adapter encodes substantial
+information'' credible, but stop short of exact training-image recovery. That gap is
+precisely the question this note is built to test.
+
+Intrinsic-dimension estimates support only the \emph{qualitative} premise. Pope et al.\
+report ImageNet intrinsic dimensions of roughly $26$--$43$ by nearest-neighbour estimators
+% VERIFY
+against $\sim\!10^5$ pixels; but estimators disagree sharply --- on MNIST a diffusion-based
+estimator gives $\sim\!152$ while nearest-neighbour MLE gives $\sim\!13$--$14$.
+% VERIFY
+So ``natural images occupy far less than pixel space'' is believable; ``the relevant $k$
+for Flowers is $37$'' is \emph{not} established --- which is exactly why $k$ must be
+controlled, not assumed.
+
+% =====================================================================
+% BOTTOM-LINE BOX  (place at the very end)
+% =====================================================================
+\begin{revbox}
+\textbf{What we actually know, and the next experiment.}
+Fine-tuning is a measurement system: gradients mix training examples; low-dimensional data
+structure means severe ambient compression need not destroy identifiability; LoRA applies
+a further lossy measurement; and the question for a real released adapter is whether the
+complete measurement is locally injective and well-conditioned \emph{on the set of
+realistic datasets}. The singular spectrum of the end-to-end data$\to$adapter Jacobian is
+a direct way to measure that. The toy rank theorem explains why this is conceivable; the
+intrinsic-dimension literature explains why compression alone does not rule it out; the
+malicious-server attacks show low rank is not a guarantee; final-LoRA studies show the
+weights encode surprising properties of the fine-tuning set. But the central empirical
+claim is still open:
+\begin{center}\itshape
+Does an ordinarily trained final LoRA preserve the private-image directions well enough
+for actual reconstruction?
+\end{center}
+The highest-value next step is not more theory, and not estimating Flowers' manifold
+dimension, but:
+\[
+\boxed{\textbf{control } k \;\to\; \textbf{sweep } N \;\to\;
+\textbf{measure } \sigma(J_{\mathrm{full}}) \;\to\; \textbf{run inversion}}
+\]
+and test whether spectral collapse predicts reconstruction collapse. If it does, the note
+becomes an experimentally falsifiable theory of LoRA leakage.
+\end{revbox}

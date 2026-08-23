@@ -104,6 +104,29 @@ The WEXAC home directory lost its connection to the GitHub repo. Conversation hi
 
 ## What's In Progress
 
+### Feasibility reframed: rank → end-to-end Jacobian singular spectrum + a falsifiable experiment (2026-08-20)
+Major conceptual sharpening of the identifiability note (supervisor-level input). The discipline:
+**separate what is ESTABLISHED (the rank theorem = an information-MIXING mechanism, exact only under
+frozen-known-G) from what is CONJECTURED (that an ordinary final LoRA preserves the private-image
+directions).** The rank/`dρ ≥ Nk` inequality is downgraded to a *dimensional plausibility check*
+(necessary, not a capacity law — `diag(1, 1e-10)` preserves rank but not information). The real object
+is the **singular spectrum of the end-to-end data→adapter Jacobian** `J_full = ∂vec(A_T,B_T)/∂z`, and
+the central falsifiable prediction is: **σ_min(J_full) collapses in the same regimes where
+reconstruction collapses.** The headline experiment (replaces "estimate Flowers' intrinsic dim"):
+**control k by construction (generator g:ℝ^k→images) → sweep N → measure σ(J_full) → run inversion**,
+and check whether spectral collapse predicts reconstruction collapse. Three outcomes: World A (both
+collapse together = identifiability transition, the dream); World B (J well-conditioned, attack fails =
+decoder/optimizer is the bottleneck, adapter DID preserve info); World C (J collapses, decoder still
+emits plausible images = **hallucination from prior**, the critical privacy distinction a capacity
+number can't make). Also: staged Jacobians (J_grad / J_LoRA-step / J_full) localize the GELU-vs-ReLU
+effect to gradient-stage vs LoRA-stage vs inversion-stage; the bridge is a *restricted inverse*
+(non-invertible on arbitrary gradients, ~invertible on 𝓜_G) testable via ablation controls +
+`rank(∂Y/∂z) ≈ Nk`; **k = rank J_g of the prior you actually restrict to, NOT a literature
+intrinsic-dim estimate** (this resolves the "unvalidated d/k gain" audit flag — control k, don't assume
+it). Local-vs-global and seed-vs-signal confounds flagged. Honest bottom line: the note does not prove
+ordinary LoRA leaks — it gives a mechanism + the experiment that decides it. Revision LaTeX (drop into
+Overleaf v4): `notes/identifiability_feasibility_revision.tex`.
+
 ### Identifiability theorem written up — rank(M) < N ⟹ training data non-recoverable (2026-08-20)
 Formal proof note: the first-layer weight signal factorizes as **Ω = G Xᵀ** (G = the gate matrix
 M_{ki}=σ'(⟨w_k,x_i⟩), scaled by diagonal output-weight/loss matrices), and **rank(M) ≥ N is a
