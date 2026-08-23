@@ -39,6 +39,27 @@ the private variations are random or on-manifold; what on-manifold structure cha
 via collinearity** (fewer coordinates separable), not noise masking. Gen-L is still partial realism
 (linear/orthonormal); Gen-G (VAE/StyleGAN) curvature is the next step.
 
+**Can "subtracting linear parts of the PCA tangents" beat the collinearity? NO (job 993396).** Applied
+cross-image sum/diff, response-whitening, and diff-only restriction to the pca J (mnist s42/s1, flowers
+s42). Result, identical across all cells:
+
+| transform | hard_rank(col J) | eff_rank | q_eff @ε=0.1 |
+|---|---|---|---|
+| identity | 16 | 3.5–12.9 | 6–7 |
+| response_white | **16** (same) | 16.0 (flat) | 11–16 (inflated) |
+| crossimg_sumdiff | **16** (same) | = identity | = identity |
+| crossimg_diffONLY (restrict) | **8** | ~half | k-subspace |
+
+- **cross-image sum/diff is an ORTHOGONAL relabeling ⇒ every metric identical to identity** — it does
+  literally nothing.
+- **response-whitening inflates q_eff (7→16) but hard_rank and iso_ratio are unchanged** — a
+  coordinate artifact (it flattens the a-space metric; under a real noise floor the gain evaporates
+  since it amplifies the flattened tail).
+- **Invariance map:** `hard_rank(col J)` and `iso_ratio` are reparametrization-INVARIANT (the true
+  leakage); `eff_rank` and `q_eff` are coordinate-DEPENDENT. Recombining/subtracting the tangents
+  cannot recover information the collinear map discarded — only a genuine subspace change (diff-only,
+  hard_rank→8) alters it, and that uses *fewer* coordinates, not more.
+
 ---
 
 ## Jacobian-spectrum leakage program — Phase J1 COMPLETE: two decisive de-confounds (2026-08-23)

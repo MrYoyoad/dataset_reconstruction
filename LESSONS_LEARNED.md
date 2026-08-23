@@ -4,6 +4,22 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Which leakage metrics are reparametrization-invariant vs coordinate-dependent (2026-08-23)
+
+- **Finding (job 993396):** recombining/subtracting the tangent directions (cross-image sum/diff,
+  response-whitening) is a linear reparametrization `a → M a'`, giving `J → J·M`. Measured across
+  cells: `hard_rank(col J)` and `iso_ratio` are INVARIANT; `eff_rank` and `q_eff` are
+  COORDINATE-DEPENDENT. Cross-image sum/diff (orthogonal M) left EVERY metric identical to identity;
+  response-whitening flattened `eff_rank` to its max and inflated `q_eff` (7→16) while `hard_rank`
+  stayed fixed.
+- **Lesson:** you cannot beat a collinearity/rank limit by mixing the coordinates — the recoverable
+  information is `col(J)`, invariant under full-rank relabeling. `eff_rank`/`q_eff` gains from
+  "nicer" coordinates are cosmetic (and, for whitening, evaporate under a real noise floor because the
+  transform amplifies the flattened tail). Report the INVARIANT (`hard_rank`, mutual information, or
+  `q_eff` in a FIXED natural metric) as the leakage number; treat `eff_rank`/raw `q_eff` as
+  coordinate-relative. Only a genuine subspace *restriction* (using fewer coordinates) changes the
+  hard rank.
+
 ## A striking result on the DEFAULT seed can vanish under a work-point sweep (2026-08-23)
 
 - **Finding (jobs 988588→989194):** a single-config run (MNIST, seed 42, anchor α=0, principal
