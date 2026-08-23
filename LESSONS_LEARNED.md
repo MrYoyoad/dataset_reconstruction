@@ -17,9 +17,14 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
   `‖P·J‖²/‖J‖²`. Where it's ~0, the "noise floor" divided out is just `ρμ` (the regularizer), which is
   exactly why `q_eff` is ρ-sensitive there. The adequacy ratio is **Nk vs S** (Fisher is Nk×Nk), NOT
   dimY vs S — a small S can still be adequate for the column-space Fisher.
-- **Root mechanism:** full-batch GD from a fixed init is deterministic in the data; the only realizable
-  randomness (B0 init) doesn't overlap the data-signal subspace. To get a measurable noise floor you
-  need randomness that lives in J's column space — minibatch SGD / data-order / augmentation.
+- **Root mechanism (structural, from A₀=0):** LoRA inits A=0, B=random. First step
+  `∂L/∂A = B₀ᵀ(∂L/∂W)` is data-dependent but `∂L/∂B = (∂L/∂W)A₀ᵀ = 0` — so the data signal enters the
+  A-block and the init noise lives in the B-block; at small T they barely mix ⟹ J ⊥ Σ_seed. Overlap is
+  predicted to grow with T (checkable). Full-batch GD is otherwise deterministic in the data, so init
+  is the only randomness and it misses the signal subspace.
+- **The positive reading:** init-noise ⊥ data-signal ⟹ an unknown-init attacker can factor out B₀ ⟹
+  **random LoRA initialization is not a privacy defense** (unknown-init ≈ known-init leakage). A
+  "negative" whitening result is a *positive* privacy statement.
 - **General rule:** before trusting a whitened/SNR/Fisher quantity, verify the noise you divided by
   actually spans the signal's subspace. An isotropic, well-behaved noise cloud that is *orthogonal* to
   the signal gives a confident-looking but empty answer.

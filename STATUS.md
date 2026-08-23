@@ -29,9 +29,17 @@ measured seed-noise subspace = 0.0–0.1% across ALL configs** (N∈{2,4}, k∈{
 - **Leakage bracket:** known-init upper bound = raw eff_rank (N=2 full ~16/16; N=4 underfit ~9–20/32);
   unknown-init q_eff = not trustworthily measurable from B0 noise here.
 
-**Why (mechanism):** full-batch GD from a fixed init is deterministic in the data; the ONLY realizable
-randomness is the B0 init, and it perturbs the adapter orthogonally to data-perturbations. So ordinary
-init randomness provides ~no measurable masking of the private directions.
+**Why (mechanism — structural, from A₀=0).** LoRA inits A=0, B=random. At the first SGD step
+`∂L/∂A = B₀ᵀ(∂L/∂W)` (data-dependent) but `∂L/∂B = (∂L/∂W)A₀ᵀ = 0`. So the DATA signal first enters the
+A-block while the init NOISE lives in the B-block; at small T they barely mix, hence J (mostly A-block)
+⊥ Σ_seed (mostly B-block). **Falsifiable prediction (yoado-29): the overlap should grow with T** as
+A≠0 lets data reach B — being checked in job [energy-vs-T].
+
+**POSITIVE finding (not just "whitening was inoperative"): random LoRA init provides ~zero privacy
+protection.** If the init noise is orthogonal to the data signal, an attacker who does NOT know B₀ can
+factor it out perfectly, so the unknown-init attacker ≈ the known-init attacker. ⟹ the OPERATIVE
+leakage is the deterministic / known-init number (raw eff_rank), which is HIGH (full for N=2). "Randomize
+the LoRA init" is therefore not a defense — a clean, quotable privacy statement.
 
 **Next (promoted from footnote to necessary):** introduce a randomness source that lives in J's column
 space — **minibatch SGD / data-order / augmentation noise** — so `Σ_seed` actually spans J and `q_eff`

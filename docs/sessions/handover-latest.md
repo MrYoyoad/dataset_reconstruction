@@ -32,11 +32,17 @@ large enough to converge and S≥4·Nk.
 1. **Add SGD/minibatch (or data-order/augmentation) noise to the training map** so `Σ_seed` spans J's
    column space. This is THE blocker: with full-batch training the only randomness (B0 init) is
    ~orthogonal to J (0% energy overlap), so q_eff is unmeasurable. Implement a `ctx_factory(seed)` that
-   varies minibatch order (needs switching `unrolled_lora_AB` to minibatch SGD) and re-run
-   `run_j1`; the energy diagnostic (`noise_subspace_energy`, already in code) should now report a
-   meaningful non-zero fraction. Only then is q_eff a real number.
+   varies minibatch order (needs switching `unrolled_lora_AB` to minibatch SGD) and re-run `run_j1`.
+   **Guardrails (yoado-29):** (a) RE-RUN `noise_subspace_energy` on the SGD Σ_seed — minibatch noise
+   enters through the gradients (same channel as data perturbations) so it SHOULD overlap J, but verify,
+   don't assume (that's the whole lesson). (b) With stochastic training the correct objects are
+   `J := ∂E_ξ[Y|a]/∂a` (Jacobian of the MEAN adapter) and `Σ_seed := Cov_ξ[Y|a]` (plan §12) — computing
+   J at a single ξ and whitening by Cov(ξ) is valid only if J is stable across ξ, so check that or
+   average J over a few ξ. (c) Batch size is now a first-class knob (sets noise magnitude / masking) —
+   pick a realistic fine-tuning batch size and report q_eff's dependence on it.
 2. **Train to convergence** (T-sweep shows T=5 underfits N=4) and **scale S≥4·Nk** for headline configs
-   (adequacy print already flags this).
+   (adequacy print already flags this). Also: the energy-vs-T check (job [energy-vs-T]) tests whether
+   the J⊥Σ_seed orthogonality is robust or a small-T effect (predicted to grow with T).
 3. Consolidated figures (eff_rank-vs-T curve; q_eff/q-vs-ε across configs) — submit as a plotting job,
    do NOT run locally.
 4. Then J2 (the (N,r,L) phase diagram) once q_eff is trustworthy.
