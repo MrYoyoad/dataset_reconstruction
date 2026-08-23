@@ -398,6 +398,17 @@ Results (ssim_norm, DECODED all-layers / TRUE ΔW; baseline-adjusted, 0.5 = leak
   50k, same 32×32) as the flowers-geometry decoder's training set — R2F explicitly allows proxy≠private.
   Grids: `figures/gradient_bridge/phase2_e2e_flowers32_N{2,4}_{softplus,gelu}.png`.
 
+**CORRECTION (2026-08-23, rescue test job 918308): flowers is DIMENSION-limited, NOT starvation-limited.**
+Hypothesized flowers failed from proxy starvation (7k images); tested by retraining the flowers32 decoder
+on a 3x-larger CIFAR-100 proxy (20k, same 3072 geometry). Result: input decode barely moved (softplus L0
+0.33->0.37, gelu 0.66->0.65) and DECODED all-layers ssim_norm UNCHANGED (softplus 0.57, gelu 0.31->0.385,
+still <=baseline 0.646). So more proxy does NOT rescue flowers -> the limiter is INPUT DIMENSION vs
+measurement rank: two-sided rank-8 observes ~r/D of the input directly = 8/784=1% (MNIST) vs 8/3072=0.26%
+(flowers), so the decoder must hallucinate far more of a 3072-dim input regardless of proxy quantity. The
+Fashion(784,leaks) vs flowers(3072,fails) contrast is input-DIMENSION, not proxy-abundance. (Caveat:
+CIFAR-100 is also a different distribution, conflating 'more data' with cross-distribution transfer; either
+way it didn't rescue.) Supersedes the earlier 'starvation' framing for flowers.
+
 **Fashion-MNIST (job 953487) — DECISIVE: flowers failed from STARVATION, not hardness.** Fashion is
 harder than MNIST but reuses the 784-MLP (small decoder) with an abundant corresponding proxy (60k). The
 decoders trained MNIST-quality (softplus L0 **0.934**, L1 0.9997, L2 0.9999 — NOT starved), and the
