@@ -4,6 +4,33 @@ Last updated: **2026-08-21** (read MineGrad AISTATS 2026 and re-planned the grad
 
 ---
 
+## CRUX (activation × anchor × linearization) — smoothness→leakage REFUTED; softplus wins on LINEARIZATION (2026-08-23)
+
+Analysis of existing matched-weight_change activation sweeps + anchor two-curves (notes/crux_activation_analysis.md,
+figures/crux/*.png). Metric hygiene: ssim_norm / ctrl_margin_norm (clip-robust), activations compared at
+MATCHED weight_change (wc is a confound).
+
+- **Winner = softplus, but on LINEARIZATION grounds, NOT leakage magnitude.** Highest NTK survival at
+  matched wc (feature_stability 0.953 MNIST), leakage flat across wc (+0.203, not a wc artifact), LOWEST
+  function-space lin-error at every anchor α on both datasets, and anchor two-curve peaks at α=0 (linearizes
+  so well at init the anchor buys nothing — cleanest signature).
+- **The naive "smoother → more leakage" law is REFUTED.** Spearman(smoothness, leakage) ≈ +0.03. Matched-wc
+  MNIST leakage is TOPPED by kinked/C¹ (selu +0.49, leaky_relu +0.48) while other C¹ (elu/celu +0.03) sit at
+  the bottom; softplus +0.20, gelu/mish +0.08. flowers32 INVERTS it — smooth C∞ (gelu/silu/mish) leak LEAST
+  (+0.02–0.04) and clip hardest (extraction failure); in realistic free-c, smooth acts have NEGATIVE margin
+  (no leakage), only relu leaks.
+- **The chain breaks at one joint:** smoothness→linearization-fidelity ✓ (softplus best, relu worst);
+  linearization-fidelity→leakage-magnitude ✗. **Defensible claim: smoothest activation = most FAITHFUL,
+  best-attributed reconstruction (softplus), not the largest leakage margin.**
+- **Anchor attribution:** MNIST gelu/silu PASS (leakage peaks α=0.75 then collapses α=0.9); relu is the
+  chain-breaker (worst lin-error yet highest margin, flat in α = extraction artifact); flowers32 free-c
+  gelu/softplus negative margin at every α, only relu climbs to α=0.9 → attribution FAIL (hard refutation
+  on flowers in the realistic regime).
+- **Gaps → decisive test running (job 911475):** the softplus_b(β) sharpness knob was NEVER run — the clean
+  controlled smooth↔kinked axis. Sweeping β×LR at matched wc directly tests smoothness→linearization without
+  the confound of activation identity. Also open: feature_stability-vs-T (the "stays accurate over MORE T"
+  clause is untested — all matched-wc data is T=1); flowers matched-wc band (needs --target_weight_change).
+
 ## MineGrad (AISTATS 2026) teardown + bridge re-plan (2026-08-21)
 
 Read *MineGrad: Gradient Inversion Attacks on LoRA Fine-Tuning* (Sami, Sen, Güler; arXiv 2608.01521;
