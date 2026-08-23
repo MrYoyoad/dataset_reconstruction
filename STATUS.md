@@ -126,6 +126,11 @@ intrinsic-dim estimate** (this resolves the "unvalidated d/k gain" audit flag �
 it). Local-vs-global and seed-vs-signal confounds flagged. Honest bottom line: the note does not prove
 ordinary LoRA leaks — it gives a mechanism + the experiment that decides it. Revision LaTeX (drop into
 Overleaf v4): `notes/identifiability_feasibility_revision.tex`.
+**PENDING — full experiment plan written: `notes/jacobian_leakage_experiment_plan.md`** (phases J0–J5:
+differentiable LoRA pipeline + exact J_full → the σ_min-vs-recon core sweep → three-worlds controls →
+v_min/v_max figure → staged Jacobians for activations → SLQ at ViT/SD scale). Grounded in Belrose et al.
+"Training Jacobian" (2412.07003, methodology anchor; our delta = data-latent Jacobian), SLQ/PyHessian
+(scale), SimuDy code (baseline). Not yet coded/submitted.
 
 ### Identifiability theorem written up — rank(M) < N ⟹ training data non-recoverable (2026-08-20)
 Formal proof note: the first-layer weight signal factorizes as **Ω = G Xᵀ** (G = the gate matrix
