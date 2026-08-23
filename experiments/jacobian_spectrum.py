@@ -125,6 +125,23 @@ def _a_shape(frozen, B0, l):
 
 
 
+def _draw_B0(frozen, rank, target_layers, seed, device='cpu'):
+    """Seeded LoRA B init — the ordinary-training randomness source for Σ_seed.
+
+    Matches lora_wrapper.LoRALinear._init_lora_weights (kaiming_uniform_ with
+    a=√5), which for a [out, rank] weight is U(−1/√rank, 1/√rank). Drawn from a
+    seeded generator so each seed gives a reproducible, distinct init (A stays 0).
+    """
+    g = torch.Generator().manual_seed(int(seed))
+    B0 = {}
+    bound = 1.0 / (rank ** 0.5)
+    for l in target_layers:
+        out = frozen[l].shape[0]
+        B = (torch.rand(out, rank, generator=g, dtype=torch.float64) * 2 - 1) * bound
+        B0[l] = B.to(device)
+    return B0
+
+
 def _partial_lora_forward(frozen, A, B, b0, x, scaling, act, target_layers):
     """Forward of the MLP with LoRA on ``target_layers`` only.
 
@@ -571,6 +588,159 @@ def run_j0(N=4, k=8, T=5, rank=8, activation='gelu', device='cuda',
     return out
 
 
+def run_j0_T_sweep(N=4, k=8, rank=8, activation='gelu', device='cuda',
+                   tangent_method='qr', Ts=(5, 20, 50), seed=42):
+    """De-confound the deterministic eff_rank readout (yoado-29's caution): if
+    eff_rank(J) climbs toward Nk as T grows, the low rank at T=5 was
+    *underfitting* (directions not yet moved); if it plateaus below Nk, the
+    deficiency is *structural* (a rank-r module genuinely cannot express them).
+    Does NOT recover coordinates — just builds J and reports its spectrum per T.
+    """
+    Nk = N * k
+    print(f"[J0-Tsweep] N={N} k={k} rank={rank} tangent={tangent_method} Nk={Nk}")
+    rows = []
+    for T in Ts:
+        ctx, _cs, digits, _dm = _mnist_ctx(
+            N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
+            device=device, tangent_method=tangent_method)
+        a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+        J = exact_jacobian(a0, ctx, method='jvp_double')
+        svals, er = spectrum(J)
+        rows.append((T, er, svals[0].item(), svals[-1].item()))
+        print(f"[J0-Tsweep] T={T:<3d}  eff_rank={er:.3f}/{Nk}  "
+              f"σ_max={svals[0]:.3e}  σ_min={svals[-1]:.3e}  "
+              f"cond={svals[0] / (svals[-1] + 1e-30):.2e}")
+    verdict = ("UNDERFITTING (eff_rank climbs with T)"
+               if rows[-1][1] > rows[0][1] + 0.5
+               else "STRUCTURAL (eff_rank plateaus < Nk)")
+    print(f"[J0-Tsweep] verdict: {verdict}")
+    return rows
+
+
+def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
+           tangent_method='qr', S_list=(16, 32, 64),
+           eps_list=(0.01, 0.1, 0.3, 1.0), shrink_list=(1e-4, 1e-2, 1e-1),
+           seed=42, save=False, tag=None):
+    """Phase J1: seed-whiten the Jacobian and compute q_eff (the FIRST
+    privacy-meaningful number).
+
+    Σ_seed = Cov over LoRA-B0 init draws (ordinary-training randomness; full
+    batch ⇒ B0 is the main stochasticity). J is taken at a reference seed; the
+    generalized spectrum σ_i(J_SNR) with J_SNR = Σ_seed^{-1/2} J gives
+    q_eff(ε) = #{i : ε σ_i(J_SNR) > 1}. Reports q_eff over a range of shrinkage
+    ρ and ε (small σ(J_SNR) are ρ-sensitive — this must be shown, not hidden).
+    """
+    base_ctx, col_scales, digits, ds_mean = _mnist_ctx(
+        N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
+        device=device, tangent_method=tangent_method)
+    target_layers = base_ctx.target_layers
+    Nk = N * k
+    a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+
+    def make_ctx(b0_seed):
+        B0 = _draw_B0(base_ctx.frozen, rank, target_layers, b0_seed, device)
+        index = build_ab_index(base_ctx.frozen, B0, target_layers)
+        return Ctx(base_ctx.frozen, base_ctx.b0, B0, base_ctx.x0_centered,
+                   base_ctx.U, base_ctx.y, base_ctx.lr, T, base_ctx.scaling,
+                   base_ctx.act, target_layers, index)
+
+    ref_ctx = make_ctx(seed)
+    J = exact_jacobian(a0, ref_ctx, method='jvp_double')
+    svals, er = spectrum(J)
+    print(f"[J1] N={N} k={k} T={T} rank={rank}  J={tuple(J.shape)}  "
+          f"raw eff_rank={er:.3f}/{Nk}  σ_max={svals[0]:.3e} σ_min={svals[-1]:.3e}")
+
+    results = {}
+    for S in S_list:
+        centered = estimate_sigma_seed(lambda s: make_ctx(10_000 + s), S, a0)
+        # anisotropy of the seed-noise cloud (motivates whitening)
+        svd = torch.linalg.svd(centered.double(), full_matrices=False)
+        noise_sv = svd.S
+        # mean-centering removes one dof, so noise_sv[S-1]≈0 structurally; report
+        # the smallest *non-trivial* singular value (S-2) for a meaningful ratio.
+        smin_idx = max(0, min(S - 2, len(noise_sv) - 1))
+        print(f"[J1] S={S}  Σ_seed noise svals: max={noise_sv[0]:.3e} "
+              f"min*={noise_sv[smin_idx]:.3e}  "
+              f"(anisotropy {noise_sv[0] / (noise_sv[smin_idx] + 1e-30):.2e}; "
+              f"*smallest non-trivial)")
+        # Gaussianity eyeball (check a): moments of the noise cloud along its top
+        # direction. B0 varies GLOBALLY while J is LOCAL in a, so the CRLB/Gaussian
+        # framing is only approximate if this cloud is heavy-tailed/multimodal.
+        proj = centered.double() @ svd.Vh[0]                  # [S]
+        proj = (proj - proj.mean()) / (proj.std() + 1e-30)
+        skew = (proj ** 3).mean().item()
+        exkurt = (proj ** 4).mean().item() - 3.0
+        gflag = ("NON-Gaussian → Σ_seed crude, q_eff approximate"
+                 if abs(skew) > 1 or abs(exkurt) > 2 else "≈Gaussian")
+        print(f"[J1] S={S}  noise top-dir moments: skew={skew:+.2f} "
+              f"excess_kurt={exkurt:+.2f}  ({gflag})")
+        for shrink in shrink_list:
+            sigma_snr, Fisher = snr_spectrum(J, centered, shrinkage=shrink)
+            qeffs = {eps: q_eff(sigma_snr, eps) for eps in eps_list}
+            qstr = "  ".join(f"ε={e:g}:q_eff={qeffs[e]}/{Nk}" for e in eps_list)
+            print(f"[J1] S={S} ρ={shrink:<6g}  σ_SNR max={sigma_snr[0]:.3e} "
+                  f"min={sigma_snr[-1]:.3e}  |  {qstr}")
+            results[(S, shrink)] = {
+                'sigma_snr': sigma_snr.cpu(), 'q_eff': qeffs,
+                'noise_svals': noise_sv.cpu(),
+                'noise_skew': skew, 'noise_exkurt': exkurt,
+            }
+
+    # The leakage bracket (yoado-29): the deterministic raw eff_rank is the
+    # KNOWN-init attacker (Σ_seed→0, upper bound); q_eff is the UNKNOWN-init
+    # attacker (marginalizes over the init they don't know — conservative/robust).
+    print(f"[J1] BRACKET  known-init upper bound ≈ raw eff_rank {er:.2f}/{Nk}  |  "
+          f"unknown-init q_eff = the q_eff table above (conservative)")
+
+    out = {
+        'J': J.cpu(), 'svals': svals.cpu(), 'raw_eff_rank': er,
+        'results': results, 'N': N, 'k': k, 'T': T, 'rank': rank,
+        'activation': activation, 'tangent_method': tangent_method,
+        'S_list': list(S_list), 'eps_list': list(eps_list),
+        'shrink_list': list(shrink_list), 'digits': digits,
+    }
+    if save:
+        tag = tag or f"N{N}_k{k}_T{T}_r{rank}_{activation}_{tangent_method}"
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        path = os.path.join(RESULTS_DIR, f"jacobian_j1_{tag}.pth")
+        torch.save(out, path)
+        print(f"[J1] saved -> {path}")
+        _plot_j1(out, os.path.join(FIGURES_DIR, 'jacobian_spectrum',
+                                   f"j1_{tag}.png"))
+    return out
+
+
+def _plot_j1(out, save_path):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    Nk = out['N'] * out['k']
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), dpi=150)
+    # left: whitened spectra σ_i(J_SNR) for each (S, shrink)
+    for (S, shrink), r in out['results'].items():
+        ss = r['sigma_snr']
+        axes[0].semilogy(range(1, len(ss) + 1), ss, 'o-', ms=3,
+                         label=f"S={S}, ρ={shrink:g}")
+    axes[0].set_xlabel('index i'); axes[0].set_ylabel(r'$\sigma_i(J_{SNR})$')
+    axes[0].set_title(f"whitened spectrum (Nk={Nk})")
+    axes[0].grid(True, alpha=0.3); axes[0].legend(fontsize=6)
+    # right: q_eff/Nk vs eps for the largest S, across shrink
+    S_max = max(out['S_list'])
+    eps = sorted(out['eps_list'])
+    for shrink in out['shrink_list']:
+        q = [out['results'][(S_max, shrink)]['q_eff'][e] / Nk for e in eps]
+        axes[1].semilogx(eps, q, 's-', label=f"ρ={shrink:g}")
+    axes[1].set_xlabel(r'perturbation scale $\epsilon$')
+    axes[1].set_ylabel(r'$q_{eff}/q$')
+    axes[1].set_title(f"recoverable fraction vs ε (S={S_max})")
+    axes[1].set_ylim(-0.02, 1.02); axes[1].grid(True, alpha=0.3, which='both')
+    axes[1].legend(fontsize=7)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.tight_layout(); plt.savefig(save_path, bbox_inches='tight',
+                                    facecolor='white'); plt.close()
+    print(f"[J1] figure -> {save_path}")
+
+
 def _plot_j0(out, save_path):
     import matplotlib
     matplotlib.use('Agg')
@@ -606,6 +776,13 @@ if __name__ == '__main__':
     p.add_argument('--smoke', action='store_true',
                    help='toy-AD gate + real MNIST single-module smoke')
     p.add_argument('--j0', action='store_true', help='run Phase J0')
+    p.add_argument('--j1', action='store_true', help='run Phase J1 (whitening/q_eff)')
+    p.add_argument('--T_sweep', action='store_true',
+                   help='eff_rank(J) vs T — underfitting vs structural de-confound')
+    p.add_argument('--Ts', type=int, nargs='+', default=[5, 20, 50])
+    p.add_argument('--S_list', type=int, nargs='+', default=[16, 32, 64])
+    p.add_argument('--shrink_list', type=float, nargs='+',
+                   default=[1e-4, 1e-2, 1e-1])
     p.add_argument('--N', type=int, default=4)
     p.add_argument('--k', type=int, default=8)
     p.add_argument('--T', type=int, default=5)
@@ -634,6 +811,19 @@ if __name__ == '__main__':
         run_j0(N=args.N, k=args.k, T=args.T, rank=args.rank,
                activation=args.activation, device=device,
                tangent_method=args.tangent, eps_list=tuple(args.eps_list),
+               seed=args.seed, save=args.save, tag=args.tag)
+
+    if args.T_sweep:
+        run_j0_T_sweep(N=args.N, k=args.k, rank=args.rank,
+                       activation=args.activation, device=device,
+                       tangent_method=args.tangent, Ts=tuple(args.Ts),
+                       seed=args.seed)
+
+    if args.j1:
+        run_j1(N=args.N, k=args.k, T=args.T, rank=args.rank,
+               activation=args.activation, device=device,
+               tangent_method=args.tangent, S_list=tuple(args.S_list),
+               eps_list=tuple(args.eps_list), shrink_list=tuple(args.shrink_list),
                seed=args.seed, save=args.save, tag=args.tag)
 
     print("=== Done ===")
