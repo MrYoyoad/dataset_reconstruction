@@ -698,9 +698,26 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
         adequacy = S / Nk
         jenergy = noise_subspace_energy(J, centered)
         aflag = "OK" if adequacy >= 4 else ("MARGINAL" if adequacy >= 2 else "UNDER-SAMPLED")
+        chance = (min(S - 1, Nk) / centered.shape[1])           # overlap baseline
         print(f"[J1] S={S}  adequacy S/Nk={adequacy:.1f} ({aflag})  |  "
               f"J-energy in measured noise subspace = {100 * jenergy:.1f}%  "
-              f"(q_eff reliable for this fraction; rest is ρ-floor)")
+              f"(chance baseline {100 * chance:.2f}% — only meaningful ABOVE it)")
+        # Decisive dimensionality check (yoado-29): eff_rank(Σ_seed) and whether it
+        # GROWS with S. Growing/flat-spectrum ⇒ high-dim noise undersampled ⇒ the
+        # low overlap is a dimensionality artifact, not orthogonality. λ_i = sv_i².
+        lam = (noise_sv[:smin_idx + 1].double()) ** 2
+        p = lam / (lam.sum() + 1e-30)
+        cov_eff_rank = float(torch.exp(-(p * p.log()).sum()))
+        # Honest fallback under an ISOTROPIC init-noise model: floor = measured mean
+        # variance μ = trace(Σ)/dimY (NOT the shrinkage ρμ). σ_i(J_SNR)=σ_i(J)/√μ.
+        mu = (centered.double().pow(2).sum()
+              / ((S - 1) * centered.shape[1])).item()
+        sigma_iso = svals.to(centered.device) / (mu ** 0.5)
+        qeff_iso = {eps: int((eps * sigma_iso > 1).sum().item()) for eps in eps_list}
+        isostr = "  ".join(f"ε={e:g}:{qeff_iso[e]}/{Nk}" for e in eps_list)
+        print(f"[J1] S={S}  eff_rank(Σ_seed)={cov_eff_rank:.1f} "
+              f"(track vs S: growing ⇒ undersampled high-dim)  |  μ={mu:.3e}  "
+              f"q_eff|iso: {isostr}")
         for shrink in shrink_list:
             sigma_snr, Fisher = snr_spectrum(J, centered, shrinkage=shrink)
             qeffs = {eps: q_eff(sigma_snr, eps) for eps in eps_list}
@@ -712,6 +729,8 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
                 'noise_svals': noise_sv.cpu(),
                 'noise_skew': skew, 'noise_exkurt': exkurt,
                 'adequacy_S_over_Nk': adequacy, 'j_noise_energy_frac': jenergy,
+                'energy_chance_baseline': chance, 'cov_eff_rank': cov_eff_rank,
+                'iso_mu': mu, 'q_eff_iso': qeff_iso,
             }
 
     # The leakage bracket (yoado-29): the deterministic raw eff_rank is the

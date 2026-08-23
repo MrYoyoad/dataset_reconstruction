@@ -22,9 +22,18 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
   A-block and the init noise lives in the B-block; at small T they barely mix ⟹ J ⊥ Σ_seed. Overlap is
   predicted to grow with T (checkable). Full-batch GD is otherwise deterministic in the data, so init
   is the only randomness and it misses the signal subspace.
-- **The positive reading:** init-noise ⊥ data-signal ⟹ an unknown-init attacker can factor out B₀ ⟹
-  **random LoRA initialization is not a privacy defense** (unknown-init ≈ known-init leakage). A
-  "negative" whitening result is a *positive* privacy statement.
+- **The tempting positive reading — and why it is NOT yet proven:** init-noise ⊥ data-signal WOULD
+  imply an unknown-init attacker can factor out B₀ (random init is not a defense). BUT the energy
+  fraction is dimensionality-confounded: two generic low-dim subspaces in dim-14272 are ~orthogonal by
+  chance (baseline ≈ #samples/dimY ≈ 0.4%), and the measured 0.1% sits AT that baseline. A flat noise
+  sample-spectrum (anisotropy ≈1.1) is a red flag for "high-dim noise undersampled at S", where the
+  orthogonality is an artifact, not a fact.
+- **Second general rule (from the walk-back):** an energy-in-subspace / overlap metric is only
+  meaningful RELATIVE TO its chance baseline (`min(dim A, dim B)/dim ambient`) and only when the
+  estimated subspace is not undersampled. Before concluding "orthogonal", check `eff_rank(Σ)` and
+  whether it keeps growing with the number of samples S (grows ⇒ undersampled ⇒ indeterminate, not
+  orthogonal). When undersampled, fall back to an explicit noise model (e.g. isotropic: floor = mean
+  variance μ, report q_eff vs √μ, clearly labeled) rather than claiming zero masking.
 - **General rule:** before trusting a whitened/SNR/Fisher quantity, verify the noise you divided by
   actually spans the signal's subspace. An isotropic, well-behaved noise cloud that is *orthogonal* to
   the signal gives a confident-looking but empty answer.

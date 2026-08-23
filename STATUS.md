@@ -41,11 +41,25 @@ N=2 k8 = 0.1% at T=5/20/50; N=4 k8 = 0.0%/0.1%/0.1% at T=5/20/50 — flat throug
 ~orthogonal to the init-noise subspace even at T=50. Prediction refuted (in a good way): the
 separation is a durable structural property, which strengthens the conclusion below.
 
-**POSITIVE finding (not just "whitening was inoperative"): random LoRA init provides ~zero privacy
-protection.** If the init noise is orthogonal to the data signal, an attacker who does NOT know B₀ can
-factor it out perfectly, so the unknown-init attacker ≈ the known-init attacker. ⟹ the OPERATIVE
-leakage is the deterministic / known-init number (raw eff_rank), which is HIGH (full for N=2). "Randomize
-the LoRA init" is therefore not a defense — a clean, quotable privacy statement.
+**CAVEAT on the energy diagnostic (yoado-29, 2026-08-23) — the "0.1% overlap" cannot yet carry a
+conclusion.** "Fraction of J's energy in span(S samples)" is dimensionality-confounded: two generic
+low-dim subspaces of a 14272-dim space are ~orthogonal by default (expected overlap ≈ 63/14272 ≈ 0.4%),
+so the measured 0.1% is at the chance baseline. It is consistent with BOTH (A) Σ_seed genuinely low-dim
+and orthogonal to J (init doesn't mask) AND (B) Σ_seed high-dim/isotropic, undersampled at S=64, with
+true noise reaching J's directions at level ~√μ that we have no samples to see. The flat anisotropy
+(1.07–1.18) is evidence FOR (B): a captured low-dim noise would show a sharply DECAYING sample spectrum,
+not a flat one (raw Kaiming B₀ is ~full-rank over the ~8000-dim B-block).
+
+**Decisive test (running, job [covrank-vs-S]):** `eff_rank(Σ_seed)` and its decay as S=16→32→64→128.
+Saturates / sharp decay ⇒ low-dim noise captured ⇒ orthogonality real ⇒ "init not a defense" holds.
+Grows ~linearly with S / flat ⇒ high-dim undersampled ⇒ q_eff INDETERMINATE from these seeds. Also
+report `q_eff vs √μ` under an explicit isotropic-init-noise model (floor = measured mean variance μ,
+NOT the shrinkage ρμ) as the honest fallback number.
+
+**Tentative reading (pending the test):** init-noise is orthogonal to the signal *in the measured
+subspace*; whether it actually masks is either zero (case A) or indeterminate at S=64 / bounded by √μ
+under isotropy (case B). Do NOT yet claim "random init is not a defense" as proven — it is the case-A
+outcome only.
 
 **Next (promoted from footnote to necessary):** introduce a randomness source that lives in J's column
 space — **minibatch SGD / data-order / augmentation noise** — so `Σ_seed` actually spans J and `q_eff`
