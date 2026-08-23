@@ -1,6 +1,29 @@
 # Project Status
 
-Last updated: **2026-08-21** (read MineGrad AISTATS 2026 and re-planned the gradient-bridge direction against it — see new section immediately below; prior update 2026-08-11)
+Last updated: **2026-08-23** (Phase J0 of the Jacobian-spectrum program implemented + submitted; prior update 2026-08-21 MineGrad re-plan)
+
+---
+
+## Jacobian-spectrum leakage program — Phase J0 built + submitted (2026-08-23)
+
+Turned the identifiability note into buildable code. Plan rewritten PhD-readable (background primer →
+J0/J1 concrete → J2–J6 goals): **notes/jacobian_leakage_experiment_plan.md** (v3).
+
+- **New module `experiments/jacobian_spectrum.py`** implements Phase J0: the data-latent Jacobian
+  `J = ∂vec(A_T,B_T)/∂a` where private data hides in image variations `x_i(a_i)=x_i^0+U_i a_i`.
+  `J` computed by **forward-over-reverse JVP via double `autograd.grad`** (`exact_jacobian`,
+  method `jvp_double`) — composes with the existing create_graph unroll. J1 whitening functions
+  (`estimate_sigma_seed`, `snr_spectrum` via Woodbury, `q_eff`) scaffolded.
+- **Single LoRA module** (`target_layers=(0,)`), GELU, float64, ds_mean frozen at a=0. Reuses
+  `generate_target`/`get_finetuning_data`/`effective_rank`; does NOT edit `direct_inversion.py`.
+- **Audit caught two things before submit:** (1) reusing `direct_inversion.A_rank_shape` (hardcoded
+  MNIST dims 784/1000) would break the toy net → added local `_a_shape` reading in_features from
+  `frozen`; (2) `generate_target`'s θ_T is ALL-layer, not the single-module target → use it only for
+  `frozen/b0/B0[0]/ds_mean` and define `Y0:=forward_Y(0)`.
+- **Gate = toy-AD finite-difference check** (`<1e-6` rel err, jvp-vs-reverse `<1e-8`) as Stage 0 of the
+  bsub job (`sys.exit(1)` aborts on fail); then real MNIST smoke (`J` is [3568,8], FD `<1e-4`); then J0
+  coordinate-recovery-vs-ε sweeps (qr + svd tangents, N∈{2,4}, k∈{4,8,16}).
+- **Submitted job 966830** (`short-gpu`). All compute on WEXAC — no local runs (user rule).
 
 ---
 

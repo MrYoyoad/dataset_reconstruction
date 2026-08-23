@@ -1,0 +1,601 @@
+"""Phase J0/J1 — the data-latent Jacobian of LoRA fine-tuning.
+
+Implements the falsifiable program in
+``notes/jacobian_leakage_experiment_plan.md``. The central object is the
+**data-latent Jacobian**
+
+    J = ∂ vec(A_T, B_T) / ∂ a          (shape [dimY, Nk])
+
+where the private data is hidden inside realistic image variations
+
+    x_i(a_i) = x_i^0 + U_i a_i          (U_i orthonormal tangent directions),
+
+and ``(A_T, B_T)`` is the LoRA adapter obtained by *deterministically*
+fine-tuning θ₀ on ``{x_i(a_i)}`` for T unrolled SGD steps. J0 asks: can we
+recover the private coordinates ``a`` from the released adapter, and does the
+spectrum of ``J`` predict *which* coordinates survive?
+
+J1 adds training-seed randomness, estimates the seed-noise covariance
+``Σ_seed``, whitens the Jacobian (``J_SNR = Σ_seed^{-1/2} J``, the square root of
+the Fisher information ``F = Jᵀ Σ_seed^{-1} J``), and computes the effective
+recoverable dimension ``q_eff(ε) = #{i : ε·σ_i(J_SNR) > 1}``.
+
+Design notes (see the plan's audit section):
+- **GELU only.** The Jacobian is computed by differentiating *through* the
+  unrolled training gradients (a third-order autograd path). ``modified_relu``
+  has no double-backward and silently corrupts J. GELU is C^∞.
+- **float64 throughout** — the FD gate requires ``<1e-6`` relative error.
+- **ds_mean is frozen at a=0.** ``forward_Y`` subtracts a fixed dataset mean;
+  it never recomputes the mean from ``x(a)`` (that would couple the batch and
+  pollute J).
+- **Single LoRA module** first (``target_layers=(0,)``); ``scaling = 1``
+  (alpha = rank), matching ``lora_wrapper.LoRALinear``.
+- **generate_target applies LoRA to all 3 layers**; its ``θ_T`` is NOT the
+  single-module target. We reuse it only for ``frozen / b0 / B0 / ds_mean`` and
+  define the target as ``Y0 := forward_Y(0)``.
+
+Usage (WEXAC):
+    python -u -m experiments.jacobian_spectrum --smoke --device cuda
+    python -u -m experiments.jacobian_spectrum --j0 --N 4 --k 8 --T 5 --save --device cuda
+"""
+import sys
+import os
+import argparse
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'dataset_reconstruction'))
+
+import torch
+import torch.nn.functional as F
+
+torch.set_default_dtype(torch.float64)
+
+from experiments.configs import RESULTS_DIR, FIGURES_DIR, TRAIN_LR
+from experiments.direct_inversion import generate_target
+from experiments.run_experiment_b import make_activation
+from experiments.data_utils import get_finetuning_data
+from experiments.gate_matrix_test import effective_rank
+
+
+# ---------------------------------------------------------------------------
+# 1. Tangent-basis construction (§2 of the plan: controlled k)
+# ---------------------------------------------------------------------------
+def build_tangents(d, k, N, seed=0, method='qr', decay=0.5, device='cpu'):
+    """Per-image orthonormal (or deliberately rank-deficient) tangent bases.
+
+    Returns:
+        U: [N, d, k] tensor. Column j of U[i] is a pixel-space direction; the
+           private coordinate a_{ij} moves image i along it.
+        col_scales: [N, k] the norm injected into each column (all-ones for
+           'qr'; a geometric decay for 'svd'). This is the *known* ground truth
+           the J0 spectrum-prediction test checks σ_i(J) against.
+
+    method:
+        'qr'  — orthonormal random tangents (clean rank k). The realistic case:
+                every private coordinate perturbs the image equally.
+        'svd' — orthonormal directions scaled by a geometric decay
+                (decay**j). Injects a *known* rank deficiency so we can verify
+                the measured spectrum σ_i(J) tracks it (the falsification test).
+    """
+    g = torch.Generator(device='cpu').manual_seed(seed)
+    U = torch.empty(N, d, k, dtype=torch.float64)
+    col_scales = torch.empty(N, k, dtype=torch.float64)
+    for i in range(N):
+        M = torch.randn(d, k, generator=g, dtype=torch.float64)
+        Q, _ = torch.linalg.qr(M)            # [d, k], orthonormal columns
+        Q = Q[:, :k]
+        if method == 'qr':
+            s = torch.ones(k, dtype=torch.float64)
+        elif method == 'svd':
+            s = torch.tensor([decay ** j for j in range(k)], dtype=torch.float64)
+        else:
+            raise ValueError(f"unknown tangent method {method!r}")
+        U[i] = Q * s.unsqueeze(0)
+        col_scales[i] = s
+    return U.to(device), col_scales.to(device)
+
+
+def make_images(x0_centered, U, a):
+    """x_i = x0_i + U_i a_i, differentiable in a. float64.
+
+    Args:
+        x0_centered: [N, C, H, W] mean-subtracted base images (a = 0 point).
+        U: [N, d, k] tangent bases (d = C*H*W).
+        a: [N, k] private coordinates.
+    Returns:
+        x: [N, C, H, W]
+    """
+    N = x0_centered.shape[0]
+    shape = x0_centered.shape
+    x0f = x0_centered.reshape(N, -1)
+    # (U_i a_i) for every i:  [N, d, k] x [N, k] -> [N, d]
+    delta = torch.einsum('ndk,nk->nd', U, a)
+    return (x0f + delta).reshape(shape)
+
+
+# ---------------------------------------------------------------------------
+# 2. Differentiable single-module LoRA fine-tuning (returns A, B)
+# ---------------------------------------------------------------------------
+def _a_shape(frozen, B0, l):
+    """A_l has shape [rank, in_features_l]. rank from B0_l=[out,rank];
+    in_features from frozen_l=[out,in]. (Not direct_inversion.A_rank_shape,
+    which hardcodes the MNIST dims and would break the toy net.)"""
+    rank = B0[l].shape[1]
+    in_features = frozen[l].shape[1]
+    return (rank, in_features)
+
+
+
+def _partial_lora_forward(frozen, A, B, b0, x, scaling, act, target_layers):
+    """Forward of the MLP with LoRA on ``target_layers`` only.
+
+    Mirrors direct_inversion._lora_forward but leaves non-target layers as plain
+    frozen linears. Layer 0 carries the (frozen) bias; layers 1,2 are bias-free.
+    """
+    h = x.view(x.shape[0], -1)
+    for l in (0, 1, 2):
+        if l in target_layers:
+            w = frozen[l] + scaling * (B[l] @ A[l])
+        else:
+            w = frozen[l]
+        bias = b0 if l == 0 else None
+        h = F.linear(h, w, bias)
+        if l < 2:
+            h = act(h)
+    return h
+
+
+def unrolled_lora_AB(frozen, b0, B0, x, y, lr, T, scaling, act,
+                     target_layers=(0,)):
+    """Unroll T full-batch SGD steps on the LoRA params; RETURN the (A, B) dicts.
+
+    A local variant of direct_inversion.unrolled_finetune_lora that (a) trains
+    only ``target_layers`` and (b) returns the adapter matrices instead of the
+    composed θ_T (J0 observes the adapter, not the merged weight). Starts from
+    the known LoRA init A = 0, B = B0. create_graph=True keeps (A_T, B_T) twice
+    differentiable w.r.t. x (hence a).
+    """
+    A = {l: torch.zeros(_a_shape(frozen, B0, l), dtype=x.dtype, device=x.device,
+                        requires_grad=True) for l in target_layers}
+    B = {l: B0[l].clone().requires_grad_(True) for l in target_layers}
+
+    for _ in range(T):
+        logits = _partial_lora_forward(frozen, A, B, b0, x, scaling, act,
+                                       target_layers).view(-1)
+        loss = F.binary_cross_entropy_with_logits(logits, y)
+        params = [A[l] for l in target_layers] + [B[l] for l in target_layers]
+        grads = torch.autograd.grad(loss, params, create_graph=True)
+        n = len(target_layers)
+        gA, gB = grads[:n], grads[n:]
+        A = {l: A[l] - lr * gA[i] for i, l in enumerate(target_layers)}
+        B = {l: B[l] - lr * gB[i] for i, l in enumerate(target_layers)}
+    return A, B
+
+
+def build_ab_index(frozen, B0, target_layers):
+    """Fixed A-then-B, ascending-layer flatten layout. Returns list of
+    (kind, layer, shape) for provenance / unflatten."""
+    index = []
+    for l in target_layers:
+        index.append(('A', l, _a_shape(frozen, B0, l)))
+    for l in target_layers:
+        index.append(('B', l, tuple(B0[l].shape)))
+    return index
+
+
+def flatten_AB(A, B, index):
+    """Flatten the adapter to vecY following ``index`` (A block then B block)."""
+    parts = []
+    for kind, l, _shape in index:
+        parts.append((A[l] if kind == 'A' else B[l]).reshape(-1))
+    return torch.cat(parts)
+
+
+# ---------------------------------------------------------------------------
+# 3. The forward map a -> Y and its exact Jacobian
+# ---------------------------------------------------------------------------
+class Ctx:
+    """Everything forward_Y needs, fixed at a=0 (ds_mean frozen here)."""
+    def __init__(self, frozen, b0, B0, x0_centered, U, y, lr, T, scaling, act,
+                 target_layers, index):
+        self.frozen = frozen
+        self.b0 = b0
+        self.B0 = B0
+        self.x0_centered = x0_centered
+        self.U = U
+        self.y = y
+        self.lr = lr
+        self.T = T
+        self.scaling = scaling
+        self.act = act
+        self.target_layers = target_layers
+        self.index = index
+
+
+def forward_Y(a_flat, ctx):
+    """The ℝ^{Nk} -> ℝ^{dimY} closure. a_flat is [N*k] (row-major over images)."""
+    N, k = ctx.U.shape[0], ctx.U.shape[2]
+    a = a_flat.view(N, k)
+    x = make_images(ctx.x0_centered, ctx.U, a)
+    A, B = unrolled_lora_AB(ctx.frozen, ctx.b0, ctx.B0, x, ctx.y,
+                            ctx.lr, ctx.T, ctx.scaling, ctx.act,
+                            ctx.target_layers)
+    return flatten_AB(A, B, ctx.index)
+
+
+def exact_jacobian(a0, ctx, method='jvp_double'):
+    """J = ∂Y/∂a at a0, shape [dimY, Nk].
+
+    'jvp_double' — forward-over-reverse JVP built from two ``autograd.grad``
+    calls (pure autograd, composes with the create_graph unroll). One column per
+    a-coordinate; Nk cheap backward passes over one retained graph. This is the
+    production path (dimY >> Nk, so forward-mode wins).
+
+    'reverse_loop' — one reverse pass per *output* row (dimY passes). Only
+    tractable on the toy; used to cross-check 'jvp_double'.
+    """
+    a = a0.clone().detach().requires_grad_(True)
+    Y = forward_Y(a, ctx)
+    dimY, Nk = Y.numel(), a.numel()
+
+    if method == 'jvp_double':
+        u = torch.zeros(dimY, dtype=a.dtype, device=a.device, requires_grad=True)
+        # JtU = Jᵀ u  (a function of u, linear); create_graph so we can d/du it.
+        (JtU,) = torch.autograd.grad(Y, a, grad_outputs=u, create_graph=True)
+        cols = []
+        eye = torch.eye(Nk, dtype=a.dtype, device=a.device)
+        for j in range(Nk):
+            # d(Jᵀu)/du · e_j = J e_j = column j of J. Retain the graph for
+            # every column except the last, which frees it eagerly.
+            (col,) = torch.autograd.grad(JtU, u, grad_outputs=eye[j],
+                                         retain_graph=(j < Nk - 1))
+            cols.append(col.detach())
+        return torch.stack(cols, dim=1)          # [dimY, Nk]
+
+    elif method == 'reverse_loop':
+        rows = []
+        eye = torch.eye(dimY, dtype=a.dtype, device=a.device)
+        for i in range(dimY):
+            (row,) = torch.autograd.grad(Y, a, grad_outputs=eye[i],
+                                         retain_graph=True)
+            rows.append(row.detach())
+        return torch.stack(rows, dim=0)          # [dimY, Nk]
+
+    raise ValueError(f"unknown jacobian method {method!r}")
+
+
+def finite_difference_jacobian(a0, ctx, coords, eps=1e-5):
+    """Central-difference columns of J for the given coordinate indices."""
+    cols = {}
+    for j in coords:
+        e = torch.zeros_like(a0); e[j] = 1.0
+        with torch.no_grad():
+            Yp = forward_Y(a0 + eps * e, ctx)
+            Ym = forward_Y(a0 - eps * e, ctx)
+        cols[j] = ((Yp - Ym) / (2 * eps)).detach()
+    return cols
+
+
+# ---------------------------------------------------------------------------
+# 4. Spectrum & recovery
+# ---------------------------------------------------------------------------
+def spectrum(J):
+    """Singular values + entropy effective rank of J."""
+    svals = torch.linalg.svdvals(J.double())
+    return svals, effective_rank(J)
+
+
+def recover_a(J, Y_target, Y0, metric_isqrt=None):
+    """(whitened) least-squares recovery of a from the observed adapter change.
+
+    Solves min_a ‖ W(J a) − W(Y_target − Y0) ‖² with W = metric_isqrt (identity
+    for J0). Returns â [Nk].
+    """
+    dY = (Y_target - Y0).reshape(-1, 1)
+    A = J
+    if metric_isqrt is not None:
+        A = metric_isqrt @ J
+        dY = metric_isqrt @ dY
+    sol = torch.linalg.lstsq(A, dY).solution
+    return sol.reshape(-1)
+
+
+# ---------------------------------------------------------------------------
+# 5. J1 — seed noise, whitening, Fisher / q_eff  (buildable now; gated on J0)
+# ---------------------------------------------------------------------------
+def estimate_sigma_seed(ctx_factory, S, a0):
+    """Sample vecY at a=0 over S training seeds; return the [S, dimY] matrix of
+    mean-centered samples (rows). Never forms the dimY×dimY covariance.
+
+    ctx_factory(seed) -> Ctx must vary only the training seed (B0 init / any
+    stochasticity), holding the data at a0 fixed.
+    """
+    samples = []
+    for s in range(S):
+        ctx = ctx_factory(s)
+        with torch.no_grad():
+            samples.append(forward_Y(a0, ctx).detach())
+    Ys = torch.stack(samples, dim=0)             # [S, dimY]
+    return Ys - Ys.mean(dim=0, keepdim=True)
+
+
+def snr_spectrum(J, centered_samples, shrinkage=1e-3):
+    """Generalized singular values σ_i(J_SNR) with J_SNR = Σ_seed^{-1/2} J.
+
+    Works in the S-sample subspace: Σ_seed ≈ (1/(S-1)) Mᵀ M with M =
+    centered_samples [S, dimY], regularized by ``shrinkage`` (diagonal loading /
+    Ledoit–Wolf shrink toward isotropic). The Fisher matrix F = Jᵀ Σ^{-1} J is
+    only Nk×Nk, so we form and eig-decompose that directly. Returns
+    sqrt(eig(F)) = σ_i(J_SNR), descending.
+
+    Σ^{-1} v via Woodbury: with Σ = ρ I + (1/(S-1)) MᵀM,
+        Σ^{-1} = ρ^{-1}[ I − Mᵀ (ρ(S-1) I + M Mᵀ)^{-1} M ].
+    Only the S×S system (M Mᵀ) is inverted; dimY×dimY is never formed.
+    """
+    S, dimY = centered_samples.shape
+    M = centered_samples
+    rho = shrinkage * (M.pow(2).sum() / (S * dimY) + 1e-30)  # scale-aware floor
+    # Σ^{-1} J, column by column, via Woodbury.
+    MJ = M @ J                                   # [S, Nk]
+    Gram = M @ M.t()                             # [S, S]
+    K = rho * (S - 1) * torch.eye(S, dtype=J.dtype, device=J.device) + Gram
+    corr = M.t() @ torch.linalg.solve(K, MJ)     # [dimY, Nk]
+    Sigma_inv_J = (J - corr) / rho               # [dimY, Nk]
+    Fisher = J.t() @ Sigma_inv_J                 # [Nk, Nk], = Jᵀ Σ^{-1} J
+    Fisher = 0.5 * (Fisher + Fisher.t())
+    eig = torch.linalg.eigvalsh(Fisher).clamp_min(0)
+    sigma_snr = eig.flip(0).sqrt()               # descending
+    return sigma_snr, Fisher
+
+
+def q_eff(sigma_snr, eps):
+    """Effective recoverable dimension at perturbation scale eps."""
+    return int((eps * sigma_snr > 1.0).sum().item())
+
+
+# ---------------------------------------------------------------------------
+# 6. Contexts: toy (self-test) and real MNIST single-module
+# ---------------------------------------------------------------------------
+def _toy_ctx(seed=0, N=2, k=4, T=5, d_in=6, d_h=5, rank=2, lr=0.1,
+             tangent_method='qr'):
+    """Tiny synthetic net for the AD unit test — CPU float64, no data files.
+
+    Architecture matches the 3-layer MLP shape (d_in - d_h - d_h - 1) so the
+    single-module LoRA path exercises the exact same code as MNIST.
+    """
+    g = torch.Generator().manual_seed(seed)
+    frozen = {
+        0: torch.randn(d_h, d_in, generator=g, dtype=torch.float64) * 0.3,
+        1: torch.randn(d_h, d_h, generator=g, dtype=torch.float64) * 0.3,
+        2: torch.randn(1, d_h, generator=g, dtype=torch.float64) * 0.3,
+    }
+    b0 = torch.randn(d_h, generator=g, dtype=torch.float64) * 0.1
+    B0 = {0: torch.randn(d_h, rank, generator=g, dtype=torch.float64) * 0.2}
+    x0 = torch.randn(N, 1, 1, d_in, generator=g, dtype=torch.float64)
+    x0_centered = x0 - x0.mean(dim=0, keepdim=True)
+    y = torch.tensor([0.0, 1.0] * (N // 2) + [0.0] * (N % 2),
+                     dtype=torch.float64)[:N]
+    U, col_scales = build_tangents(d_in, k, N, seed=seed + 1,
+                                   method=tangent_method)
+    act = make_activation('gelu')
+    target_layers = (0,)
+    index = build_ab_index(frozen, B0, target_layers)
+    ctx = Ctx(frozen, b0, B0, x0_centered, U, y, lr, T, 1.0, act,
+              target_layers, index)
+    return ctx, col_scales
+
+
+def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
+               seed=42, device='cpu', tangent_method='qr'):
+    """Real single-module MNIST context via generate_target.
+
+    generate_target trains an all-layer LoRA; we reuse only frozen / b0 / B0[0]
+    / ds_mean from it, then define the single-module target as Y0 = forward_Y(0).
+    """
+    n_per_class = N // 2
+    x_ft, y_ft, digits, _ = get_finetuning_data(n_per_class, seed=seed,
+                                                device=device)
+    _theta_T_all, frozen, b0, B0_all, ds_mean = generate_target(
+        x_ft, y_ft, T, rank, activation, lr, device)
+    target_layers = (0,)
+    B0 = {l: B0_all[l] for l in target_layers}
+    x0_centered = (x_ft - ds_mean) if ds_mean is not None else x_ft
+    d = x0_centered.reshape(N, -1).shape[1]
+    U, col_scales = build_tangents(d, k, N, seed=seed + 1,
+                                   method=tangent_method, device=device)
+    act = make_activation(activation)
+    index = build_ab_index(frozen, B0, target_layers)
+    ctx = Ctx(frozen, b0, B0, x0_centered, U, y_ft, lr, T, 1.0, act,
+              target_layers, index)
+    return ctx, col_scales, digits, ds_mean
+
+
+# ---------------------------------------------------------------------------
+# 7. Self-tests (the gate) and J0 run
+# ---------------------------------------------------------------------------
+def toy_ad_gate(verbose=True):
+    """Two-tier AD gate. Returns dict of the worst relative errors.
+
+    (1) central-FD check of J on a few coords (rel err < 1e-6);
+    (2) jvp_double vs reverse_loop agreement (~1e-10);
+    (3) recover a known small a_true by LSQ.
+    Must pass before any WEXAC submit.
+    """
+    ctx, col_scales = _toy_ctx()
+    Nk = ctx.U.shape[0] * ctx.U.shape[2]
+    a0 = torch.zeros(Nk, dtype=torch.float64)
+
+    J = exact_jacobian(a0, ctx, method='jvp_double')
+    J_rev = exact_jacobian(a0, ctx, method='reverse_loop')
+    rev_gap = (J - J_rev).abs().max().item()
+
+    coords = list(range(min(4, Nk)))
+    fd = finite_difference_jacobian(a0, ctx, coords, eps=1e-5)
+    fd_rel = 0.0
+    for j in coords:
+        num = (J[:, j] - fd[j]).norm().item()
+        den = fd[j].norm().item() + 1e-30
+        fd_rel = max(fd_rel, num / den)
+
+    # deterministic recovery of a known small a_true
+    torch.manual_seed(0)
+    a_true = 1e-3 * torch.randn(Nk, dtype=torch.float64)
+    Y0 = forward_Y(a0, ctx).detach()
+    Y_t = forward_Y(a_true, ctx).detach()
+    a_hat = recover_a(J, Y_t, Y0)
+    rec_rel = (a_hat - a_true).norm().item() / (a_true.norm().item() + 1e-30)
+
+    ok = (fd_rel < 1e-6) and (rev_gap < 1e-8) and (rec_rel < 1e-3)
+    if verbose:
+        print("=== TOY-AD GATE ===")
+        print(f"  J shape                 : {tuple(J.shape)}")
+        print(f"  FD rel err (max, <1e-6) : {fd_rel:.3e}")
+        print(f"  jvp vs reverse (<1e-8)  : {rev_gap:.3e}")
+        print(f"  LSQ recovery rel (<1e-3): {rec_rel:.3e}")
+        svals, er = spectrum(J)
+        print(f"  eff_rank(J)             : {er:.3f}  (Nk={Nk})")
+        print(f"  {'PASSED' if ok else 'FAILED'}")
+    return {'fd_rel': fd_rel, 'rev_gap': rev_gap, 'rec_rel': rec_rel,
+            'passed': ok}
+
+
+def real_smoke(N=2, k=8, T=5, rank=2, device='cpu', verbose=True):
+    """Real single-module MNIST smoke: FD on 3 coords (<1e-4), print spectrum."""
+    ctx, col_scales, digits, ds_mean = _mnist_ctx(
+        N=N, k=k, T=T, rank=rank, device=device)
+    Nk = N * k
+    a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+    J = exact_jacobian(a0, ctx, method='jvp_double')
+    coords = [0, Nk // 2, Nk - 1]
+    fd = finite_difference_jacobian(a0, ctx, coords, eps=1e-5)
+    fd_rel = max((J[:, j] - fd[j]).norm().item() /
+                 (fd[j].norm().item() + 1e-30) for j in coords)
+    svals, er = spectrum(J)
+    if verbose:
+        print("=== REAL MNIST SINGLE-MODULE SMOKE ===")
+        print(f"  digits={digits}  J shape={tuple(J.shape)} (dimY={J.shape[0]}, Nk={Nk})")
+        print(f"  FD rel err (max of 3 coords, <1e-4): {fd_rel:.3e}")
+        print(f"  σ(J): max={svals[0]:.3e} min={svals[-1]:.3e} "
+              f"cond={svals[0] / (svals[-1] + 1e-30):.3e}")
+        print(f"  eff_rank(J) = {er:.3f}  (Nk={Nk})")
+        print(f"  {'PASSED' if fd_rel < 1e-4 else 'FAILED'}")
+    return {'fd_rel': fd_rel, 'eff_rank': er, 'svals': svals,
+            'J_shape': tuple(J.shape)}
+
+
+def run_j0(N=4, k=8, T=5, rank=8, activation='gelu', device='cuda',
+           tangent_method='qr', eps_list=(1e-3, 1e-2, 1e-1, 1.0), seed=42,
+           save=False, tag=None):
+    """Phase J0: build J, its spectrum, and coordinate recovery vs eps.
+
+    For each eps we set a_true = eps * (unit random direction per coord),
+    fine-tune, observe Y, recover â by LSQ, and record per-coordinate error.
+    Deterministic training (no seed noise) — the predictor is σ_i(J).
+    """
+    ctx, col_scales, digits, ds_mean = _mnist_ctx(
+        N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
+        device=device, tangent_method=tangent_method)
+    Nk = N * k
+    a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+
+    print(f"[J0] building J  (N={N}, k={k}, T={T}, rank={rank}, "
+          f"tangent={tangent_method})")
+    J = exact_jacobian(a0, ctx, method='jvp_double')
+    svals, er = spectrum(J)
+    print(f"[J0] J shape={tuple(J.shape)}  eff_rank={er:.3f}  "
+          f"σ_max={svals[0]:.3e}  σ_min={svals[-1]:.3e}")
+
+    torch.manual_seed(seed)
+    direction = torch.randn(Nk, dtype=torch.float64, device=device)
+    direction = direction / direction.norm()
+
+    eps_results = {}
+    for eps in eps_list:
+        a_true = eps * direction
+        Y0 = forward_Y(a0, ctx).detach()
+        Y_t = forward_Y(a_true, ctx).detach()
+        a_hat = recover_a(J, Y_t, Y0)
+        per_coord_err = (a_hat - a_true).abs()
+        rel = (a_hat - a_true).norm().item() / (a_true.norm().item() + 1e-30)
+        eps_results[eps] = {
+            'a_true': a_true.cpu(), 'a_hat': a_hat.cpu(),
+            'per_coord_err': per_coord_err.cpu(), 'rel_err': rel,
+        }
+        print(f"[J0] eps={eps:<6g}  LSQ recovery rel_err={rel:.3e}")
+
+    out = {
+        'J': J.cpu(), 'svals': svals.cpu(), 'eff_rank': er,
+        'col_scales': col_scales.cpu(), 'eps_results': eps_results,
+        'N': N, 'k': k, 'T': T, 'rank': rank, 'activation': activation,
+        'tangent_method': tangent_method, 'digits': digits,
+    }
+    if save:
+        tag = tag or f"N{N}_k{k}_T{T}_r{rank}_{activation}_{tangent_method}"
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        path = os.path.join(RESULTS_DIR, f"jacobian_j0_{tag}.pth")
+        torch.save(out, path)
+        print(f"[J0] saved -> {path}")
+        _plot_j0(out, os.path.join(FIGURES_DIR, 'jacobian_spectrum',
+                                   f"j0_{tag}.png"))
+    return out
+
+
+def _plot_j0(out, save_path):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    svals = out['svals']
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), dpi=150)
+    axes[0].semilogy(range(1, len(svals) + 1), svals, 'o-', color='#1f77b4')
+    axes[0].set_xlabel('index i'); axes[0].set_ylabel(r'$\sigma_i(J)$')
+    axes[0].set_title(f"J spectrum (eff_rank={out['eff_rank']:.2f}, "
+                      f"Nk={out['N'] * out['k']})")
+    axes[0].grid(True, alpha=0.3)
+    eps = sorted(out['eps_results'])
+    rel = [out['eps_results'][e]['rel_err'] for e in eps]
+    axes[1].loglog(eps, rel, 's-', color='#d62728')
+    axes[1].set_xlabel(r'perturbation scale $\epsilon$')
+    axes[1].set_ylabel('LSQ recovery rel error')
+    axes[1].set_title('coordinate recovery vs ε (linear→nonlinear)')
+    axes[1].grid(True, alpha=0.3, which='both')
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.tight_layout(); plt.savefig(save_path, bbox_inches='tight',
+                                    facecolor='white'); plt.close()
+    print(f"[J0] figure -> {save_path}")
+
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--smoke', action='store_true',
+                   help='toy-AD gate + real MNIST single-module smoke')
+    p.add_argument('--j0', action='store_true', help='run Phase J0')
+    p.add_argument('--N', type=int, default=4)
+    p.add_argument('--k', type=int, default=8)
+    p.add_argument('--T', type=int, default=5)
+    p.add_argument('--rank', type=int, default=8)
+    p.add_argument('--activation', type=str, default='gelu')
+    p.add_argument('--tangent', type=str, default='qr', choices=['qr', 'svd'])
+    p.add_argument('--eps_list', type=float, nargs='+',
+                   default=[1e-3, 1e-2, 1e-1, 1.0])
+    p.add_argument('--seed', type=int, default=42)
+    p.add_argument('--device', type=str, default=None)
+    p.add_argument('--save', action='store_true')
+    p.add_argument('--tag', type=str, default=None)
+    args = p.parse_args()
+
+    device = args.device or ('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
+
+    if args.smoke:
+        gate = toy_ad_gate()
+        if not gate['passed']:
+            print("FATAL: toy-AD gate failed — do NOT submit. Inspect J.")
+            sys.exit(1)
+        real_smoke(device=device)
+
+    if args.j0:
+        run_j0(N=args.N, k=args.k, T=args.T, rank=args.rank,
+               activation=args.activation, device=device,
+               tangent_method=args.tangent, eps_list=tuple(args.eps_list),
+               seed=args.seed, save=args.save, tag=args.tag)
+
+    print("=== Done ===")
