@@ -4,6 +4,25 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## `torch.no_grad()` around an unrolled-training forward kills the inner SGD gradient (2026-08-23)
+
+- **Bug:** `experiments/jacobian_spectrum.py` — the Phase J0 finite-difference gate aborted the first
+  submit (job 966830) with `RuntimeError: element 0 of tensors does not require grad and does not have
+  a grad_fn`.
+- **How it presented:** the Stage-0 toy-AD gate `sys.exit(1)`'d before any number printed. Traceback
+  pointed at `unrolled_lora_AB` → `torch.autograd.grad(loss, params, create_graph=True)`.
+- **Root cause:** `finite_difference_jacobian` (and `estimate_sigma_seed`) wrapped `forward_Y` in
+  `with torch.no_grad():` to get a "value only" evaluation. But `forward_Y`'s inner SGD step *is* a
+  gradient (`autograd.grad(loss, params, create_graph=True)`). Under `no_grad`, no graph is recorded,
+  so `loss.grad_fn is None` and the inner `autograd.grad` has nothing to differentiate.
+- **Fix:** never wrap an unrolled/differentiable-training forward in `no_grad`. Run it in normal grad
+  mode and `.detach()` the returned value instead — you get the value without keeping the outer graph.
+- **General rule:** for any function whose *forward pass contains an autograd.grad* (unrolled training,
+  meta-learning, Jacobian-of-training work), `no_grad` is wrong even for value-only calls. Detach the
+  output, don't disable grad.
+- **Meta-lesson:** this is exactly why the FD gate is Stage 0 with abort-on-fail — it caught a bug that
+  would have silently poisoned every downstream J0 number. Keep gates cheap and first.
+
 ## Raw SSIM on a clipped reconstruction is a metric artifact (2026-08-21, from sibling session)
 
 - **What:** the extraction softly boxes only the CENTERED x∈[-1,1]; the DISPLAYED image x+ds_mean can
