@@ -378,6 +378,44 @@ def q_eff(sigma_snr, eps):
     return int((eps * sigma_snr > 1.0).sum().item())
 
 
+def q_eff_colspace(J, centered, eps_list, tol=1e-8):
+    """SOUND whitening restricted to col(J) (yoado-29's fix for the SGD phase).
+
+    The energy-overlap metric is chance-baseline-confounded and the full Σ_seed is
+    unmeasurable at feasible S. Instead estimate the noise ONLY where the signal
+    lives: let Q = orthonormal basis of col(J) (dim r_J ≤ Nk); project the noise
+    samples n_s = Qᵀ(Y_s − Ȳ); estimate the small Σ_J = Cov(n_s) [r_J×r_J]; and
+    whiten inside col(J): F = (QᵀJ)ᵀ Σ_J^{-1} (QᵀJ). This is estimable at
+    S ≳ few·r_J and needs no shrinkage floor for unsampled directions.
+
+    Returns dict: r_J, sigma_snr, q_eff(eps), tr(Σ_J), and the isotropy check
+    tr(Σ_J) / (μ·r_J) — whether the noise genuinely HAS variance in col(J)
+    (≈1 isotropic-in-col(J); ≈0 the noise avoids the signal directions).
+    """
+    U, s, _ = torch.linalg.svd(J, full_matrices=False)
+    r_J = int((s > tol * s[0]).sum())
+    Q = U[:, :r_J]                                   # [dimY, r_J], spans col(J)
+    Nproj = centered @ Q                             # [S, r_J]
+    S = centered.shape[0]
+    Sigma_J = (Nproj.t() @ Nproj) / (S - 1)          # [r_J, r_J]
+    Jc = Q.t() @ J                                    # [r_J, Nk]
+    eig_noise = torch.linalg.eigvalsh(Sigma_J).clamp_min(0)
+    # regularize only against numerical singularity (a floor tiny vs the trace)
+    ridge = 1e-12 * (Sigma_J.diagonal().mean() + 1e-30)
+    Sigma_J_reg = Sigma_J + ridge * torch.eye(r_J, dtype=J.dtype, device=J.device)
+    F = Jc.t() @ torch.linalg.solve(Sigma_J_reg, Jc)
+    F = 0.5 * (F + F.t())
+    sigma_snr = torch.linalg.eigvalsh(F).clamp_min(0).flip(0).sqrt()
+    qeffs = {eps: int((eps * sigma_snr > 1).sum().item()) for eps in eps_list}
+    mu = (centered.double().pow(2).sum() / ((S - 1) * centered.shape[1])).item()
+    tr_SigmaJ = float(Sigma_J.diagonal().sum())
+    iso_ratio = tr_SigmaJ / (mu * r_J + 1e-30)       # ≈1 isotropic; ≈0 avoids col(J)
+    return {'r_J': r_J, 'sigma_snr': sigma_snr, 'q_eff': qeffs,
+            'tr_Sigma_J': tr_SigmaJ, 'iso_ratio': iso_ratio,
+            'noise_eig_min': float(eig_noise[0]),
+            'noise_eig_max': float(eig_noise[-1])}
+
+
 def noise_subspace_energy(J, centered):
     """Fraction of J's energy that lies inside the *measured* seed-noise subspace.
 
@@ -718,6 +756,14 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
         print(f"[J1] S={S}  eff_rank(Σ_seed)={cov_eff_rank:.1f} "
               f"(track vs S: growing ⇒ undersampled high-dim)  |  μ={mu:.3e}  "
               f"q_eff|iso: {isostr}")
+        # SOUND diagnostic: whiten INSIDE col(J) — measures noise where the signal
+        # lives, sidestepping the high-dim undersampling. iso_ratio≈0 ⇒ noise avoids
+        # col(J) (init doesn't mask); ≈1 ⇒ isotropic-in-col(J) (masks). (yoado-29)
+        cs = q_eff_colspace(J, centered, eps_list)
+        csstr = "  ".join(f"ε={e:g}:{cs['q_eff'][e]}/{Nk}" for e in eps_list)
+        print(f"[J1] S={S}  col(J) r_J={cs['r_J']}  tr(Σ_J)/(μ·r_J)="
+              f"{cs['iso_ratio']:.3f} (≈0 noise avoids col(J); ≈1 isotropic-there)  "
+              f"|  q_eff|col(J): {csstr}")
         for shrink in shrink_list:
             sigma_snr, Fisher = snr_spectrum(J, centered, shrinkage=shrink)
             qeffs = {eps: q_eff(sigma_snr, eps) for eps in eps_list}
@@ -731,6 +777,9 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
                 'adequacy_S_over_Nk': adequacy, 'j_noise_energy_frac': jenergy,
                 'energy_chance_baseline': chance, 'cov_eff_rank': cov_eff_rank,
                 'iso_mu': mu, 'q_eff_iso': qeff_iso,
+                'colspace': {'r_J': cs['r_J'], 'iso_ratio': cs['iso_ratio'],
+                             'q_eff': cs['q_eff'], 'tr_Sigma_J': cs['tr_Sigma_J'],
+                             'sigma_snr': cs['sigma_snr'].cpu()},
             }
 
     # The leakage bracket (yoado-29): the deterministic raw eff_rank is the
