@@ -4,6 +4,52 @@ Last updated: **2026-08-23** (Phase J0 of the Jacobian-spectrum program implemen
 
 ---
 
+## Jacobian-spectrum leakage program — Phase J0 COMPLETE (machinery validated; NOT yet a privacy result) (2026-08-23)
+
+Job 982855 ran the full J0 sweep to completion. **The data-latent Jacobian machinery works and correctly
+detects/handles rank deficiency.** AD validated exactly (toy FD 5.9e-10, jvp-vs-reverse 3.5e-18; real
+MNIST single-module FD 3.9e-9). All tensors + per-config spectrum figures saved
+(`results/jacobian_j0_*.pth`, `figures/jacobian_spectrum/j0_*.png`).
+
+**IMPORTANT (do NOT over-read pre-whitening).** The deterministic `eff_rank(J)/Nk` below conflates
+*magnitude* (how much a private direction moves the adapter) with *recoverability*, and is confounded by
+(1) the LoRA-rank bottleneck (a rank-r module caps J's column space regardless of how many private
+directions exist) and (2) T-underfitting (T=5 may just not have moved the adapter along some directions
+yet — small σ = "not moved," not "cannot be recovered"). **The privacy-meaningful quantity is the
+seed-whitened `q_eff` from J1** (dividing by seed noise via CRLB is what turns "small σ" into "provably
+below the noise floor"). So the table below is a *machinery/sanity* readout, not leakage evidence.
+
+**Pre-whitening spectrum readout (qr tangents, rank-8 single module, GELU, T=5, MNIST):**
+
+| N | k | Nk | eff_rank | frac |
+|---|---|----|---------|------|
+| 2 | 4 | 8 | 7.66 | 0.96 |
+| 2 | 8 | 16 | 15.83 | 0.99 |
+| 2 | 16 | 32 | 31.82 | 0.99 |
+| 4 | 4 | 16 | 9.45 | 0.59 |
+| 4 | 8 | 32 | 19.62 | 0.61 |
+| 4 | 16 | 64 | 39.14 | 0.61 |
+
+- The N=2 (frac≈1.0) vs N=4 (frac≈0.6) contrast is **suggestive** (images competing through a shared
+  rank-8 bottleneck) but **unconfirmed**: it could be magnitude/underfitting, not identifiability.
+  Confirm/refute with J1 whitening + a T-sweep before writing it up.
+- **Falsification test PASSES (machinery works):** `svd` tangents (injected geometric decay 0.5^j) drop
+  `eff_rank` below the qr value at matched (N,k) — e.g. N=2,k=8: 15.83→7.75; N=4,k=16: 39.1→9.95 — so
+  `σ_i(J)` tracks a *known* rank deficiency. This validates the spectrum measures injected structure.
+- **Deterministic recovery has no principled cutoff → this is exactly why J1 is needed.** With
+  `rcond=1e-10`, `recover_a` inverts near-null directions (σ→1e-6..1e-8 in heavy-decay svd) and rel_err
+  explodes (60+ at ε=1). Without a noise floor, "recoverable" is ill-defined.
+
+**Next steps (before any privacy claim):**
+1. **J1 whitening** — S training seeds, `Σ_seed`, `snr_spectrum`/`q_eff` (scaffolded + Woodbury), CRLB
+   law, `q_eff/q`-vs-recovery. **This is the first privacy-meaningful number.**
+2. **Report σ-spectrum SHAPE** (gap vs gradual decay), not just the scalar eff_rank.
+3. **T-sweep (5/20/50)** to disambiguate underfitting from structural rank: if eff_rank climbs toward
+   Nk with T it was underfitting; if it plateaus <Nk it is structural.
+4. J0 polish: `rel_err_row` against a fixed relative rcond (recoverable subspace).
+
+---
+
 ## Jacobian-spectrum leakage program — Phase J0 built + submitted (2026-08-23)
 
 Turned the identifiability note into buildable code. Plan rewritten PhD-readable (background primer →

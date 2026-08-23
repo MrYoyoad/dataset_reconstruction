@@ -1,9 +1,12 @@
-# Handover — 2026-08-23 17:20
+# Handover — 2026-08-23 19:30
 
 ## State
-Branch `step1-activation-rescore-retrieval`, pushed to `myfork` (commit `3f2226c`). Phase J0 of the
-Jacobian-spectrum leakage program is **built and submitted**; the deciding FD gate is pending on the
-cluster.
+Branch `step1-activation-rescore-retrieval`, pushed to `myfork`. Phase J0 of the Jacobian-spectrum
+leakage program is **built, validated, and complete** (job 982855). AD is exact (toy FD 5.9e-10,
+jvp-vs-reverse 3.5e-18; MNIST FD 3.9e-9). **Next task = J1 (seed-whitening / q_eff), the first
+privacy-meaningful number.** See STATUS.md "Phase J0 COMPLETE" for the full result table + the
+critical honesty caveat (pre-whitening eff_rank is NOT leakage evidence — it conflates magnitude with
+recoverability and is confounded by LoRA-rank + T-underfitting).
 
 ## Done this session
 - **Audited** the parallel-session plan against live infra; caught two real bugs before submit:
@@ -22,16 +25,19 @@ cluster.
   locally — always submit a WEXAC job (user rule, emphatic).
 
 ## Next step(s)
-1. **Read job 966830 first**: `tail -60 scripts/wexac_logs/jacobian_spectrum_966830.out`. Stage 0 is the
-   **toy-AD FD gate** — must print `PASSED` with FD rel err `<1e-6` AND `jvp_double` vs `reverse_loop`
-   `<1e-8`. If it aborts (`FATAL`), the third-order autograd path is wrong — fix `exact_jacobian`
-   before trusting any number.
-2. **If gate passes** → Stage 1 real MNIST single-module smoke (`dimY=3568`, `Nk=8`, FD `<1e-4`) →
-   Stage 2 J0 coordinate-recovery-vs-ε sweeps (`qr` + `svd` tangents, N∈{2,4}, k∈{4,8,16}). Inspect the
-   spectrum figures in `figures/jacobian_spectrum/` and the `svd`-tangent run (σ_i(J) should track the
-   injected geometric decay — the deterministic "which coords survive" claim's teeth).
-3. **Then J1**: seeds + whitening. `snr_spectrum`/`q_eff` are written but UNVALIDATED — add a whitening
-   sanity check (whitened seed samples ≈ isotropic) and report `q_eff` over a range of shrinkage ρ and ε.
+1. **Build/validate J1** (the first privacy-meaningful number). `snr_spectrum` (Woodbury) / `q_eff` /
+   `estimate_sigma_seed` are scaffolded in `jacobian_spectrum.py` but UNVALIDATED. Need: a
+   `ctx_factory(seed)` that redraws the LoRA B0 init (the ordinary-training randomness source; full
+   batch → B0 draw is the main stochasticity) holding data/frozen fixed; estimate `Σ_seed` over
+   S∈{16,32,64} seeds; whiten; test (a) whitening sanity (whitened seed samples ≈ isotropic), (b) `q_eff`
+   over a range of shrinkage ρ and ε, (c) CRLB per-coordinate scatter. Run as a bsub job.
+2. **T-sweep (5/20/50)** on the J0 configs to de-confound the eff_rank readout: eff_rank→Nk with T ⟹
+   underfitting; plateau <Nk ⟹ structural. (yoado-29's caution — do this before writing up the
+   N-dependence.)
+3. **Report σ-spectrum SHAPE** (gap vs gradual decay), not just scalar eff_rank; consolidated
+   eff_rank-vs-Nk figure (submit as a small plotting job — do not run locally).
+4. Only after J1: revisit the N=2(frac~1.0) vs N=4(frac~0.6) contrast as a possible identifiability
+   statement.
 
 ## Open threads / gotchas
 - **Spec = `notes/jacobian_leakage_experiment_plan.md` (v3).** Self-contained; a fresh session can
