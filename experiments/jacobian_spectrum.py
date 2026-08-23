@@ -510,17 +510,30 @@ def _toy_ctx(seed=0, N=2, k=4, T=5, d_in=6, d_h=5, rank=2, lr=0.1,
 
 
 def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
-               seed=42, device='cpu', tangent_method='qr'):
-    """Real single-module MNIST context via generate_target.
+               seed=42, device='cpu', tangent_method='qr', dataset='mnist',
+               anchor_alpha=0.0):
+    """Real single-module context via generate_target (784-dim θ₀).
 
     generate_target trains an all-layer LoRA; we reuse only frozen / b0 / B0[0]
     / ds_mean from it, then define the single-module target as Y0 = forward_Y(0).
+
+    dataset: private-image source (784-dim track: 'mnist'/'fashion'/'flowers',
+        all reuse the MNIST θ₀ — the 28×28 transfer-attack cookbook).
+    anchor_alpha: linearize/train the LoRA map from a shifted work point
+        θ_anchor = (1−α)θ₀ + α·θ_T (θ_T = the composed fine-tuned endpoint), to
+        check the leakage result is not specific to θ₀. α=0 is the θ₀ baseline.
     """
     n_per_class = N // 2
     x_ft, y_ft, digits, _ = get_finetuning_data(n_per_class, seed=seed,
-                                                device=device)
-    _theta_T_all, frozen, b0, B0_all, ds_mean = generate_target(
+                                                device=device, dataset=dataset)
+    theta_T_all, frozen, b0, B0_all, ds_mean = generate_target(
         x_ft, y_ft, T, rank, activation, lr, device)
+    # Anchor: move the base weights toward the fine-tuned endpoint (a different
+    # area of parameter space) before defining the a↦Y map.
+    if anchor_alpha != 0.0:
+        frozen = {l: (1 - anchor_alpha) * frozen[l]
+                  + anchor_alpha * theta_T_all[f'layers.{l}.weight']
+                  for l in frozen}
     target_layers = (0,)
     B0 = {l: B0_all[l] for l in target_layers}
     x0_centered = (x_ft - ds_mean) if ds_mean is not None else x_ft
@@ -627,22 +640,25 @@ def real_smoke(N=2, k=8, T=5, rank=2, device='cpu', verbose=True):
 
 
 def run_j0(N=4, k=8, T=5, rank=8, activation='gelu', device='cuda',
-           tangent_method='qr', eps_list=(1e-3, 1e-2, 1e-1, 1.0), seed=42,
-           save=False, tag=None):
+           tangent_method='qr', eps_list=(1e-4, 1e-3, 1e-2, 1e-1), seed=42,
+           save=False, tag=None, dataset='mnist', anchor_alpha=0.0):
     """Phase J0: build J, its spectrum, and coordinate recovery vs eps.
 
     For each eps we set a_true = eps * (unit random direction per coord),
-    fine-tune, observe Y, recover â by LSQ, and record per-coordinate error.
+    fine-tune, observe Y, recover â by LSQ, and record per-coordinate error AND
+    the LOCALITY residual lin_res = ‖(Y(a)−Y0) − J·a‖/‖Y(a)−Y0‖ — recovery is
+    only trustworthy where lin_res ≪ 1 (the linear regime actually holds).
     Deterministic training (no seed noise) — the predictor is σ_i(J).
     """
     ctx, col_scales, digits, ds_mean = _mnist_ctx(
         N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
-        device=device, tangent_method=tangent_method)
+        device=device, tangent_method=tangent_method, dataset=dataset,
+        anchor_alpha=anchor_alpha)
     Nk = N * k
     a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
 
-    print(f"[J0] building J  (N={N}, k={k}, T={T}, rank={rank}, "
-          f"tangent={tangent_method})")
+    print(f"[J0] building J  (dataset={dataset}, N={N}, k={k}, T={T}, rank={rank}, "
+          f"tangent={tangent_method}, anchor_alpha={anchor_alpha}, seed={seed})")
     J = exact_jacobian(a0, ctx, method='jvp_double')
     svals, er = spectrum(J)
     print(f"[J0] J shape={tuple(J.shape)}  eff_rank={er:.3f}  "
@@ -658,6 +674,9 @@ def run_j0(N=4, k=8, T=5, rank=8, activation='gelu', device='cuda',
         a_true = eps * direction
         Y0 = forward_Y(a0, ctx).detach()
         Y_t = forward_Y(a_true, ctx).detach()
+        dY = Y_t - Y0
+        # LOCALITY: is the linear model J still valid at this ε? (regime check)
+        lin_res = (dY - J.to(device) @ a_true).norm().item() / (dY.norm().item() + 1e-30)
         a_hat = recover_a(J.to(device), Y_t, Y0)
         a_row = Jpinv @ (J.to(device) @ a_true)         # recoverable component
         per_coord_err = (a_hat - a_true).abs()
@@ -669,19 +688,22 @@ def run_j0(N=4, k=8, T=5, rank=8, activation='gelu', device='cuda',
         eps_results[eps] = {
             'a_true': a_true.cpu(), 'a_hat': a_hat.cpu(),
             'a_row': a_row.cpu(), 'per_coord_err': per_coord_err.cpu(),
-            'rel_err': rel_full, 'rel_err_row': rel_row,
+            'rel_err': rel_full, 'rel_err_row': rel_row, 'lin_res': lin_res,
         }
-        print(f"[J0] eps={eps:<6g}  rel_err_full={rel_full:.3e}  "
-              f"rel_err_row={rel_row:.3e}")
+        local = 'LOCAL' if lin_res < 0.05 else ('marginal' if lin_res < 0.2 else 'NON-LOCAL')
+        print(f"[J0] eps={eps:<6g}  lin_res={lin_res:.3e} ({local})  "
+              f"rel_err_full={rel_full:.3e}  rel_err_row={rel_row:.3e}")
 
     out = {
         'J': J.cpu(), 'svals': svals.cpu(), 'eff_rank': er,
         'col_scales': col_scales.cpu(), 'eps_results': eps_results,
         'N': N, 'k': k, 'T': T, 'rank': rank, 'activation': activation,
         'tangent_method': tangent_method, 'digits': digits,
+        'dataset': dataset, 'anchor_alpha': anchor_alpha, 'seed': seed,
     }
     if save:
-        tag = tag or f"N{N}_k{k}_T{T}_r{rank}_{activation}_{tangent_method}"
+        tag = tag or (f"{dataset}_N{N}_k{k}_T{T}_r{rank}_{activation}_"
+                      f"{tangent_method}_a{anchor_alpha}_s{seed}")
         os.makedirs(RESULTS_DIR, exist_ok=True)
         path = os.path.join(RESULTS_DIR, f"jacobian_j0_{tag}.pth")
         torch.save(out, path)
@@ -723,7 +745,7 @@ def run_j0_T_sweep(N=4, k=8, rank=8, activation='gelu', device='cuda',
 def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
            tangent_method='qr', S_list=(16, 32, 64),
            eps_list=(0.01, 0.1, 0.3, 1.0), shrink_list=(1e-4, 1e-2, 1e-1),
-           seed=42, save=False, tag=None):
+           seed=42, save=False, tag=None, dataset='mnist', anchor_alpha=0.0):
     """Phase J1: seed-whiten the Jacobian and compute q_eff (the FIRST
     privacy-meaningful number).
 
@@ -735,7 +757,8 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
     """
     base_ctx, col_scales, digits, ds_mean = _mnist_ctx(
         N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
-        device=device, tangent_method=tangent_method)
+        device=device, tangent_method=tangent_method, dataset=dataset,
+        anchor_alpha=anchor_alpha)
     target_layers = base_ctx.target_layers
     Nk = N * k
     a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
@@ -750,8 +773,10 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
     ref_ctx = make_ctx(seed)
     J = exact_jacobian(a0, ref_ctx, method='jvp_double')
     svals, er = spectrum(J)
-    print(f"[J1] N={N} k={k} T={T} rank={rank}  J={tuple(J.shape)}  "
-          f"raw eff_rank={er:.3f}/{Nk}  σ_max={svals[0]:.3e} σ_min={svals[-1]:.3e}")
+    print(f"[J1] dataset={dataset} N={N} k={k} T={T} rank={rank} "
+          f"tangent={tangent_method} anchor={anchor_alpha} seed={seed}  "
+          f"J={tuple(J.shape)}  raw eff_rank={er:.3f}/{Nk}  "
+          f"σ_max={svals[0]:.3e} σ_min={svals[-1]:.3e}")
 
     results = {}
     for S in S_list:
@@ -848,9 +873,11 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
         'activation': activation, 'tangent_method': tangent_method,
         'S_list': list(S_list), 'eps_list': list(eps_list),
         'shrink_list': list(shrink_list), 'digits': digits,
+        'dataset': dataset, 'anchor_alpha': anchor_alpha, 'seed': seed,
     }
     if save:
-        tag = tag or f"N{N}_k{k}_T{T}_r{rank}_{activation}_{tangent_method}"
+        tag = tag or (f"{dataset}_N{N}_k{k}_T{T}_r{rank}_{activation}_"
+                      f"{tangent_method}_a{anchor_alpha}_s{seed}")
         os.makedirs(RESULTS_DIR, exist_ok=True)
         path = os.path.join(RESULTS_DIR, f"jacobian_j1_{tag}.pth")
         torch.save(out, path)
@@ -942,6 +969,11 @@ if __name__ == '__main__':
                    choices=['qr', 'svd', 'pca', 'pca_scaled'])
     p.add_argument('--eps_list', type=float, nargs='+',
                    default=[1e-3, 1e-2, 1e-1, 1.0])
+    p.add_argument('--dataset', type=str, default='mnist',
+                   choices=['mnist', 'fashion', 'flowers'],
+                   help='784-dim track; all reuse the MNIST θ₀')
+    p.add_argument('--anchor_alpha', type=float, default=0.0,
+                   help='linearize from θ_anchor=(1−α)θ₀+αθ_T (work point)')
     p.add_argument('--seed', type=int, default=42)
     p.add_argument('--device', type=str, default=None)
     p.add_argument('--save', action='store_true')
@@ -962,7 +994,8 @@ if __name__ == '__main__':
         run_j0(N=args.N, k=args.k, T=args.T, rank=args.rank,
                activation=args.activation, device=device,
                tangent_method=args.tangent, eps_list=tuple(args.eps_list),
-               seed=args.seed, save=args.save, tag=args.tag)
+               seed=args.seed, save=args.save, tag=args.tag,
+               dataset=args.dataset, anchor_alpha=args.anchor_alpha)
 
     if args.T_sweep:
         run_j0_T_sweep(N=args.N, k=args.k, rank=args.rank,
@@ -975,6 +1008,7 @@ if __name__ == '__main__':
                activation=args.activation, device=device,
                tangent_method=args.tangent, S_list=tuple(args.S_list),
                eps_list=tuple(args.eps_list), shrink_list=tuple(args.shrink_list),
-               seed=args.seed, save=args.save, tag=args.tag)
+               seed=args.seed, save=args.save, tag=args.tag,
+               dataset=args.dataset, anchor_alpha=args.anchor_alpha)
 
     print("=== Done ===")
