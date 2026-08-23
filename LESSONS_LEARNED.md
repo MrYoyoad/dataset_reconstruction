@@ -4,6 +4,21 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A striking result on the DEFAULT seed can vanish under a work-point sweep (2026-08-23)
+
+- **Finding (jobs 988588→989194):** a single-config run (MNIST, seed 42, anchor α=0, principal
+  tangents) showed "on-manifold → init noise masks ~half the private directions" (iso_ratio 0.5, 5
+  modes). A 24-cell sweep over datasets × private draws × anchors showed the masking occurs ONLY for
+  the **default seed 42** (mnist/flowers) and vanishes for seed 1 and for fashion entirely. It was a
+  property of the specific N=2 private-image pair seed 42 selects, **not a general effect** — retracted.
+- **Lesson:** with small N (here 2 private images), the signal geometry (col(J), eff_rank) is highly
+  draw-dependent; eff_rank varied 15.9↔10.0 between seeds for the same config. **Never headline a result
+  from one draw — least of all the default seed** (it silently becomes "the" configuration everywhere).
+  Vary the private-data draw AND the work point (anchor) before claiming any effect is real.
+- **What WAS robust:** on-manifold (principal) directions give systematically lower eff_rank(J) than
+  random directions (collinearity → harder to disentangle) across nearly all cells — a signal-geometry
+  effect, distinct from (and surviving where) the noise-masking effect did not.
+
 ## A subspace-overlap diagnostic can masquerade as "orthogonality" when it is really undersampling (2026-08-23)
 
 - **Arc (jobs 983139 → 983585, Phase J1):** whitening `J` by the LoRA-B0-init noise covariance produced

@@ -4,35 +4,40 @@ Last updated: **2026-08-23** (Phase J0 of the Jacobian-spectrum program implemen
 
 ---
 
-## Jacobian-spectrum — ON-MANIFOLD (Gen-L) flips the leakage picture (2026-08-23, job 988588)
+## Jacobian-spectrum — ON-MANIFOLD (Gen-L): robustness sweep OVERTURNS the "init masks" claim (2026-08-23, jobs 988588→989194)
 
 Replaced random pixel tangents with **principal directions of the data** (Gen-L: `pca` unit-norm;
-`pca_scaled` = scaled by the real data spectrum), shared across images = a linear generator's constant
-Jacobian. **The regime changes qualitatively vs random (`qr`) directions** (MNIST, N=2 k8 / N=4 k8,
-rank-8 single module, T=5):
+`pca_scaled` = real data spectrum). The first single-config run (988588, MNIST seed 42, α=0) showed a
+striking "on-manifold → init noise masks ~half" result (iso_ratio 0.5, 5 masked modes). **The robustness
+sweep (989194) — qr vs pca × datasets {mnist,fashion,flowers} × private draws {seed 42,1} × anchor
+α {0,0.9}, 24 cells — shows that was NOT a general effect** (this is exactly why the work-point sweep was
+requested). Full table (N=2 k8, rank-8, T=5, S=128):
 
-| tangent | iso_ratio (N=2) | modes >0.5μ (N=2) | q_eff\|col(J) @ε=0.1 (N=2) | iso_ratio (N=4) | eff_rank(J) N=4 |
-|---|---|---|---|---|---|
-| qr (random) | ~0.10 | 1/16 | 11/16 | ~0.01 | 19/32 |
-| pca (principal) | **~0.50** | **5/16** | **7/16** | ~0.10 | **10/32** |
-| pca_scaled | ~0.50 | 5/16 | 7/16 | ~0.10 | 10/32 |
+| effect | qr (random) | pca (on-manifold) |
+|---|---|---|
+| iso_ratio (init masking) | 0.00–0.085 everywhere | 0.00 EXCEPT seed 42: mnist α=0 **0.48**, flowers **0.24/0.20**; fashion 0; ALL seed 1 ≈ 0 |
+| masked modes | 0–1/16 | 0/16 except those seed-42 cells (2–5/16) |
+| eff_rank(J) | 8–16 | **3–13, systematically LOWER** (fashion 3.4 vs qr 8.8; mnist s1 3.5 vs 10; flowers s1 5.1 vs 11) |
 
-- **On the real data manifold, the init noise DOES mask substantially** (iso_ratio 0.1→0.5, masked
-  modes 1→5), so `q_eff|col(J)` drops (14→7 of 16 at ε≤1). Principal directions align with the
-  network's active gradient subspace — the same channel the init noise flows through — so they overlap
-  far more than random directions do. This *partially walks back* the "init is a weak defense" reading:
-  it was an artifact of using random (network-orthogonal) tangents.
-- **Collinearity confirmed:** `eff_rank(J)` drops sharply for principal directions (N=4: 19→10 of 32) —
-  the real correlated directions are harder to disentangle, exactly the superposition wall.
-- **Locality matters (user note):** for `pca`, σ_max(J) is 5–10× larger and recovery rel_err at ε=1
-  exceeds 1 (linear model fully broken). ε≤0.1 is local; ε=1 is out of regime. `run_j0` now reports the
-  linearization residual `lin_res` per ε so the regime is measured, not assumed.
-- **Honesty:** Gen-L is *partial* realism — real directions + real variance profile, but still
-  linear/orthonormal. True manifold curvature / non-orthogonal local tangents (more collinearity) needs
-  Gen-G (VAE/StyleGAN), a later phase.
+**Two effects separate — one robust, one not:**
+1. **Init masking (iso_ratio) is NOT robust.** For random dirs it is ~0 everywhere. For on-manifold
+   dirs it is ~0 too, EXCEPT for the **default seed 42** on mnist/flowers (0.2–0.5). It vanishes for
+   seed 1 and for fashion entirely. Concentrating on the default draw ⇒ it is a **property of the
+   specific private-image pair seed 42 selects, not a law.** → **The "on-manifold → init masks" claim
+   is retracted as a general effect;** init noise provides ≈no masking across the board (consistent with
+   the earlier col(J) finding).
+2. **Collinearity (lower eff_rank for on-manifold dirs) IS robust.** pca `eff_rank(J)` is systematically
+   below qr's in essentially every comparable cell (often 2–4×). On-manifold private coordinates are
+   genuinely harder to disentangle from the adapter — a **signal-geometry** effect, independent of noise.
 
-**Robustness sweep running (job 989194):** qr-vs-pca across datasets {mnist,fashion,flowers} × private
-draws {seed 42,1} × anchor α {0.0,0.9} — to confirm the on-manifold contrast is not work-point-specific.
+**Also:** the signal geometry itself is draw-dependent (mnist qr eff_rank 15.9 at seed 42 vs 10.0 at
+seed 1), so single-draw conclusions are unreliable — the sweep was necessary. **Locality confirmed:**
+all cells LOCAL at ε≤0.1 (`lin_res`<0.05; pca ~5× qr but valid); ε=1 is out of regime for pca.
+
+**Net honest conclusion:** ordinary randomness (LoRA init) provides ≈no masking regardless of whether
+the private variations are random or on-manifold; what on-manifold structure changes is **recoverability
+via collinearity** (fewer coordinates separable), not noise masking. Gen-L is still partial realism
+(linear/orthonormal); Gen-G (VAE/StyleGAN) curvature is the next step.
 
 ---
 
