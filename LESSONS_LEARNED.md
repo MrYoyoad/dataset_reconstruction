@@ -13,13 +13,16 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
   S=16/32/64/128 (never saturating) ⇒ the B0-init noise is high-dimensional (~full-rank over its
   ~8000-dim B-block) and simply UNDERSAMPLED; two low-dim subspaces in dim-14272 are ~orthogonal by
   chance (baseline ≈ #samples/dimY), so 0.1% was the chance baseline, not a finding.
-- **Final (SOUND) conclusion — measure the noise INSIDE col(J):** the full `Σ_seed` is unmeasurable,
-  but `Σ_J = Cov(Qᵀ(Y−Ȳ))` for Q an orthonormal basis of col(J) is only r_J×r_J and IS estimable at
-  S≥r_J. Measured `iso_ratio = tr(Σ_J)/(μ·r_J)` ≈ 0.01–0.1 (stable across S≥64) ⇒ init noise carries
-  1–10% of isotropic variance in the signal directions ⇒ WEAK masking ⇒ `q_eff|col(J)` HIGH
-  (most coords recoverable at ε≥0.1). So the honest answer is close to the *original* intuition (init is
-  a weak defense), but reached only after discarding a chance-baseline artifact (that said "orthogonal")
-  AND an over-pessimistic isotropic fallback (that said "masks"). Three metrics, two wrong.
+- **Final (SOUND) conclusion — measure the noise INSIDE col(J), and it's a LOWER BOUND:** the full
+  `Σ_seed` is unmeasurable, but `Σ_J = Cov(Qᵀ(Y−Ȳ))` for Q an orthonormal basis of col(J) is only
+  r_J×r_J and IS estimable at S≥r_J. Observing only col(J) uses less of Y, so its Fisher ≤ the full
+  Fisher (Schur complement) ⇒ **`q_eff|col(J)` is a conservative LOWER BOUND on true q_eff** — an
+  unimpeachable "at least this leaks" claim. Measured `iso_ratio = tr(Σ_J)/(μ·r_J)` ≈ 0.01–0.1 (stable
+  across S≥64) ⇒ init noise carries 1–10% of isotropic variance in the signal directions ⇒ WEAK masking
+  ⇒ q_eff lower bound HIGH (most coords recoverable at ε≥0.1). So the honest answer is close to the
+  *original* intuition (init is a weak defense), but reached only after discarding a chance-baseline
+  artifact (said "orthogonal") AND an over-pessimistic isotropic fallback (said "masks"). Three metrics,
+  two wrong — and the right one is stated as a bound, not an equality.
 - **Why it's a trap:** the raw `q_eff` (8/8 at small ρ), the energy-overlap (0.1%), AND the isotropic
   fallback (q_eff|iso=0) each looked like clean but CONTRADICTORY findings; only whitening restricted to
   the signal's own subspace (estimable where the full covariance is not) gives the stable, correct number.

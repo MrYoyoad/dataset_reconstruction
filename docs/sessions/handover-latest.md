@@ -16,10 +16,20 @@ init noise is 1–10% of isotropic in the signal directions ⇒ WEAK masking ⇒
 B0-init is a WEAK defense — private coords largely recoverable. (This corrects both #2-artifact and the
 over-pessimistic isotropic fallback.) Method = the one to reuse for SGD noise.
 
+Note: `q_eff|col(J)` is a conservative LOWER BOUND on true q_eff (Fisher from observing only col(J) ≤
+full Fisher; Schur complement) — state leakage as "at least X directions", not "=X".
+
 **Next task = SGD/minibatch noise phase, reusing `q_eff_colspace` verbatim (just swap the noise
 source).** SGD noise enters through the gradients so it SHOULD carry real variance in col(J) — but
 VERIFY with `iso_ratio` (that's the whole lesson). Use `J:=∂E_ξ[Y]/∂a` + `Σ_seed:=Cov_ξ[Y]` (plan §12)
 with a J-stability check; batch size as a first-class knob; T large enough to converge (T=5 underfits).
+**The privacy statement is the BRACKET, and the headline number is the MODE COUNT** `#(Σ_J/μ > thr)`
+(already printed by `q_eff_colspace`), not the scalar iso_ratio: init couples into col(J) via ~1 mode;
+SGD (gradient-channel) should light up MANY (potentially ~r_J). init≈1 vs SGD≈(count) is the privacy
+result — instrument for the mode count. init→SGD gap = how much ordinary training randomness protects
+the data.
+- **Also for J2 (N-sweep):** check whether the masked-mode count stays ~1 while r_J grows with N. If so,
+  init-as-defense → 0 fraction is proven (masked fraction 6% at N=2 → ~0% at N=4 already).
 
 ## Done this session
 - **Audited** the parallel-session plan against live infra; caught two real bugs before submit:

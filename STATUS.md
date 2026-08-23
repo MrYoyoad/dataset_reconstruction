@@ -58,11 +58,15 @@ not a flat one (raw Kaiming B₀ is ~full-rank over the ~8000-dim B-block).
    high-dim (~full-rank over its ~8000-dim block) and UNMEASURABLE at feasible S. The isotropic
    *fallback* then guessed `q_eff|iso=0` for ε≤1 (looked like "init masks") — but that ASSUMED the full
    per-dim variance μ applies in the signal directions.
-3. **The SOUND fix (yoado-29): whiten inside col(J).** `Σ_J = Cov(Qᵀ(Y−Ȳ))` is only r_J×r_J (r_J≤Nk),
-   so it IS estimable at S≥r_J even though full `Σ_seed` is not. Measured (stable across S≥64):
-   `iso_ratio = tr(Σ_J)/(μ·r_J)` = **~0.10 (N=2 k8), ~0.01 (N=4 k8)** — the init noise carries only
-   1–10% of the isotropic variance IN the signal directions. So it provides only WEAK masking, and
-   `q_eff|col(J)` is HIGH: N=2 k8 = 11–16/16 (ε≥0.1); N=4 k8 = 18–22/32 at ε=0.1, 30/32 by ε=3.
+3. **The SOUND fix (yoado-29): whiten inside col(J), giving a conservative LOWER BOUND on q_eff.**
+   `Σ_J = Cov(Qᵀ(Y−Ȳ))` is only r_J×r_J (r_J≤Nk), so it IS estimable at S≥r_J even though full `Σ_seed`
+   is not. Because observing only col(J) uses LESS of Y, its Fisher `F_col=(QᵀJ)ᵀΣ_J⁻¹(QᵀJ) ≤ F_full`
+   (Schur complement; equality iff col(J) noise is uncorrelated with the complement) — so
+   **`q_eff|col(J)` ≤ true q_eff**, i.e. a robust lower bound on leakage. Measured (stable across S≥64):
+   `iso_ratio = tr(Σ_J)/(μ·r_J)` = **~0.10 (N=2 k8), ~0.01 (N=4 k8)** — init noise carries only 1–10% of
+   the isotropic variance IN the signal directions. So it provides only WEAK masking, and the lower
+   bound is already HIGH: N=2 k8 = **at least** 11–16/16 (ε≥0.1); N=4 k8 = **at least** 18–22/32 at
+   ε=0.1, 30/32 by ε=3.
 
 **Sound conclusion.** Measured correctly, B0-init randomness is strongly attenuated in the
 data-signal directions (col(J) is A-block-dominated at small T; the B-block init noise barely reaches
@@ -72,9 +76,18 @@ isotropic fallback (#2). The per-direction `Σ_J/μ` spectrum (job 983933) shows
 robust across S**: the init noise couples into col(J) through **at most one mode** — N=2 k8 has exactly
 1/16 directions with noise ≈1μ (rest ≈0); N=4 k8 has 0/32 above 0.5μ (max ≈0.3–0.5μ, rest ≈0). So
 random init masks *one* private-coordinate direction at most, leaving the rest exposed — which is why
-`q_eff|col(J)` is ~(r_J−1). The method transfers directly to the SGD-noise phase (swap the
+`q_eff|col(J)` is ~(r_J−1). **Scale-sharpened claim (yoado-29):** the masked mode COUNT is ≤1 in
+absolute terms and does NOT grow with the signal subspace (1/16 at N=2, <1/32 at N=4 — flat/shrinking),
+so the masked FRACTION → 0 as N grows ⇒ **random init masks at most ~1 private direction regardless of
+scale → an asymptotically vanishing fraction → effectively no defense at realistic N.** (This is the
+crisp successor to the retracted claim; confirm in J2's N-sweep — if the masked-mode count stays ~1
+while r_J grows, init-as-defense → 0 fraction is proven. Light untested hypothesis for the rank-1
+coupling: `∂L/∂A=B₀ᵀ∂L/∂W`, so varying B₀ mostly rescales the shared A-block gradient → a single "gain"
+mode.) The method transfers directly to the SGD-noise phase (swap the
 noise source; it enters through the gradients so it should carry real variance in col(J) — verify with
-the same `iso_ratio`).
+the same `iso_ratio`). **The privacy statement is the BRACKET:** init-noise → high q_eff (weak masking,
+≈ known-init leakage); SGD-noise → expected HIGHER `iso_ratio` in col(J) → real masking → LOWER q_eff.
+The gap between the two is the actual measure of how much ordinary training randomness protects the data.
 
 **Next (promoted from footnote to necessary):** introduce a randomness source that lives in J's column
 space — **minibatch SGD / data-order / augmentation noise** — so `Σ_seed` actually spans J and `q_eff`
