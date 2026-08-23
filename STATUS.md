@@ -31,9 +31,15 @@ measured seed-noise subspace = 0.0–0.1% across ALL configs** (N∈{2,4}, k∈{
 
 **Why (mechanism — structural, from A₀=0).** LoRA inits A=0, B=random. At the first SGD step
 `∂L/∂A = B₀ᵀ(∂L/∂W)` (data-dependent) but `∂L/∂B = (∂L/∂W)A₀ᵀ = 0`. So the DATA signal first enters the
-A-block while the init NOISE lives in the B-block; at small T they barely mix, hence J (mostly A-block)
-⊥ Σ_seed (mostly B-block). **Falsifiable prediction (yoado-29): the overlap should grow with T** as
-A≠0 lets data reach B — being checked in job [energy-vs-T].
+A-block while the init NOISE lives in the B-block; they mix only as A≠0 grows, hence J (mostly A-block)
+⊥ Σ_seed (mostly B-block).
+
+**Mechanism test (job 983279): the orthogonality is ROBUST across T, not a small-T artifact.**
+yoado-29 predicted the J-energy-in-noise-subspace fraction would grow with T (as A grows). It does NOT:
+N=2 k8 = 0.1% at T=5/20/50; N=4 k8 = 0.0%/0.1%/0.1% at T=5/20/50 — flat through T=50, even though
+`eff_rank` climbs with T (N=4 k8: 20.0→23.2→26.0, the underfitting signature). So the data-signal stays
+~orthogonal to the init-noise subspace even at T=50. Prediction refuted (in a good way): the
+separation is a durable structural property, which strengthens the conclusion below.
 
 **POSITIVE finding (not just "whitening was inoperative"): random LoRA init provides ~zero privacy
 protection.** If the init noise is orthogonal to the data signal, an attacker who does NOT know B₀ can
