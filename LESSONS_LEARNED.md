@@ -13,11 +13,16 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
   S=16/32/64/128 (never saturating) ⇒ the B0-init noise is high-dimensional (~full-rank over its
   ~8000-dim B-block) and simply UNDERSAMPLED; two low-dim subspaces in dim-14272 are ~orthogonal by
   chance (baseline ≈ #samples/dimY), so 0.1% was the chance baseline, not a finding.
-- **Corrected conclusion:** under an isotropic init-noise model at the measured variance μ, `q_eff|iso`
-  is ~0 for ε≤1 — i.e. init noise plausibly *does* mask the private coordinates at realistic ε (the
-  OPPOSITE of the retracted "orthogonal" reading). The true covariance is unmeasurable at S≤128.
-- **Why it's a trap:** both the raw `q_eff` (8/8 at small ρ) AND the energy-overlap (0.1%) look like
-  clean findings; only the `eff_rank(Σ)`-vs-S growth reveals both as undersampling artifacts.
+- **Final (SOUND) conclusion — measure the noise INSIDE col(J):** the full `Σ_seed` is unmeasurable,
+  but `Σ_J = Cov(Qᵀ(Y−Ȳ))` for Q an orthonormal basis of col(J) is only r_J×r_J and IS estimable at
+  S≥r_J. Measured `iso_ratio = tr(Σ_J)/(μ·r_J)` ≈ 0.01–0.1 (stable across S≥64) ⇒ init noise carries
+  1–10% of isotropic variance in the signal directions ⇒ WEAK masking ⇒ `q_eff|col(J)` HIGH
+  (most coords recoverable at ε≥0.1). So the honest answer is close to the *original* intuition (init is
+  a weak defense), but reached only after discarding a chance-baseline artifact (that said "orthogonal")
+  AND an over-pessimistic isotropic fallback (that said "masks"). Three metrics, two wrong.
+- **Why it's a trap:** the raw `q_eff` (8/8 at small ρ), the energy-overlap (0.1%), AND the isotropic
+  fallback (q_eff|iso=0) each looked like clean but CONTRADICTORY findings; only whitening restricted to
+  the signal's own subspace (estimable where the full covariance is not) gives the stable, correct number.
 - **The diagnostic that catches it:** project `J`'s columns onto span(the S noise samples) and report
   `‖P·J‖²/‖J‖²`. Where it's ~0, the "noise floor" divided out is just `ρμ` (the regularizer), which is
   exactly why `q_eff` is ρ-sensitive there. The adequacy ratio is **Nk vs S** (Fisher is Nk×Nk), NOT

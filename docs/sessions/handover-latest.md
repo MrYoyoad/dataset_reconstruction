@@ -9,12 +9,17 @@ both built, validated, complete** (jobs 982855, 983139). AD exact (toy FD 5.9e-1
 `eff_rank(Σ_seed)`≈S−1 at S=16/32/64/128 (job 983585) proves the B0-init noise is high-dim (~full-rank
 over the ~8000-dim B-block) and undersampled, NOT low-dim/orthogonal. "Random init is not a defense" is
 RETRACTED;
-(3) honest fallback under an isotropic init-noise model: `q_eff|iso`=0 for ε≤1 ⇒ init noise plausibly
-DOES mask at realistic ε (opposite of the retracted claim). True Σ_seed unmeasurable at S≤128.
+(3) SOUND resolution (col(J)-restricted whitening, job 983882): `Σ_J=Cov(Qᵀ(Y−Ȳ))` IS estimable at
+S≥r_J. Measured `iso_ratio=tr(Σ_J)/(μ·r_J)` ≈ 0.10 (N=2 k8) / 0.01 (N=4 k8), stable across S≥64 ⇒
+init noise is 1–10% of isotropic in the signal directions ⇒ WEAK masking ⇒ `q_eff|col(J)` HIGH
+(N=2 k8 11–16/16 at ε≥0.1; N=4 k8 18–22/32 at ε=0.1, 30/32 by ε=3). Net: measured soundly, random
+B0-init is a WEAK defense — private coords largely recoverable. (This corrects both #2-artifact and the
+over-pessimistic isotropic fallback.) Method = the one to reuse for SGD noise.
 
-**Next task = add a randomness source that lives in J's column space (minibatch SGD / data-order /
-augmentation) so Σ_seed spans J and q_eff becomes measurable at feasible S.** Then re-run the leakage
-bracket with T large enough to converge. (B0-init whitening can't work: Σ_seed needs S≫8000.)
+**Next task = SGD/minibatch noise phase, reusing `q_eff_colspace` verbatim (just swap the noise
+source).** SGD noise enters through the gradients so it SHOULD carry real variance in col(J) — but
+VERIFY with `iso_ratio` (that's the whole lesson). Use `J:=∂E_ξ[Y]/∂a` + `Σ_seed:=Cov_ξ[Y]` (plan §12)
+with a J-stability check; batch size as a first-class knob; T large enough to converge (T=5 underfits).
 
 ## Done this session
 - **Audited** the parallel-session plan against live infra; caught two real bugs before submit:

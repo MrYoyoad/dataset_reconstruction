@@ -50,21 +50,28 @@ true noise reaching J's directions at level ~√μ that we have no samples to se
 (1.07–1.18) is evidence FOR (B): a captured low-dim noise would show a sharply DECAYING sample spectrum,
 not a flat one (raw Kaiming B₀ is ~full-rank over the ~8000-dim B-block).
 
-**RESOLVED (job 983585): it is the undersampled-high-dim case (B), and it flips the tentative claim.**
-`eff_rank(Σ_seed)` = 15.0 / 30.9 / 62.8 / 126.0 at S = 16/32/64/128 — **exactly ≈ S−1 at every S, never
-saturating** (both N=2 k8 and N=4 k8). The B0-init noise is high-dimensional (~isotropic, ~full-rank
-over its ~8000-dim block) and UNDERSAMPLED at every S tried. Therefore:
-- The 0.1% energy-overlap was a **dimensionality artifact, NOT orthogonality** — "init doesn't mask /
-  random init is not a defense" is **RETRACTED** (it was never supported).
-- Honest fallback under an isotropic init-noise model at the measured mean variance μ≈0.023:
-  **`q_eff|iso` = 0 for ε ≤ 1** (N=2 k8: 0/16 through ε=1, 1/16 at ε=3, 16/16 at ε=10; N=4 k8: 0/32
-  through ε=3, 16/32 at ε=10). So *if* the init noise is isotropic (which the linear `eff_rank` growth
-  and flat spectrum support), it **substantially MASKS** the private coordinates at realistic ε — the
-  OPPOSITE of the retracted claim.
-- **Caveat on the caveat:** `q_eff|iso` rests on the isotropic assumption; the true `Σ_seed` is
-  unmeasurable at S≤128 (it needs S ≫ dim of the B-block, ~8000). A definitive `q_eff` still requires
-  the SGD-noise phase, where the relevant randomness enters through the gradients and therefore spans J
-  by construction (so it is estimable at feasible S).
+**The J1 arc took THREE turns; the sound answer is the col(J)-restricted measurement (jobs 983585,
+983882).** Summary of the corrections:
+1. **0.1% energy-overlap looked like orthogonality → WRONG** (it's the chance baseline
+   ≈ min(S,Nk)/dimY for two low-dim subspaces in dim-14272).
+2. **`eff_rank(Σ_seed)` ≈ S−1 at S=16/32/64/128 (never saturates)** → the full B0-init `Σ_seed` is
+   high-dim (~full-rank over its ~8000-dim block) and UNMEASURABLE at feasible S. The isotropic
+   *fallback* then guessed `q_eff|iso=0` for ε≤1 (looked like "init masks") — but that ASSUMED the full
+   per-dim variance μ applies in the signal directions.
+3. **The SOUND fix (yoado-29): whiten inside col(J).** `Σ_J = Cov(Qᵀ(Y−Ȳ))` is only r_J×r_J (r_J≤Nk),
+   so it IS estimable at S≥r_J even though full `Σ_seed` is not. Measured (stable across S≥64):
+   `iso_ratio = tr(Σ_J)/(μ·r_J)` = **~0.10 (N=2 k8), ~0.01 (N=4 k8)** — the init noise carries only
+   1–10% of the isotropic variance IN the signal directions. So it provides only WEAK masking, and
+   `q_eff|col(J)` is HIGH: N=2 k8 = 11–16/16 (ε≥0.1); N=4 k8 = 18–22/32 at ε=0.1, 30/32 by ε=3.
+
+**Sound conclusion.** Measured correctly, B0-init randomness is strongly attenuated in the
+data-signal directions (col(J) is A-block-dominated at small T; the B-block init noise barely reaches
+it — the A₀=0 mechanism, now quantified), so it is a WEAK defense and the private coordinates are
+largely recoverable. This corrects BOTH the chance-baseline artifact (#1) AND the over-pessimistic
+isotropic fallback (#2). The per-direction `Σ_J/μ` spectrum (job 983933) characterizes whether the
+attenuation is uniform or structured. The method transfers directly to the SGD-noise phase (swap the
+noise source; it enters through the gradients so it should carry real variance in col(J) — verify with
+the same `iso_ratio`).
 
 **Next (promoted from footnote to necessary):** introduce a randomness source that lives in J's column
 space — **minibatch SGD / data-order / augmentation noise** — so `Σ_seed` actually spans J and `q_eff`
