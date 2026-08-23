@@ -348,10 +348,15 @@ WEXAC filesystem, so no rsync is needed; submit with `bsub < scripts/run_jacobia
 
 Two-tier smoke, **inside the bsub job (never run locally)**, float64:
 1. **Toy-AD unit test** (`_toy_ctx`): synthetic net `d_in=6, d_h=5, d_out=1`, `B0` rank 2, `N=2, k=4,
-   T=5`, GELU. Compute `J` (`jvp_double`); **central finite-difference check** on 3–4 coords (`ε=1e-5`),
-   require rel err `< 1e-6`; cross-check `jvp_double` vs `reverse_loop` (agree `~1e-10`); confirm
-   `recover_a` recovers a known small `a_true`. **This gates all downstream work** (`sys.exit(1)` on
-   failure aborts the job).
+   T=5`, GELU. The gate tests only **AD correctness** (rank deficiency is a finding, not a failure):
+   **central finite-difference check** on 3–4 coords (`ε=1e-5`, rel err `< 1e-6`); `jvp_double` vs
+   `reverse_loop` agreement (`< 1e-8`); and a rank-independent **linearization residual**
+   `‖(Y_t−Y0) − J·a_true‖/‖Y_t−Y0‖ < 1e-3` at a tiny `a_true`. Coordinate recovery and `eff_rank(J)`
+   are **reported diagnostics, not gated** — recovery quality is conditioning-dependent science
+   (`run_j0`), and a rank-deficient `J` is exactly the identifiability signal we want.
+   **The gate `sys.exit(1)`s on failure and aborts the job.** (Job 970028 already showed the AD is
+   exact: FD `5.9e-10`, jvp-vs-reverse `3.5e-18`, with the toy `J` genuinely rank-deficient
+   `eff_rank≈5.9 < Nk=8` — which is why recovery was moved out of the gate to a diagnostic.)
 2. **Real single-module smoke:** MNIST via `generate_target`, `N=2 (n_per_class=1)`, `rank=2`,
    `target_layers=(0,)`, `T=5`, GELU → `dimY=r·(784+1000)=3568`, `Nk=8`, `J` is `[3568,8]`. FD on 3
    coords (`< 1e-4`); print spectrum + eff_rank.
