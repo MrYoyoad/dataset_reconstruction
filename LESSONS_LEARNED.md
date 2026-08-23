@@ -4,15 +4,20 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
-## Whitening is inoperative when the noise source is orthogonal to the signal Jacobian (2026-08-23)
+## A subspace-overlap diagnostic can masquerade as "orthogonality" when it is really undersampling (2026-08-23)
 
-- **Finding (job 983139, Phase J1):** whitening `J` by the LoRA-B0-init noise covariance `Σ_seed`
-  produced `q_eff` numbers that were **pure shrinkage-floor artifacts** — the reliability diagnostic
-  showed **0.0–0.1% of J's Frobenius energy lies inside the measured noise subspace** (across all
-  N/k/S). The B0-init noise perturbs the adapter in directions ~orthogonal to the data-perturbation
-  Jacobian, so there is nothing to whiten *in the directions that matter*.
-- **Why it's a trap:** the `q_eff` printout looks fine (8/8, 16/16 at small ρ) and only reveals itself
-  as meaningless via the energy diagnostic. Without that check you would report a spurious privacy number.
+- **Arc (jobs 983139 → 983585, Phase J1):** whitening `J` by the LoRA-B0-init noise covariance produced
+  `q_eff` values that a reliability check showed had only **0.0–0.1% of J's energy in the measured
+  noise subspace** — which LOOKED like "the noise is orthogonal to the signal, so init doesn't mask."
+  **That reading was wrong.** The follow-up `eff_rank(Σ_seed)`-vs-S test gave `eff_rank ≈ S−1` at
+  S=16/32/64/128 (never saturating) ⇒ the B0-init noise is high-dimensional (~full-rank over its
+  ~8000-dim B-block) and simply UNDERSAMPLED; two low-dim subspaces in dim-14272 are ~orthogonal by
+  chance (baseline ≈ #samples/dimY), so 0.1% was the chance baseline, not a finding.
+- **Corrected conclusion:** under an isotropic init-noise model at the measured variance μ, `q_eff|iso`
+  is ~0 for ε≤1 — i.e. init noise plausibly *does* mask the private coordinates at realistic ε (the
+  OPPOSITE of the retracted "orthogonal" reading). The true covariance is unmeasurable at S≤128.
+- **Why it's a trap:** both the raw `q_eff` (8/8 at small ρ) AND the energy-overlap (0.1%) look like
+  clean findings; only the `eff_rank(Σ)`-vs-S growth reveals both as undersampling artifacts.
 - **The diagnostic that catches it:** project `J`'s columns onto span(the S noise samples) and report
   `‖P·J‖²/‖J‖²`. Where it's ~0, the "noise floor" divided out is just `ρμ` (the regularizer), which is
   exactly why `q_eff` is ρ-sensitive there. The adequacy ratio is **Nk vs S** (Fisher is Nk×Nk), NOT

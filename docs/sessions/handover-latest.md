@@ -3,14 +3,18 @@
 ## State
 Branch `step1-activation-rescore-retrieval`, pushed to `myfork`. Jacobian-spectrum program: **J0 AND J1
 both built, validated, complete** (jobs 982855, 983139). AD exact (toy FD 5.9e-10, jvp-vs-reverse
-3.5e-18; MNIST FD 3.9e-9). **Two decisive de-confounds landed — see STATUS.md "Phase J1 COMPLETE":**
+3.5e-18; MNIST FD 3.9e-9). **Findings — see STATUS.md "Phase J1 COMPLETE" (three, in order of correction):**
 (1) the J0 "N=4 collapse" is largely T=5 UNDERFITTING (eff_rank climbs 9.3→12.7 over T=5→50);
-(2) whitening is INOPERATIVE here — B0-init noise is ~orthogonal to J (J-energy in measured noise
-subspace = 0.0–0.1%), so q_eff is shrinkage-floor artifact, NOT a valid privacy number yet.
+(2) the "0.1% J-energy overlap = init noise orthogonal to J" reading was a DIMENSIONALITY ARTIFACT —
+`eff_rank(Σ_seed)`≈S−1 at S=16/32/64/128 (job 983585) proves the B0-init noise is high-dim (~full-rank
+over the ~8000-dim B-block) and undersampled, NOT low-dim/orthogonal. "Random init is not a defense" is
+RETRACTED;
+(3) honest fallback under an isotropic init-noise model: `q_eff|iso`=0 for ε≤1 ⇒ init noise plausibly
+DOES mask at realistic ε (opposite of the retracted claim). True Σ_seed unmeasurable at S≤128.
 
 **Next task = add a randomness source that lives in J's column space (minibatch SGD / data-order /
-augmentation) so Σ_seed spans J and q_eff becomes measurable.** Then re-run the leakage bracket with T
-large enough to converge and S≥4·Nk.
+augmentation) so Σ_seed spans J and q_eff becomes measurable at feasible S.** Then re-run the leakage
+bracket with T large enough to converge. (B0-init whitening can't work: Σ_seed needs S≫8000.)
 
 ## Done this session
 - **Audited** the parallel-session plan against live infra; caught two real bugs before submit:

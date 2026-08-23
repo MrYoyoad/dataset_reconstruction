@@ -50,16 +50,21 @@ true noise reaching J's directions at level ~√μ that we have no samples to se
 (1.07–1.18) is evidence FOR (B): a captured low-dim noise would show a sharply DECAYING sample spectrum,
 not a flat one (raw Kaiming B₀ is ~full-rank over the ~8000-dim B-block).
 
-**Decisive test (running, job [covrank-vs-S]):** `eff_rank(Σ_seed)` and its decay as S=16→32→64→128.
-Saturates / sharp decay ⇒ low-dim noise captured ⇒ orthogonality real ⇒ "init not a defense" holds.
-Grows ~linearly with S / flat ⇒ high-dim undersampled ⇒ q_eff INDETERMINATE from these seeds. Also
-report `q_eff vs √μ` under an explicit isotropic-init-noise model (floor = measured mean variance μ,
-NOT the shrinkage ρμ) as the honest fallback number.
-
-**Tentative reading (pending the test):** init-noise is orthogonal to the signal *in the measured
-subspace*; whether it actually masks is either zero (case A) or indeterminate at S=64 / bounded by √μ
-under isotropy (case B). Do NOT yet claim "random init is not a defense" as proven — it is the case-A
-outcome only.
+**RESOLVED (job 983585): it is the undersampled-high-dim case (B), and it flips the tentative claim.**
+`eff_rank(Σ_seed)` = 15.0 / 30.9 / 62.8 / 126.0 at S = 16/32/64/128 — **exactly ≈ S−1 at every S, never
+saturating** (both N=2 k8 and N=4 k8). The B0-init noise is high-dimensional (~isotropic, ~full-rank
+over its ~8000-dim block) and UNDERSAMPLED at every S tried. Therefore:
+- The 0.1% energy-overlap was a **dimensionality artifact, NOT orthogonality** — "init doesn't mask /
+  random init is not a defense" is **RETRACTED** (it was never supported).
+- Honest fallback under an isotropic init-noise model at the measured mean variance μ≈0.023:
+  **`q_eff|iso` = 0 for ε ≤ 1** (N=2 k8: 0/16 through ε=1, 1/16 at ε=3, 16/16 at ε=10; N=4 k8: 0/32
+  through ε=3, 16/32 at ε=10). So *if* the init noise is isotropic (which the linear `eff_rank` growth
+  and flat spectrum support), it **substantially MASKS** the private coordinates at realistic ε — the
+  OPPOSITE of the retracted claim.
+- **Caveat on the caveat:** `q_eff|iso` rests on the isotropic assumption; the true `Σ_seed` is
+  unmeasurable at S≤128 (it needs S ≫ dim of the B-block, ~8000). A definitive `q_eff` still requires
+  the SGD-noise phase, where the relevant randomness enters through the gradients and therefore spans J
+  by construction (so it is estimable at feasible S).
 
 **Next (promoted from footnote to necessary):** introduce a randomness source that lives in J's column
 space — **minibatch SGD / data-order / augmentation noise** — so `Σ_seed` actually spans J and `q_eff`
