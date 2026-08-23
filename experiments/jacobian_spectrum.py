@@ -286,18 +286,24 @@ def spectrum(J):
     return svals, effective_rank(J)
 
 
-def recover_a(J, Y_target, Y0, metric_isqrt=None):
+def recover_a(J, Y_target, Y0, metric_isqrt=None, rcond=1e-10):
     """(whitened) least-squares recovery of a from the observed adapter change.
 
     Solves min_a ‖ W(J a) − W(Y_target − Y0) ‖² with W = metric_isqrt (identity
-    for J0). Returns â [Nk].
+    for J0), returning the min-norm solution. Returns â [Nk].
+
+    Uses the SVD pseudo-inverse (not torch.linalg.lstsq): J is often
+    rank-deficient (that is the whole point — some private directions are
+    unrecoverable), and lstsq's default CUDA driver ('gels') assumes full rank
+    and is unstable there. pinv handles the rank-deficient case correctly and
+    returns the min-norm (row-space) solution.
     """
     dY = (Y_target - Y0).reshape(-1, 1)
     A = J
     if metric_isqrt is not None:
         A = metric_isqrt @ J
         dY = metric_isqrt @ dY
-    sol = torch.linalg.lstsq(A, dY).solution
+    sol = torch.linalg.pinv(A, rcond=rcond) @ dY
     return sol.reshape(-1)
 
 
@@ -416,12 +422,21 @@ def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
 # 7. Self-tests (the gate) and J0 run
 # ---------------------------------------------------------------------------
 def toy_ad_gate(verbose=True):
-    """Two-tier AD gate. Returns dict of the worst relative errors.
+    """AD-correctness gate. Returns dict of the diagnostic errors.
 
-    (1) central-FD check of J on a few coords (rel err < 1e-6);
-    (2) jvp_double vs reverse_loop agreement (~1e-10);
-    (3) recover a known small a_true by LSQ.
-    Must pass before any WEXAC submit.
+    Pass conditions test only whether J and the linear model are *correct* — NOT
+    whether the map is invertible (rank deficiency is a finding, not a failure,
+    and recovery quality is conditioning-dependent science measured in run_j0):
+    (1) central-FD check of J (rel err < 1e-6) — J is the right Jacobian;
+    (2) jvp_double vs reverse_loop agreement (< 1e-8) — the two J routines agree;
+    (3) linearization residual ‖(Y_t−Y0) − J·a_true‖/‖Y_t−Y0‖ < 1e-3 at a tiny
+        a_true — J is the correct local linear model (no inversion, so this is
+        rank/conditioning-independent).
+
+    Reported diagnostics (NOT gated): eff_rank(J); row-space recovery
+    â vs P_row(a_true); full-a_true recovery. A rank-deficient toy J
+    (eff_rank < Nk) is exactly the identifiability signal the program measures —
+    it must not fail the correctness gate. Must pass before any WEXAC sweep.
     """
     ctx, col_scales = _toy_ctx()
     Nk = ctx.U.shape[0] * ctx.U.shape[2]
@@ -433,32 +448,38 @@ def toy_ad_gate(verbose=True):
 
     coords = list(range(min(4, Nk)))
     fd = finite_difference_jacobian(a0, ctx, coords, eps=1e-5)
-    fd_rel = 0.0
-    for j in coords:
-        num = (J[:, j] - fd[j]).norm().item()
-        den = fd[j].norm().item() + 1e-30
-        fd_rel = max(fd_rel, num / den)
+    fd_rel = max((J[:, j] - fd[j]).norm().item() /
+                 (fd[j].norm().item() + 1e-30) for j in coords)
 
-    # deterministic recovery of a known small a_true
+    # tiny known a_true → linearization must dominate; then report recovery.
     torch.manual_seed(0)
-    a_true = 1e-3 * torch.randn(Nk, dtype=torch.float64)
+    a_true = 1e-6 * torch.randn(Nk, dtype=torch.float64)
     Y0 = forward_Y(a0, ctx).detach()
     Y_t = forward_Y(a_true, ctx).detach()
-    a_hat = recover_a(J, Y_t, Y0)
-    rec_rel = (a_hat - a_true).norm().item() / (a_true.norm().item() + 1e-30)
+    dY = Y_t - Y0
+    lin_res = (dY - J @ a_true).norm().item() / (dY.norm().item() + 1e-30)
 
-    ok = (fd_rel < 1e-6) and (rev_gap < 1e-8) and (rec_rel < 1e-3)
+    a_hat = recover_a(J, Y_t, Y0)
+    a_row = torch.linalg.pinv(J, rcond=1e-10) @ (J @ a_true)   # P_row(a_true)
+    rec_row_rel = (a_hat - a_row).norm().item() / (a_row.norm().item() + 1e-30)
+    rec_full_rel = (a_hat - a_true).norm().item() / (a_true.norm().item() + 1e-30)
+
+    svals, er = spectrum(J)
+    ok = (fd_rel < 1e-6 and rev_gap < 1e-8 and lin_res < 1e-3)
     if verbose:
         print("=== TOY-AD GATE ===")
-        print(f"  J shape                 : {tuple(J.shape)}")
-        print(f"  FD rel err (max, <1e-6) : {fd_rel:.3e}")
-        print(f"  jvp vs reverse (<1e-8)  : {rev_gap:.3e}")
-        print(f"  LSQ recovery rel (<1e-3): {rec_rel:.3e}")
-        svals, er = spectrum(J)
-        print(f"  eff_rank(J)             : {er:.3f}  (Nk={Nk})")
+        print(f"  J shape                     : {tuple(J.shape)}")
+        print(f"  [gate] FD rel err  (<1e-6)  : {fd_rel:.3e}")
+        print(f"  [gate] jvp vs reverse(<1e-8): {rev_gap:.3e}")
+        print(f"  [gate] lin residual (<1e-3) : {lin_res:.3e}")
+        print(f"  [diag] eff_rank(J)          : {er:.3f}  (Nk={Nk})  "
+              f"<Nk ⟺ rank deficiency (a finding)")
+        print(f"  [diag] row-space rec rel    : {rec_row_rel:.3e}")
+        print(f"  [diag] full-a_true rec rel  : {rec_full_rel:.3e}")
         print(f"  {'PASSED' if ok else 'FAILED'}")
-    return {'fd_rel': fd_rel, 'rev_gap': rev_gap, 'rec_rel': rec_rel,
-            'passed': ok}
+    return {'fd_rel': fd_rel, 'rev_gap': rev_gap, 'lin_res': lin_res,
+            'rec_row_rel': rec_row_rel, 'rec_full_rel': rec_full_rel,
+            'eff_rank': er, 'Nk': Nk, 'passed': ok}
 
 
 def real_smoke(N=2, k=8, T=5, rank=2, device='cpu', verbose=True):
@@ -511,19 +532,27 @@ def run_j0(N=4, k=8, T=5, rank=8, activation='gelu', device='cuda',
     direction = torch.randn(Nk, dtype=torch.float64, device=device)
     direction = direction / direction.norm()
 
+    Jpinv = torch.linalg.pinv(J.to(device), rcond=1e-10)
     eps_results = {}
     for eps in eps_list:
         a_true = eps * direction
         Y0 = forward_Y(a0, ctx).detach()
         Y_t = forward_Y(a_true, ctx).detach()
-        a_hat = recover_a(J, Y_t, Y0)
+        a_hat = recover_a(J.to(device), Y_t, Y0)
+        a_row = Jpinv @ (J.to(device) @ a_true)         # recoverable component
         per_coord_err = (a_hat - a_true).abs()
-        rel = (a_hat - a_true).norm().item() / (a_true.norm().item() + 1e-30)
+        # rel_err_full includes the unrecoverable null space (a floor set by
+        # rank deficiency); rel_err_row isolates how the recovery of the
+        # *recoverable* part degrades as ε leaves the linear regime (the teeth).
+        rel_full = (a_hat - a_true).norm().item() / (a_true.norm().item() + 1e-30)
+        rel_row = (a_hat - a_row).norm().item() / (a_row.norm().item() + 1e-30)
         eps_results[eps] = {
             'a_true': a_true.cpu(), 'a_hat': a_hat.cpu(),
-            'per_coord_err': per_coord_err.cpu(), 'rel_err': rel,
+            'a_row': a_row.cpu(), 'per_coord_err': per_coord_err.cpu(),
+            'rel_err': rel_full, 'rel_err_row': rel_row,
         }
-        print(f"[J0] eps={eps:<6g}  LSQ recovery rel_err={rel:.3e}")
+        print(f"[J0] eps={eps:<6g}  rel_err_full={rel_full:.3e}  "
+              f"rel_err_row={rel_row:.3e}")
 
     out = {
         'J': J.cpu(), 'svals': svals.cpu(), 'eff_rank': er,
@@ -554,11 +583,17 @@ def _plot_j0(out, save_path):
                       f"Nk={out['N'] * out['k']})")
     axes[0].grid(True, alpha=0.3)
     eps = sorted(out['eps_results'])
-    rel = [out['eps_results'][e]['rel_err'] for e in eps]
-    axes[1].loglog(eps, rel, 's-', color='#d62728')
+    rel_full = [out['eps_results'][e]['rel_err'] for e in eps]
+    rel_row = [out['eps_results'][e].get('rel_err_row', float('nan'))
+               for e in eps]
+    axes[1].loglog(eps, rel_full, 's-', color='#d62728',
+                   label='full (incl. null space)')
+    axes[1].loglog(eps, rel_row, 'o--', color='#1f77b4',
+                   label='row space (recoverable)')
     axes[1].set_xlabel(r'perturbation scale $\epsilon$')
     axes[1].set_ylabel('LSQ recovery rel error')
     axes[1].set_title('coordinate recovery vs ε (linear→nonlinear)')
+    axes[1].legend(fontsize=8)
     axes[1].grid(True, alpha=0.3, which='both')
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.tight_layout(); plt.savefig(save_path, bbox_inches='tight',
