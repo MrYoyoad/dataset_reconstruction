@@ -459,6 +459,39 @@ def q_eff_colspace(J, centered, eps_list, tol=1e-8):
             'noise_eig_max': float(eig_noise[-1])}
 
 
+def _coord_transforms(J, N, k):
+    """Linear reparametrizations of the Nk coordinates a → M·a', giving J' = J·M.
+
+    Returns list of (name, J', is_restriction). RELABELINGS (full-rank M) leave
+    col(J) — hence the hard rank and I(a;Y) — invariant but rescale eff_rank/q_eff
+    (those are coordinate-dependent). RESTRICTIONS drop coordinates → genuinely
+    smaller subspace. Coord order is [img0:k][img1:k]…  (a.view(N,k) row-major).
+    """
+    dev, dt = J.device, J.dtype
+    Nk = N * k
+    out = [('identity', J, False)]
+
+    # response-whiten: M = V Σ^{-1} on the top-r_J subspace ⇒ J·M has orthonormal
+    # columns (flat spectrum). Cosmetic: same col(J), maximal eff_rank.
+    U, s, Vh = torch.linalg.svd(J, full_matrices=False)
+    r_J = int((s > 1e-8 * s[0]).sum())
+    Mw = (Vh[:r_J].t() / s[:r_J])                    # [Nk, r_J]
+    out.append(('response_white', J @ Mw, False))    # J' = U_r (orthonormal)
+
+    # cross-image sum/diff per PCA direction (N=2 only): orthogonal relabeling.
+    if N == 2:
+        M = torch.zeros(Nk, Nk, dtype=dt, device=dev)
+        r2 = 1.0 / (2 ** 0.5)
+        for j in range(k):
+            c, d = j, k + j                          # new coords: common_j, diff_j
+            M[0 * k + j, c] = r2;  M[1 * k + j, c] = r2      # common → both +
+            M[0 * k + j, d] = r2;  M[1 * k + j, d] = -r2     # diff   → opposite
+        Jci = J @ M
+        out.append(('crossimg_sumdiff', Jci, False))         # relabel (invariant col)
+        out.append(('crossimg_diffONLY', Jci[:, k:2 * k], True))  # restrict to diff
+    return out
+
+
 def noise_subspace_energy(J, centered):
     """Fraction of J's energy that lies inside the *measured* seed-noise subspace.
 
@@ -713,6 +746,51 @@ def run_j0(N=4, k=8, T=5, rank=8, activation='gelu', device='cuda',
     return out
 
 
+def run_coord_transforms(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
+                         tangent_method='pca', dataset='mnist', seed=42,
+                         anchor_alpha=0.0, S=128, eps_list=(0.1, 1.0, 10.0)):
+    """Test the user's idea: subtract linear parts of the PCA tangents (across
+    images / response-whiten) and re-measure. Shows which metrics are INVARIANT
+    (hard rank of col(J), the true leakage) vs COORDINATE-DEPENDENT (eff_rank,
+    q_eff), and that only a genuine subspace RESTRICTION (diff-only) changes the
+    hard rank. Builds J and Σ_seed once, then applies each transform post-hoc.
+    """
+    base_ctx, col_scales, digits, ds_mean = _mnist_ctx(
+        N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
+        device=device, tangent_method=tangent_method, dataset=dataset,
+        anchor_alpha=anchor_alpha)
+    target_layers = base_ctx.target_layers
+    Nk = N * k
+    a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+
+    def make_ctx(b0_seed):
+        B0 = _draw_B0(base_ctx.frozen, rank, target_layers, b0_seed, device)
+        index = build_ab_index(base_ctx.frozen, B0, target_layers)
+        return Ctx(base_ctx.frozen, base_ctx.b0, B0, base_ctx.x0_centered,
+                   base_ctx.U, base_ctx.y, base_ctx.lr, T, base_ctx.scaling,
+                   base_ctx.act, target_layers, index)
+
+    J = exact_jacobian(a0, make_ctx(seed), method='jvp_double')
+    centered = estimate_sigma_seed(lambda s: make_ctx(10_000 + s), S, a0)
+    hard_rank0 = int((torch.linalg.svdvals(J) > 1e-8 * torch.linalg.svdvals(J)[0]).sum())
+    print(f"[COORD] dataset={dataset} N={N} k={k} tangent={tangent_method} "
+          f"seed={seed} anchor={anchor_alpha}  Nk={Nk}  hard_rank(col J)={hard_rank0}")
+    print(f"[COORD] {'transform':20s} {'ncoord':>6s} {'hard_rank':>9s} {'eff_rank':>8s} "
+          f"{'iso_ratio':>9s}  q_eff|col(J) @ε=" + ",".join(f"{e:g}" for e in eps_list))
+    for name, Jp, is_restrict in _coord_transforms(J, N, k):
+        sv = torch.linalg.svdvals(Jp)
+        hr = int((sv > 1e-8 * sv[0]).sum())
+        er = effective_rank(Jp)
+        cs = q_eff_colspace(Jp, centered, eps_list)
+        qs = ",".join(str(cs['q_eff'][e]) for e in eps_list)
+        tag = name + (" (restrict)" if is_restrict else "")
+        print(f"[COORD] {tag:20s} {Jp.shape[1]:6d} {hr:9d} {er:8.2f} "
+              f"{cs['iso_ratio']:9.3f}  {qs}")
+    print("[COORD] NOTE: relabelings (white, sumdiff) keep hard_rank fixed = the "
+          "true leakage is invariant; eff_rank/q_eff shift (coordinate-dependent). "
+          "diffONLY restricts the subspace (hard_rank ≤ k) — a real change, not a fix.")
+
+
 def run_j0_T_sweep(N=4, k=8, rank=8, activation='gelu', device='cuda',
                    tangent_method='qr', Ts=(5, 20, 50), seed=42):
     """De-confound the deterministic eff_rank readout (yoado-29's caution): if
@@ -956,6 +1034,8 @@ if __name__ == '__main__':
     p.add_argument('--j1', action='store_true', help='run Phase J1 (whitening/q_eff)')
     p.add_argument('--T_sweep', action='store_true',
                    help='eff_rank(J) vs T — underfitting vs structural de-confound')
+    p.add_argument('--coord_transforms', action='store_true',
+                   help='subtract linear parts (across-image diff / response-whiten) & re-measure')
     p.add_argument('--Ts', type=int, nargs='+', default=[5, 20, 50])
     p.add_argument('--S_list', type=int, nargs='+', default=[16, 32, 64])
     p.add_argument('--shrink_list', type=float, nargs='+',
@@ -1010,5 +1090,12 @@ if __name__ == '__main__':
                eps_list=tuple(args.eps_list), shrink_list=tuple(args.shrink_list),
                seed=args.seed, save=args.save, tag=args.tag,
                dataset=args.dataset, anchor_alpha=args.anchor_alpha)
+
+    if args.coord_transforms:
+        run_coord_transforms(N=args.N, k=args.k, T=args.T, rank=args.rank,
+                             activation=args.activation, device=device,
+                             tangent_method=args.tangent, dataset=args.dataset,
+                             seed=args.seed, anchor_alpha=args.anchor_alpha,
+                             eps_list=tuple(args.eps_list))
 
     print("=== Done ===")
