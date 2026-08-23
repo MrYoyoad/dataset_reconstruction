@@ -4,6 +4,38 @@ Last updated: **2026-08-23** (Phase J0 of the Jacobian-spectrum program implemen
 
 ---
 
+## Jacobian-spectrum — ON-MANIFOLD (Gen-L) flips the leakage picture (2026-08-23, job 988588)
+
+Replaced random pixel tangents with **principal directions of the data** (Gen-L: `pca` unit-norm;
+`pca_scaled` = scaled by the real data spectrum), shared across images = a linear generator's constant
+Jacobian. **The regime changes qualitatively vs random (`qr`) directions** (MNIST, N=2 k8 / N=4 k8,
+rank-8 single module, T=5):
+
+| tangent | iso_ratio (N=2) | modes >0.5μ (N=2) | q_eff\|col(J) @ε=0.1 (N=2) | iso_ratio (N=4) | eff_rank(J) N=4 |
+|---|---|---|---|---|---|
+| qr (random) | ~0.10 | 1/16 | 11/16 | ~0.01 | 19/32 |
+| pca (principal) | **~0.50** | **5/16** | **7/16** | ~0.10 | **10/32** |
+| pca_scaled | ~0.50 | 5/16 | 7/16 | ~0.10 | 10/32 |
+
+- **On the real data manifold, the init noise DOES mask substantially** (iso_ratio 0.1→0.5, masked
+  modes 1→5), so `q_eff|col(J)` drops (14→7 of 16 at ε≤1). Principal directions align with the
+  network's active gradient subspace — the same channel the init noise flows through — so they overlap
+  far more than random directions do. This *partially walks back* the "init is a weak defense" reading:
+  it was an artifact of using random (network-orthogonal) tangents.
+- **Collinearity confirmed:** `eff_rank(J)` drops sharply for principal directions (N=4: 19→10 of 32) —
+  the real correlated directions are harder to disentangle, exactly the superposition wall.
+- **Locality matters (user note):** for `pca`, σ_max(J) is 5–10× larger and recovery rel_err at ε=1
+  exceeds 1 (linear model fully broken). ε≤0.1 is local; ε=1 is out of regime. `run_j0` now reports the
+  linearization residual `lin_res` per ε so the regime is measured, not assumed.
+- **Honesty:** Gen-L is *partial* realism — real directions + real variance profile, but still
+  linear/orthonormal. True manifold curvature / non-orthogonal local tangents (more collinearity) needs
+  Gen-G (VAE/StyleGAN), a later phase.
+
+**Robustness sweep running (job 989194):** qr-vs-pca across datasets {mnist,fashion,flowers} × private
+draws {seed 42,1} × anchor α {0.0,0.9} — to confirm the on-manifold contrast is not work-point-specific.
+
+---
+
 ## Jacobian-spectrum leakage program — Phase J1 COMPLETE: two decisive de-confounds (2026-08-23)
 
 Job 983139 (T-sweep + seed-whitening / q_eff). **Two diagnostics turned the tentative J0 "N controls
