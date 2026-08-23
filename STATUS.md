@@ -68,8 +68,11 @@ not a flat one (raw Kaiming B₀ is ~full-rank over the ~8000-dim B-block).
 data-signal directions (col(J) is A-block-dominated at small T; the B-block init noise barely reaches
 it — the A₀=0 mechanism, now quantified), so it is a WEAK defense and the private coordinates are
 largely recoverable. This corrects BOTH the chance-baseline artifact (#1) AND the over-pessimistic
-isotropic fallback (#2). The per-direction `Σ_J/μ` spectrum (job 983933) characterizes whether the
-attenuation is uniform or structured. The method transfers directly to the SGD-noise phase (swap the
+isotropic fallback (#2). The per-direction `Σ_J/μ` spectrum (job 983933) shows the masking is **structured, not uniform, and
+robust across S**: the init noise couples into col(J) through **at most one mode** — N=2 k8 has exactly
+1/16 directions with noise ≈1μ (rest ≈0); N=4 k8 has 0/32 above 0.5μ (max ≈0.3–0.5μ, rest ≈0). So
+random init masks *one* private-coordinate direction at most, leaving the rest exposed — which is why
+`q_eff|col(J)` is ~(r_J−1). The method transfers directly to the SGD-noise phase (swap the
 noise source; it enters through the gradients so it should carry real variance in col(J) — verify with
 the same `iso_ratio`).
 
