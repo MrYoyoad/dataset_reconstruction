@@ -268,10 +268,12 @@ def finite_difference_jacobian(a0, ctx, coords, eps=1e-5):
     cols = {}
     for j in coords:
         e = torch.zeros_like(a0); e[j] = 1.0
-        with torch.no_grad():
-            Yp = forward_Y(a0 + eps * e, ctx)
-            Ym = forward_Y(a0 - eps * e, ctx)
-        cols[j] = ((Yp - Ym) / (2 * eps)).detach()
+        # NB: no torch.no_grad() — forward_Y runs the inner SGD via
+        # autograd.grad(create_graph=True), which needs grad tracking to build
+        # loss.grad_fn. We only want the *value* of Y here, so detach the result.
+        Yp = forward_Y(a0 + eps * e, ctx).detach()
+        Ym = forward_Y(a0 - eps * e, ctx).detach()
+        cols[j] = (Yp - Ym) / (2 * eps)
     return cols
 
 
@@ -312,8 +314,9 @@ def estimate_sigma_seed(ctx_factory, S, a0):
     samples = []
     for s in range(S):
         ctx = ctx_factory(s)
-        with torch.no_grad():
-            samples.append(forward_Y(a0, ctx).detach())
+        # no torch.no_grad(): forward_Y's inner SGD needs grad tracking; we
+        # detach the value-only result (see finite_difference_jacobian).
+        samples.append(forward_Y(a0, ctx).detach())
     Ys = torch.stack(samples, dim=0)             # [S, dimY]
     return Ys - Ys.mean(dim=0, keepdim=True)
 
