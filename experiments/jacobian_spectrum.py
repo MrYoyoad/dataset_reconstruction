@@ -59,23 +59,61 @@ from experiments.gate_matrix_test import effective_rank
 # ---------------------------------------------------------------------------
 # 1. Tangent-basis construction (§2 of the plan: controlled k)
 # ---------------------------------------------------------------------------
-def build_tangents(d, k, N, seed=0, method='qr', decay=0.5, device='cpu'):
-    """Per-image orthonormal (or deliberately rank-deficient) tangent bases.
+def _pca_basis(k, n_bank=4000, seed=0, device='cpu', dataset='mnist'):
+    """Top-k principal directions of a PUBLIC data bank (the Gen-L generator).
+
+    A linear generator x = μ + U z has a CONSTANT Jacobian U, so its top-k
+    well-conditioned directions are just the top-k principal components of the
+    data — the real axes natural images vary along, not random noise. The bank
+    is the TRAIN split (public proxy), disjoint from the private TEST images.
 
     Returns:
-        U: [N, d, k] tensor. Column j of U[i] is a pixel-space direction; the
-           private coordinate a_{ij} moves image i along it.
-        col_scales: [N, k] the norm injected into each column (all-ones for
-           'qr'; a geometric decay for 'svd'). This is the *known* ground truth
-           the J0 spectrum-prediction test checks σ_i(J) against.
+        dirs: [d, k] orthonormal principal directions (right singular vectors).
+        sv:   [k] their singular values (the real variance profile).
+    """
+    from experiments.data_utils import _load_dataset
+    ds = _load_dataset(dataset, train=True)
+    g = torch.Generator().manual_seed(seed)
+    idx = torch.randperm(len(ds), generator=g)[:n_bank].tolist()
+    X = torch.stack([ds[i][0] for i in idx]).reshape(len(idx), -1).double()
+    Xc = X - X.mean(dim=0, keepdim=True)
+    # principal axes = right singular vectors of the centered data matrix
+    _U, S, Vh = torch.linalg.svd(Xc, full_matrices=False)
+    dirs = Vh[:k].t().contiguous()            # [d, k], orthonormal columns
+    return dirs.to(device), S[:k].to(device)
+
+
+def build_tangents(d, k, N, seed=0, method='qr', decay=0.5, device='cpu',
+                   pca_dirs=None, pca_sv=None):
+    """Per-image tangent bases. Column j of U[i] moves image i along direction j.
+
+    Returns U [N, d, k] and col_scales [N, k] (the norm injected per column).
 
     method:
-        'qr'  — orthonormal random tangents (clean rank k). The realistic case:
-                every private coordinate perturbs the image equally.
-        'svd' — orthonormal directions scaled by a geometric decay
-                (decay**j). Injects a *known* rank deficiency so we can verify
-                the measured spectrum σ_i(J) tracks it (the falsification test).
+        'qr'         — orthonormal RANDOM tangents (arbitrary pixel directions).
+        'svd'        — random orthonormal scaled by a geometric decay (decay**j):
+                       a *known* rank deficiency, the falsification control.
+        'pca'        — top-k PRINCIPAL directions of the data (Gen-L), unit-norm.
+                       Real axes of image variation, SHARED across images; matched
+                       orthonormality to 'qr' so it isolates principal-vs-random.
+        'pca_scaled' — same principal directions scaled by the REAL data spectrum
+                       (sv/sv[0]): the realistic Gen-L that carries the true
+                       variance profile (high-variance dirs move the image more).
+    'pca'/'pca_scaled' require pca_dirs [d,k] (and pca_sv [k] for scaled).
     """
+    if method in ('pca', 'pca_scaled'):
+        if pca_dirs is None:
+            raise ValueError(f"method={method!r} requires pca_dirs")
+        Q = pca_dirs.double()
+        if method == 'pca':
+            s = torch.ones(k, dtype=torch.float64, device=Q.device)
+        else:
+            s = (pca_sv[:k].double() / (pca_sv[0].double() + 1e-30))
+        Ui = Q * s.unsqueeze(0)               # [d, k], shared across images
+        U = Ui.unsqueeze(0).repeat(N, 1, 1)   # [N, d, k]
+        col_scales = s.unsqueeze(0).repeat(N, 1).cpu()
+        return U.to(device), col_scales.to(device)
+
     g = torch.Generator(device='cpu').manual_seed(seed)
     U = torch.empty(N, d, k, dtype=torch.float64)
     col_scales = torch.empty(N, k, dtype=torch.float64)
@@ -487,8 +525,12 @@ def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
     B0 = {l: B0_all[l] for l in target_layers}
     x0_centered = (x_ft - ds_mean) if ds_mean is not None else x_ft
     d = x0_centered.reshape(N, -1).shape[1]
+    pca_dirs, pca_sv = (None, None)
+    if tangent_method in ('pca', 'pca_scaled'):
+        pca_dirs, pca_sv = _pca_basis(k, seed=seed + 7, device=device)
     U, col_scales = build_tangents(d, k, N, seed=seed + 1,
-                                   method=tangent_method, device=device)
+                                   method=tangent_method, device=device,
+                                   pca_dirs=pca_dirs, pca_sv=pca_sv)
     act = make_activation(activation)
     index = build_ab_index(frozen, B0, target_layers)
     ctx = Ctx(frozen, b0, B0, x0_centered, U, y_ft, lr, T, 1.0, act,
@@ -896,7 +938,8 @@ if __name__ == '__main__':
     p.add_argument('--T', type=int, default=5)
     p.add_argument('--rank', type=int, default=8)
     p.add_argument('--activation', type=str, default='gelu')
-    p.add_argument('--tangent', type=str, default='qr', choices=['qr', 'svd'])
+    p.add_argument('--tangent', type=str, default='qr',
+                   choices=['qr', 'svd', 'pca', 'pca_scaled'])
     p.add_argument('--eps_list', type=float, nargs='+',
                    default=[1e-3, 1e-2, 1e-1, 1.0])
     p.add_argument('--seed', type=int, default=42)
