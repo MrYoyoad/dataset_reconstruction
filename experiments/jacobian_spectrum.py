@@ -410,8 +410,13 @@ def q_eff_colspace(J, centered, eps_list, tol=1e-8):
     mu = (centered.double().pow(2).sum() / ((S - 1) * centered.shape[1])).item()
     tr_SigmaJ = float(Sigma_J.diagonal().sum())
     iso_ratio = tr_SigmaJ / (mu * r_J + 1e-30)       # ≈1 isotropic; ≈0 avoids col(J)
+    # per-direction noise level relative to isotropic μ (descending). A flat ≈iso_ratio
+    # profile ⇒ uniform attenuation; a split (some ≈1, some ≈0) ⇒ structured masking
+    # (e.g. col(J) A-block dirs see attenuated B-block init noise). (yoado-29)
+    eig_over_mu = (eig_noise.flip(0) / (mu + 1e-30))
     return {'r_J': r_J, 'sigma_snr': sigma_snr, 'q_eff': qeffs,
             'tr_Sigma_J': tr_SigmaJ, 'iso_ratio': iso_ratio,
+            'eig_over_mu': eig_over_mu.cpu(),
             'noise_eig_min': float(eig_noise[0]),
             'noise_eig_max': float(eig_noise[-1])}
 
@@ -764,6 +769,13 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
         print(f"[J1] S={S}  col(J) r_J={cs['r_J']}  tr(Σ_J)/(μ·r_J)="
               f"{cs['iso_ratio']:.3f} (≈0 noise avoids col(J); ≈1 isotropic-there)  "
               f"|  q_eff|col(J): {csstr}")
+        # per-direction Σ_J spectrum relative to μ — flat ⇒ uniform attenuation;
+        # split (some ≈1, some ≈0) ⇒ structured masking within col(J). (yoado-29)
+        eom = cs['eig_over_mu']
+        n_above = int((eom > 0.5).sum().item())
+        print(f"[J1] S={S}  Σ_J/μ spectrum: max={eom[0]:.3f} med={eom[len(eom)//2]:.3f} "
+              f"min={eom[-1]:.3f}  #(>0.5·μ)={n_above}/{cs['r_J']} "
+              f"(how many col(J) dirs carry near-isotropic noise)")
         for shrink in shrink_list:
             sigma_snr, Fisher = snr_spectrum(J, centered, shrinkage=shrink)
             qeffs = {eps: q_eff(sigma_snr, eps) for eps in eps_list}
