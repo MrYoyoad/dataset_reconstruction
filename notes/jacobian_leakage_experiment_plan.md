@@ -1,198 +1,192 @@
-# Jacobian-Spectrum LoRA Leakage — Experiment Plan
+# Jacobian-Spectrum LoRA Leakage — Experiment Plan (v2)
 
-**Created 2026-08-20.** Turns the reframed identifiability note
-([identifiability_feasibility_revision.tex](identifiability_feasibility_revision.tex)) into a
-concrete, falsifiable experimental program on WEXAC. Companion:
-[STATUS.md](../STATUS.md) "Feasibility reframed" entry.
-
----
-
-## 0. The question and the one falsifiable prediction
-
-**Question.** Does an *ordinarily trained final* LoRA adapter preserve the private-image
-directions well enough for actual reconstruction? (Not: can a *malicious* server encode them —
-that's MineGrad/PEFTLeak, already answered yes.)
-
-**Central object.** The end-to-end data→adapter Jacobian
-`J_full = ∂ vec(A_T, B_T) / ∂ z`, where `z ∈ ℝ^{Nk}` are the latents of `N` images each with `k`
-controlled degrees of freedom.
-
-**Pre-registered prediction (P1).** `σ_min(J_full)` (the weakest-preserved data direction)
-collapses in the *same* regimes where reconstruction quality collapses. Spectral collapse ⟺
-reconstruction collapse.
-
-**Three worlds the experiment can land in** (a capacity/rank number cannot distinguish these; the
-spectrum + controls can):
-- **World A (dream):** `σ_min` and reconstruction collapse together → a measured identifiability
-  transition, theory explains attack.
-- **World B:** `J_full` stays well-conditioned but the attack fails → the adapter *did* preserve
-  the info; the inverter/decoder is the bottleneck.
-- **World C:** `J_full` collapses yet the decoder still emits plausible images → the decoder is
-  **hallucinating from its prior**, not recovering forced information. The critical privacy
-  distinction.
+**Created 2026-08-20, revised same day with supervisor refinements.** Turns the reframed
+identifiability note into a falsifiable program on WEXAC. The central quantity is now the
+**seed-whitened (Fisher) Jacobian**, and the first experiment recovers **private coordinates**, not
+whole images. Companions: [identifiability_feasibility_revision.tex](identifiability_feasibility_revision.tex),
+[STATUS.md](../STATUS.md).
 
 ---
 
-## 1. Why this is the right object (grounding)
+## 0. Question, object, and the central law
+
+**Question.** Does an *ordinarily trained final* LoRA adapter preserve private-image directions well
+enough for reconstruction — *above ordinary training randomness*? (Not the malicious-server case.)
+
+**Objects.**
+- Private coordinates `a ∈ ℝ^{Nk}`: for each image `i`, an orthonormal set `U_i=[u_{i1},…,u_{ik}]`
+  of realistic local tangent directions; the image is `x_i(a_i) = x_i^0 + U_i a_i` (or on-manifold
+  via a generator). `a=0` is the true dataset.
+- Forward map `a ↦ Y(a;ξ) = LoRA-train(θ₀, {x_i(a_i)}; seed ξ)` → adapter `(A_T,B_T)`.
+- Data Jacobian `J = ∂vec(Y)/∂a |_{a=0}` (size `dim(Y) × Nk`).
+- **Seed covariance** `Σ_seed = Cov_ξ[vec Y | a=0]`, estimated over `S` training seeds (shrinkage-
+  regularized — see §7).
+- **Seed-whitened Jacobian** `J_SNR = Σ_seed^{-1/2} J`. This is the square root of the **Fisher
+  information** `F = Jᵀ Σ_seed^{-1} J = J_SNRᵀ J_SNR`; `σ_i(J_SNR)² = eig_i(F)`.
+- **Effective recoverable dimension** at perturbation scale `ε`:
+  `q_eff(ε) = #{ i : ε·σ_i(J_SNR) > 1 }`.
+
+**Central law (pre-registered).**
+> Reconstruction of the private coordinates degrades as `q_eff(ε)/q` falls below 1; per-coordinate
+> recovery error tracks the Cramér–Rao floor `1/(ε·σ_i(J_SNR))`. Spectral collapse of `J_SNR` ⟺
+> reconstruction collapse.
+
+**Why a theorem, not a heuristic.** `F` is the Fisher information of `a↦Y` under noise `Σ_seed`; the
+Cramér–Rao bound gives an error floor `≥ F^{-1}` for any unbiased estimator, so directions with
+`σ_i(J_SNR)·ε < 1` are provably below the noise and unrecoverable. **Honesty caveat:** in the strict
+local–linear–Gaussian regime the whitened least-squares attack *achieves* CRLB by construction, so
+"spectrum predicts recovery" is near-tautological there. The experiment has teeth exactly where it
+leaves that regime — nonlinear training, the real inversion algorithm, larger `ε`, and the step from
+coefficients to whole images. Sweep `ε` out of the linear regime and test whether the Fisher
+prediction survives.
+
+**Three worlds** (the spectrum + controls separate these; a rank/capacity number cannot):
+World A `q_eff` and recon collapse together (identifiability transition); World B `q_eff` stays high
+but the attack fails (info preserved, inverter is the wall); World C `q_eff` collapses yet the
+decoder still emits plausible images (hallucinating from prior — caught by the disjoint-adapter
+control, §J3).
+
+---
+
+## 1. Grounding
 
 - **Belrose et al., "Understanding Gradient Descent through the Training Jacobian"** (arXiv
-  2412.07003, Dec 2024) already study the spectrum of the *training* Jacobian `∂θ_T/∂θ₀` and find
-  a data-dependent, label-independent low-dimensional structure (a "bulk" of σ≈1 that carries
-  perturbations through unchanged, and a collapsing "stable" region). **Our delta: the
-  data-latent Jacobian `∂θ_T/∂z` instead of the init-Jacobian `∂θ_T/∂θ₀`** — same machinery,
-  privacy-relevant variable. Note the clean decomposition
-  `J_full = (∂θ_T/∂x)|_adapter · J_g`, i.e. (training map's data-sensitivity) ∘ (prior tangent).
-- **σ_min(J_full) is exactly local invertibility.** The inversion optimizes `z` to match `Y`;
-  `J_full = ∂Y/∂z` at the true `z`, so `σ_min` small ⟺ the inverse problem is locally
-  ill-conditioned ⟺ `z` is not locally recoverable from `Y`. The prediction P1 is the natural
-  local-identifiability statement, made measurable.
-- **k = rank(J_g), controlled — never a literature intrinsic-dim estimate.** Estimators disagree
-  wildly (CIFAR-10 reported 11–96 depending on MLE/TwoNN/GeoMLE/diffusion-NB; MNIST ~152 by
-  diffusion vs ~13 by MLE). So we *set* `k` by construction and *measure* `rank(J_g)` directly,
-  sidestepping the whole estimation problem.
+  2412.07003): the *init*-Jacobian `∂θ_T/∂θ₀` has a data-dependent, label-independent low-dim
+  spectrum. Our delta: the **data-latent** Jacobian `∂θ_T/∂a`, seed-whitened. Decomposition
+  `J = (∂θ_T/∂x)|_adapter · U`.
+- **Fisher/CRLB** framing (above) makes `q_eff` the principled privacy quantity; the
+  **data-processing inequality** makes the bridge diagnosis rigorous (§J5).
+- **SLQ / PyHessian / google spectral-density**: `σ(J_SNR)` spectral density at scale, matrix-free.
+- **k = measured effective `rank J_g` at a stated scale, never nominal latent width** — estimators
+  of intrinsic dim disagree wildly (CIFAR-10: 11–96), and even a 512-latent generator can have local
+  `rank J_g(z) ≪ 512`. We *construct* `k` from the top-`k` well-conditioned singular directions of
+  `J_g(z*)` (§2), so `q = Nk` on the x-axis is exact, not smeared.
+- **SimuDy** (ICLR 2025, code `BlueBlood6/SimuDy`): full-FT direct-inversion baseline to adapt.
 
 ---
 
-## 2. Design principles
+## 2. Constructing controlled `k` (do this before any sweep)
 
-1. **Control `k` by construction; measure it.** Two generators:
-   - **Gen-L (linear):** `x = μ + U z`, `U ∈ ℝ^{d×k}` orthonormal ⇒ `rank(J_g)=k` exactly, and
-     **no image prior**, so World C (hallucination) is impossible → clean A-vs-B identifiability
-     transition.
-   - **Gen-G (generative):** a frozen pretrained decoder/VAE/StyleGAN with the latent restricted to
-     a `k`-dim subspace ⇒ a *realistic* prior → this is where World C can appear and is tested.
-   - Always report the *measured* `rank(J_g)` (SVD of the generator Jacobian), not the nominal `k`.
-2. **Pair the spectrum with the actual attack at every config** — never report one without the
-   other; that pairing is the whole point.
-3. **Invert in latent space** (`min_z ‖Y − F(θ₀, g(z))‖²`) so the `k`-dim prior is baked in exactly
-   and the reconstruction is `g(z*)`.
-4. **GELU is required** for the unrolled differentiable training (double-backward);
-   `modified_relu` breaks `create_graph` (CLAUDE.md). Use GELU/softplus/silu, not `modified_relu`.
-5. **Clip-robust metrics only** (sibling-session finding, commits 298c805/3bdbfb0): raw SSIM on a
-   clipped reconstruction is an artifact. Print `clipped_fraction`; use `ssim_norm`, NCC,
-   retrieval/margin, LPIPS; or the `--pixel_box` path.
+1. Fix a batch `{x_i^0}` and (optionally) a frozen generator `g`.
+2. At each `z_i*` (or `x_i^0`), compute the generator Jacobian `J_g(z_i*)` and its SVD
+   `J_g = U Σ Vᵀ`. **Report the spectrum**, not a nominal number.
+3. Take `U_i` = the top-`k` **well-conditioned** left-singular directions (image-space, orthonormal),
+   at a stated conditioning floor. Private manifold tangent for image `i` is `span(U_i)`; coordinates
+   `a_i ∈ ℝ^k` with `δx_i = U_i a_i`.
+4. This removes generator-coordinate scaling and makes `q = Σ_i rank_eff(J_g(z_i*)) = Nk` exact and
+   measured. Two generator families: **Gen-L** (linear `x=μ+Uz`, no prior → clean A/B) and **Gen-G**
+   (frozen VAE/StyleGAN → realistic prior, needed for World-C in §J3).
 
 ---
 
-## 3. Phases
+## 3. Phases (fail-fast; coordinate recovery FIRST)
 
-### Phase J0 — Differentiable pipeline + exact `J_full` (toy; sanity)
-- **Build** `experiments/jacobian_spectrum.py`: `g → images → LoRA fine-tune (unrolled T steps,
-  GELU) → Y=(A_T,B_T)`. Reuse `direct_inversion.py` (already unrolls SGD with `create_graph`) +
-  `lora_wrapper.py`.
-- **Compute `J_full` explicitly** at toy scale (small MLP, small `d`, `N∈{1,2}`, `k∈{4,8}`) via
-  `torch.func.jacrev`/`jacfwd` over the unrolled map (verify torch≥2.0 on the `rec` env; fallback:
-  row-by-row `torch.autograd.grad(create_graph=True)`).
-- **Verify:** finite-difference check on a few `J_full` entries; `rank(J_g)=k`; `J_full` shape
-  `[Σ_layers r(d_in+d_out)] × [Nk]`.
-- **Deliverable:** validated `J_full` + its SVD at toy scale. Save `.pth` (J_full, spectrum) + `.csv`.
-- **Gate:** finite-diff agreement < 1e-3 relative; only then proceed.
+### Phase J0 — Tiny deterministic coordinate-recovery testbed (the new first experiment)
+The embarrassingly-controlled test: *I hid `Nk` continuous private numbers inside realistic image
+variations; which survive LoRA training?*
+- **Setup:** `N∈{2,4}` images, `k∈{4,8,16}` via `U_k` (§2), **one** LoRA module, GELU,
+  **deterministic** training (fixed `ξ`).
+- **Compute** `J = ∂Y/∂a` exactly (`torch.func.jacrev` over the unrolled train map; fallback
+  `autograd.grad(create_graph=True)` — `direct_inversion.py` already unrolls). Finite-difference
+  verify.
+- **Recover** `â` from `Y` (whitened LSQ in the linear regime; the real inverter as `ε` grows).
+- **Predict vs measure:** deterministic ⇒ no `Σ_seed` yet, so the predictor is `σ_i(J)` / effective
+  rank; test that recoverable coordinates ⟺ large `σ_i(J)`.
+- **Gate:** coordinate recovery works at all, and the spectrum predicts *which* coordinates. If not,
+  the whole image-reconstruction theory is likely wrong — stop and diagnose.
 
-### Phase J1 — Core sweep: `σ_min(J_full)` vs reconstruction (THE test)
-- **Grid (Gen-L first):** `k∈{4,8,16,32}` × `N∈{1,2,4,8,16,32,64}` × LoRA `r∈{1,4,8,16}` ×
-  activation `{gelu, softplus}` × 3 seeds. `T` fixed (calibrate so `weight_change` is comparable
-  across activations — reuse the LR-calibration lesson).
-- **Per config:** SVD(`J_full`) → `σ_min` over the `Nk` directions, condition `κ=σ_max/σ_min`,
-  effective rank; **and** run inversion → LPIPS (primary), `ssim_norm`, retrieval/margin, NCC.
-- **Plot:** `N` vs `σ_min(J_full)` vs LPIPS, one panel per `(k,r)`. **Test P1** (co-collapse) and
-  **P2** (does `N*` — the collapse point — scale with `r` up, `k` down?).
-- **Deliverable:** the `N`-vs-`σ_min`-vs-recon figure; a per-regime World-A/B label.
-- **Fail-fast value:** if P1 *fails* (well-conditioned `J_full` but failing attack everywhere),
-  that is itself a headline (World B — LoRA preserves the info; the inverter is the wall).
+### Phase J1 — Seeds + whitening → `q_eff` and the Fisher/CRLB law
+- Train `S∈{16,32,64}` seeds at `a=0`; estimate `Σ_seed` (Ledoit–Wolf shrinkage / top-noise-subspace
+  + floor, §7); form `J_SNR = Σ_seed^{-1/2} J`; compute `σ_i(J_SNR)`, `q_eff(ε)`.
+- **Central tests:** (i) per-coordinate recovery error vs CRLB `1/(ε σ_i(J_SNR))`; (ii) overall
+  recovery vs `q_eff/q`. **Sweep `ε`** across the linear→nonlinear boundary — the interesting signal
+  is where the linear-Fisher prediction starts to break.
+- **Deliverable:** the `q_eff/q` vs recovery curve; the CRLB-vs-measured per-coordinate scatter.
 
-### Phase J2 — Three-worlds disambiguation (controls; run on Gen-G)
-- **World C (hallucination) detection — null-adapter controls:** replace `Y` with (i) shuffled
-  adapters, (ii) matched-norm Gaussian noise, (iii) module-ablated adapter, (iv) progressively
-  smaller pieces of the adapter. If inversion *still* returns the right image → the prior is
-  hallucinating, not the adapter leaking.
-- **World B (decoder bottleneck) detection:** in regimes with large `σ_min` but failing recon, swap
-  in a stronger inverter (multi-init; the model-based `run_ntk_extraction` from `ntk_extraction.py`
-  instead of naive SVD; more optimization).
-- **Deliverable:** an A/B/C label per regime with the control evidence table.
+### Phase J2 — Multi-knob phase diagram (defeats the "large N just trains differently" objection)
+- Cells over `(N, r, L)` — dataset size × LoRA rank × adapted-module set — chosen so `dρ` and
+  `q=Nk` move in *different* combinations.
+- Per cell: `q`, `σ(J_full)`, `q_eff`, recovery/recon quality.
+- **Two sweeps: fixed epochs AND fixed gradient steps.** Survives both ⇒ much stronger.
+- **Test:** do reconstruction boundaries follow the **spectral (`q_eff`) boundary**, not `N`, `r`, or
+  parameter count independently? A joint multi-knob collapse surface is hard to fake.
 
-### Phase J3 — The "remembers vs forgets" figure (`v_min`/`v_max`)
-- SVD `J_full = UΣVᵀ`; take `v_min` (weakest right-singular direction) and `v_max`. Perturb
-  `z' = z ± ε v`, render via `g`, retrain both datasets, measure adapter movement `‖ΔY‖` vs image
-  movement `‖Δx‖`.
-- **Expected:** `v_min` = large image change, near-zero adapter change (LoRA *forgets*); `v_max` =
-  comparable image change, huge adapter change (LoRA *remembers*).
-- **Deliverable:** the thesis figure — "a private-data change LoRA remembers" beside "one it forgets".
+### Phase J3 — Disjoint-adapter control (the sharpest World-C test)
+- True private set `X_A → Y_A`; a **tightly matched, disjoint** set `X_B → Y_B` (same domain, class
+  distribution, size, hyperparameters, generator `g`); plus `Y_null` (shuffle / matched-norm noise /
+  module-ablated).
+- Run the *same* attack intended to recover `X_A`, from each of `Y_A`, `Y_B`, `Y_null`.
+- **Quantify:** `Δ_adapter = Q(X̂(Y_A), X_A) − Q(X̂(Y_B), X_A)` with `Q ∈ {LPIPS, CLIP, DINO}`
+  correspondence. Claim survives only if `Δ_adapter > 0` significantly:
+  *the correct adapter provides information about its own images above what the same prior yields from
+  an unrelated adapter* — the reconstruction-vs-prior-generation distinction the thesis needs.
 
-### Phase J4 — Staged Jacobians: localize the activation effect
-- Compute `J_grad = ∂∇_θL/∂z` (reuse/extend `gate_matrix_test.py`), `J_LoRA-step` (one-step
-  adapter), and `J_full`, for the ReLU-family `{relu, leaky, softplus, selu}` vs the self-gated
-  family `{gelu, silu, mish}`.
-- **Question:** where does the spectrum collapse per activation — gradient stage, LoRA-observation
-  stage, or full? Connect to the measured Addition-2 activation ranking.
-- **Deliverable:** an activation × stage spectral table; localizes "GELU fails" to a stage.
+### Phase J4 — The whitened `v_min`/`v_max` figure (the thesis picture)
+- SVD of **`J_SNR`** (not raw `J`); take `v_min`, `v_max`. Perturb `a` along each, render via `U_k`,
+  retrain, compare adapter movement to the **seed-noise ellipsoid**.
+- **Captions become privacy statements:** `v_min` = "these two private datasets differ substantially,
+  yet the difference they induce in the released adapter is smaller than ordinary training
+  variability"; `v_max` = "this equally sized private change produces a highly reproducible adapter
+  signature."
 
-### Phase J5 — Scale & realism (ViT-B / SD LoRA)
-- **Spectrum at scale via Stochastic Lanczos Quadrature** (Ghorbani ICML'19; PyHessian; google
-  `spectral-density`): `σ_min`/spectral density of `J_fullᵀ J_full` matrix-free, using JVP/VJP
-  (forward-over-reverse) through the unroll — never forming `J_full`.
-- **Confounds:**
-  - *Local vs global:* invert from `z*+small noise` (should track `J_full`) vs random init (global,
-    harder). Local-success/global-failure ⇒ theory intact, optimization is the wall.
-  - *Seed vs signal:* compare data signal `‖E[Y|X+δX] − E[Y|X]‖` against training noise
-    `√E‖Y − E[Y|X]‖²` across seeds. If minibatch-order variance dominates one-image-change variance,
-    deterministic `J_full` overstates usable leakage.
-- **Bridge as restricted inverse:** measure `rank(∂Y/∂z)` on the gradient manifold vs the ambient
-  full-gradient null space; `rank ≈ Nk` despite large ambient null space = direct evidence.
-- **Deliverable:** does the toy story transfer to real adapters?
+### Phase J5 — Staged Jacobians + quantitative bridge decomposition
+- Along `a → ∇_θL → Y → D(Y) → X̂`, measure whitened tangent survival at each stage:
+  `J_G=∂∇_θL/∂a` (reuse `gate_matrix_test.py`), `J_Y=∂Y/∂a`, `J_{D∘Y}=∂D(Y)/∂a`.
+- **Activation localization:** for ReLU-family vs self-gated (GELU/SiLU/Mish), find the stage where
+  `q_eff` collapses — gradient stage (`J_G`) vs LoRA-observation stage (`J_Y`). Gives the measured
+  activation ranking a mechanism.
+- **Bridge diagnosis (rigorous via data-processing inequality):** `D(Y)` cannot raise `I(a;·)` above
+  `I(a;Y)`. So if `J_Y` has private directions below the noise floor but `D(Y)` "looks like a full
+  gradient" in those directions, the bridge is **filling from its learned prior** (gradient-level
+  hallucination). If all tangent directions already survive in `J_Y`, the bridge is decoding genuine
+  LoRA information. Either outcome is a headline result.
+
+### Phase J6 — Scale, realism, and the step to whole images
+- `σ(J_SNR)` spectral density at ViT-B/SD scale via **SLQ** (JVP+VJP through the unroll; never form
+  `J`).
+- **Local vs global:** invert from `a*+noise` (tracks `J_SNR`) vs random init (global).
+- **From coordinates to images:** once coordinate recovery + the law hold, move outward to whole-image
+  reconstruction and check the same `q_eff` boundary governs it.
 
 ---
 
-## 4. Compute, tooling, existing infra
+## 4. Suggested order (the revised "next move")
 
-| Need | Approach | Existing infra |
+**Do NOT start with the giant `N×r×L` sweep.** First build the tiny system where the core law can be
+tested beyond ambiguity:
+`J0` (2–4 images, 4–16 tangent coords, 1 module, deterministic — verify `J` numerically, recover
+coordinates) → `J1` (add seeds, whiten, test CRLB / `q_eff`, sweep `ε`) → `J2` (`N,r,L` phase
+diagram, fixed-epochs + fixed-steps) → `J3` (disjoint-adapter control) → `J4` (whitened figure) →
+`J5` (staged + bridge) → `J6` (scale + whole images). If `J0/J1` light up, we have a *measurable law
+of when fine-tuning remembers private data*, not just a story around the attack.
+
+---
+
+## 5. Metrics
+- **Spectral:** `σ_i(J)`, `σ_i(J_SNR)`, `q_eff(ε)`, condition, effective rank; `rank_eff(J_g)`.
+- **Coordinate recovery:** per-coordinate error vs CRLB; fraction recovered vs `q_eff/q`.
+- **Image recon (later):** LPIPS (primary), `ssim_norm`, retrieval/margin, NCC, CLIP/DINO
+  correspondence. **Clip-robust only** (sibling finding): print `clipped_fraction`, use `--pixel_box`.
+- **Control:** `Δ_adapter`; null-adapter recon similarity.
+
+---
+
+## 6. Tooling & existing infra
+
+| Need | Approach | Infra |
 |---|---|---|
-| Differentiable LoRA training | unrolled SGD, `create_graph=True`, GELU | `direct_inversion.py`, `lora_wrapper.py` |
-| `J_full` (toy) | `torch.func.jacrev`/`jacfwd`; fallback `autograd.grad` | new `jacobian_spectrum.py` |
-| `J_full` spectrum (scale) | SLQ / Lanczos on `JᵀJ` via JVP+VJP | PyHessian / google `spectral-density` |
-| Inversion attack | `min_z ‖Y−F(θ₀,g(z))‖²`; model-based extractor | `ntk_extraction.py`, `direct_inversion.py` |
-| `J_grad` / gate rank | staged Jacobian | `gate_matrix_test.py` |
-| Clip-robust metrics | LPIPS, ssim_norm, retrieval, NCC | `metrics.py`, `retrieval_metric.py` |
-| Linearized `J` (cheap approx) | NTK/anchor linearization to validate against | `ntk_verification.py`, anchor machinery |
+| Differentiable LoRA train | unrolled SGD, `create_graph`, GELU (not `modified_relu`) | `direct_inversion.py`, `lora_wrapper.py` |
+| `J = ∂Y/∂a` | `torch.func.jacrev`/`jacfwd`; fallback `autograd.grad` | new `experiments/jacobian_spectrum.py` |
+| `Σ_seed`, whitening | S-seed sample cov + Ledoit–Wolf shrinkage; `Σ^{-1/2}J` | new |
+| `σ(J_SNR)` at scale | SLQ / Lanczos on `J_SNRᵀJ_SNR` via JVP+VJP | PyHessian / google spectral-density |
+| Coordinate/image inversion | whitened LSQ (local) → model-based extractor | `ntk_extraction.py`, `direct_inversion.py` |
+| `J_G` / gate rank | staged Jacobian | `gate_matrix_test.py` |
+| Metrics | LPIPS, ssim_norm, retrieval, NCC | `metrics.py`, `retrieval_metric.py` |
 
-**Memory** (SimuDy needs 22GB/15h for 120 tiny imgs on full unroll): start toy; use gradient
-checkpointing; consider implicit differentiation (IFT) at convergence to avoid storing the unroll;
-use the linearized/NTK `J` as a cheap approximation to cross-check the exact one.
-
-**Always save** `.pth` (spectrum, `x_recon`, `x_true`, `x_ctrl`, adapters) + `.csv` per config; best
-AND worst reconstructions per config; ground-truth + control in every grid. New WEXAC script
-`scripts/run_jacobian_spectrum_wexac.sh` (CUDA, GELU, `python -u`). rsync before every submit.
-
----
-
-## 5. Baselines & related work
-
-- **SimuDy** (Tian et al., ICLR 2025; code `BlueBlood6/SimuDy`) — full-FT direct-inversion baseline;
-  adapt to LoRA. "Most training samples reconstructed from a trained ResNet."
-- **Belrose training-Jacobian** (2412.07003) — methodology anchor; cite as the init-Jacobian
-  analog; our contribution is the data-latent Jacobian + the leakage prediction.
-- **R2F gradient bridge** — the decoder that may lift the observed rank (test whether it extracts or
-  hallucinates, Phase J2/J5).
-- **MineGrad / PEFTLeak (CVPR'25 / AISTATS'26)** — *malicious-server* attacks; contrast, not
-  baseline — they don't answer the honest-checkpoint question.
-- **DSiRe / weight-space identity** — final-LoRA encodes dataset size / identity attributes
-  (properties, not exact recovery). *[citations need bib keys + verification — the reconstruction
-  claims in casual web sources are unreliable; use the peer-reviewed ones only.]*
-
----
-
-## 6. Falsifiable predictions (pre-register before running J1)
-
-- **P1.** `σ_min(J_full)` drops sharply as `N` crosses `N*(k,r)`; reconstruction LPIPS worsens at
-  the *same* `N*`.
-- **P2.** `N*(k,r)` increases with `r`, decreases with `k` (measure the law; don't assume `d/k`).
-- **P3.** Self-gated activations' spectrum collapses at an *earlier stage* (`J_grad`) than
-  ReLU-family (localizes the measured GELU-vs-ReLU gap).
-- **P4.** `v_min` perturbations are near-invisible to the adapter; `v_max` hyper-visible.
-- **P5.** In `σ_min`-collapsed (World-C-candidate) regimes, null-adapter controls *still* "recover"
-  → flags hallucination.
-
-Any of these failing is informative, not a loss — P1 failure = World B (a real result); P5 firing =
-World C (a real privacy caveat).
+**Memory:** toy-first; checkpointing; IFT at convergence; linearized/NTK `J` as a cheap cross-check.
+Save `.pth` (spectra, `J` or its SVD, `a_true`/`a_hat`, `x_*`, adapters) + `.csv` per config; best &
+worst; ground-truth + control in every grid. Script `scripts/run_jacobian_spectrum_wexac.sh` (CUDA,
+GELU, `python -u`). rsync before submit.
 
 ---
 
@@ -200,24 +194,26 @@ World C (a real privacy caveat).
 
 | Risk | Mitigation |
 |---|---|
-| Unroll memory blows up | toy-first; checkpointing; IFT; linearized `J` cross-check |
-| `torch.func` unavailable on `rec` env | fallback to `autograd.grad(create_graph=True)` (already used) |
-| Intrinsic-dim estimation ambiguity | control `k`, measure `rank(J_g)` — never estimate |
-| Metric artifact (clipping) | clip-robust metrics + `--pixel_box`; print `clipped_fraction` |
-| Non-transversality / bad conditioning | that IS the measurement — `σ_min` reports it honestly |
-| `J_full` too big for exact SVD | SLQ spectral density (Phase J5) |
+| `Σ_seed` from `S` seeds is rank ≤ `S−1` ≪ dim Y → `Σ^{-1/2}` ill-posed | Ledoit–Wolf shrinkage; restrict to top seed-noise subspace + a floor; **report `q_eff` over a range of the regularizer and `ε`** — small `σ(J_SNR)` are regularizer-sensitive |
+| Deterministic phase has no `Σ_seed` | J0 uses raw `σ_i(J)`; whitening enters at J1 when seeds added |
+| Linear-regime tautology | sweep `ε` past linear; test on nonlinear training + real inverter + whole images |
+| `S` too small to estimate `Σ_seed` vs signal | choose `S` so noise subspace is well-estimated before whitening; report `S` |
+| Unroll memory (SimuDy: 22GB/15h) | toy-first; checkpointing; IFT; linearized `J` |
+| Intrinsic-dim ambiguity | construct & measure `rank_eff(J_g)`; never estimate |
+| Metric artifact (clipping) | clip-robust metrics + `--pixel_box` |
 
 ---
 
-## 8. Suggested order & sizing
+## 8. Falsifiable predictions (pre-register before J1)
+- **P1.** Per-coordinate recovery error tracks CRLB `1/(ε σ_i(J_SNR))`; recoverable-coordinate count
+  ≈ `q_eff(ε)`.
+- **P2.** `q_eff/q` predicts overall recovery; recon collapses as `q_eff → q` from below.
+- **P3.** In the `(N,r,L)` diagram, recon boundaries follow the `q_eff` boundary, not `N`/`r`/param-
+  count — and survive both fixed-epoch and fixed-step sweeps.
+- **P4.** `Δ_adapter > 0` significantly (observation-specific information beyond the prior).
+- **P5.** Self-gated activations collapse `q_eff` at the gradient stage (`J_G`); ReLU-family later.
+- **P6 (bridge).** If `J_Y` misses directions but `D(Y)` shows them → prior hallucination (DPI);
+  if all survive in `J_Y` → genuine decoding.
 
-1. **J0** (differentiable pipeline + validated `J_full`) — days; the gate for everything.
-2. **J1** (core `σ_min`-vs-recon sweep, Gen-L) — the main result; toy sweeps ~1–2 weeks.
-3. **J2 + J3** in parallel (controls on Gen-G; the figure) — once J1 shows a transition.
-4. **J4** (staged Jacobians) — reuses J1 machinery; ties in the activation track.
-5. **J5** (scale + realism) — later, only after the toy story holds.
-
-**Decision gate after J1:** World A → push to scale (J5) and write the leakage paper. World B →
-pivot to "the info is there; the inverter is the open problem" (decoder/bridge focus). World C
-prominent → the honest-privacy contribution is "LoRA leakage claims must control for prior
-hallucination," itself publishable.
+Any failure is informative: P2 failure ⇒ World B; P4 failure or P6-hallucination ⇒ World C — both
+real results.

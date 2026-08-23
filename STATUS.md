@@ -126,11 +126,18 @@ intrinsic-dim estimate** (this resolves the "unvalidated d/k gain" audit flag �
 it). Local-vs-global and seed-vs-signal confounds flagged. Honest bottom line: the note does not prove
 ordinary LoRA leaks — it gives a mechanism + the experiment that decides it. Revision LaTeX (drop into
 Overleaf v4): `notes/identifiability_feasibility_revision.tex`.
-**PENDING — full experiment plan written: `notes/jacobian_leakage_experiment_plan.md`** (phases J0–J5:
-differentiable LoRA pipeline + exact J_full → the σ_min-vs-recon core sweep → three-worlds controls →
-v_min/v_max figure → staged Jacobians for activations → SLQ at ViT/SD scale). Grounded in Belrose et al.
-"Training Jacobian" (2412.07003, methodology anchor; our delta = data-latent Jacobian), SLQ/PyHessian
-(scale), SimuDy code (baseline). Not yet coded/submitted.
+**PENDING — full experiment plan (v2): `notes/jacobian_leakage_experiment_plan.md`.** Central quantity
+upgraded (supervisor refinement) from raw σ_min to the **seed-whitened Fisher Jacobian**
+J_SNR = Σ_seed^{-1/2} J and the **effective recoverable dimension** q_eff(ε)=#{i: ε·σ_i(J_SNR)>1};
+central law = per-coordinate recovery error tracks the **Cramér–Rao floor** 1/(ε σ_i(J_SNR)), recon
+collapses as q_eff/q→below 1 (data-processing inequality makes the bridge decode-vs-hallucinate test
+rigorous). First experiment is now **tangent-COORDINATE recovery** (hide Nk private numbers in realistic
+image variations, recover them), not whole images: J0 tiny deterministic testbed → J1 seeds+whiten+CRLB
+(sweep ε past the linear-regime tautology) → J2 (N,r,L) phase diagram (fixed-epochs AND fixed-steps) →
+J3 disjoint-adapter control (Δ_adapter) → J4 whitened v_min/v_max figure → J5 staged Jacobians + bridge
+decomposition → J6 scale/whole-images. k = measured rank_eff(J_g) via top-k well-conditioned singular
+dirs, never nominal latent width. Grounded in Belrose (2412.07003), SLQ/PyHessian, SimuDy code. Not yet
+coded/submitted.
 
 ### Identifiability theorem written up — rank(M) < N ⟹ training data non-recoverable (2026-08-20)
 Formal proof note: the first-layer weight signal factorizes as **Ω = G Xᵀ** (G = the gate matrix
