@@ -1,0 +1,364 @@
+=== START Sun Aug 23 02:14:49 PM IDT 2026 on hgn42.wexac.weizmann.ac.il ===
+#### softplus_b0.5 lr=0.005 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.029951 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.66e+01
+  NTK extraction epoch 0: ntk=4.6420e-01 verify=1.2611e-06
+  NTK extraction epoch 1000: ntk=4.6347e-01 verify=1.5933e-08
+  NTK extraction epoch 2000: ntk=4.6347e-01 verify=1.5933e-08
+#### softplus_b0.5 lr=0.01 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.059902 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.66e+01
+  NTK extraction epoch 0: ntk=1.8543e+00 verify=4.1551e-05
+  NTK extraction epoch 1000: ntk=1.8539e+00 verify=2.5916e-07
+  NTK extraction epoch 2000: ntk=1.8539e+00 verify=2.5916e-07
+#### softplus_b0.5 lr=0.02 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.119804 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.66e+01
+  NTK extraction epoch 0: ntk=7.4177e+00 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=7.4156e+00 verify=4.0881e-06
+  NTK extraction epoch 2000: ntk=7.4156e+00 verify=4.0881e-06
+#### softplus_b0.5 lr=0.05 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.299511 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.66e+01
+  NTK extraction epoch 0: ntk=4.6350e+01 verify=4.7419e-04
+  NTK extraction epoch 1000: ntk=4.6347e+01 verify=1.5582e-04
+  NTK extraction epoch 2000: ntk=4.6347e+01 verify=1.5582e-04
+#### softplus_b0.5 lr=0.1 ####
+  WARNING: effective lr*T*N=0.2000 > 0.1 — NTK may not hold
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.599022 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+  NTK Gram cond number: 3.66e+01
+  NTK extraction epoch 0: ntk=1.8539e+02 verify=2.2867e-03
+  NTK extraction epoch 1000: ntk=1.8539e+02 verify=2.2823e-03
+  NTK extraction epoch 2000: ntk=1.8539e+02 verify=2.2823e-03
+#### softplus_b1 lr=0.005 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.018943 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 9.16e+00
+  NTK extraction epoch 0: ntk=1.6701e-01 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=1.6701e-01 verify=0.0000e+00
+  NTK extraction epoch 2000: ntk=1.6701e-01 verify=0.0000e+00
+#### softplus_b1 lr=0.01 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.037887 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 9.16e+00
+  NTK extraction epoch 0: ntk=6.6803e-01 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=6.6803e-01 verify=0.0000e+00
+  NTK extraction epoch 2000: ntk=6.6803e-01 verify=0.0000e+00
+#### softplus_b1 lr=0.02 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.075774 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+  NTK Gram cond number: 9.16e+00
+  NTK extraction epoch 0: ntk=2.6721e+00 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=2.6721e+00 verify=0.0000e+00
+  NTK extraction epoch 2000: ntk=2.6721e+00 verify=0.0000e+00
+  NTK extraction epoch 3000: ntk=2.6721e+00 verify=0.0000e+00
+#### softplus_b1 lr=0.05 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.189434 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 9.16e+00
+  NTK extraction epoch 0: ntk=1.6701e+01 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=1.6701e+01 verify=0.0000e+00
+  NTK extraction epoch 2000: ntk=1.6701e+01 verify=0.0000e+00
+#### softplus_b1 lr=0.1 ####
+  WARNING: effective lr*T*N=0.2000 > 0.1 — NTK may not hold
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.378868 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 9.16e+00
+  NTK extraction epoch 0: ntk=6.6803e+01 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=6.6803e+01 verify=0.0000e+00
+#### softplus_b2 lr=0.005 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.016559 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 2.36e+00
+  NTK extraction epoch 0: ntk=1.0855e-01 verify=6.7347e-09
+  NTK extraction epoch 1000: ntk=1.0812e-01 verify=4.6702e-10
+  NTK extraction epoch 2000: ntk=1.0812e-01 verify=4.6702e-10
+#### softplus_b2 lr=0.01 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.033118 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 2.36e+00
+  NTK extraction epoch 0: ntk=4.3421e-01 verify=4.5887e-08
+  NTK extraction epoch 1000: ntk=4.3247e-01 verify=5.9003e-09
+  NTK extraction epoch 2000: ntk=4.3247e-01 verify=5.9003e-09
+#### softplus_b2 lr=0.02 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.066237 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 2.36e+00
+  NTK extraction epoch 0: ntk=1.7369e+00 verify=2.0564e-06
+  NTK extraction epoch 1000: ntk=1.7299e+00 verify=9.4977e-08
+  NTK extraction epoch 2000: ntk=1.7299e+00 verify=9.4977e-08
+#### softplus_b2 lr=0.05 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.165592 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 2.36e+00
+  NTK extraction epoch 0: ntk=1.0842e+01 verify=1.0278e-04
+  NTK extraction epoch 1000: ntk=1.0812e+01 verify=3.6994e-06
+  NTK extraction epoch 2000: ntk=1.0812e+01 verify=3.6994e-06
+#### softplus_b2 lr=0.1 ####
+  WARNING: effective lr*T*N=0.2000 > 0.1 — NTK may not hold
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.331183 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 2.36e+00
+  NTK extraction epoch 0: ntk=4.3333e+01 verify=3.0131e-03
+  NTK extraction epoch 1000: ntk=4.3246e+01 verify=5.9177e-05
+#### softplus_b5 lr=0.005 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.030450 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 2.21e+00
+  NTK extraction epoch 0: ntk=3.4516e-01 verify=2.7206e-05
+  NTK extraction epoch 1000: ntk=3.4333e-01 verify=6.4198e-09
+  NTK extraction epoch 2000: ntk=3.4333e-01 verify=6.4198e-09
+#### softplus_b5 lr=0.01 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.060900 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 2.21e+00
+  NTK extraction epoch 0: ntk=1.3806e+00 verify=4.3697e-06
+  NTK extraction epoch 1000: ntk=1.3733e+00 verify=1.0376e-07
+  NTK extraction epoch 2000: ntk=1.3733e+00 verify=1.0376e-07
+#### softplus_b5 lr=0.02 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.121800 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 2.21e+00
+  NTK extraction epoch 0: ntk=5.5204e+00 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=5.4933e+00 verify=1.6567e-06
+  NTK extraction epoch 2000: ntk=5.4933e+00 verify=1.6567e-06
+#### softplus_b5 lr=0.05 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.304500 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 2.21e+00
+  NTK extraction epoch 0: ntk=3.4474e+01 verify=1.7542e-03
+  NTK extraction epoch 1000: ntk=3.4333e+01 verify=6.4669e-05
+  NTK extraction epoch 2000: ntk=3.4333e+01 verify=6.4669e-05
+#### softplus_b5 lr=0.1 ####
+  WARNING: effective lr*T*N=0.2000 > 0.1 — NTK may not hold
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.609000 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+  NTK Gram cond number: 2.21e+00
+  NTK extraction epoch 0: ntk=1.3775e+02 verify=2.5226e-03
+  NTK extraction epoch 1000: ntk=1.3733e+02 verify=1.0297e-03
+  NTK extraction epoch 2000: ntk=1.3733e+02 verify=1.0297e-03
+#### softplus_b10 lr=0.005 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.034405 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.83e+00
+  NTK extraction epoch 0: ntk=4.4023e-01 verify=1.8772e-06
+  NTK extraction epoch 1000: ntk=4.3639e-01 verify=2.0681e-08
+  NTK extraction epoch 2000: ntk=4.3639e-01 verify=2.0681e-08
+#### softplus_b10 lr=0.01 ####
+=== START Sun Aug 23 16:51:12 IDT 2026 on hgn40.wexac.weizmann.ac.il ===
+#### softplus_b0.5 lr=0.005 ####
+#### softplus_b0.5 lr=0.01 ####
+#### softplus_b0.5 lr=0.02 ####
+#### softplus_b0.5 lr=0.05 ####
+#### softplus_b0.5 lr=0.1 ####
+#### softplus_b1 lr=0.005 ####
+#### softplus_b1 lr=0.01 ####
+#### softplus_b1 lr=0.02 ####
+#### softplus_b1 lr=0.05 ####
+#### softplus_b1 lr=0.1 ####
+#### softplus_b2 lr=0.005 ####
+#### softplus_b2 lr=0.01 ####
+#### softplus_b2 lr=0.02 ####
+#### softplus_b2 lr=0.05 ####
+#### softplus_b2 lr=0.1 ####
+#### softplus_b5 lr=0.005 ####
+#### softplus_b5 lr=0.01 ####
+#### softplus_b5 lr=0.02 ####
+#### softplus_b5 lr=0.05 ####
+#### softplus_b5 lr=0.1 ####
+#### softplus_b10 lr=0.005 ####
+#### softplus_b10 lr=0.01 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.068809 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+  NTK Gram cond number: 3.83e+00
+  NTK extraction epoch 0: ntk=1.7600e+00 verify=5.0100e-05
+  NTK extraction epoch 1000: ntk=1.7455e+00 verify=3.2828e-07
+  NTK extraction epoch 2000: ntk=1.7455e+00 verify=3.2828e-07
+  NTK extraction epoch 3000: ntk=1.7455e+00 verify=3.2828e-07
+#### softplus_b10 lr=0.02 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.137618 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+  NTK Gram cond number: 3.83e+00
+  NTK extraction epoch 0: ntk=7.0399e+00 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=6.9821e+00 verify=5.2440e-06
+  NTK extraction epoch 2000: ntk=6.9821e+00 verify=5.2440e-06
+  NTK extraction epoch 3000: ntk=6.9821e+00 verify=5.2440e-06
+#### softplus_b10 lr=0.05 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.344046 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.83e+00
+  NTK extraction epoch 0: ntk=4.3882e+01 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=4.3638e+01 verify=2.0428e-04
+  NTK extraction epoch 2000: ntk=4.3638e+01 verify=2.0428e-04
+#### softplus_b10 lr=0.1 ####
+  WARNING: effective lr*T*N=0.2000 > 0.1 — NTK may not hold
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.688092 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.83e+00
+  NTK extraction epoch 0: ntk=1.7539e+02 verify=3.5694e-02
+  NTK extraction epoch 1000: ntk=1.7455e+02 verify=3.2357e-03
+#### softplus_b50 lr=0.005 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.046709 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.96e+00
+  NTK extraction epoch 0: ntk=8.0781e-01 verify=0.0000e+00
+  NTK extraction epoch 1000: ntk=7.9807e-01 verify=3.1983e-07
+  NTK extraction epoch 2000: ntk=7.9807e-01 verify=3.1983e-07
+#### softplus_b50 lr=0.01 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.093418 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.96e+00
+  NTK extraction epoch 0: ntk=3.2308e+00 verify=5.8067e-05
+  NTK extraction epoch 1000: ntk=3.1946e+00 verify=3.6791e-06
+  NTK extraction epoch 2000: ntk=3.1946e+00 verify=3.6791e-06
+#### softplus_b50 lr=0.02 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.186837 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.96e+00
+  NTK extraction epoch 0: ntk=1.2924e+01 verify=1.1914e-03
+  NTK extraction epoch 1000: ntk=1.2778e+01 verify=5.8650e-05
+  NTK extraction epoch 2000: ntk=1.2778e+01 verify=5.8650e-05
+#### softplus_b50 lr=0.05 ####
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.467091 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+  NTK Gram cond number: 3.96e+00
+  NTK extraction epoch 0: ntk=8.0709e+01 verify=1.2796e-02
+  NTK extraction epoch 1000: ntk=7.9861e+01 verify=2.3150e-03
+  NTK extraction epoch 2000: ntk=7.9861e+01 verify=2.3150e-03
+  NTK extraction epoch 3000: ntk=7.9861e+01 verify=2.3150e-03
+#### softplus_b50 lr=0.1 ####
+  WARNING: effective lr*T*N=0.2000 > 0.1 — NTK may not hold
+  [LoRA r=8] NTK smoke test: FAIL
+    weight_change=0.934183 (threshold <0.01)
+    WARNING: NTK regime NOT satisfied. Results may be unreliable.
+/home/projects/galvardi/yoado/experiments/ntk_verification.py:220: UserWarning: torch.linalg.svd: During SVD computation with the selected cusolver driver, batches 0 failed to converge. A more accurate method will be used to compute the SVD as a fallback. Check doc at https://pytorch.org/docs/stable/generated/torch.linalg.svd.html (Triggered internally at ../aten/src/ATen/native/cuda/linalg/BatchLinearAlgebraLib.cpp:697.)
+  NTK Gram cond number: 3.96e+00
+  NTK extraction epoch 0: ntk=3.2262e+02 verify=7.7148e-02
+  NTK extraction epoch 1000: ntk=3.1939e+02 verify=3.7972e-02
+=== DONE Sun Aug 23 18:31:37 IDT 2026 ===
+
+------------------------------------------------------------
+Sender: LSF System <DoNotReply>
+Subject: Job 911475: <crux_softplusb> in cluster <wexac> Done
+
+Job <crux_softplusb> was submitted from host <login3> by user <yoado> in cluster <wexac> at Sun Aug 23 14:14:37 2026
+Job was executed on host(s) <hgn40>, in queue <short-gpu>, as user <yoado> in cluster <wexac> at Sun Aug 23 16:51:03 2026
+</home/projects/galvardi/yoado> was used as the home directory.
+</home/projects/galvardi/yoado> was used as the working directory.
+Started at Sun Aug 23 16:51:03 2026
+Terminated at Sun Aug 23 18:31:37 2026
+Results reported at Sun Aug 23 18:31:37 2026
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+#!/bin/bash
+#BSUB -q short-gpu
+#BSUB -R "rusage[mem=32768] select[ngpus>0 && hname!='hgn46']"
+#BSUB -gpu "num=1"
+#BSUB -o scripts/wexac_logs/crux_softplusb_%J.out
+#BSUB -e scripts/wexac_logs/crux_softplusb_%J.err
+#BSUB -J crux_softplusb
+# THE CRUX's decisive missing test: softplus_b(beta) = a clean smooth->kinked knob (beta 0.5 smoothest
+# -> beta 50 ~= relu), everything else fixed. beta x LR grid at T=1 -> matched-weight_change analysis of
+# lin-error / NTK-survival / leakage vs smoothness on a CONTROLLED axis (not confounded activation identity).
+source /apps/easybd/programs/miniconda/24.11_environmentally/etc/profile.d/conda.sh
+conda activate /home/projects/galvardi/yoado/.conda/envs/rec
+cd /home/projects/galvardi/yoado
+export PYTHONPATH="/home/projects/galvardi/yoado/dataset_reconstruction:$PYTHONPATH"
+echo "=== START $(date) on $(hostname) ==="
+for BETA in 0.5 1 2 5 10 50; do
+  for LR in 0.005 0.01 0.02 0.05 0.1; do
+    echo "#### softplus_b${BETA} lr=${LR} ####"
+    python -u -m experiments.run_experiment_b \
+      --n_steps 1 --rank 8 --seed 42 --lr ${LR} \
+      --finetune_activation softplus_b${BETA} \
+      --no_baseline --save_results --skip_if_exists --device cuda 2>&1 | \
+      grep -iE "weight.?change|lin.?error|feature.?stab|margin|ntk|ssim_norm" | head -8
+  done
+done
+echo "=== DONE $(date) ==="
+
+------------------------------------------------------------
+
+Successfully completed.
+
+Resource usage summary:
+
+    CPU time :                                   14847.32 sec.
+    Max Memory :                                 869 MB
+    Average Memory :                             722.84 MB
+    Total Requested Memory :                     32768.00 MB
+    Delta Memory :                               31899.00 MB
+    Max Swap :                                   -
+    Max Processes :                              7
+    Max Threads :                                12
+    Run time :                                   6036 sec.
+    Turnaround time :                            15420 sec.
+
+The output (if any) is above this job summary.
+
+
+
+PS:
+
+Read file <scripts/wexac_logs/crux_softplusb_911475.err> for stderr output of this job.
+

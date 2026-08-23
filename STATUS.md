@@ -54,6 +54,14 @@ MATCHED weight_change (wc is a confound).
   the confound of activation identity. Also open: feature_stability-vs-T (the "stays accurate over MORE T"
   clause is untested — all matched-wc data is T=1); flowers matched-wc band (needs --target_weight_change).
 
+- **softplus_b(β) knob RESULT (job 911475) — CONFIRMS smoothness→linearization on the controlled axis.**
+  LoRA function-space lin-error at matched weight_change (wc=0.10), β up = sharper→ReLU: β=1 **0.032** (best)
+  < β=0.5 0.071 ≈ β=2 0.069 < β=5 0.106 < β=10 0.142 < β=50 **0.381** (≈ReLU, 12× worse). MONOTONIC in
+  sharpness with a genuine sweet spot at β=1 (β=0.5 too flat is slightly worse). Isolates the mechanism
+  without the activation-identity confound: **smoothness → faithful (linearizable) fine-tuning is CONFIRMED**;
+  only the downstream 'linearization → leakage magnitude' link stays refuted. Figure:
+  figures/crux/softplusb_linearization.png.
+
 ## MineGrad (AISTATS 2026) teardown + bridge re-plan (2026-08-21)
 
 Read *MineGrad: Gradient Inversion Attacks on LoRA Fine-Tuning* (Sami, Sen, Güler; arXiv 2608.01521;
