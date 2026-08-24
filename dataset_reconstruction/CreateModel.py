@@ -18,6 +18,12 @@ def get_activation(activation, model_relu_alpha):
         return nn.LeakyReLU()
     elif activation == 'gelu':
         return nn.GELU()          # native double-backward — required for the exact Jacobian
+    elif activation == 'softplus':
+        return nn.Softplus()      # smooth ReLU (beta=1); double-backward-clean
+    elif activation.startswith('softplus_b'):
+        # softplus_b<beta>: the smooth<->kinked knob (beta->inf ~ ReLU). Matches
+        # jacobian_spectrum/run_experiment_b make_activation naming for the crux bridge.
+        return nn.Softplus(beta=float(activation[len('softplus_b'):]))
 
 
 class Flatten(nn.Module):
