@@ -298,6 +298,33 @@ def unrolled_lora_AB(frozen, b0, B0, x, y, lr, T, scaling, act,
     return A, B
 
 
+@torch.no_grad()
+def finetune_metrics(frozen, b0, A, B, x, y, scaling, act, target_layers,
+                     x_held=None, y_held=None):
+    """R4 always-on metrics for a fine-tuned adapter (audit: measure, don't assume).
+
+    Returns per-sample BCE on the private set (the MEMORIZATION signal — "it
+    should help memorize the images"), private-set accuracy, and — if held-out
+    data is given — the composed model's held-out accuracy (does it generalize or
+    just memorize?). NB: value-only, so torch.no_grad is fine here (unlike the
+    unrolled forward, which contains an autograd.grad).
+    """
+    logits = _partial_lora_forward(frozen, A, B, b0, x, scaling, act,
+                                   target_layers).view(-1)
+    per_sample_bce = F.binary_cross_entropy_with_logits(
+        logits, y, reduction='none')                     # [N] memorization
+    priv_acc = ((logits > 0).double() == y).double().mean().item()
+    out = {'per_sample_bce': per_sample_bce.detach().cpu(),
+           'mean_bce': per_sample_bce.mean().item(),
+           'max_bce': per_sample_bce.max().item(),
+           'private_acc': priv_acc}
+    if x_held is not None and y_held is not None:
+        hlog = _partial_lora_forward(frozen, A, B, b0, x_held, scaling, act,
+                                     target_layers).view(-1)
+        out['held_acc'] = ((hlog > 0).double() == y_held).double().mean().item()
+    return out
+
+
 def build_ab_index(frozen, B0, target_layers):
     """Fixed A-then-B, ascending-layer flatten layout. Returns list of
     (kind, layer, shape) for provenance / unflatten."""
