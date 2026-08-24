@@ -1099,12 +1099,19 @@ def run_h2(N=2, k=8, T=5, rank=8, tangent='pca', activation='gelu', device='cuda
         a_nl, l_nl = (a_loc, l_loc) if l_loc <= l_glob else (a_glob, l_glob)
         nl_null = ((a_nl - a_true) @ v_min).abs().item() / (eps + 1e-30)
         rel_loss = (l_nl ** 0.5) / dY_scale
+        # Verdict (yoado-15): a WIN requires nonlinear to beat a GENUINELY-FAILED
+        # linear (relative + gated), not just the optimizer converging. Absolute
+        # nl<thr fires spuriously whenever Adam converges. Since here linear is
+        # never blind (no hard null), the corrected criterion ~never fires — which
+        # is the CORRECT answer for this ill-conditioned (not rank-deficient) regime.
         if rel_loss > 0.1:
-            verdict = 'optimizer-failure'
-        elif nl_null < 0.15:
-            verdict = 'NONLINEAR-WIN'
+            verdict = 'optimizer-failure'      # Y not matched — inconclusive
+        elif lin_null < 0.3:
+            verdict = 'both-recover(no-null)'  # linear already got it; no ceiling
+        elif nl_null < 0.5 * lin_null:
+            verdict = 'NONLINEAR-WIN'          # nl beats a failed linear
         else:
-            verdict = 'collision(Y=,a≠)'
+            verdict = 'collision(Y=,a≠)'       # Y-match, both miss ⇒ non-identifiable
         loc_better = 'yes' if l_loc <= l_glob else 'no'
         print(f"[H2] {eps:6g} {lin_null:12.3e} {nl_null:12.3e} {rel_loss:10.3e} "
               f"{verdict:>22s} {loc_better:>9s}")

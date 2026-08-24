@@ -364,12 +364,25 @@ cannot be tested deterministically — it belongs to the noisy (SGD/whitening) r
 `NONLINEAR-WIN` label over-fires — it checks only `nl_null_err<0.15`, not `nl < lin`; read the raw
 lin/nl columns.)
 
-**Net:** both H1 and H2 **CONFIRM** the collinearity as a genuine property of on-manifold directions
-through a single small LoRA module — it is NOT a PCA-basis artifact (H1) and there is no hard-null for
-nonlinearity to exploit (H2). The user's two hypotheses were exactly the right tests; testing them
-validates rather than dissolves the wall. The remaining legitimate escapes are the ones the literature
-uses: **more measurements** (J2/H5 — rank, #modules L, width) or **a prior**. Next: J2/H5 capacity
-sweep, and the noisy-regime q_eff (SGD phase) where a real ceiling exists to test H2 against.
+**H2 scoping (precise, yoado-15).** "No hard null" is for THESE configs (svd/pca, N=2 k8): the
+collinearity is **ill-conditioning** (tiny-but-nonzero σ), not exact rank-deficiency. In the
+DETERMINISTIC noiseless setting linear pinv recovers even the tiny-σ coordinate (lin_null_err ~1e-10),
+so nonlinearity has nothing to rescue. The real lesson is NOT "nonlinear didn't help" but: **without
+noise, collinear directions are still (numerically) recoverable → the entire privacy question is the
+NOISE FLOOR relative to the σ-spectrum → the SGD regime is the sole decider.** (Verdict criterion
+corrected to relative+gated: WIN iff nl_null < 0.5·lin_null AND lin_null > 0.3; it then ~never fires
+here, the correct answer.)
+
+**Synthesis (H1+H2 together).** The collinearity is **INTRINSIC to the data→adapter map** —
+basis-invariant (H1: survives genuinely different tangent subspaces, because ∂Y/∂x collapses them into
+the same col(J)) and not a first-order artifact (H2: no hard null, it is smooth ill-conditioning). The
+private set's inter-image separability is genuinely bottlenecked by the network Jacobian itself; what
+remains open is purely QUANTITATIVE: does ordinary SGD noise bury the small-but-nonzero σ_i?
+
+**Net + forward note.** The remaining legitimate escapes are the literature's: **more measurements**
+(J2/H5 — rank, #modules L, width) or **a prior**. Because leakage = how many σ_i clear the SGD noise
+floor, **J2/SGD must report the σ-SPECTRUM DECAY SHAPE alongside q_eff**, not just the scalar — the
+decay rate × the noise level sets the number.
 
 **Scope of the invariance result (job 993396):** "recombining coordinates can't beat `col(J)`" is a
 **linear, fixed-subspace, fixed-map** statement. H1 (different subspace), H2 (nonlinear), H3/H5
