@@ -16,6 +16,8 @@ def get_activation(activation, model_relu_alpha):
         return nn.Tanh()
     elif activation == 'leakyrelu':
         return nn.LeakyReLU()
+    elif activation == 'gelu':
+        return nn.GELU()          # native double-backward — required for the exact Jacobian
 
 
 class Flatten(nn.Module):

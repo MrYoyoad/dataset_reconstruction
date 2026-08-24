@@ -252,18 +252,21 @@ def _draw_B0(frozen, rank, target_layers, seed, device='cpu'):
 def _partial_lora_forward(frozen, A, B, b0, x, scaling, act, target_layers):
     """Forward of the MLP with LoRA on ``target_layers`` only.
 
-    Mirrors direct_inversion._lora_forward but leaves non-target layers as plain
-    frozen linears. Layer 0 carries the (frozen) bias; layers 1,2 are bias-free.
+    Generalized to ANY layer count (audit: the old `for l in (0,1,2)` silently
+    dropped layers 3+ on the CIFAR "monster" net → wrong θ_T/J/accuracy, no crash).
+    Layer 0 carries the (frozen) bias; deeper layers are bias-free; activation
+    after every layer except the last (a raw logit out).
     """
+    n_layers = len(frozen)
     h = x.view(x.shape[0], -1)
-    for l in (0, 1, 2):
+    for l in range(n_layers):
         if l in target_layers:
             w = frozen[l] + scaling * (B[l] @ A[l])
         else:
             w = frozen[l]
         bias = b0 if l == 0 else None
         h = F.linear(h, w, bias)
-        if l < 2:
+        if l < n_layers - 1:
             h = act(h)
     return h
 

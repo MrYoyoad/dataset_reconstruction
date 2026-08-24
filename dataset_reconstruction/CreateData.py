@@ -8,6 +8,9 @@ def setup_problem(args):
     elif args.problem == 'mnist_odd_even':
         from problems.mnist_odd_even import get_dataloader
         return get_dataloader(args)
+    elif args.problem == 'fashion_odd_even':
+        from problems.fashion_odd_even import get_dataloader
+        return get_dataloader(args)
     elif args.problem == 'flowers102_parity':
         from problems.flowers102_parity import get_dataloader
         return get_dataloader(args)
