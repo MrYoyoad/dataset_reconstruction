@@ -1,8 +1,21 @@
-# Handover — 2026-08-23 19:40
+# Handover — 2026-08-24 (updated)
+
+## TOP OF QUEUE (2026-08-24): test open hypotheses H1–H5 BEFORE more J2/SGD work
+The Gen-L "on-manifold → collinearity" results are **provisional/basis-dependent** (PCA-top-k +
+linear recovery). New hypotheses in **plan Part 6** move upstream. Revised order:
+**H1 (discriminative tangents — PCA-tail / private-set-difference / residual; PCA is collinear by
+construction) → H2 (nonlinear `direct_inversion` recovery vs ε — beat the first-order q_eff ceiling?)
+→ SGD-noise phase → J2.** H1 is the cheapest, most likely to overturn the wall (drop-in
+`build_tangents` mode). Also H3 (fuse J across anchors/draws), H4 (sequential peeling), H5 (width).
+See STATUS.md "Open hypotheses H1–H5" for the caveat on which metrics are invariant vs basis-dependent.
+
+Later in the queue (was the prior top task): the SGD/minibatch-noise phase (below) — still needed for a
+real q_eff, but run it on the RIGHT basis (post-H1) with the RIGHT recovery (post-H2).
 
 ## State
 Branch `step1-activation-rescore-retrieval`, pushed to `myfork`. Jacobian-spectrum program: **J0 AND J1
-both built, validated, complete** (jobs 982855, 983139). AD exact (toy FD 5.9e-10, jvp-vs-reverse
+both built, validated, complete** (jobs 982855, 983139); plus robustness sweep (989194) and
+coord-transform (993396). AD exact (toy FD 5.9e-10, jvp-vs-reverse 3.5e-18; MNIST FD 3.9e-9). AD exact (toy FD 5.9e-10, jvp-vs-reverse
 3.5e-18; MNIST FD 3.9e-9). **Findings — see STATUS.md "Phase J1 COMPLETE" (three, in order of correction):**
 (1) the J0 "N=4 collapse" is largely T=5 UNDERFITTING (eff_rank climbs 9.3→12.7 over T=5→50);
 (2) the "0.1% J-energy overlap = init noise orthogonal to J" reading was a DIMENSIONALITY ARTIFACT —

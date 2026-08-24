@@ -1,6 +1,27 @@
 # Project Status
 
-Last updated: **2026-08-23** (Phase J0 of the Jacobian-spectrum program implemented + submitted; prior update 2026-08-21 MineGrad re-plan)
+Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
+
+---
+
+## Open hypotheses H1–H5 + PROVISIONAL status of the collinearity results (2026-08-24)
+
+New research directions documented in **notes/jacobian_leakage_experiment_plan.md Part 6** (test before
+building further): **H1** discriminative tangents (PCA is collinear *by construction* — it captures the
+population common-denominator, the least-private directions; use PCA-tail / private-set-difference /
+residual instead); **H2** nonlinear recovery beyond first order (all current metrics are linear-`J`; the
+true map can be injective where `J` is rank-deficient — test the real `direct_inversion` inverter vs ε);
+**H3** multi-point measurement fusion (stack `J` across anchors/draws — different null spaces raise
+effective rank); **H4** conditioning-aware sequential peeling; **H5** network width as a capacity axis.
+
+**⚠ Caveat on all collinearity results below:** everything was measured with **random or PCA-top-k
+tangents** and **linear (pinv) recovery**, so the "on-manifold → collinearity limits recovery" headline
+is **provisional and basis-dependent** — it may be a PCA-shared-mode + first-order artifact. `q_eff` and
+`eff_rank` are basis-dependent, first-order proxies (necessary, not sufficient); `hard_rank(col J)` and
+`iso_ratio` are the reparametrization-invariant quantities. H1 (discriminative basis) and H2 (nonlinear
+inverter) are UPSTREAM of J2/SGD-noise and could dissolve the wall or prove it fundamental — run them
+first. The AD machinery, col(J)-restricted whitening, and the methodological lessons are unaffected.
+Revised near-term order: **H1 → H2 → SGD-noise phase → J2.**
 
 ---
 

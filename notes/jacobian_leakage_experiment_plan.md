@@ -303,6 +303,60 @@ Any failure is informative: P2 failure ⇒ World B; P4 failure or P6-hallucinati
 
 ---
 
+## Part 6 — Open hypotheses to test (added 2026-08-24)
+
+Motivation: the current headline result ("on-manifold PCA tangents → collinear `J` → low
+recoverability", jobs 988588/989194) may be an artifact of **the basis (PCA)** and of measuring only
+the **first-order (linear) map `J`**. These five hypotheses are the concrete escapes; none is a
+generative prior — all use information already present. **They move UPSTREAM of J2–J6:** if H1/H2 change
+what `q_eff`/`eff_rank` mean, the capacity sweep and SGD-noise phase must be run on the right basis with
+the right recovery. Suggested order: **H1 → H2 → (SGD-noise phase) → J2**, with H3/H5 as capacity axes.
+
+- **H1 — Discriminative tangents, not PCA.** PCA-top-k are the directions of maximum *population*
+  variance = the common denominator across images; they are collinear **by construction** (all images
+  move the same way → parallel adapter responses) and are the *least* private directions. Test
+  discriminative bases instead: PCA **tail** (image-specific, higher-freq); PCA of the **private set's
+  own mutual differences** (the directions that distinguish the N private images); residual after
+  removing the top shared modes; LDA-style between/within. These span a **different image-space
+  subspace** than PCA-top-k, so `col(J)` genuinely changes (NOT the invariance no-op of job 993396),
+  and they are the genuinely privacy-relevant object. Hypothesis: collinearity drops and recoverability
+  rises. **Drop-in `build_tangents` mode; cheapest test most likely to overturn the current
+  conclusion.**
+- **H2 — Nonlinear recovery beyond first order.** `q_eff`, `eff_rank`, and the invariance argument are
+  all *first-order* (properties of the linear `J`). The true map `a↦Y` is nonlinear and can be
+  injective where `J` is rank-deficient (e.g. `Y ~ (a·v)²` recovers `|a·v|` though `Jv=0`). Test the
+  real `direct_inversion` nonlinear optimizer against a collinear (pca-top) config across a range of ε;
+  check whether it recovers past the linear `q_eff` ceiling (especially at larger ε, out of the linear
+  regime — the plan's honesty caveat already anticipated this).
+- **H3 — Multi-point measurement fusion.** Different work points (anchors α, B0 draws, widths) give
+  `J`'s with *different* null spaces. **Fuse** them — stack `J(α₀), J(α₁), …` as complementary
+  measurements — to raise the effective rank, since their blind spots don't coincide. (Currently
+  anchors are used only as robustness checks, not combined.) The honest analog of the full-gradient
+  papers' extra measurements.
+- **H4 — Conditioning-aware sequential peeling.** Instead of one linear solve over all `Nk`
+  coordinates, recover the *well-conditioned* subspace of `col(J)`, subtract its contribution from `Y`,
+  and repeat on the residual. Extracts the information actually present without a fancier inverter and
+  without a prior — the honest middle ground.
+- **H5 — Network width as a capacity axis.** Wider hidden layers → more neurons → higher-rank
+  data→adapter map → less binding collinearity. Sweep width, distinct from LoRA rank `r` and #modules
+  `L`.
+
+**Scope of the invariance result (job 993396):** "recombining coordinates can't beat `col(J)`" is a
+**linear, fixed-subspace, fixed-map** statement. H1 (different subspace), H2 (nonlinear), H3/H5
+(different/enlarged map) all lie OUTSIDE its scope — they are the legitimate ways to beat the apparent
+collinearity. Also note the reframing H1 brings: discriminative directions ARE "what distinguishes one
+private image from another" — the genuine privacy threat — so H1 upgrades *what we measure*, not just
+*how well*.
+
+**How the prior papers sidestep collinearity (context for H1–H5):** more independent measurements
+(Haim: full weights; DAGER/NTK: rank ≥ N; MineGrad: `L·r` disjoint modules, via malice); statistical
+priors (Cocktail-Party ICA: source independence + non-Gaussianity; SPEAR: ReLU sparsity); or generative
+priors (diffusion/SDS — the only true null-space fill, at the cost of hallucination = World C). Our
+single-rank-8-module setup is deliberately the most information-starved case; H3/H5 are the honest
+"more measurements" analog, H1/H2 use information we already discard.
+
+---
+
 ## J0/J1 build spec (implemented in `experiments/jacobian_spectrum.py`)
 
 Mirrors `direct_inversion.py` conventions (`sys.path` insert, `torch.set_default_dtype(float64)`, GELU
