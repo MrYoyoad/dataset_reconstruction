@@ -55,7 +55,7 @@ for DS in mnist fashion; do
         --model_train_activation=$ACT --proj_name=${DS}_${ACT}_full \
         --data_per_class_train=$DPC \
         --model_hidden_list="[1000,1000]" --model_init_list="$INIT" \
-        --train_epochs=20000 --train_lr=0.01 --train_evaluate_rate=500 \
+        --train_epochs=4000 --train_lr=0.01 --train_evaluate_rate=500 \
         --train_threshold=1e-4
     if [ $? -ne 0 ]; then echo "WARN: base train $DS x $ACT failed"; continue; fi
     # collect freshest checkpoint for this proj (run dir ends in _<DS>_<ACT>_full)
