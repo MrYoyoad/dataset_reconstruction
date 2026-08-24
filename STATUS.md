@@ -37,6 +37,16 @@ Revised near-term order: **H1 → H2 → SGD-noise phase → J2.**
 - **Implication:** the earlier T=5 numbers were the deeply-underfit corner; the realistic fully-memorized
   regime leaks ~0.75 of coordinate directions. (Write-up: plan "RIGOR-UPGRADE RESULTS", yoado-89 commit b7383fd.)
 
+## Orthonormal-vs-PCA-variant secret (2026-08-25, jobs 215013 qr / 215289 pca-variants)
+Honest θ₀; N=4 k8 r8 seed42; MNIST+Fashion × GELU+ReLU × T{5,50}. Secret = perturb coords along k=8
+tangents; leakage = eff_rank(J)/32. **Orthonormal (qr) additions leak MORE than pca** everywhere (MNIST
+qr 13–20 vs pca 7–11; Fashion qr 3–4 vs pca 1.6–1.8) — random directions are the least collinear the
+adapter sees. The truly-private `difference` basis (rank≤N−1) is least leaky of all. **pca_tail/residual
+are NOT defenses**: low colJ_ovlp with pca (0.00–0.13) yet HIGHEST eff_rank (≈qr) → escaping pca's
+subspace buys nothing, confirming collinearity is intrinsic to data→adapter (H1). Leakage grows with T
+(memorization⟺leakage); ReLU>GELU; **dataset dominates** (Fashion far more rank-deficient than MNIST,
+σ_min~1e-12 at T=5). Full tables: plan "ORTHONORMAL-vs-PCA-VARIANT SECRET".
+
 ## H1+H2: both CONFIRM the collinearity is real, not an artifact (2026-08-24, jobs 151183/147972)
 - **H1 (discriminative tangents):** 'difference' (on-manifold, privacy-relevant) has HIGH col(J) overlap
   with pca (N=2 mean ~0.84, N=4 ~0.56, all >=0.47) EVEN when input overlap is 0.058 -> dY/dx collapses

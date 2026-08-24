@@ -424,6 +424,52 @@ Implication: **in the realistic fully-memorized regime the adapter leaks substan
 coordinate directions) than the underfit T=5 corner** — on honest weights. Remaining rigor axes: R2
 schemes (SAME/MIXTURE), R5 datasets/combos/CIFAR + base-width sweep (recoverable≈min(width,N)).
 
+### ORTHONORMAL-vs-PCA-VARIANT SECRET (2026-08-25, jobs 215013 qr / 215289 pca-variants)
+
+The "secret" = per-image perturbation coords `a_i` along `k=8` tangent directions `U_i`; leakage = how
+many of the `Nk=32` coords the adapter records (`eff_rank`/`hard_rank(col J)`). Same honest θ₀; `N=4 k8
+r8 seed42`; MNIST+Fashion × GELU+ReLU × T∈{5 underfit, 50 near-memorized}. Two secrets requested:
+**orthonormal random additions (`qr`)** and **the PCA-family variants** (pca / difference / pca_tail /
+residual). `eff_rank` = leakage (of 32); `colJ_ovlp` = overlap of a method's adapter-fingerprint space
+with PCA's (1.0 = same directions, low = genuinely different).
+
+**MNIST `eff_rank` / 32 (leakage — higher = worse privacy):**
+
+| tangent (secret) | gelu T=5 | gelu T=50 | relu T=5 | relu T=50 | colJ_ovlp vs pca |
+|---|---|---|---|---|---|
+| **qr (orthonormal)** | 13.4 | 16.7 | 16.2 | 19.9 | 0.16–0.18 |
+| pca (data top-k) | 7.2 | 9.0 | 8.7 | 11.2 | 1.00 |
+| difference (private, k=N−1) | 4.8 | 5.9 | 5.4 | 7.0 | 0.49–0.62 |
+| pca_tail | 12.0 | 13.5 | 14.7 | 15.9 | 0.00–0.01 |
+| residual | 13.7 | 16.9 | 16.3 | 19.9 | 0.11–0.13 |
+
+**Fashion `eff_rank` / 32 (adapter is rank-deficient here — `hard_rank(col J)` in parens):**
+
+| tangent (secret) | gelu T=5 | gelu T=50 | relu T=5 | relu T=50 |
+|---|---|---|---|---|
+| **qr (orthonormal)** | 3.4 (25) | 3.4 (25) | 3.4 (32) | 4.4 (32) |
+| pca | 1.6 (11) | 1.7 (11) | 1.5 (18) | 1.8 (25) |
+| difference | 1.2 (6) | 1.2 (6) | 1.2 (10) | 1.3 (11) |
+| pca_tail | 8.0 (25) | 8.0 (25) | 8.0 (32) | 8.0 (32) |
+| residual | 4.8 (25) | 4.9 (25) | 5.1 (32) | 6.2 (32) |
+
+**Findings.**
+1. **Orthonormal (`qr`) additions leak MORE than PCA additions** at every cell (MNIST 13–20 vs 7–11;
+   Fashion 3–4 vs 1.6–1.8). Random directions are the *least* collinear the adapter sees, so it
+   separates more of them. Moving along the data's own PCA directions is the most-protected choice; the
+   truly-private `difference` basis (inter-image diffs, rank≤N−1) is the least leaky of all.
+2. **`pca_tail`/`residual` are NOT defenses** — they have low `colJ_ovlp` (genuinely different from PCA)
+   yet the HIGHEST `eff_rank` (≈`qr`). Escaping PCA's subspace buys nothing; those coords leak just as
+   much. Confirms the collinearity is a property of the data→adapter map, not of the PCA basis (H1).
+3. **Leakage grows with training** for every method (memorization ⟹ leakage), and on Fashion the
+   `hard_rank` climbs with T even where `eff_rank` is flat (relu 25→32) — more coords become non-degenerate.
+4. **ReLU > GELU** leakage at matched T, everywhere (smooth activation = more collinear adapter response).
+5. **Dataset dominates:** Fashion leaks far less than MNIST (`eff_rank` 3–4 vs 13–20 for `qr`) — the
+   Fashion fine-tune drives a much more collinear/rank-deficient adapter (`σ_min` ~1e-12 at T=5).
+6. `iso_ratio` ≤ 0.24 (MNIST) / ≈0 (Fashion) throughout ⟹ random B0-init is a **weak** mask in the
+   signal directions; `q_eff|col(J)` stays high for the leaky bases (qr/residual/pca_tail 16–30 of 32 on
+   MNIST; capped by `hard_rank` on Fashion).
+
 ---
 
 ## J0/J1 build spec (implemented in `experiments/jacobian_spectrum.py`)
