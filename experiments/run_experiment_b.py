@@ -195,19 +195,26 @@ def create_model(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPH
                           activation_name=activation_name, input_dim=input_dim, hidden=hidden)
 
 
-def _load_theta0(device='cpu', pretrained_path=None, input_dim=None, hidden=None):
+def _load_theta0(device='cpu', pretrained_path=None, input_dim=None, hidden=None,
+                 activation_name=None):
     path = pretrained_path or PRETRAINED_MNIST_PATH
     checkpoint = torch.load(path, map_location=device, weights_only=False)
-    model = _build_network(device=device, input_dim=input_dim, hidden=hidden)
+    # activation_name builds the net UNDER the checkpoint's TRUE training activation
+    # (rigor R0b: no more loading ReLU weights and swapping to GELU).
+    model = _build_network(device=device, input_dim=input_dim, hidden=hidden,
+                           activation_name=activation_name)
     model.load_state_dict(checkpoint['state_dict'])
     return model
 
 
-def load_pretrained(device='cpu', pretrained_path=None, input_dim=None, hidden=None):
-    """Load a base checkpoint as θ₀. Defaults to the MNIST base; the flowers-native
-    track passes the flowers32/64 checkpoint + matching input_dim/hidden."""
+def load_pretrained(device='cpu', pretrained_path=None, input_dim=None, hidden=None,
+                    activation_name=None):
+    """Load a base checkpoint as θ₀. Defaults to the MNIST base; pass
+    pretrained_path + input_dim/hidden for other datasets, and activation_name to
+    build the net under the activation the checkpoint was actually trained with."""
     return _load_theta0(device=device, pretrained_path=pretrained_path,
-                        input_dim=input_dim, hidden=hidden)
+                        input_dim=input_dim, hidden=hidden,
+                        activation_name=activation_name)
 
 
 def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,

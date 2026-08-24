@@ -387,6 +387,15 @@ def exact_jacobian(a0, ctx, method='jvp_double'):
     'reverse_loop' — one reverse pass per *output* row (dimY passes). Only
     tractable on the toy; used to cross-check 'jvp_double'.
     """
+    # Guard (rigor): modifiedrelu is a custom autograd.Function with only a
+    # first backward → NO double-backward → the exact J is invalid (it would
+    # error cryptically). modifiedrelu is ACCURACY-ONLY; use gelu (exact) or relu
+    # (within-cell first-order). Single chokepoint for all J computation.
+    from CreateModel import ModifiedRelu
+    if isinstance(ctx.act, ModifiedRelu):
+        raise ValueError(
+            "modifiedrelu has no double-backward → no exact Jacobian (accuracy-only). "
+            "Use gelu (exact J) or relu (within-cell first-order J).")
     a = a0.clone().detach().requires_grad_(True)
     Y = forward_Y(a, ctx)
     dimY, Nk = Y.numel(), a.numel()
@@ -641,9 +650,43 @@ def _toy_ctx(seed=0, N=2, k=4, T=5, d_in=6, d_h=5, rank=2, lr=0.1,
     return ctx, col_scales
 
 
+def _honest_target(x_ft, y_ft, T, rank, activation, lr, device, base_dataset):
+    """R0b: honest θ₀ target-generator (replaces the swap). Loads the base model
+    trained WITH `activation` on `base_dataset` (models/weights-<base>_<act>.pth),
+    builds the net UNDER that activation (no monkey-patch), and returns
+    frozen/b0/B0/ds_mean generalized to any layer count. Geometry-asserted."""
+    from experiments.configs import DATASET_SPECS, MODELS_DIR
+    from experiments.run_experiment_b import load_pretrained
+    from experiments.ntk_steps import compute_multi_step_update_lora
+    spec = DATASET_SPECS[base_dataset]
+    ckpt = os.path.join(MODELS_DIR, f"weights-{base_dataset}_{activation}.pth")
+    assert os.path.exists(ckpt), (
+        f"honest θ₀ checkpoint missing: {ckpt} — train it first (base-retrain job). "
+        f"NOT falling back to the swap (that's the bug we're fixing).")
+    assert x_ft.reshape(x_ft.shape[0], -1).shape[1] == spec['input_dim'], (
+        f"input_dim mismatch: x has {x_ft.reshape(x_ft.shape[0],-1).shape[1]}, "
+        f"{base_dataset} spec expects {spec['input_dim']}")
+    model = load_pretrained(device=device, pretrained_path=ckpt,
+                            input_dim=spec['input_dim'], hidden=spec['hidden'],
+                            activation_name=activation)
+    # model already carries the honest activation ⇒ activation_name=None (NO swap).
+    upd = compute_multi_step_update_lora(model, x_ft.clone(), y_ft.clone(),
+                                         lr=lr, n_steps=T, rank=rank,
+                                         activation_name=None)
+    theta_0 = upd['theta_0']
+    n_layers = len(spec['hidden']) + 1
+    assert f'layers.{n_layers-1}.weight' in theta_0 and \
+        f'layers.{n_layers}.weight' not in theta_0, \
+        f"n_layers geometry mismatch for {base_dataset} (expected {n_layers})"
+    frozen = {i: theta_0[f'layers.{i}.weight'] for i in range(n_layers)}
+    b0 = theta_0['layers.0.bias']
+    B0 = {i: upd['lora_B0'][f'layers.{i}.weight'] for i in range(n_layers)}
+    return upd['theta_T'], frozen, b0, B0, upd['ds_mean']
+
+
 def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
                seed=42, device='cpu', tangent_method='qr', dataset='mnist',
-               anchor_alpha=0.0, b0_seed=None):
+               anchor_alpha=0.0, b0_seed=None, base_dataset=None):
     """Real single-module context via generate_target (784-dim θ₀).
 
     generate_target trains an all-layer LoRA; we reuse only frozen / b0 / B0[0]
@@ -662,8 +705,11 @@ def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
     n_per_class = N // 2
     x_ft, y_ft, digits, _ = get_finetuning_data(n_per_class, seed=seed,
                                                 device=device, dataset=dataset)
-    theta_T_all, frozen, b0, B0_all, ds_mean = generate_target(
-        x_ft, y_ft, T, rank, activation, lr, device)
+    # R0b honest θ₀: load the base model trained WITH `activation` (no swap).
+    # base_dataset != dataset ⇒ cross-dataset transfer (base on A, private from B).
+    base_dataset = base_dataset or dataset
+    theta_T_all, frozen, b0, B0_all, ds_mean = _honest_target(
+        x_ft, y_ft, T, rank, activation, lr, device, base_dataset)
     # Anchor: move the base weights toward the fine-tuned endpoint (a different
     # area of parameter space) before defining the a↦Y map.
     if anchor_alpha != 0.0:
