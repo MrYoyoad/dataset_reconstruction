@@ -1274,6 +1274,73 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
     return out
 
 
+def run_schemes(N=4, k=8, T=50, rank=8, activation='gelu', device='cuda',
+                tangent_method='qr', dataset='mnist', seed=42, save=False, tag=None):
+    """R2: how does the perturbation ASSIGNMENT across images change leakage?
+    Each scheme is a coordinate map P applied to the DIFFERENT Jacobian (J_s = J·P):
+      DIFFERENT : P = I_Nk         — per-image independent secrets (Nk coords).
+      SAME      : P = 1_N ⊗ I_k    — all N images get the IDENTICAL k-dim secret
+                  (a genuine restriction to k reinforced-across-images coords).
+      MIXTURE   : P = M ⊗ I_k with a RANK-DEFICIENT blend M (audit: a full-rank M
+                  is just a relabel ≡ DIFFERENT — the invariance no-op; only a
+                  rank-deficient blend genuinely changes the recoverable set).
+    Reports eff_rank/hard_rank(J_s) + deterministic recovery per scheme (honest θ₀).
+    """
+    ctx, cs, digits, dsm = _mnist_ctx(
+        N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
+        device=device, tangent_method=tangent_method, dataset=dataset)
+    Nk = N * k
+    a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+    J = exact_jacobian(a0, ctx, method='jvp_double')        # DIFFERENT
+    Ik = torch.eye(k, dtype=torch.float64, device=device)
+    # rank-deficient blend for MIXTURE: average the N images in pairs (rank ⌈N/2⌉)
+    g = torch.Generator(device='cpu').manual_seed(seed)
+    Mblend = torch.zeros(N, N, dtype=torch.float64)
+    r_mix = max(1, N // 2)
+    Q = torch.linalg.qr(torch.randn(N, r_mix, generator=g, dtype=torch.float64))[0]
+    Mblend = (Q @ Q.t()).to(device)                          # rank r_mix projector
+    schemes = {
+        'different': torch.eye(Nk, dtype=torch.float64, device=device),
+        'same': torch.kron(torch.ones(N, 1, dtype=torch.float64, device=device), Ik),
+        'mixture': torch.kron(Mblend, Ik),
+    }
+    print(f"[SCHEMES] dataset={dataset} act={activation} N={N} k={k} T={T} rank={rank} "
+          f"Nk={Nk}  (leakage vs assignment; MIXTURE rank={r_mix})")
+    print(f"[SCHEMES] {'scheme':10s} {'ncoord':>6s} {'hard_rank':>9s} {'eff_rank':>8s} "
+          f"{'rec_rel@e=.1':>12s}")
+    torch.manual_seed(seed)
+    results = {}
+    for name, P in schemes.items():
+        Js = J @ P
+        sv = torch.linalg.svdvals(Js)
+        hard = int((sv > 1e-8 * sv[0]).sum())
+        er = effective_rank(Js)
+        # deterministic recovery of a small random secret in the scheme coords
+        m = P.shape[1]
+        direction = torch.randn(m, dtype=torch.float64, device=device)
+        direction = direction / direction.norm()
+        a_s = 0.1 * direction
+        Y0 = forward_Y(a0, ctx).detach()
+        Y_t = forward_Y((P @ a_s), ctx).detach()
+        a_hat = torch.linalg.pinv(Js, rcond=1e-10) @ (Y_t - Y0)
+        rec = (a_hat - a_s).norm().item() / (a_s.norm().item() + 1e-30)
+        print(f"[SCHEMES] {name:10s} {m:6d} {hard:9d} {er:8.2f} {rec:12.3e}")
+        results[name] = {'ncoord': m, 'hard_rank': hard, 'eff_rank': er,
+                         'rec_rel': rec, 'svals': sv.cpu()}
+    print("[SCHEMES] READ: SAME restricts to k reinforced coords; MIXTURE (rank-def) "
+          "restricts to ~r_mix·k; DIFFERENT is the full Nk. hard_rank = recoverable dirs.")
+    out = {'results': results, 'N': N, 'k': k, 'T': T, 'rank': rank,
+           'activation': activation, 'dataset': dataset, 'seed': seed,
+           'r_mix': r_mix, 'digits': digits}
+    if save:
+        tag = tag or f"{dataset}_{activation}_N{N}_k{k}_T{T}_r{rank}_s{seed}"
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        path = os.path.join(RESULTS_DIR, f"jacobian_schemes_{tag}.pth")
+        torch.save(out, path)
+        print(f"[SCHEMES] saved -> {path}")
+    return out
+
+
 def run_j0_T_sweep(N=4, k=8, rank=8, activation='gelu', device='cuda',
                    tangent_method='qr', Ts=(5, 20, 50), seed=42):
     """De-confound the deterministic eff_rank readout (yoado-29's caution): if
@@ -1521,6 +1588,8 @@ if __name__ == '__main__':
                    help='subtract linear parts (across-image diff / response-whiten) & re-measure')
     p.add_argument('--rigor', action='store_true',
                    help='R3+R4: leakage + memorization/accuracy vs T (honest θ₀)')
+    p.add_argument('--schemes', action='store_true',
+                   help='R2: leakage vs perturbation assignment (DIFFERENT/SAME/MIXTURE)')
     p.add_argument('--h1', action='store_true',
                    help='H1: discriminative tangents (difference/pca_tail/residual vs pca)')
     p.add_argument('--h2', action='store_true',
@@ -1584,6 +1653,12 @@ if __name__ == '__main__':
                   device=device, tangent_method=args.tangent, dataset=args.dataset,
                   Ts=tuple(args.Ts), seed=args.seed, lr=args.lr,
                   save=args.save, tag=args.tag)
+
+    if args.schemes:
+        run_schemes(N=args.N, k=args.k, T=args.T, rank=args.rank,
+                    activation=args.activation, device=device,
+                    tangent_method=args.tangent, dataset=args.dataset,
+                    seed=args.seed, save=args.save, tag=args.tag)
 
     if args.j1:
         run_j1(N=args.N, k=args.k, T=args.T, rank=args.rank,
