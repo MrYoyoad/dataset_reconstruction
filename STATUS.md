@@ -25,6 +25,18 @@ Revised near-term order: **H1 → H2 → SGD-noise phase → J2.**
 
 ---
 
+## Rigor upgrade: honest theta0 + leakage-GROWS-with-memorization (2026-08-24, jobs 188663/199977/201658/201904)
+- Fixed the 'GELU-on-ReLU-weights swap': retrained honest per-(dataset,activation) base models via Main.py
+  (mnist/fashion x relu/gelu/modifiedrelu, mnist ~89% test); leakage pipeline loads
+  weights-<dataset>_<act>.pth UNDER its true activation, FD-validated end-to-end (199977).
+  modifiedrelu=accuracy-only (guarded out of exact-J).
+- run_rigor (honest mnist N4 k8): **eff_rank(J) RISES monotonically with fine-tune length to a plateau at
+  full memorization -> memorization<=>leakage.** gelu 13->24/32 (~0.75) at lr=0.1 T=200 (full memorization,
+  max per-sample BCE<1e-3); relu 16->22. Overtraining plateaus. **ReLU leaks MORE than GELU.** lr sanity:
+  0.01 slow/underfit, 0.03 overshoots, 0.1 memorizes by T=200. One consistent hard sample.
+- **Implication:** the earlier T=5 numbers were the deeply-underfit corner; the realistic fully-memorized
+  regime leaks ~0.75 of coordinate directions. (Write-up: plan "RIGOR-UPGRADE RESULTS", yoado-89 commit b7383fd.)
+
 ## H1+H2: both CONFIRM the collinearity is real, not an artifact (2026-08-24, jobs 151183/147972)
 - **H1 (discriminative tangents):** 'difference' (on-manifold, privacy-relevant) has HIGH col(J) overlap
   with pca (N=2 mean ~0.84, N=4 ~0.56, all >=0.47) EVEN when input overlap is 0.058 -> dY/dx collapses

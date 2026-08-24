@@ -4,6 +4,15 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Underfit fine-tuning hides leakage; measure at memorization (2026-08-24)
+
+The whole J0/J1/H1/H2 line ran at T=5 (deeply underfit — the fine-tune hadn't memorized, max per-sample
+BCE ~0.2). On honest theta0, driving to full memorization (lr=0.1, T=200) RAISES eff_rank(J) from ~13 to
+~24/32. **Always fine-tune to memorization (per-sample BCE<1e-3) before reporting a leakage number, and
+report the leakage-vs-T curve;** a single-T (esp. small-T) leakage number understates the realistic
+regime. (From sibling yoado-89's rigor upgrade; recorded here as I own LESSONS. Relevant to my crux too:
+the 'stays-accurate-over-more-T' clause should be measured at memorization, not a single small T.)
+
 ## An overlap must be measured in the SIGNAL's own subspace (col(J)), not just input space (2026-08-24)
 
 H1 (job 151183): the 'difference' tangent could be near-orthogonal to top-PCA in PIXEL space (input
