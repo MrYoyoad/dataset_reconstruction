@@ -21,6 +21,12 @@ os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 #                               Train                                         #
 ###############################################################################
 def get_loss_ce(args, model, x, y):
+    # output_dim>1 => genuine multi-class CrossEntropy (Tier B); else binary BCE
+    # (the shipped path, byte-identical). CE needs LONG class targets.
+    if getattr(args, 'output_dim', 1) > 1:
+        logits = model(x)                       # [N, K]
+        loss = torch.nn.CrossEntropyLoss()(logits, y.long())
+        return loss, logits
     p = model(x)
     p = p.view(-1)
     loss = torch.nn.BCEWithLogitsLoss()(p, y)
@@ -28,6 +34,8 @@ def get_loss_ce(args, model, x, y):
 
 
 def get_total_err(args, p, y):
+    if getattr(args, 'output_dim', 1) > 1:
+        return (p.argmax(dim=1) != y.long()).float().mean().item()
     # BCEWithLogitsLoss needs 0,1
     err = (p.sign().view(-1).add(1).div(2) != y).float().mean().item()
     return err

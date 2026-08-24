@@ -110,7 +110,7 @@ def get_few_shot_mnist(n_per_class, seed=42, root=None, device='cpu'):
 
 
 def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='mnist',
-                        source='all', holdout_species=None):
+                        source='all', holdout_species=None, num_classes=2):
     """Load few-shot fine-tuning data from the TEST set of `dataset`.
 
     These samples are guaranteed non-overlapping with the pre-trained model's
@@ -141,8 +141,12 @@ def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='
     rng = torch.Generator().manual_seed(seed)
     perm = torch.randperm(len(dataset), generator=rng)
 
+    # Tier B: num_classes>2 balances over the K TRUE class labels and returns y as
+    # LONG class indices (CrossEntropy requires long — a float y is read as class
+    # probabilities, a silent miscompute). Binary path (default) is byte-identical.
+    multiclass = num_classes > 2
     x_list, y_list, digit_list, idx_list = [], [], [], []
-    counts = {0: 0, 1: 0}
+    counts = {c: 0 for c in range(num_classes)} if multiclass else {0: 0, 1: 0}
 
     for idx in perm.tolist():
         img, digit = dataset[idx]
@@ -150,18 +154,21 @@ def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='
             continue          # skip held-out species -> only species theta_0 trained on
         if source == 'novel' and int(digit) not in holdout:
             continue          # skip trained species -> only held-out (novel) species
-        binary_label = _get_binary_label(digit)
-        if counts[binary_label] < n_per_class:
-            counts[binary_label] += 1
+        label = int(digit) if multiclass else _get_binary_label(digit)
+        if label < num_classes and counts[label] < n_per_class:
+            counts[label] += 1
             x_list.append(img)
-            y_list.append(binary_label)
+            y_list.append(label)
             digit_list.append(int(digit))
             idx_list.append(idx)
-        if counts[0] >= n_per_class and counts[1] >= n_per_class:
+        if all(counts[c] >= n_per_class for c in counts):
             break
 
     x_ft = torch.stack(x_list).to(torch.float64).to(device)
-    y_ft = torch.tensor(y_list, dtype=torch.float64, device=device)
+    if multiclass:
+        y_ft = torch.tensor(y_list, dtype=torch.long, device=device)
+    else:
+        y_ft = torch.tensor(y_list, dtype=torch.float64, device=device)
     return x_ft, y_ft, digit_list, idx_list
 
 

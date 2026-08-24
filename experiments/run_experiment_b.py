@@ -159,7 +159,7 @@ def make_activation(activation_name, relu_alpha=EXTRACTION_RELU_ALPHA):
 
 
 def _build_network(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPHA,
-                   activation_name=None, input_dim=None, hidden=None):
+                   activation_name=None, input_dim=None, hidden=None, output_dim=None):
     """Build a NeuralNetwork. input_dim/hidden default to the MNIST arch
     (INPUT_DIM=784, MODEL_HIDDEN_LIST); the flowers-native track passes 3072/12288
     and the matching hidden list from configs.DATASET_SPECS.
@@ -172,6 +172,8 @@ def _build_network(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_AL
         relu_alpha: alpha parameter for ModifiedRelu (default: 149.87).
         activation_name: explicit activation override; if provided, ignores extraction.
         input_dim/hidden: model geometry (None → MNIST defaults).
+        output_dim: #logits (None → OUTPUT_DIM=1, the binary default). Tier B
+            passes K>1 to build a net that can load a K-class checkpoint.
     """
     if activation_name is not None:
         activation = make_activation(activation_name, relu_alpha)
@@ -180,7 +182,7 @@ def _build_network(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_AL
     model = NeuralNetwork(
         input_dim=INPUT_DIM if input_dim is None else input_dim,
         hidden_dim_list=MODEL_HIDDEN_LIST if hidden is None else hidden,
-        output_dim=OUTPUT_DIM,
+        output_dim=OUTPUT_DIM if output_dim is None else output_dim,
         activation=activation,
         use_bias=False,
     )
@@ -196,25 +198,26 @@ def create_model(device='cpu', extraction=False, relu_alpha=EXTRACTION_RELU_ALPH
 
 
 def _load_theta0(device='cpu', pretrained_path=None, input_dim=None, hidden=None,
-                 activation_name=None):
+                 activation_name=None, output_dim=None):
     path = pretrained_path or PRETRAINED_MNIST_PATH
     checkpoint = torch.load(path, map_location=device, weights_only=False)
     # activation_name builds the net UNDER the checkpoint's TRUE training activation
     # (rigor R0b: no more loading ReLU weights and swapping to GELU).
     model = _build_network(device=device, input_dim=input_dim, hidden=hidden,
-                           activation_name=activation_name)
+                           activation_name=activation_name, output_dim=output_dim)
     model.load_state_dict(checkpoint['state_dict'])
     return model
 
 
 def load_pretrained(device='cpu', pretrained_path=None, input_dim=None, hidden=None,
-                    activation_name=None):
+                    activation_name=None, output_dim=None):
     """Load a base checkpoint as θ₀. Defaults to the MNIST base; pass
     pretrained_path + input_dim/hidden for other datasets, and activation_name to
-    build the net under the activation the checkpoint was actually trained with."""
+    build the net under the activation the checkpoint was actually trained with.
+    output_dim=K (Tier B) loads a K-class checkpoint (binary default K=1)."""
     return _load_theta0(device=device, pretrained_path=pretrained_path,
                         input_dim=input_dim, hidden=hidden,
-                        activation_name=activation_name)
+                        activation_name=activation_name, output_dim=output_dim)
 
 
 def _run_extraction(model_theta0, delta_w, oracle_coefficients, y_ft,

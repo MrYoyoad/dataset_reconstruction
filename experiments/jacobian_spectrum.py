@@ -272,7 +272,7 @@ def _partial_lora_forward(frozen, A, B, b0, x, scaling, act, target_layers):
 
 
 def unrolled_lora_AB(frozen, b0, B0, x, y, lr, T, scaling, act,
-                     target_layers=(0,)):
+                     target_layers=(0,), num_classes=2):
     """Unroll T full-batch SGD steps on the LoRA params; RETURN the (A, B) dicts.
 
     A local variant of direct_inversion.unrolled_finetune_lora that (a) trains
@@ -280,15 +280,28 @@ def unrolled_lora_AB(frozen, b0, B0, x, y, lr, T, scaling, act,
     composed θ_T (J0 observes the adapter, not the merged weight). Starts from
     the known LoRA init A = 0, B = B0. create_graph=True keeps (A_T, B_T) twice
     differentiable w.r.t. x (hence a).
+
+    num_classes: 2 → binary BCE on a single logit (the shipped path, byte-identical);
+    K>2 → CrossEntropy on [N,K] logits (Tier B). The (A,B) SHAPES are K-independent
+    (LoRA is on the input-side target_layers), so J stays exact either way — only
+    the gradient VALUES driving the unroll change (a (K−1)-dim CE residual vs the
+    1-dim BCE residual — the leakage-amplification hypothesis).
     """
     A = {l: torch.zeros(_a_shape(frozen, B0, l), dtype=x.dtype, device=x.device,
                         requires_grad=True) for l in target_layers}
     B = {l: B0[l].clone().requires_grad_(True) for l in target_layers}
 
     for _ in range(T):
-        logits = _partial_lora_forward(frozen, A, B, b0, x, scaling, act,
-                                       target_layers).view(-1)
-        loss = F.binary_cross_entropy_with_logits(logits, y)
+        out = _partial_lora_forward(frozen, A, B, b0, x, scaling, act,
+                                    target_layers)
+        if num_classes <= 2:
+            loss = F.binary_cross_entropy_with_logits(out.view(-1), y)
+        else:
+            # out=[N,K] logits; y=class indices. CE REQUIRES long targets — a
+            # float y would be read as class-probabilities (silent miscompute).
+            assert not torch.is_floating_point(y) or (y == y.round()).all(), \
+                "multi-class y must be integer class indices"
+            loss = F.cross_entropy(out, y.long())
         params = [A[l] for l in target_layers] + [B[l] for l in target_layers]
         grads = torch.autograd.grad(loss, params, create_graph=True)
         n = len(target_layers)
@@ -300,28 +313,35 @@ def unrolled_lora_AB(frozen, b0, B0, x, y, lr, T, scaling, act,
 
 @torch.no_grad()
 def finetune_metrics(frozen, b0, A, B, x, y, scaling, act, target_layers,
-                     x_held=None, y_held=None):
+                     x_held=None, y_held=None, num_classes=2):
     """R4 always-on metrics for a fine-tuned adapter (audit: measure, don't assume).
 
-    Returns per-sample BCE on the private set (the MEMORIZATION signal — "it
+    Returns per-sample loss on the private set (the MEMORIZATION signal — "it
     should help memorize the images"), private-set accuracy, and — if held-out
     data is given — the composed model's held-out accuracy (does it generalize or
-    just memorize?). NB: value-only, so torch.no_grad is fine here (unlike the
-    unrolled forward, which contains an autograd.grad).
+    just memorize?). Dispatches binary BCE (byte-identical shipped path) vs
+    K-class CE. NB: value-only, so torch.no_grad is fine here (unlike the
+    unrolled forward, which contains an autograd.grad). The 'bce' keys hold the
+    per-sample loss in EITHER regime (name kept for downstream compatibility).
     """
-    logits = _partial_lora_forward(frozen, A, B, b0, x, scaling, act,
-                                   target_layers).view(-1)
-    per_sample_bce = F.binary_cross_entropy_with_logits(
-        logits, y, reduction='none')                     # [N] memorization
-    priv_acc = ((logits > 0).double() == y).double().mean().item()
+    def _loss_acc(xx, yy):
+        o = _partial_lora_forward(frozen, A, B, b0, xx, scaling, act, target_layers)
+        if num_classes <= 2:
+            lo = o.view(-1)
+            ps = F.binary_cross_entropy_with_logits(lo, yy, reduction='none')
+            acc = ((lo > 0).double() == yy).double().mean().item()
+        else:
+            ps = F.cross_entropy(o, yy.long(), reduction='none')
+            acc = (o.argmax(1) == yy.long()).double().mean().item()
+        return ps, acc
+
+    per_sample_bce, priv_acc = _loss_acc(x, y)
     out = {'per_sample_bce': per_sample_bce.detach().cpu(),
            'mean_bce': per_sample_bce.mean().item(),
            'max_bce': per_sample_bce.max().item(),
            'private_acc': priv_acc}
     if x_held is not None and y_held is not None:
-        hlog = _partial_lora_forward(frozen, A, B, b0, x_held, scaling, act,
-                                     target_layers).view(-1)
-        out['held_acc'] = ((hlog > 0).double() == y_held).double().mean().item()
+        _, out['held_acc'] = _loss_acc(x_held, y_held)
     return out
 
 
@@ -350,7 +370,7 @@ def flatten_AB(A, B, index):
 class Ctx:
     """Everything forward_Y needs, fixed at a=0 (ds_mean frozen here)."""
     def __init__(self, frozen, b0, B0, x0_centered, U, y, lr, T, scaling, act,
-                 target_layers, index):
+                 target_layers, index, num_classes=2):
         self.frozen = frozen
         self.b0 = b0
         self.B0 = B0
@@ -363,6 +383,7 @@ class Ctx:
         self.act = act
         self.target_layers = target_layers
         self.index = index
+        self.num_classes = num_classes   # 2 = binary (default, byte-identical); K = Tier B
 
 
 def forward_Y(a_flat, ctx):
@@ -372,7 +393,7 @@ def forward_Y(a_flat, ctx):
     x = make_images(ctx.x0_centered, ctx.U, a)
     A, B = unrolled_lora_AB(ctx.frozen, ctx.b0, ctx.B0, x, ctx.y,
                             ctx.lr, ctx.T, ctx.scaling, ctx.act,
-                            ctx.target_layers)
+                            ctx.target_layers, num_classes=ctx.num_classes)
     return flatten_AB(A, B, ctx.index)
 
 
@@ -622,44 +643,60 @@ def noise_subspace_energy(J, centered):
 # 6. Contexts: toy (self-test) and real MNIST single-module
 # ---------------------------------------------------------------------------
 def _toy_ctx(seed=0, N=2, k=4, T=5, d_in=6, d_h=5, rank=2, lr=0.1,
-             tangent_method='qr'):
+             tangent_method='qr', num_classes=2):
     """Tiny synthetic net for the AD unit test — CPU float64, no data files.
 
-    Architecture matches the 3-layer MLP shape (d_in - d_h - d_h - 1) so the
-    single-module LoRA path exercises the exact same code as MNIST.
+    Architecture matches the 3-layer MLP shape (d_in - d_h - d_h - K) so the
+    single-module LoRA path exercises the exact same code as MNIST. num_classes>2
+    builds a [K, d_h] output layer + integer class labels so the CE unroll (Tier B)
+    is exercised by the AD gate; J is unchanged in shape so it must still pass.
     """
     g = torch.Generator().manual_seed(seed)
+    out_dim = 1 if num_classes <= 2 else num_classes
     frozen = {
         0: torch.randn(d_h, d_in, generator=g, dtype=torch.float64) * 0.3,
         1: torch.randn(d_h, d_h, generator=g, dtype=torch.float64) * 0.3,
-        2: torch.randn(1, d_h, generator=g, dtype=torch.float64) * 0.3,
+        2: torch.randn(out_dim, d_h, generator=g, dtype=torch.float64) * 0.3,
     }
     b0 = torch.randn(d_h, generator=g, dtype=torch.float64) * 0.1
     B0 = {0: torch.randn(d_h, rank, generator=g, dtype=torch.float64) * 0.2}
     x0 = torch.randn(N, 1, 1, d_in, generator=g, dtype=torch.float64)
     x0_centered = x0 - x0.mean(dim=0, keepdim=True)
-    y = torch.tensor([0.0, 1.0] * (N // 2) + [0.0] * (N % 2),
-                     dtype=torch.float64)[:N]
+    if num_classes <= 2:
+        y = torch.tensor([0.0, 1.0] * (N // 2) + [0.0] * (N % 2),
+                         dtype=torch.float64)[:N]
+    else:
+        y = torch.arange(N, dtype=torch.long) % num_classes   # spans classes
     U, col_scales = build_tangents(d_in, k, N, seed=seed + 1,
                                    method=tangent_method)
     act = make_activation('gelu')
     target_layers = (0,)
     index = build_ab_index(frozen, B0, target_layers)
     ctx = Ctx(frozen, b0, B0, x0_centered, U, y, lr, T, 1.0, act,
-              target_layers, index)
+              target_layers, index, num_classes=num_classes)
     return ctx, col_scales
 
 
-def _honest_target(x_ft, y_ft, T, rank, activation, lr, device, base_dataset):
+def _honest_target(x_ft, y_ft, T, rank, activation, lr, device, base_dataset,
+                   num_classes=2):
     """R0b: honest θ₀ target-generator (replaces the swap). Loads the base model
     trained WITH `activation` on `base_dataset` (models/weights-<base>_<act>.pth),
     builds the net UNDER that activation (no monkey-patch), and returns
-    frozen/b0/B0/ds_mean generalized to any layer count. Geometry-asserted."""
+    frozen/b0/B0/ds_mean generalized to any layer count. Geometry-asserted.
+
+    num_classes>2 (Tier B): loads the K-class checkpoint
+    (weights-<base><K>_<act>.pth, output_dim=K) and uses n_steps=0 for the
+    B0/ds_mean extraction — compute_multi_step_update_lora's inner loss is BINARY
+    (model(x).view(-1)+BCE), which would mismatch [N,K]; we consume only its
+    loss-independent outputs (frozen/b0/B0/ds_mean). theta_T is then =theta_0
+    (multi-class anchor is asserted off in _mnist_ctx)."""
     from experiments.configs import DATASET_SPECS, MODELS_DIR
     from experiments.run_experiment_b import load_pretrained
     from experiments.ntk_steps import compute_multi_step_update_lora
     spec = DATASET_SPECS[base_dataset]
-    ckpt = os.path.join(MODELS_DIR, f"weights-{base_dataset}_{activation}.pth")
+    out_dim = 1 if num_classes <= 2 else num_classes
+    suffix = "" if num_classes <= 2 else str(num_classes)
+    ckpt = os.path.join(MODELS_DIR, f"weights-{base_dataset}{suffix}_{activation}.pth")
     assert os.path.exists(ckpt), (
         f"honest θ₀ checkpoint missing: {ckpt} — train it first (base-retrain job). "
         f"NOT falling back to the swap (that's the bug we're fixing).")
@@ -668,10 +705,11 @@ def _honest_target(x_ft, y_ft, T, rank, activation, lr, device, base_dataset):
         f"{base_dataset} spec expects {spec['input_dim']}")
     model = load_pretrained(device=device, pretrained_path=ckpt,
                             input_dim=spec['input_dim'], hidden=spec['hidden'],
-                            activation_name=activation)
+                            activation_name=activation, output_dim=out_dim)
     # model already carries the honest activation ⇒ activation_name=None (NO swap).
+    n_upd = T if num_classes <= 2 else 0   # see docstring (avoid binary inner loss)
     upd = compute_multi_step_update_lora(model, x_ft.clone(), y_ft.clone(),
-                                         lr=lr, n_steps=T, rank=rank,
+                                         lr=lr, n_steps=n_upd, rank=rank,
                                          activation_name=None)
     theta_0 = upd['theta_0']
     n_layers = len(spec['hidden']) + 1
@@ -686,7 +724,7 @@ def _honest_target(x_ft, y_ft, T, rank, activation, lr, device, base_dataset):
 
 def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
                seed=42, device='cpu', tangent_method='qr', dataset='mnist',
-               anchor_alpha=0.0, b0_seed=None, base_dataset=None):
+               anchor_alpha=0.0, b0_seed=None, base_dataset=None, num_classes=2):
     """Real single-module context via generate_target (784-dim θ₀).
 
     generate_target trains an all-layer LoRA; we reuse only frozen / b0 / B0[0]
@@ -702,16 +740,24 @@ def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
         would otherwise get different B0 and their col(J) would differ for reasons
         unrelated to the tangents. Fixed B0 ⇒ the col(J) difference isolates U.
     """
-    n_per_class = N // 2
+    n_per_class = N // num_classes
+    assert n_per_class >= 1, (
+        f"N={N} < num_classes={num_classes}: multi-class needs N≥K (ideally N≫K "
+        f"so classes are represented — the leakage-amplification effect needs it).")
     x_ft, y_ft, digits, _ = get_finetuning_data(n_per_class, seed=seed,
-                                                device=device, dataset=dataset)
+                                                device=device, dataset=dataset,
+                                                num_classes=num_classes)
     # R0b honest θ₀: load the base model trained WITH `activation` (no swap).
     # base_dataset != dataset ⇒ cross-dataset transfer (base on A, private from B).
     base_dataset = base_dataset or dataset
     theta_T_all, frozen, b0, B0_all, ds_mean = _honest_target(
-        x_ft, y_ft, T, rank, activation, lr, device, base_dataset)
+        x_ft, y_ft, T, rank, activation, lr, device, base_dataset,
+        num_classes=num_classes)
     # Anchor: move the base weights toward the fine-tuned endpoint (a different
     # area of parameter space) before defining the a↦Y map.
+    assert not (num_classes > 2 and anchor_alpha != 0.0), (
+        "multi-class + anchor_alpha≠0 unsupported: theta_T is not computed for "
+        "the K-class base (n_steps=0 in _honest_target) — run anchor=0.")
     if anchor_alpha != 0.0:
         frozen = {l: (1 - anchor_alpha) * frozen[l]
                   + anchor_alpha * theta_T_all[f'layers.{l}.weight']
@@ -745,15 +791,20 @@ def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
     act = make_activation(activation)
     index = build_ab_index(frozen, B0, target_layers)
     ctx = Ctx(frozen, b0, B0, x0_centered, U, y_ft, lr, T, 1.0, act,
-              target_layers, index)
+              target_layers, index, num_classes=num_classes)
     return ctx, col_scales, digits, ds_mean
 
 
 # ---------------------------------------------------------------------------
 # 7. Self-tests (the gate) and J0 run
 # ---------------------------------------------------------------------------
-def toy_ad_gate(verbose=True):
+def toy_ad_gate(verbose=True, num_classes=2):
     """AD-correctness gate. Returns dict of the diagnostic errors.
+
+    num_classes>2 (Tier B): builds a K-class toy ([K,d_h] output + integer labels
+    + CE unroll). J is STRUCTURALLY unchanged (adapter shapes are K-independent),
+    so all three gates MUST still pass — this validates the NEW CE double-backward
+    differentiates correctly through the unroll.
 
     Pass conditions test only whether J and the linear model are *correct* — NOT
     whether the map is invertible (rank deficiency is a finding, not a failure,
@@ -769,7 +820,7 @@ def toy_ad_gate(verbose=True):
     (eff_rank < Nk) is exactly the identifiability signal the program measures —
     it must not fail the correctness gate. Must pass before any WEXAC sweep.
     """
-    ctx, col_scales = _toy_ctx()
+    ctx, col_scales = _toy_ctx(num_classes=num_classes)
     Nk = ctx.U.shape[0] * ctx.U.shape[2]
     a0 = torch.zeros(Nk, dtype=torch.float64)
 
@@ -798,7 +849,8 @@ def toy_ad_gate(verbose=True):
     svals, er = spectrum(J)
     ok = (fd_rel < 1e-6 and rev_gap < 1e-8 and lin_res < 1e-3)
     if verbose:
-        print("=== TOY-AD GATE ===")
+        print(f"=== TOY-AD GATE (num_classes={num_classes}, "
+              f"{'binary BCE' if num_classes <= 2 else 'multi-class CE'}) ===")
         print(f"  J shape                     : {tuple(J.shape)}")
         print(f"  [gate] FD rel err  (<1e-6)  : {fd_rel:.3e}")
         print(f"  [gate] jvp vs reverse(<1e-8): {rev_gap:.3e}")
@@ -839,7 +891,7 @@ def real_smoke(N=2, k=8, T=5, rank=2, device='cpu', verbose=True):
 
 def run_j0(N=4, k=8, T=5, rank=8, activation='gelu', device='cuda',
            tangent_method='qr', eps_list=(1e-4, 1e-3, 1e-2, 1e-1), seed=42,
-           save=False, tag=None, dataset='mnist', anchor_alpha=0.0):
+           save=False, tag=None, dataset='mnist', anchor_alpha=0.0, num_classes=2):
     """Phase J0: build J, its spectrum, and coordinate recovery vs eps.
 
     For each eps we set a_true = eps * (unit random direction per coord),
@@ -851,7 +903,7 @@ def run_j0(N=4, k=8, T=5, rank=8, activation='gelu', device='cuda',
     ctx, col_scales, digits, ds_mean = _mnist_ctx(
         N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
         device=device, tangent_method=tangent_method, dataset=dataset,
-        anchor_alpha=anchor_alpha)
+        anchor_alpha=anchor_alpha, num_classes=num_classes)
     Nk = N * k
     a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
 
@@ -933,7 +985,8 @@ def run_coord_transforms(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda'
         index = build_ab_index(base_ctx.frozen, B0, target_layers)
         return Ctx(base_ctx.frozen, base_ctx.b0, B0, base_ctx.x0_centered,
                    base_ctx.U, base_ctx.y, base_ctx.lr, T, base_ctx.scaling,
-                   base_ctx.act, target_layers, index)
+                   base_ctx.act, target_layers, index,
+                   num_classes=base_ctx.num_classes)
 
     J = exact_jacobian(a0, make_ctx(seed), method='jvp_double')
     centered = estimate_sigma_seed(lambda s: make_ctx(10_000 + s), S, a0)
@@ -961,7 +1014,8 @@ def _ctx_reseed_b0(ctx, rank, b0_seed, device):
     B0 = _draw_B0(ctx.frozen, rank, ctx.target_layers, b0_seed, device)
     index = build_ab_index(ctx.frozen, B0, ctx.target_layers)
     return Ctx(ctx.frozen, ctx.b0, B0, ctx.x0_centered, ctx.U, ctx.y, ctx.lr,
-               ctx.T, ctx.scaling, ctx.act, ctx.target_layers, index)
+               ctx.T, ctx.scaling, ctx.act, ctx.target_layers, index,
+               num_classes=ctx.num_classes)
 
 
 def _colj_basis(J, tol=1e-8):
@@ -982,7 +1036,7 @@ _H1_MANIFOLD = {'pca': 'on(shared)', 'pca_scaled': 'on(shared)',
 def run_h1(methods=('pca', 'difference', 'pca_tail', 'residual', 'qr'),
            N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
            dataset='mnist', seed=42, anchor_alpha=0.0, S=64,
-           eps_list=(0.001, 0.01, 0.1), save=False, tag=None):
+           eps_list=(0.001, 0.01, 0.1), save=False, tag=None, num_classes=2):
     """H1: do discriminative tangent bases change col(J) vs PCA-shared-modes?
 
     Reports the INVARIANT fraction hard_rank(col J)/Nk and iso_ratio, the
@@ -999,7 +1053,7 @@ def run_h1(methods=('pca', 'difference', 'pca_tail', 'residual', 'qr'),
             ctxp, _cs, _d, _m = _mnist_ctx(
                 N=N, k=kk, T=T, rank=rank, activation=activation, seed=seed,
                 device=device, tangent_method='pca', dataset=dataset,
-                anchor_alpha=anchor_alpha, b0_seed=seed)
+                anchor_alpha=anchor_alpha, b0_seed=seed, num_classes=num_classes)
             a0p = torch.zeros(N * ctxp.U.shape[2], dtype=torch.float64, device=device)
             pca_cache[kk] = (ctxp, exact_jacobian(a0p, ctxp))
         return pca_cache[kk]
@@ -1015,7 +1069,7 @@ def run_h1(methods=('pca', 'difference', 'pca_tail', 'residual', 'qr'),
         ctx, cs, digits, dsm = _mnist_ctx(
             N=N, k=km, T=T, rank=rank, activation=activation, seed=seed,
             device=device, tangent_method=method, dataset=dataset,
-            anchor_alpha=anchor_alpha, b0_seed=seed)
+            anchor_alpha=anchor_alpha, b0_seed=seed, num_classes=num_classes)
         k_eff = ctx.U.shape[2]
         Nk = N * k_eff
         a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
@@ -1217,7 +1271,7 @@ def run_h2(N=2, k=8, T=5, rank=8, tangent='pca', activation='gelu', device='cuda
 def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
               tangent_method='qr', dataset='mnist', Ts=(5, 20, 50, 100, 200),
               seed=42, memorize_thresh=1e-3, lr=TRAIN_LR, save=False, tag=None,
-              base_dataset=None):
+              base_dataset=None, num_classes=2):
     """R3+R4: leakage AND memorization/accuracy across T (underfit→converged→
     overtrained), on the HONEST θ₀. At each T: eff_rank/hard_rank(J) (leakage
     geometry) + the fine-tune's per-sample BCE on the ACTUAL private images (the
@@ -1235,7 +1289,8 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
     # classification?" measurement — the effect-on-classification axis. Centered
     # per-T by ds_mean below (ds_mean is deterministic across T).
     xh_raw, yh, _, _ = get_finetuning_data(50, seed=seed + 10007,
-                                           device=device, dataset=dataset)
+                                           device=device, dataset=dataset,
+                                           num_classes=num_classes)
     rows = []
     T_converge = None
     base_held0 = None      # base-model (pre-fine-tune) held-acc reference
@@ -1243,7 +1298,7 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
         ctx, cs, digits, dsm = _mnist_ctx(
             N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
             device=device, tangent_method=tangent_method, dataset=dataset, lr=lr,
-            base_dataset=base_dataset)
+            base_dataset=base_dataset, num_classes=num_classes)
         J = exact_jacobian(a0, ctx, method='jvp_double')
         svals, er = spectrum(J)
         hard = int((svals > 1e-8 * svals[0]).sum())
@@ -1251,7 +1306,8 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
         x_priv = make_images(ctx.x0_centered, ctx.U,
                              torch.zeros(N, ctx.U.shape[2], dtype=torch.float64, device=device))
         A, B = unrolled_lora_AB(ctx.frozen, ctx.b0, ctx.B0, x_priv, ctx.y,
-                                ctx.lr, T, ctx.scaling, ctx.act, ctx.target_layers)
+                                ctx.lr, T, ctx.scaling, ctx.act, ctx.target_layers,
+                                num_classes=ctx.num_classes)
         A = {l: A[l].detach() for l in A}
         B = {l: B[l].detach() for l in B}
         x_held = (xh_raw - dsm) if dsm is not None else xh_raw
@@ -1264,14 +1320,14 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
             B0d = {l: ctx.B0[l] for l in ctx.target_layers}
             mb = finetune_metrics(ctx.frozen, ctx.b0, A0, B0d, ctx.x0_centered, ctx.y,
                                   ctx.scaling, ctx.act, ctx.target_layers,
-                                  x_held=x_held, y_held=yh)
+                                  x_held=x_held, y_held=yh, num_classes=ctx.num_classes)
             base_held0 = mb['held_acc']
             print(f"[RIGOR] {0:4d} {'--':>8s} {'--':>4s} {mb['mean_bce']:9.2e} "
                   f"{mb['max_bce']:9.2e} {mb['private_acc']:8.2f} {base_held0:8.2f}  "
                   f"base θ₀ (pre-fine-tune reference)")
         m = finetune_metrics(ctx.frozen, ctx.b0, A, B, ctx.x0_centered, ctx.y,
                              ctx.scaling, ctx.act, ctx.target_layers,
-                             x_held=x_held, y_held=yh)
+                             x_held=x_held, y_held=yh, num_classes=ctx.num_classes)
         memorized = m['max_bce'] < memorize_thresh
         if memorized and T_converge is None:
             T_converge = T
@@ -1404,7 +1460,8 @@ def run_j0_T_sweep(N=4, k=8, rank=8, activation='gelu', device='cuda',
 def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
            tangent_method='qr', S_list=(16, 32, 64),
            eps_list=(0.01, 0.1, 0.3, 1.0), shrink_list=(1e-4, 1e-2, 1e-1),
-           seed=42, save=False, tag=None, dataset='mnist', anchor_alpha=0.0):
+           seed=42, save=False, tag=None, dataset='mnist', anchor_alpha=0.0,
+           num_classes=2):
     """Phase J1: seed-whiten the Jacobian and compute q_eff (the FIRST
     privacy-meaningful number).
 
@@ -1417,7 +1474,7 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
     base_ctx, col_scales, digits, ds_mean = _mnist_ctx(
         N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
         device=device, tangent_method=tangent_method, dataset=dataset,
-        anchor_alpha=anchor_alpha)
+        anchor_alpha=anchor_alpha, num_classes=num_classes)
     target_layers = base_ctx.target_layers
     Nk = N * k
     a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
@@ -1427,7 +1484,8 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
         index = build_ab_index(base_ctx.frozen, B0, target_layers)
         return Ctx(base_ctx.frozen, base_ctx.b0, B0, base_ctx.x0_centered,
                    base_ctx.U, base_ctx.y, base_ctx.lr, T, base_ctx.scaling,
-                   base_ctx.act, target_layers, index)
+                   base_ctx.act, target_layers, index,
+                   num_classes=base_ctx.num_classes)
 
     ref_ctx = make_ctx(seed)
     J = exact_jacobian(a0, ref_ctx, method='jvp_double')
@@ -1654,6 +1712,9 @@ if __name__ == '__main__':
     p.add_argument('--device', type=str, default=None)
     p.add_argument('--save', action='store_true')
     p.add_argument('--tag', type=str, default=None)
+    p.add_argument('--num_classes', type=int, default=2,
+                   help='2=binary BCE (default, shipped path); K>2=multi-class CE '
+                        '(Tier B leakage-amplification; loads weights-<ds><K>_<act>.pth)')
     args = p.parse_args()
 
     device = args.device or ('cuda' if torch.cuda.is_available() else 'cpu')
@@ -1664,6 +1725,12 @@ if __name__ == '__main__':
         if not gate['passed']:
             print("FATAL: toy-AD gate failed — do NOT submit. Inspect J.")
             sys.exit(1)
+        # Tier B: the CE-unroll gate. J is K-independent in shape so it MUST also
+        # pass — this validates the new CrossEntropy double-backward.
+        gate_mc = toy_ad_gate(num_classes=3)
+        if not gate_mc['passed']:
+            print("FATAL: multi-class (CE) toy-AD gate failed — do NOT submit.")
+            sys.exit(1)
         real_smoke(device=device)
 
     if args.j0:
@@ -1671,7 +1738,8 @@ if __name__ == '__main__':
                activation=args.activation, device=device,
                tangent_method=args.tangent, eps_list=tuple(args.eps_list),
                seed=args.seed, save=args.save, tag=args.tag,
-               dataset=args.dataset, anchor_alpha=args.anchor_alpha)
+               dataset=args.dataset, anchor_alpha=args.anchor_alpha,
+               num_classes=args.num_classes)
 
     if args.T_sweep:
         run_j0_T_sweep(N=args.N, k=args.k, rank=args.rank,
@@ -1683,7 +1751,7 @@ if __name__ == '__main__':
         run_rigor(N=args.N, k=args.k, rank=args.rank, activation=args.activation,
                   device=device, tangent_method=args.tangent, dataset=args.dataset,
                   Ts=tuple(args.Ts), seed=args.seed, lr=args.lr,
-                  save=args.save, tag=args.tag)
+                  save=args.save, tag=args.tag, num_classes=args.num_classes)
 
     if args.schemes:
         run_schemes(N=args.N, k=args.k, T=args.T, rank=args.rank,
@@ -1697,7 +1765,8 @@ if __name__ == '__main__':
                tangent_method=args.tangent, S_list=tuple(args.S_list),
                eps_list=tuple(args.eps_list), shrink_list=tuple(args.shrink_list),
                seed=args.seed, save=args.save, tag=args.tag,
-               dataset=args.dataset, anchor_alpha=args.anchor_alpha)
+               dataset=args.dataset, anchor_alpha=args.anchor_alpha,
+               num_classes=args.num_classes)
 
     if args.coord_transforms:
         run_coord_transforms(N=args.N, k=args.k, T=args.T, rank=args.rank,
@@ -1710,7 +1779,8 @@ if __name__ == '__main__':
         run_h1(methods=tuple(args.h1_methods), N=args.N, k=args.k, T=args.T,
                rank=args.rank, activation=args.activation, device=device,
                dataset=args.dataset, seed=args.seed, anchor_alpha=args.anchor_alpha,
-               eps_list=tuple(args.eps_list), save=args.save, tag=args.tag)
+               eps_list=tuple(args.eps_list), save=args.save, tag=args.tag,
+               num_classes=args.num_classes)
 
     if args.h2:
         run_h2(N=args.N, k=args.k, T=args.T, rank=args.rank, tangent=args.tangent,
