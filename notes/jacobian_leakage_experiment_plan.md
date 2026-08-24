@@ -341,6 +341,36 @@ the right recovery. Suggested order: **H1 → H2 → (SGD-noise phase) → J2**,
   data→adapter map → less binding collinearity. Sweep width, distinct from LoRA rank `r` and #modules
   `L`.
 
+### H1 + H2 OUTCOMES (2026-08-24, jobs 151183 H1, 147972 H2)
+
+**H1 — discriminative tangents do NOT escape the collinearity (both confirm it's real, not a PCA
+artifact).** `difference` (the on-manifold privacy-relevant basis) has HIGH col(J) overlap with pca
+across all 12 configs (N=2 mean ≈0.84, up to 0.99; N=4 mean ≈0.56; all ≥0.47) — **even when its INPUT
+overlap is as low as 0.058** (fashion N=2 s1: in 0.058, col(J) 0.950). So `∂Y/∂x` collapses a genuinely
+different *input* direction into essentially the SAME adapter measurement subspace as pca. Only the
+OFF-manifold bases (`pca_tail`/`residual`/`qr`) change col(J) (overlap ~0–0.19) — and they carry no
+private content. **The col(J)-space guardrail was essential:** input-space overlap alone (0.058) would
+have falsely read "different subspace." Extra privacy-favorable sub-finding: the discriminative subspace
+is tiny (rank ≤ N−1), the MOST masked (iso_ratio 1.2–5.2, >1 = above isotropic), and the LEAST
+recoverable (q_eff 0–4 of Nk at ε≤1) — the truly-private directions are the least leaky.
+
+**H2 — there is NO hard null, so nonlinearity can't beat an identifiability ceiling (in the noise-free
+regime).** Every config has `hard_rank = Nk` (frac=1.00) — the "collinearity" is ILL-CONDITIONING, not
+rank-deficiency. So linear pinv already recovers the near-null coordinate deterministically
+(`lin_null_err` 1e-6…0.19, NEVER ≈1 "blind"); the nonlinear inverter matches or slightly beats it when
+optimization succeeds (seed 42: ~1e-10) but FAILS on the chaotic unrolled landscape (pca seed 1:
+optimizer-failure). The "first-order q_eff ceiling" is purely NOISE-relative (ε·σ_i(J_SNR)<1), so it
+cannot be tested deterministically — it belongs to the noisy (SGD/whitening) regime. (Caveat: the
+`NONLINEAR-WIN` label over-fires — it checks only `nl_null_err<0.15`, not `nl < lin`; read the raw
+lin/nl columns.)
+
+**Net:** both H1 and H2 **CONFIRM** the collinearity as a genuine property of on-manifold directions
+through a single small LoRA module — it is NOT a PCA-basis artifact (H1) and there is no hard-null for
+nonlinearity to exploit (H2). The user's two hypotheses were exactly the right tests; testing them
+validates rather than dissolves the wall. The remaining legitimate escapes are the ones the literature
+uses: **more measurements** (J2/H5 — rank, #modules L, width) or **a prior**. Next: J2/H5 capacity
+sweep, and the noisy-regime q_eff (SGD phase) where a real ceiling exists to test H2 against.
+
 **Scope of the invariance result (job 993396):** "recombining coordinates can't beat `col(J)`" is a
 **linear, fixed-subspace, fixed-map** statement. H1 (different subspace), H2 (nonlinear), H3/H5
 (different/enlarged map) all lie OUTSIDE its scope — they are the legitimate ways to beat the apparent
