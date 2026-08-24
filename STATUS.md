@@ -37,6 +37,20 @@ Revised near-term order: **H1 → H2 → SGD-noise phase → J2.**
 - **Implication:** the earlier T=5 numbers were the deeply-underfit corner; the realistic fully-memorized
   regime leaks ~0.75 of coordinate directions. (Write-up: plan "RIGOR-UPGRADE RESULTS", yoado-89 commit b7383fd.)
 
+## Base-classifier accuracy table (2026-08-25, job 188663 — all 6 honest base models)
+Binary odd/even, d250, trained to convergence (test-error at final epoch; these are the θ₀ the leakage
+pipeline loads UNDER its true activation):
+
+| dataset | relu | gelu | modifiedrelu |
+|---|---|---|---|
+| mnist   | 89.8% | 87.9% | 88.5% |
+| fashion | 95.9% | 94.9% | 95.5% |
+
+Note: Fashion's base classifier is MORE accurate than MNIST (~95% vs ~88%) yet LEAKS LESS under LoRA
+fine-tune (eff_rank 3–4 vs 13–20) — accuracy and leakage are decoupled; the Fashion adapter is simply
+more collinear/rank-deficient. LoRA fine-tune's effect on this base accuracy vs T is NOT yet logged
+(run_rigor prints priv_acc only; held_acc is computed by finetune_metrics but never fed a held set).
+
 ## Orthonormal-vs-PCA-variant secret (2026-08-25, jobs 215013 qr / 215289 pca-variants)
 Honest θ₀; N=4 k8 r8 seed42; MNIST+Fashion × GELU+ReLU × T{5,50}. Secret = perturb coords along k=8
 tangents; leakage = eff_rank(J)/32. **Orthonormal (qr) additions leak MORE than pca** everywhere (MNIST
