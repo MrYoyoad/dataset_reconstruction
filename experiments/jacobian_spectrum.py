@@ -59,13 +59,20 @@ from experiments.gate_matrix_test import effective_rank
 # ---------------------------------------------------------------------------
 # 1. Tangent-basis construction (§2 of the plan: controlled k)
 # ---------------------------------------------------------------------------
-def _pca_basis(k, n_bank=4000, seed=0, device='cpu', dataset='mnist'):
-    """Top-k principal directions of a PUBLIC data bank (the Gen-L generator).
+def _pca_basis(k, n_bank=4000, seed=0, device='cpu', dataset='mnist', tail=False):
+    """Principal directions of a PUBLIC data bank (the Gen-L generator).
 
     A linear generator x = μ + U z has a CONSTANT Jacobian U, so its top-k
     well-conditioned directions are just the top-k principal components of the
     data — the real axes natural images vary along, not random noise. The bank
     is the TRAIN split (public proxy), disjoint from the private TEST images.
+
+    Args:
+        dataset: which bank to build the PCA from — MUST match the private data's
+            dataset (Blocker-2: a prior bug hard-coded 'mnist' here).
+        tail: if True return the BOTTOM-k right singular vectors (the low-variance
+            / high-frequency directions where natural images carry ~no energy —
+            OFF-manifold; a contrast, not a privacy-relevant basis).
 
     Returns:
         dirs: [d, k] orthonormal principal directions (right singular vectors).
@@ -79,49 +86,91 @@ def _pca_basis(k, n_bank=4000, seed=0, device='cpu', dataset='mnist'):
     Xc = X - X.mean(dim=0, keepdim=True)
     # principal axes = right singular vectors of the centered data matrix
     _U, S, Vh = torch.linalg.svd(Xc, full_matrices=False)
-    dirs = Vh[:k].t().contiguous()            # [d, k], orthonormal columns
-    return dirs.to(device), S[:k].to(device)
+    if tail:
+        dirs = Vh[-k:].t().contiguous()       # bottom-k (off-manifold contrast)
+        sv = S[-k:]
+    else:
+        dirs = Vh[:k].t().contiguous()        # top-k
+        sv = S[:k]
+    return dirs.to(device), sv.to(device)
+
+
+def _private_diff_basis(x0_centered):
+    """Discriminative tangents from the PRIVATE set's own inter-image differences.
+
+    x0_centered is already {x_i − x̄} (mean over the N fine-tuning images), so its
+    right singular vectors are the directions that DISTINGUISH the private images
+    — the privacy-relevant, on-manifold discriminative subspace. It is inherently
+    **rank ≤ N−1** (N mean-centered points): N=2 → 1 direction, N=4 → ≤3. That
+    low-dimensionality IS the finding (see plan H1, Blocker-1).
+
+    Returns:
+        dirs: [d, r] orthonormal difference directions, r = rank ≤ N−1.
+        sv:   [r] their singular values.
+    """
+    N = x0_centered.shape[0]
+    X = x0_centered.reshape(N, -1).double()   # rows = (x_i − x̄)
+    _U, S, Vh = torch.linalg.svd(X, full_matrices=False)
+    r = int((S > 1e-9 * S[0]).sum())          # numerical rank ≤ N−1
+    return Vh[:r].t().contiguous(), S[:r]
 
 
 def build_tangents(d, k, N, seed=0, method='qr', decay=0.5, device='cpu',
-                   pca_dirs=None, pca_sv=None):
+                   pca_dirs=None, pca_sv=None, priv_dirs=None):
     """Per-image tangent bases. Column j of U[i] moves image i along direction j.
 
-    Returns U [N, d, k] and col_scales [N, k] (the norm injected per column).
+    Returns U [N, d, k] and col_scales [N, k]. NOTE for 'difference' the effective
+    k is priv_dirs' rank (≤ N−1), so read the true k from U.shape[2] downstream.
 
     method:
         'qr'         — orthonormal RANDOM tangents (arbitrary pixel directions).
-        'svd'        — random orthonormal scaled by a geometric decay (decay**j):
-                       a *known* rank deficiency, the falsification control.
+        'svd'        — random orthonormal scaled by a geometric decay (control).
         'pca'        — top-k PRINCIPAL directions of the data (Gen-L), unit-norm.
-                       Real axes of image variation, SHARED across images; matched
-                       orthonormality to 'qr' so it isolates principal-vs-random.
-        'pca_scaled' — same principal directions scaled by the REAL data spectrum
-                       (sv/sv[0]): the realistic Gen-L that carries the true
-                       variance profile (high-variance dirs move the image more).
-    'pca'/'pca_scaled' require pca_dirs [d,k] (and pca_sv [k] for scaled).
+                       On-manifold but the SHARED (least-private) modes → collinear.
+        'pca_scaled' — pca scaled by the real data spectrum (sv/sv[0]).
+        'pca_tail'   — BOTTOM-k principal directions (pass tail pca_dirs). OFF-manifold
+                       contrast: low-variance/high-freq, images carry ~no energy there.
+        'difference' — top-(N−1) PCs of the PRIVATE set's own {x_i−x̄} (priv_dirs).
+                       On-manifold AND privacy-relevant (distinguishes the images);
+                       inherently rank ≤ N−1 — the star H1 method.
+        'residual'   — random qr directions with span(pca_dirs) projected out
+                       (off-manifold-ish contrast: what's left after the shared modes).
     """
-    if method in ('pca', 'pca_scaled'):
-        if pca_dirs is None:
-            raise ValueError(f"method={method!r} requires pca_dirs")
-        Q = pca_dirs.double()
-        if method == 'pca':
+    # ---- shared-basis methods (same U for every image) ----
+    if method in ('pca', 'pca_scaled', 'pca_tail', 'difference'):
+        if method == 'difference':
+            if priv_dirs is None:
+                raise ValueError("method='difference' requires priv_dirs")
+            Q = priv_dirs.double()
+            k = Q.shape[1]                    # effective k = rank ≤ N−1
             s = torch.ones(k, dtype=torch.float64, device=Q.device)
         else:
-            s = (pca_sv[:k].double() / (pca_sv[0].double() + 1e-30))
+            if pca_dirs is None:
+                raise ValueError(f"method={method!r} requires pca_dirs")
+            Q = pca_dirs.double()
+            if method == 'pca_scaled':
+                s = (pca_sv[:k].double() / (pca_sv[0].double() + 1e-30))
+            else:                             # pca, pca_tail: unit-norm
+                s = torch.ones(k, dtype=torch.float64, device=Q.device)
         Ui = Q * s.unsqueeze(0)               # [d, k], shared across images
         U = Ui.unsqueeze(0).repeat(N, 1, 1)   # [N, d, k]
         col_scales = s.unsqueeze(0).repeat(N, 1).cpu()
         return U.to(device), col_scales.to(device)
 
+    # ---- per-image random methods (qr / svd / residual) ----
+    if method == 'residual' and pca_dirs is None:
+        raise ValueError("method='residual' requires pca_dirs (subspace to remove)")
+    P = pca_dirs.double().to('cpu') if method == 'residual' else None
     g = torch.Generator(device='cpu').manual_seed(seed)
     U = torch.empty(N, d, k, dtype=torch.float64)
     col_scales = torch.empty(N, k, dtype=torch.float64)
     for i in range(N):
         M = torch.randn(d, k, generator=g, dtype=torch.float64)
+        if method == 'residual':
+            M = M - P @ (P.t() @ M)           # remove the shared-PCA subspace
         Q, _ = torch.linalg.qr(M)            # [d, k], orthonormal columns
         Q = Q[:, :k]
-        if method == 'qr':
+        if method in ('qr', 'residual'):
             s = torch.ones(k, dtype=torch.float64)
         elif method == 'svd':
             s = torch.tensor([decay ** j for j in range(k)], dtype=torch.float64)
@@ -130,6 +179,26 @@ def build_tangents(d, k, N, seed=0, method='qr', decay=0.5, device='cpu',
         U[i] = Q * s.unsqueeze(0)
         col_scales[i] = s
     return U.to(device), col_scales.to(device)
+
+
+def subspace_overlap(U_a, U_b):
+    """Principal-angle overlap between two tangent sets — the guardrail against the
+    invariance no-op (job 993396). Returns (mean_cos, energy_frac): cosines of the
+    principal angles between the orthonormalized column spans, and the fraction of
+    U_a's energy captured by proj onto span(U_b). LOW overlap ⇒ genuinely different
+    subspace. Works in whatever space the columns live in — call it in INPUT space
+    (d-dim) AND in col(J)/Y-space, since the invariance theorem lives in col(J).
+
+    U_a: [d, k_a], U_b: [d, k_b] (any matching row dim).
+    """
+    def _orth(M):
+        Q, _ = torch.linalg.qr(M.double())
+        return Q[:, :M.shape[1]]
+    Qa, Qb = _orth(U_a), _orth(U_b)
+    M = Qa.t() @ Qb                            # [k_a, k_b]
+    cos = torch.linalg.svdvals(M).clamp(0, 1)  # principal-angle cosines
+    energy = (M.pow(2).sum() / Qa.shape[1]).item()   # ‖P_b Qa‖²/k_a
+    return float(cos.mean()), energy
 
 
 def make_images(x0_centered, U, a):
@@ -571,12 +640,25 @@ def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
     B0 = {l: B0_all[l] for l in target_layers}
     x0_centered = (x_ft - ds_mean) if ds_mean is not None else x_ft
     d = x0_centered.reshape(N, -1).shape[1]
-    pca_dirs, pca_sv = (None, None)
+    # Basis dispatch (H1). ALWAYS pass dataset=dataset to _pca_basis (Blocker-2:
+    # a prior bug hard-coded 'mnist', making fashion/flowers pca rows compare
+    # against an mnist basis). 'residual' removes the top-m shared PCA subspace.
+    pca_dirs, pca_sv, priv_dirs = (None, None, None)
     if tangent_method in ('pca', 'pca_scaled'):
-        pca_dirs, pca_sv = _pca_basis(k, seed=seed + 7, device=device)
+        pca_dirs, pca_sv = _pca_basis(k, seed=seed + 7, device=device, dataset=dataset)
+    elif tangent_method == 'pca_tail':
+        pca_dirs, pca_sv = _pca_basis(k, seed=seed + 7, device=device,
+                                      dataset=dataset, tail=True)
+    elif tangent_method == 'residual':
+        m = min(64, d)                        # shared subspace to project out
+        pca_dirs, pca_sv = _pca_basis(m, seed=seed + 7, device=device, dataset=dataset)
+    elif tangent_method == 'difference':
+        priv_dirs, _pv = _private_diff_basis(x0_centered)   # [d, ≤N−1]
+        priv_dirs = priv_dirs.to(device)
     U, col_scales = build_tangents(d, k, N, seed=seed + 1,
                                    method=tangent_method, device=device,
-                                   pca_dirs=pca_dirs, pca_sv=pca_sv)
+                                   pca_dirs=pca_dirs, pca_sv=pca_sv,
+                                   priv_dirs=priv_dirs)
     act = make_activation(activation)
     index = build_ab_index(frozen, B0, target_layers)
     ctx = Ctx(frozen, b0, B0, x0_centered, U, y_ft, lr, T, 1.0, act,
@@ -789,6 +871,257 @@ def run_coord_transforms(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda'
     print("[COORD] NOTE: relabelings (white, sumdiff) keep hard_rank fixed = the "
           "true leakage is invariant; eff_rank/q_eff shift (coordinate-dependent). "
           "diffONLY restricts the subspace (hard_rank ≤ k) — a real change, not a fix.")
+
+
+def _ctx_reseed_b0(ctx, rank, b0_seed, device):
+    """Clone a ctx with a fresh B0 draw (Σ_seed over init draws for THIS J)."""
+    B0 = _draw_B0(ctx.frozen, rank, ctx.target_layers, b0_seed, device)
+    index = build_ab_index(ctx.frozen, B0, ctx.target_layers)
+    return Ctx(ctx.frozen, ctx.b0, B0, ctx.x0_centered, ctx.U, ctx.y, ctx.lr,
+               ctx.T, ctx.scaling, ctx.act, ctx.target_layers, index)
+
+
+def _colj_basis(J, tol=1e-8):
+    """Orthonormal basis of col(J) (left singular vectors up to numerical rank)."""
+    U, s, _ = torch.linalg.svd(J, full_matrices=False)
+    r = int((s > tol * s[0]).sum())
+    return U[:, :r], r
+
+
+# On/off-manifold tag per H1 method (plan MAJOR-c): only 'difference' is a
+# privacy-relevant on-manifold discriminative basis; pca is shared/on-manifold;
+# the rest are off-manifold contrasts.
+_H1_MANIFOLD = {'pca': 'on(shared)', 'pca_scaled': 'on(shared)',
+                'difference': 'ON(privacy)', 'pca_tail': 'OFF(deep)',
+                'residual': 'OFF(resid)', 'qr': 'off(random)'}
+
+
+def run_h1(methods=('pca', 'difference', 'pca_tail', 'residual', 'qr'),
+           N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
+           dataset='mnist', seed=42, anchor_alpha=0.0, S=64,
+           eps_list=(0.001, 0.01, 0.1), save=False, tag=None):
+    """H1: do discriminative tangent bases change col(J) vs PCA-shared-modes?
+
+    Reports the INVARIANT fraction hard_rank(col J)/Nk and iso_ratio, the
+    coordinate-dependent eff_rank / q_eff|col(J), and — the guardrail against the
+    invariance no-op — principal-angle overlap vs the matched-k PCA basis in BOTH
+    input-space AND col(J)/Y-space (the invariance theorem lives in col(J)).
+    'difference' runs at k=N−1 (rank ≤ N−1 by construction — the finding); every
+    row is tagged on/off-manifold (only 'difference' is privacy-relevant).
+    """
+    pca_cache = {}
+
+    def pca_ref(kk):
+        if kk not in pca_cache:
+            ctxp, _cs, _d, _m = _mnist_ctx(
+                N=N, k=kk, T=T, rank=rank, activation=activation, seed=seed,
+                device=device, tangent_method='pca', dataset=dataset,
+                anchor_alpha=anchor_alpha)
+            a0p = torch.zeros(N * ctxp.U.shape[2], dtype=torch.float64, device=device)
+            pca_cache[kk] = (ctxp, exact_jacobian(a0p, ctxp))
+        return pca_cache[kk]
+
+    print(f"[H1] dataset={dataset} N={N} T={T} rank={rank} seed={seed} "
+          f"anchor={anchor_alpha}  (difference runs at k=N−1={N-1})")
+    print(f"[H1] {'method':11s} {'manifold':11s} {'k':>2s} {'Nk':>3s} {'hard':>4s} "
+          f"{'frac':>5s} {'effrk':>6s} {'iso':>5s} {'in_ovlp':>7s} {'colJ_ovlp':>9s}  "
+          f"q_eff|col(J) @ε=" + ",".join(f"{e:g}" for e in eps_list))
+    results = {}
+    for method in methods:
+        km = (N - 1) if method == 'difference' else k
+        ctx, cs, digits, dsm = _mnist_ctx(
+            N=N, k=km, T=T, rank=rank, activation=activation, seed=seed,
+            device=device, tangent_method=method, dataset=dataset,
+            anchor_alpha=anchor_alpha)
+        k_eff = ctx.U.shape[2]
+        Nk = N * k_eff
+        a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+        J = exact_jacobian(a0, ctx)
+        sv = torch.linalg.svdvals(J)
+        hard = int((sv > 1e-8 * sv[0]).sum())
+        frac = hard / Nk
+        er = effective_rank(J)
+        centered = estimate_sigma_seed(
+            lambda s: _ctx_reseed_b0(ctx, rank, 10_000 + s, device), S, a0)
+        csr = q_eff_colspace(J, centered, eps_list)
+        # overlap vs matched-k PCA (input-space uses image-0's tangents; col(J)
+        # uses matched # of columns) — MAJOR-b guardrail.
+        ctxp, Jp = pca_ref(k_eff)
+        in_cos, _ie = subspace_overlap(ctx.U[0], ctxp.U[0])
+        Qm, rm = _colj_basis(J)
+        Qp, rp = _colj_basis(Jp)
+        rr = min(rm, rp)
+        cj_cos, _ce = subspace_overlap(Qm[:, :rr], Qp[:, :rr])
+        qs = ",".join(str(csr['q_eff'][e]) for e in eps_list)
+        print(f"[H1] {method:11s} {_H1_MANIFOLD.get(method,'?'):11s} {k_eff:2d} {Nk:3d} "
+              f"{hard:4d} {frac:5.2f} {er:6.2f} {csr['iso_ratio']:5.2f} "
+              f"{in_cos:7.3f} {cj_cos:9.3f}  {qs}")
+        results[method] = {
+            'k': k_eff, 'Nk': Nk, 'hard_rank': hard, 'frac': frac,
+            'eff_rank': er, 'iso_ratio': csr['iso_ratio'],
+            'input_overlap_vs_pca': in_cos, 'colJ_overlap_vs_pca': cj_cos,
+            'q_eff': csr['q_eff'], 'manifold': _H1_MANIFOLD.get(method, '?'),
+            'svals': sv.cpu(), 'U0': ctx.U[0].cpu(),
+            'x0_centered': ctx.x0_centered.cpu(), 'ds_mean': dsm.cpu() if dsm is not None else None,
+        }
+    print("[H1] READ: 'difference' is the only on-manifold privacy-relevant basis "
+          "(rank≤N−1 by construction). A method 'beats' pca only if colJ_ovlp is "
+          "LOW (genuinely different col(J)) — low in_ovlp alone is the invariance no-op.")
+    out = {'results': results, 'N': N, 'k': k, 'T': T, 'rank': rank,
+           'dataset': dataset, 'seed': seed, 'anchor_alpha': anchor_alpha,
+           'methods': list(methods), 'digits': digits}
+    if save:
+        tag = tag or f"{dataset}_N{N}_k{k}_T{T}_r{rank}_a{anchor_alpha}_s{seed}"
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        path = os.path.join(RESULTS_DIR, f"jacobian_h1_{tag}.pth")
+        torch.save(out, path)
+        print(f"[H1] saved -> {path}")
+        _plot_h1(out, os.path.join(FIGURES_DIR, 'jacobian_spectrum', f"h1_{tag}.png"))
+    return out
+
+
+def _plot_h1(out, save_path):
+    """Visual grid: each method's tangent-direction images + a perturbed x(a)."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    methods = out['methods']
+    ncol = 4
+    fig, axes = plt.subplots(len(methods), ncol, figsize=(2.2 * ncol, 2.2 * len(methods)),
+                             dpi=120, squeeze=False)
+    for r, m in enumerate(methods):
+        res = out['results'][m]
+        U0 = res['U0']                         # [d, k_m]
+        d = U0.shape[0]
+        side = int(round(d ** 0.5))            # 784-dim track ⇒ 28×28
+        for c in range(ncol):
+            ax = axes[r][c]; ax.axis('off')
+            if c < U0.shape[1] and side * side == d:
+                ax.imshow(U0[:, c].reshape(side, side), cmap='RdBu')
+                ax.set_title(f"{m} dir{c}" if c == 0 else f"dir{c}", fontsize=6)
+    fig.suptitle(f"H1 tangent directions — {out['dataset']} N={out['N']} seed={out['seed']}",
+                 fontsize=9)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.tight_layout(); plt.savefig(save_path, bbox_inches='tight', facecolor='white')
+    plt.close()
+    print(f"[H1] figure -> {save_path}")
+
+
+def recover_a_nonlinear(ctx, Y_target, a_init=None, n_restarts=8, outer_iters=400,
+                        adam_lr=0.05, grad_clip=1.0, device='cuda', seed=0):
+    """Nonlinear inverse: optimize â over the full nonlinear forward_Y to match
+    Y_target (Adam on â). Mirrors direct_inversion.run_direct_inversion but on a
+    COORDINATE vector — NO pixel-box penalty (box_weight=0; â is not image-shaped).
+    Second-order (forward_Y's inner SGD is create_graph=True; one backward of the
+    L2 loss uses ≤2nd derivatives — same profile as direct inversion). grad-clip +
+    many restarts (unrolled landscapes are chaotic at large ε). Returns best â, loss.
+    """
+    Nk = (a_init.numel() if a_init is not None
+          else ctx.U.shape[0] * ctx.U.shape[2])
+    best_loss, best_a = float('inf'), None
+    for r in range(n_restarts):
+        torch.manual_seed(seed * 100 + r)
+        if r == 0 and a_init is not None:
+            a = a_init.clone().detach().to(device).double().requires_grad_(True)
+        else:
+            a = (0.01 * torch.randn(Nk, dtype=torch.float64, device=device)
+                 ).requires_grad_(True)
+        opt = torch.optim.Adam([a], lr=adam_lr)
+        last = float('inf')
+        for _it in range(outer_iters):
+            opt.zero_grad()
+            Y = forward_Y(a, ctx)
+            loss = (Y - Y_target).pow(2).sum()
+            if not torch.isfinite(loss):
+                break
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_([a], grad_clip)
+            opt.step()
+            last = loss.item()
+        if last < best_loss:
+            best_loss, best_a = last, a.detach().clone()
+    return best_a, best_loss
+
+
+def run_h2(N=2, k=8, T=5, rank=8, tangent='pca', activation='gelu', device='cuda',
+           dataset='mnist', seed=42, anchor_alpha=0.0,
+           eps_list=(0.01, 0.1, 0.3, 1.0, 3.0), n_restarts=8, outer_iters=400,
+           save=False, tag=None):
+    """H2: does a nonlinear inverse recover a coordinate in the LINEAR NULL SPACE
+    of J (past the first-order q_eff ceiling)? Targets a_true = ε·v_min (the
+    smallest-σ right singular vector of J — the collinear/near-null direction) and
+    reports the null-component recovery, with the three-way verdict (yoado-15 #3):
+      loss(â)≫0 → optimizer failure;  loss(â)≈0 & null-match → nonlinear WIN;
+      loss(â)≈0 & null-mismatch → genuine collision (Y-match, wrong a).
+    Local (warm-start from linear) vs global (random init). ε capped below NaN.
+    Framed as the known-init UPPER bound (distinct from the SGD-noise phase).
+    """
+    ctx, cs, digits, dsm = _mnist_ctx(
+        N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
+        device=device, tangent_method=tangent, dataset=dataset,
+        anchor_alpha=anchor_alpha)
+    Nk = N * ctx.U.shape[2]
+    a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+    J = exact_jacobian(a0, ctx)
+    sv = torch.linalg.svdvals(J)
+    _U, s, Vh = torch.linalg.svd(J, full_matrices=False)
+    v_min = Vh[-1].to(device)                  # a-space dir J flattens most (near-null)
+    hard = int((s > 1e-8 * s[0]).sum())
+    print(f"[H2] dataset={dataset} tangent={tangent} N={N} k={k} T={T}  J={tuple(J.shape)} "
+          f"hard_rank={hard}/{Nk}  σ_min/σ_max={sv[-1]/sv[0]:.2e} (near-null dir = v_min)")
+    Y0 = forward_Y(a0, ctx).detach()
+    print(f"[H2] {'eps':>6s} {'lin_null_err':>12s} {'nl_null_err':>12s} "
+          f"{'nl_relloss':>10s} {'verdict':>22s} {'loc<glob':>9s}")
+    results = {}
+    for eps in eps_list:
+        a_true = eps * v_min
+        Y_t = forward_Y(a_true, ctx).detach()
+        if not torch.isfinite(Y_t).all():
+            print(f"[H2] eps={eps:<6g}  Y non-finite — ε too large, capping the grid here")
+            break
+        dY_scale = (Y_t - Y0).norm().item() + 1e-30
+        # linear baseline (should MISS the null coordinate)
+        a_lin = recover_a(J, Y_t, Y0)
+        lin_null = ((a_lin - a_true) @ v_min).abs().item() / (eps + 1e-30)
+        # nonlinear: local (warm-start) vs global (random)
+        a_loc, l_loc = recover_a_nonlinear(ctx, Y_t, a_init=a_lin, device=device,
+                                           n_restarts=1, outer_iters=outer_iters, seed=seed)
+        a_glob, l_glob = recover_a_nonlinear(ctx, Y_t, a_init=None, device=device,
+                                             n_restarts=n_restarts, outer_iters=outer_iters,
+                                             seed=seed)
+        a_nl, l_nl = (a_loc, l_loc) if l_loc <= l_glob else (a_glob, l_glob)
+        nl_null = ((a_nl - a_true) @ v_min).abs().item() / (eps + 1e-30)
+        rel_loss = (l_nl ** 0.5) / dY_scale
+        if rel_loss > 0.1:
+            verdict = 'optimizer-failure'
+        elif nl_null < 0.15:
+            verdict = 'NONLINEAR-WIN'
+        else:
+            verdict = 'collision(Y=,a≠)'
+        loc_better = 'yes' if l_loc <= l_glob else 'no'
+        print(f"[H2] {eps:6g} {lin_null:12.3e} {nl_null:12.3e} {rel_loss:10.3e} "
+              f"{verdict:>22s} {loc_better:>9s}")
+        results[eps] = {
+            'a_true': a_true.cpu(), 'a_nl': a_nl.cpu(), 'a_lin': a_lin.cpu(),
+            'lin_null_err': lin_null, 'nl_null_err': nl_null, 'rel_loss': rel_loss,
+            'l_local': l_loc, 'l_global': l_glob, 'verdict': verdict,
+        }
+    print("[H2] READ: lin_null_err≈1 (linear blind to the near-null coord); "
+          "NONLINEAR-WIN ⇒ the nonlinearity recovers past the first-order q_eff ceiling; "
+          "collision ⇒ genuinely non-identifiable; optimizer-failure ⇒ inconclusive.")
+    out = {'results': results, 'N': N, 'k': k, 'T': T, 'rank': rank,
+           'tangent': tangent, 'dataset': dataset, 'seed': seed,
+           'v_min': v_min.cpu(), 'svals': sv.cpu(), 'hard_rank': hard,
+           'x0_centered': ctx.x0_centered.cpu(),
+           'ds_mean': dsm.cpu() if dsm is not None else None,
+           'U0': ctx.U[0].cpu(), 'digits': digits}
+    if save:
+        tag = tag or f"{dataset}_{tangent}_N{N}_k{k}_T{T}_r{rank}_s{seed}"
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        path = os.path.join(RESULTS_DIR, f"jacobian_h2_{tag}.pth")
+        torch.save(out, path)
+        print(f"[H2] saved -> {path}")
+    return out
 
 
 def run_j0_T_sweep(N=4, k=8, rank=8, activation='gelu', device='cuda',
@@ -1036,6 +1369,14 @@ if __name__ == '__main__':
                    help='eff_rank(J) vs T — underfitting vs structural de-confound')
     p.add_argument('--coord_transforms', action='store_true',
                    help='subtract linear parts (across-image diff / response-whiten) & re-measure')
+    p.add_argument('--h1', action='store_true',
+                   help='H1: discriminative tangents (difference/pca_tail/residual vs pca)')
+    p.add_argument('--h2', action='store_true',
+                   help='H2: nonlinear recovery of the near-null coordinate vs ε')
+    p.add_argument('--h1_methods', type=str, nargs='+',
+                   default=['pca', 'difference', 'pca_tail', 'residual', 'qr'])
+    p.add_argument('--n_restarts', type=int, default=8)
+    p.add_argument('--outer_iters', type=int, default=400)
     p.add_argument('--Ts', type=int, nargs='+', default=[5, 20, 50])
     p.add_argument('--S_list', type=int, nargs='+', default=[16, 32, 64])
     p.add_argument('--shrink_list', type=float, nargs='+',
@@ -1046,7 +1387,8 @@ if __name__ == '__main__':
     p.add_argument('--rank', type=int, default=8)
     p.add_argument('--activation', type=str, default='gelu')
     p.add_argument('--tangent', type=str, default='qr',
-                   choices=['qr', 'svd', 'pca', 'pca_scaled'])
+                   choices=['qr', 'svd', 'pca', 'pca_scaled', 'pca_tail',
+                            'difference', 'residual'])
     p.add_argument('--eps_list', type=float, nargs='+',
                    default=[1e-3, 1e-2, 1e-1, 1.0])
     p.add_argument('--dataset', type=str, default='mnist',
@@ -1097,5 +1439,18 @@ if __name__ == '__main__':
                              tangent_method=args.tangent, dataset=args.dataset,
                              seed=args.seed, anchor_alpha=args.anchor_alpha,
                              eps_list=tuple(args.eps_list))
+
+    if args.h1:
+        run_h1(methods=tuple(args.h1_methods), N=args.N, k=args.k, T=args.T,
+               rank=args.rank, activation=args.activation, device=device,
+               dataset=args.dataset, seed=args.seed, anchor_alpha=args.anchor_alpha,
+               eps_list=tuple(args.eps_list), save=args.save, tag=args.tag)
+
+    if args.h2:
+        run_h2(N=args.N, k=args.k, T=args.T, rank=args.rank, tangent=args.tangent,
+               activation=args.activation, device=device, dataset=args.dataset,
+               seed=args.seed, anchor_alpha=args.anchor_alpha,
+               eps_list=tuple(args.eps_list), n_restarts=args.n_restarts,
+               outer_iters=args.outer_iters, save=args.save, tag=args.tag)
 
     print("=== Done ===")
