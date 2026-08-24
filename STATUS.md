@@ -37,6 +37,24 @@ Revised near-term order: **H1 → H2 → SGD-noise phase → J2.**
 - **Implication:** the earlier T=5 numbers were the deeply-underfit corner; the realistic fully-memorized
   regime leaks ~0.75 of coordinate directions. (Write-up: plan "RIGOR-UPGRADE RESULTS", yoado-89 commit b7383fd.)
 
+## Tier B: multi-class (CrossEntropy) support — IMPLEMENTED + gated (2026-08-25)
+"Make the base better" + "more than 2 classes". KEY INSIGHT: the base model's regime is DECOUPLED from
+the attack (the attack targets the LoRA fine-tune's private imgs, not the base training set) — so the
+88% was just Haim's reconstruction regime (500 imgs + tiny init) copied onto the base. Tier A (job
+224204): full-data BINARY base, drop-in, ~97-98% target. Tier B (this): genuine K-class.
+- **Planned by yoado-8a** (audited): invariant CONFIRMED — LoRA A,B shapes are output-dim-independent, so
+  exact J is structurally unchanged; only the unroll LOSS changes (BCE→CE). Both AD gates pass (job
+  230968: binary FD 5.949e-10 = byte-identical to pre-Tier-B; CE gate FD 1.3e-9).
+- **Implemented** across run_experiment_b (output_dim threading), jacobian_spectrum (num_classes dispatch
+  in unroll+metrics+Ctx+all run_* + CE toy gate + --num_classes), data_utils (multi-class long labels),
+  Main.py (CE branch), new problems mnist_10class/fashion_10class. Binary path byte-identical.
+- **HYPOTHESIS to test (leakage amplification):** binary BCE injects a 1-dim per-sample residual into the
+  adapter gradient; K-class CE injects (K-1)-dim → col(J) can gain rank, q_eff can RISE. Ties to the
+  "more measurements defeat collinearity" theme (DAGER/MineGrad). Needs N≳K. Scope boundary: TRAIN goes
+  multi-class; the KKT/max-margin RECONSTRUCTION stays binary (different implicit-bias theory).
+- Jobs: 231594 (10-class bases → weights-<ds>10_<act>.pth); leakage re-run script ready
+  (run_leakage_multiclass, N-sweep N∈{10,20}, nc∈{2,10}). CIFAR-10 deferred (heavier arch).
+
 ## Base-classifier accuracy table (2026-08-25, job 188663 — all 6 honest base models)
 Binary odd/even, d250, trained to convergence (test-error at final epoch; these are the θ₀ the leakage
 pipeline loads UNDER its true activation):
