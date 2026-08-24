@@ -40,6 +40,16 @@ requested). Full table (N=2 k8, rank-8, T=5, S=128):
 | masked modes | 0–1/16 | 0/16 except those seed-42 cells (2–5/16) |
 | eff_rank(J) | 8–16 | **3–13, systematically LOWER** (fashion 3.4 vs qr 8.8; mnist s1 3.5 vs 10; flowers s1 5.1 vs 11) |
 
+> **⚠ DATA-FRESHNESS CAVEAT (flagged by sibling yoado-89, 2026-08-23):** a pre-existing bug had
+> `_pca_basis` in `experiments/jacobian_spectrum.py` **hard-coded `dataset='mnist'`** regardless of
+> `--dataset`, so in this sweep (job 989194) the **fashion×pca and flowers×pca cells were built on an
+> MNIST tangent basis, not their own dataset's PCA** — those specific cells (pca column, fashion/flowers
+> rows: iso_ratio, masked modes, eff_rank) are STALE / mislabeled. **mnist×pca and ALL ×qr cells are
+> unaffected.** Root cause fixed in commit `9bfc487` (`dataset=dataset`); the H1 re-run will regenerate
+> correct-basis pca rows for fashion/flowers. The headline conclusion (pca init-masking NOT robust; only
+> the seed-42 mnist/flowers/α=0 draw is elevated) does **not** change — but do not cite the fashion/flowers
+> pca cells until re-run.
+
 **Two effects separate — one robust, one not:**
 1. **Init masking (iso_ratio) is NOT robust.** For random dirs it is ~0 everywhere. For on-manifold
    dirs it is ~0 too, EXCEPT for the **default seed 42** on mnist/flowers (0.2–0.5). It vanishes for
