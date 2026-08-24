@@ -1216,7 +1216,8 @@ def run_h2(N=2, k=8, T=5, rank=8, tangent='pca', activation='gelu', device='cuda
 
 def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
               tangent_method='qr', dataset='mnist', Ts=(5, 20, 50, 100, 200),
-              seed=42, memorize_thresh=1e-3, lr=TRAIN_LR, save=False, tag=None):
+              seed=42, memorize_thresh=1e-3, lr=TRAIN_LR, save=False, tag=None,
+              base_dataset=None):
     """R3+R4: leakage AND memorization/accuracy across T (underfit→converged→
     overtrained), on the HONEST θ₀. At each T: eff_rank/hard_rank(J) (leakage
     geometry) + the fine-tune's per-sample BCE on the ACTUAL private images (the
@@ -1235,7 +1236,8 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
     for T in Ts:
         ctx, cs, digits, dsm = _mnist_ctx(
             N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
-            device=device, tangent_method=tangent_method, dataset=dataset, lr=lr)
+            device=device, tangent_method=tangent_method, dataset=dataset, lr=lr,
+            base_dataset=base_dataset)
         J = exact_jacobian(a0, ctx, method='jvp_double')
         svals, er = spectrum(J)
         hard = int((svals > 1e-8 * svals[0]).sum())
