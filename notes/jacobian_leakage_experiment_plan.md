@@ -400,6 +400,32 @@ single-rank-8-module setup is deliberately the most information-starved case; H3
 
 ---
 
+## RIGOR-UPGRADE RESULTS (2026-08-24) — honest θ₀, no swap
+
+Foundation (R0/R1/R0b) done + FD-validated end-to-end on honestly-retrained per-activation base models
+(no more GELU-on-ReLU-weights swap). Base models: mnist/fashion × relu/gelu/modifiedrelu trained via
+Main.py (job 188663), each a real classifier (mnist ~89% test); leakage runs load
+`models/weights-<dataset>_<activation>.pth` UNDER its true activation. modifiedrelu = accuracy-only
+(guarded out of the exact-J path). Metrics harness: per-sample memorization BCE + private/held-out acc.
+
+**R3+R4 headline (`run_rigor`, honest MNIST, N=4 k8, jobs 201658 lr=0.01 / 201904 lr=0.03,0.1):
+leakage GROWS with memorization; the earlier T=5 numbers were the deeply-underfit corner.**
+- eff_rank(J) rises monotonically with training length from the underfit corner to a plateau at the
+  (fully-)memorized point: gelu 13→24/32 (~0.75) at lr=0.1,T=200 (FULL memorization, max per-sample
+  BCE<1e-3); relu 16→22. **Memorization ⟺ leakage.** Overtraining past convergence plateaus eff_rank.
+- **ReLU leaks more than GELU** at matched T (honest activation comparison; smooth = more collinear).
+- **lr sanity:** 0.01 monotone-but-underfit (never memorizes in T≤100); 0.03 mildly non-monotone
+  (overshoots the stiff, already-confident max-margin base); 0.1 fully memorizes by T=200 → the right
+  lr for this setup is ~0.1. (5 steps @ lr=0.01 = doubly under-powered.)
+- **One consistent "hard sample"** (last private image to memorize) regardless of lr — surfaced by the
+  per-sample memorization metric.
+
+Implication: **in the realistic fully-memorized regime the adapter leaks substantially more (~0.75 of
+coordinate directions) than the underfit T=5 corner** — on honest weights. Remaining rigor axes: R2
+schemes (SAME/MIXTURE), R5 datasets/combos/CIFAR + base-width sweep (recoverable≈min(width,N)).
+
+---
+
 ## J0/J1 build spec (implemented in `experiments/jacobian_spectrum.py`)
 
 Mirrors `direct_inversion.py` conventions (`sys.path` insert, `torch.set_default_dtype(float64)`, GELU
