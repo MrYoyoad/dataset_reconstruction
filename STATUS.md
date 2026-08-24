@@ -25,6 +25,21 @@ Revised near-term order: **H1 → H2 → SGD-noise phase → J2.**
 
 ---
 
+## H1+H2: both CONFIRM the collinearity is real, not an artifact (2026-08-24, jobs 151183/147972)
+- **H1 (discriminative tangents):** 'difference' (on-manifold, privacy-relevant) has HIGH col(J) overlap
+  with pca (N=2 mean ~0.84, N=4 ~0.56, all >=0.47) EVEN when input overlap is 0.058 -> dY/dx collapses
+  discriminative input dirs into pca's measurement subspace, no escape. Only off-manifold bases change
+  col(J) (~0-0.19), no private content. col(J)-space guardrail essential. Discriminative subspace is tiny
+  (rank<=N-1), most-masked (iso 1.2-5.2), least-recoverable (q_eff 0-4/Nk at eps<=1).
+- **H2 (nonlinear recovery):** no hard null (hard_rank=Nk; collinearity = ill-conditioning); linear
+  already recovers the near-null coord (lin_null_err never ~1); nonlinear matches/beats when optimization
+  succeeds (~1e-10) but FAILS on the chaotic landscape (pca seed1). q_eff ceiling is noise-relative -> SGD
+  regime.
+- **Net:** collinearity is a genuine property of on-manifold dirs through a single small LoRA module.
+  Escapes = more measurements (J2/H5) or a prior. See plan Part 6 (owned by yoado-89, commit 1a98a3c).
+  H1 (job 151183) also re-ran pca on the CORRECT per-dataset basis (fixes the fashion/flowers pca caveat
+  in the robustness-sweep table below).
+
 ## Jacobian-spectrum — ON-MANIFOLD (Gen-L): robustness sweep OVERTURNS the "init masks" claim (2026-08-23, jobs 988588→989194)
 
 Replaced random pixel tangents with **principal directions of the data** (Gen-L: `pca` unit-norm;
@@ -48,7 +63,8 @@ requested). Full table (N=2 k8, rank-8, T=5, S=128):
 > unaffected.** Root cause fixed in commit `9bfc487` (`dataset=dataset`); the H1 re-run will regenerate
 > correct-basis pca rows for fashion/flowers. The headline conclusion (pca init-masking NOT robust; only
 > the seed-42 mnist/flowers/α=0 draw is elevated) does **not** change — but do not cite the fashion/flowers
-> pca cells until re-run.
+> pca cells until re-run.  **[RESOLVED 2026-08-24: H1 job 151183 re-ran pca on the correct
+> per-dataset basis — see the H1+H2 section above / plan Part 6 for correct-basis numbers.]**
 
 **Two effects separate — one robust, one not:**
 1. **Init masking (iso_ratio) is NOT robust.** For random dirs it is ~0 everywhere. For on-manifold

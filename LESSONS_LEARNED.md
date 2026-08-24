@@ -4,6 +4,14 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## An overlap must be measured in the SIGNAL's own subspace (col(J)), not just input space (2026-08-24)
+
+H1 (job 151183): the 'difference' tangent could be near-orthogonal to top-PCA in PIXEL space (input
+overlap 0.058) yet map to ~95% the SAME col(J) — dY/dx collapses the input difference into the same
+measurement subspace. Checking only input-space overlap would have falsely concluded 'different
+measurement'. **Always test the invariance/guardrail in the space the theorem lives in (col(J) / Y-space),
+not the input space.** (From sibling yoado-89's Jacobian-leakage H1; recorded here as I own LESSONS.)
+
 ## Which leakage metrics are reparametrization-invariant vs coordinate-dependent (2026-08-23)
 
 - **Finding (job 993396):** recombining/subtracting the tangent directions (cross-image sum/diff,
