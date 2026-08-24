@@ -1229,10 +1229,16 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
     print(f"[RIGOR] dataset={dataset} act={activation} N={N} k={k} rank={rank} "
           f"tangent={tangent_method} seed={seed} lr={lr}  (leakage + memorization vs T)")
     print(f"[RIGOR] {'T':>4s} {'eff_rank':>8s} {'hard':>4s} {'mean_bce':>9s} "
-          f"{'max_bce':>9s} {'priv_acc':>8s}  memorized")
+          f"{'max_bce':>9s} {'priv_acc':>8s} {'held_acc':>8s}  memorized")
     a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+    # Held-out set (disjoint seed) for the "does fine-tuning help or harm general
+    # classification?" measurement — the effect-on-classification axis. Centered
+    # per-T by ds_mean below (ds_mean is deterministic across T).
+    xh_raw, yh, _, _ = get_finetuning_data(50, seed=seed + 10007,
+                                           device=device, dataset=dataset)
     rows = []
     T_converge = None
+    base_held0 = None      # base-model (pre-fine-tune) held-acc reference
     for T in Ts:
         ctx, cs, digits, dsm = _mnist_ctx(
             N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
@@ -1248,25 +1254,48 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
                                 ctx.lr, T, ctx.scaling, ctx.act, ctx.target_layers)
         A = {l: A[l].detach() for l in A}
         B = {l: B[l].detach() for l in B}
+        x_held = (xh_raw - dsm) if dsm is not None else xh_raw
+        # T=0 base-model reference (LoRA at init A=0,B=B0 ⇒ exactly θ₀) — printed
+        # ONCE so "help or harm?" is read as held_acc(T) vs this base row.
+        if base_held0 is None:
+            A0 = {l: torch.zeros(ctx.B0[l].shape[1], ctx.frozen[l].shape[1],
+                                 dtype=ctx.frozen[l].dtype, device=ctx.frozen[l].device)
+                  for l in ctx.target_layers}
+            B0d = {l: ctx.B0[l] for l in ctx.target_layers}
+            mb = finetune_metrics(ctx.frozen, ctx.b0, A0, B0d, ctx.x0_centered, ctx.y,
+                                  ctx.scaling, ctx.act, ctx.target_layers,
+                                  x_held=x_held, y_held=yh)
+            base_held0 = mb['held_acc']
+            print(f"[RIGOR] {0:4d} {'--':>8s} {'--':>4s} {mb['mean_bce']:9.2e} "
+                  f"{mb['max_bce']:9.2e} {mb['private_acc']:8.2f} {base_held0:8.2f}  "
+                  f"base θ₀ (pre-fine-tune reference)")
         m = finetune_metrics(ctx.frozen, ctx.b0, A, B, ctx.x0_centered, ctx.y,
-                             ctx.scaling, ctx.act, ctx.target_layers)
+                             ctx.scaling, ctx.act, ctx.target_layers,
+                             x_held=x_held, y_held=yh)
         memorized = m['max_bce'] < memorize_thresh
         if memorized and T_converge is None:
             T_converge = T
         print(f"[RIGOR] {T:4d} {er:8.2f} {hard:4d} {m['mean_bce']:9.2e} "
-              f"{m['max_bce']:9.2e} {m['private_acc']:8.2f}  {'YES' if memorized else 'no'}")
+              f"{m['max_bce']:9.2e} {m['private_acc']:8.2f} {m['held_acc']:8.2f}  "
+              f"{'YES' if memorized else 'no'}")
         rows.append({'T': T, 'eff_rank': er, 'hard_rank': hard,
                      'mean_bce': m['mean_bce'], 'max_bce': m['max_bce'],
-                     'private_acc': m['private_acc'],
+                     'private_acc': m['private_acc'], 'held_acc': m['held_acc'],
                      'per_sample_bce': m['per_sample_bce'], 'svals': svals.cpu()})
     verdict = (f"converges (memorized) at T={T_converge}" if T_converge
                else "NOT memorized in the T grid (underfit — extend Ts / raise lr)")
+    dh = rows[-1]['held_acc'] - base_held0
     print(f"[RIGOR] verdict: {verdict}; "
           f"eff_rank {rows[0]['eff_rank']:.1f}→{rows[-1]['eff_rank']:.1f} over T "
           f"({'rises (underfit)' if rows[-1]['eff_rank'] > rows[0]['eff_rank']+0.5 else 'plateau'})")
+    print(f"[RIGOR] classification effect: held_acc base θ₀ {base_held0:.2f} → "
+          f"{rows[-1]['held_acc']:.2f} at T={rows[-1]['T']} (Δ{dh:+.2f} — "
+          f"{'HARMS' if dh < -0.02 else 'HELPS' if dh > 0.02 else '~unchanged'} "
+          f"general accuracy while memorizing the {N} private images)")
     out = {'rows': rows, 'N': N, 'k': k, 'rank': rank, 'activation': activation,
            'dataset': dataset, 'tangent_method': tangent_method, 'seed': seed,
-           'Ts': list(Ts), 'T_converge': T_converge, 'digits': digits}
+           'Ts': list(Ts), 'T_converge': T_converge, 'digits': digits,
+           'base_held_acc': base_held0}
     if save:
         tag = tag or f"{dataset}_{activation}_N{N}_k{k}_r{rank}_{tangent_method}_s{seed}"
         os.makedirs(RESULTS_DIR, exist_ok=True)
