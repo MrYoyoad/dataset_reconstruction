@@ -1214,6 +1214,66 @@ def run_h2(N=2, k=8, T=5, rank=8, tangent='pca', activation='gelu', device='cuda
     return out
 
 
+def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
+              tangent_method='qr', dataset='mnist', Ts=(5, 20, 50, 100, 200),
+              seed=42, memorize_thresh=1e-3, save=False, tag=None):
+    """R3+R4: leakage AND memorization/accuracy across T (underfit→converged→
+    overtrained), on the HONEST θ₀. At each T: eff_rank/hard_rank(J) (leakage
+    geometry) + the fine-tune's per-sample BCE on the ACTUAL private images (the
+    memorization signal — "it should memorize the images") + private-set accuracy.
+    A row is MEMORIZED when max per-sample BCE < memorize_thresh. Answers "does the
+    fine-tune actually work?" and "how does leakage move as it converges/overtrains?"
+    """
+    Nk = N * k
+    print(f"[RIGOR] dataset={dataset} act={activation} N={N} k={k} rank={rank} "
+          f"tangent={tangent_method} seed={seed}  (leakage + memorization vs T)")
+    print(f"[RIGOR] {'T':>4s} {'eff_rank':>8s} {'hard':>4s} {'mean_bce':>9s} "
+          f"{'max_bce':>9s} {'priv_acc':>8s}  memorized")
+    a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
+    rows = []
+    T_converge = None
+    for T in Ts:
+        ctx, cs, digits, dsm = _mnist_ctx(
+            N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
+            device=device, tangent_method=tangent_method, dataset=dataset)
+        J = exact_jacobian(a0, ctx, method='jvp_double')
+        svals, er = spectrum(J)
+        hard = int((svals > 1e-8 * svals[0]).sum())
+        # the ACTUAL fine-tuned adapter on the private images (a=0 ⇒ x = x0)
+        x_priv = make_images(ctx.x0_centered, ctx.U,
+                             torch.zeros(N, ctx.U.shape[2], dtype=torch.float64, device=device))
+        A, B = unrolled_lora_AB(ctx.frozen, ctx.b0, ctx.B0, x_priv, ctx.y,
+                                ctx.lr, T, ctx.scaling, ctx.act, ctx.target_layers)
+        A = {l: A[l].detach() for l in A}
+        B = {l: B[l].detach() for l in B}
+        m = finetune_metrics(ctx.frozen, ctx.b0, A, B, ctx.x0_centered, ctx.y,
+                             ctx.scaling, ctx.act, ctx.target_layers)
+        memorized = m['max_bce'] < memorize_thresh
+        if memorized and T_converge is None:
+            T_converge = T
+        print(f"[RIGOR] {T:4d} {er:8.2f} {hard:4d} {m['mean_bce']:9.2e} "
+              f"{m['max_bce']:9.2e} {m['private_acc']:8.2f}  {'YES' if memorized else 'no'}")
+        rows.append({'T': T, 'eff_rank': er, 'hard_rank': hard,
+                     'mean_bce': m['mean_bce'], 'max_bce': m['max_bce'],
+                     'private_acc': m['private_acc'],
+                     'per_sample_bce': m['per_sample_bce'], 'svals': svals.cpu()})
+    verdict = (f"converges (memorized) at T={T_converge}" if T_converge
+               else "NOT memorized in the T grid (underfit — extend Ts / raise lr)")
+    print(f"[RIGOR] verdict: {verdict}; "
+          f"eff_rank {rows[0]['eff_rank']:.1f}→{rows[-1]['eff_rank']:.1f} over T "
+          f"({'rises (underfit)' if rows[-1]['eff_rank'] > rows[0]['eff_rank']+0.5 else 'plateau'})")
+    out = {'rows': rows, 'N': N, 'k': k, 'rank': rank, 'activation': activation,
+           'dataset': dataset, 'tangent_method': tangent_method, 'seed': seed,
+           'Ts': list(Ts), 'T_converge': T_converge, 'digits': digits}
+    if save:
+        tag = tag or f"{dataset}_{activation}_N{N}_k{k}_r{rank}_{tangent_method}_s{seed}"
+        os.makedirs(RESULTS_DIR, exist_ok=True)
+        path = os.path.join(RESULTS_DIR, f"jacobian_rigor_{tag}.pth")
+        torch.save(out, path)
+        print(f"[RIGOR] saved -> {path}")
+    return out
+
+
 def run_j0_T_sweep(N=4, k=8, rank=8, activation='gelu', device='cuda',
                    tangent_method='qr', Ts=(5, 20, 50), seed=42):
     """De-confound the deterministic eff_rank readout (yoado-29's caution): if
@@ -1459,6 +1519,8 @@ if __name__ == '__main__':
                    help='eff_rank(J) vs T — underfitting vs structural de-confound')
     p.add_argument('--coord_transforms', action='store_true',
                    help='subtract linear parts (across-image diff / response-whiten) & re-measure')
+    p.add_argument('--rigor', action='store_true',
+                   help='R3+R4: leakage + memorization/accuracy vs T (honest θ₀)')
     p.add_argument('--h1', action='store_true',
                    help='H1: discriminative tangents (difference/pca_tail/residual vs pca)')
     p.add_argument('--h2', action='store_true',
@@ -1514,6 +1576,11 @@ if __name__ == '__main__':
                        activation=args.activation, device=device,
                        tangent_method=args.tangent, Ts=tuple(args.Ts),
                        seed=args.seed)
+
+    if args.rigor:
+        run_rigor(N=args.N, k=args.k, rank=args.rank, activation=args.activation,
+                  device=device, tangent_method=args.tangent, dataset=args.dataset,
+                  Ts=tuple(args.Ts), seed=args.seed, save=args.save, tag=args.tag)
 
     if args.j1:
         run_j1(N=args.N, k=args.k, T=args.T, rank=args.rank,
