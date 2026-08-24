@@ -724,7 +724,8 @@ def _honest_target(x_ft, y_ft, T, rank, activation, lr, device, base_dataset,
 
 def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
                seed=42, device='cpu', tangent_method='qr', dataset='mnist',
-               anchor_alpha=0.0, b0_seed=None, base_dataset=None, num_classes=2):
+               anchor_alpha=0.0, b0_seed=None, base_dataset=None, num_classes=2,
+               classes_present=None):
     """Real single-module context via generate_target (784-dim θ₀).
 
     generate_target trains an all-layer LoRA; we reuse only frozen / b0 / B0[0]
@@ -740,13 +741,17 @@ def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
         would otherwise get different B0 and their col(J) would differ for reasons
         unrelated to the tangents. Fixed B0 ⇒ the col(J) difference isolates U.
     """
-    n_per_class = N // num_classes
+    # classes_present (<num_classes) spans only K_eff classes on the SAME K-class
+    # base — the clean amplification knob (base fixed, output-residual width varies).
+    kpres = classes_present if (num_classes > 2 and classes_present) else num_classes
+    n_per_class = N // kpres
     assert n_per_class >= 1, (
-        f"N={N} < num_classes={num_classes}: multi-class needs N≥K (ideally N≫K "
+        f"N={N} < classes-present={kpres}: multi-class needs N≥K_eff (ideally N≫K_eff "
         f"so classes are represented — the leakage-amplification effect needs it).")
     x_ft, y_ft, digits, _ = get_finetuning_data(n_per_class, seed=seed,
                                                 device=device, dataset=dataset,
-                                                num_classes=num_classes)
+                                                num_classes=num_classes,
+                                                classes_present=classes_present)
     # R0b honest θ₀: load the base model trained WITH `activation` (no swap).
     # base_dataset != dataset ⇒ cross-dataset transfer (base on A, private from B).
     base_dataset = base_dataset or dataset
@@ -1271,7 +1276,7 @@ def run_h2(N=2, k=8, T=5, rank=8, tangent='pca', activation='gelu', device='cuda
 def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
               tangent_method='qr', dataset='mnist', Ts=(5, 20, 50, 100, 200),
               seed=42, memorize_thresh=1e-3, lr=TRAIN_LR, save=False, tag=None,
-              base_dataset=None, num_classes=2):
+              base_dataset=None, num_classes=2, classes_present=None):
     """R3+R4: leakage AND memorization/accuracy across T (underfit→converged→
     overtrained), on the HONEST θ₀. At each T: eff_rank/hard_rank(J) (leakage
     geometry) + the fine-tune's per-sample BCE on the ACTUAL private images (the
@@ -1290,7 +1295,8 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
     # per-T by ds_mean below (ds_mean is deterministic across T).
     xh_raw, yh, _, _ = get_finetuning_data(50, seed=seed + 10007,
                                            device=device, dataset=dataset,
-                                           num_classes=num_classes)
+                                           num_classes=num_classes,
+                                           classes_present=classes_present)
     rows = []
     T_converge = None
     base_held0 = None      # base-model (pre-fine-tune) held-acc reference
@@ -1298,7 +1304,8 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
         ctx, cs, digits, dsm = _mnist_ctx(
             N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
             device=device, tangent_method=tangent_method, dataset=dataset, lr=lr,
-            base_dataset=base_dataset, num_classes=num_classes)
+            base_dataset=base_dataset, num_classes=num_classes,
+            classes_present=classes_present)
         J = exact_jacobian(a0, ctx, method='jvp_double')
         svals, er = spectrum(J)
         hard = int((svals > 1e-8 * svals[0]).sum())
@@ -1461,7 +1468,7 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
            tangent_method='qr', S_list=(16, 32, 64),
            eps_list=(0.01, 0.1, 0.3, 1.0), shrink_list=(1e-4, 1e-2, 1e-1),
            seed=42, save=False, tag=None, dataset='mnist', anchor_alpha=0.0,
-           num_classes=2):
+           num_classes=2, classes_present=None):
     """Phase J1: seed-whiten the Jacobian and compute q_eff (the FIRST
     privacy-meaningful number).
 
@@ -1470,11 +1477,25 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
     generalized spectrum σ_i(J_SNR) with J_SNR = Σ_seed^{-1/2} J gives
     q_eff(ε) = #{i : ε σ_i(J_SNR) > 1}. Reports q_eff over a range of shrinkage
     ρ and ε (small σ(J_SNR) are ρ-sensitive — this must be shown, not hidden).
+
+    classes_present (multi-class): span only K_eff classes on the fixed K-class
+    base — the clean amplification sweep (q_eff vs K_eff, base held constant).
     """
     base_ctx, col_scales, digits, ds_mean = _mnist_ctx(
         N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
         device=device, tangent_method=tangent_method, dataset=dataset,
-        anchor_alpha=anchor_alpha, num_classes=num_classes)
+        anchor_alpha=anchor_alpha, num_classes=num_classes,
+        classes_present=classes_present)
+    if num_classes > 2:
+        # frozen[2] conditioning gates amplification: the (K-1) extra CE-residual
+        # directions only inject if the output rows are well-separated (yoado-8a).
+        Wout = base_ctx.frozen[len(base_ctx.frozen) - 1]     # [K, hidden]
+        sv_o = torch.linalg.svdvals(Wout.double())
+        eff_o = effective_rank(Wout.double())
+        kpres = classes_present if classes_present else num_classes
+        print(f"[J1] MULTI-CLASS K={num_classes} K_eff(classes_present)={kpres}  "
+              f"frozen_out[{tuple(Wout.shape)}] cond={sv_o[0]/(sv_o[-1]+1e-30):.2e} "
+              f"eff_rank={eff_o:.2f}  (well-separated ⇒ amplification can manifest)")
     target_layers = base_ctx.target_layers
     Nk = N * k
     a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
@@ -1715,6 +1736,9 @@ if __name__ == '__main__':
     p.add_argument('--num_classes', type=int, default=2,
                    help='2=binary BCE (default, shipped path); K>2=multi-class CE '
                         '(Tier B leakage-amplification; loads weights-<ds><K>_<act>.pth)')
+    p.add_argument('--classes_present', type=int, default=None,
+                   help='multi-class: span only K_eff classes on the FIXED K-class '
+                        'base (clean amplification sweep q_eff vs K_eff; base held constant)')
     args = p.parse_args()
 
     device = args.device or ('cuda' if torch.cuda.is_available() else 'cpu')
@@ -1751,7 +1775,8 @@ if __name__ == '__main__':
         run_rigor(N=args.N, k=args.k, rank=args.rank, activation=args.activation,
                   device=device, tangent_method=args.tangent, dataset=args.dataset,
                   Ts=tuple(args.Ts), seed=args.seed, lr=args.lr,
-                  save=args.save, tag=args.tag, num_classes=args.num_classes)
+                  save=args.save, tag=args.tag, num_classes=args.num_classes,
+                  classes_present=args.classes_present)
 
     if args.schemes:
         run_schemes(N=args.N, k=args.k, T=args.T, rank=args.rank,
@@ -1766,7 +1791,7 @@ if __name__ == '__main__':
                eps_list=tuple(args.eps_list), shrink_list=tuple(args.shrink_list),
                seed=args.seed, save=args.save, tag=args.tag,
                dataset=args.dataset, anchor_alpha=args.anchor_alpha,
-               num_classes=args.num_classes)
+               num_classes=args.num_classes, classes_present=args.classes_present)
 
     if args.coord_transforms:
         run_coord_transforms(N=args.N, k=args.k, T=args.T, rank=args.rank,

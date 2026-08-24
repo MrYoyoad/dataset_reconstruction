@@ -110,7 +110,8 @@ def get_few_shot_mnist(n_per_class, seed=42, root=None, device='cpu'):
 
 
 def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='mnist',
-                        source='all', holdout_species=None, num_classes=2):
+                        source='all', holdout_species=None, num_classes=2,
+                        classes_present=None):
     """Load few-shot fine-tuning data from the TEST set of `dataset`.
 
     These samples are guaranteed non-overlapping with the pre-trained model's
@@ -144,9 +145,16 @@ def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='
     # Tier B: num_classes>2 balances over the K TRUE class labels and returns y as
     # LONG class indices (CrossEntropy requires long — a float y is read as class
     # probabilities, a silent miscompute). Binary path (default) is byte-identical.
+    # classes_present (<num_classes): restrict the private set to span only the
+    # first K_eff class labels (labels stay their true 0..K_eff-1 indices, valid
+    # for the K-way CE) — the CLEAN amplification knob (yoado-8a): hold the K-class
+    # base θ0 FIXED, vary how many classes the private set spans, and read q_eff vs
+    # K_eff. Isolates the CE (K-1)-dim-residual mechanism from the base-weight
+    # confound of comparing a binary-θ0 vs a K-class-θ0.
     multiclass = num_classes > 2
+    kpres = classes_present if (multiclass and classes_present) else num_classes
     x_list, y_list, digit_list, idx_list = [], [], [], []
-    counts = {c: 0 for c in range(num_classes)} if multiclass else {0: 0, 1: 0}
+    counts = {c: 0 for c in range(kpres)} if multiclass else {0: 0, 1: 0}
 
     for idx in perm.tolist():
         img, digit = dataset[idx]
@@ -155,7 +163,7 @@ def get_finetuning_data(n_per_class, seed=42, root=None, device='cpu', dataset='
         if source == 'novel' and int(digit) not in holdout:
             continue          # skip trained species -> only held-out (novel) species
         label = int(digit) if multiclass else _get_binary_label(digit)
-        if label < num_classes and counts[label] < n_per_class:
+        if label < kpres and counts[label] < n_per_class:
             counts[label] += 1
             x_list.append(img)
             y_list.append(label)
