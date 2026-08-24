@@ -1216,7 +1216,7 @@ def run_h2(N=2, k=8, T=5, rank=8, tangent='pca', activation='gelu', device='cuda
 
 def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
               tangent_method='qr', dataset='mnist', Ts=(5, 20, 50, 100, 200),
-              seed=42, memorize_thresh=1e-3, save=False, tag=None):
+              seed=42, memorize_thresh=1e-3, lr=TRAIN_LR, save=False, tag=None):
     """R3+R4: leakage AND memorization/accuracy across T (underfit→converged→
     overtrained), on the HONEST θ₀. At each T: eff_rank/hard_rank(J) (leakage
     geometry) + the fine-tune's per-sample BCE on the ACTUAL private images (the
@@ -1226,7 +1226,7 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
     """
     Nk = N * k
     print(f"[RIGOR] dataset={dataset} act={activation} N={N} k={k} rank={rank} "
-          f"tangent={tangent_method} seed={seed}  (leakage + memorization vs T)")
+          f"tangent={tangent_method} seed={seed} lr={lr}  (leakage + memorization vs T)")
     print(f"[RIGOR] {'T':>4s} {'eff_rank':>8s} {'hard':>4s} {'mean_bce':>9s} "
           f"{'max_bce':>9s} {'priv_acc':>8s}  memorized")
     a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
@@ -1235,7 +1235,7 @@ def run_rigor(N=4, k=8, rank=8, activation='gelu', device='cuda',
     for T in Ts:
         ctx, cs, digits, dsm = _mnist_ctx(
             N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
-            device=device, tangent_method=tangent_method, dataset=dataset)
+            device=device, tangent_method=tangent_method, dataset=dataset, lr=lr)
         J = exact_jacobian(a0, ctx, method='jvp_double')
         svals, er = spectrum(J)
         hard = int((svals > 1e-8 * svals[0]).sum())
@@ -1549,6 +1549,8 @@ if __name__ == '__main__':
     p.add_argument('--anchor_alpha', type=float, default=0.0,
                    help='linearize from θ_anchor=(1−α)θ₀+αθ_T (work point)')
     p.add_argument('--seed', type=int, default=42)
+    p.add_argument('--lr', type=float, default=TRAIN_LR,
+                   help='fine-tune learning rate (rigor: lr-sanity + reach memorization)')
     p.add_argument('--device', type=str, default=None)
     p.add_argument('--save', action='store_true')
     p.add_argument('--tag', type=str, default=None)
@@ -1580,7 +1582,8 @@ if __name__ == '__main__':
     if args.rigor:
         run_rigor(N=args.N, k=args.k, rank=args.rank, activation=args.activation,
                   device=device, tangent_method=args.tangent, dataset=args.dataset,
-                  Ts=tuple(args.Ts), seed=args.seed, save=args.save, tag=args.tag)
+                  Ts=tuple(args.Ts), seed=args.seed, lr=args.lr,
+                  save=args.save, tag=args.tag)
 
     if args.j1:
         run_j1(N=args.N, k=args.k, T=args.T, rank=args.rank,
