@@ -33,7 +33,7 @@ for DS in mnist fashion; do
         --data_per_class_train=250 \
         --model_hidden_list="[1000,1000]" --model_init_list="[0.0001,0.0001]" \
         --train_epochs=200000 --train_lr=0.01 --train_evaluate_rate=2000 \
-        --train_threshold=1e-6 --device=cuda
+        --train_threshold=1e-6
     if [ $? -ne 0 ]; then echo "WARN: base train $DS x $ACT failed"; continue; fi
     # collect the freshest checkpoint for this model_name into models/
     MN="${PROB}_d250_${DS}_${ACT}"
