@@ -1,6 +1,6 @@
 #!/bin/bash
 #BSUB -q long-gpu
-#BSUB -R "rusage[mem=16384] select[ngpus>0]"
+#BSUB -R "rusage[mem=16384] select[ngpus>0 && hname!='lgn28']"
 #BSUB -gpu "num=1"
 #BSUB -o scripts/wexac_logs/base_retrain_full_%J.out
 #BSUB -e scripts/wexac_logs/base_retrain_full_%J.err
