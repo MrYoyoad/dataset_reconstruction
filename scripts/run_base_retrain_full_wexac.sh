@@ -1,13 +1,16 @@
 #!/bin/bash
 #BSUB -q long-gpu
 #BSUB -R "rusage[mem=16384] select[ngpus>0]"
-#BSUB -gpu "num=1:j_exclusive=yes:gmodel=NVIDIAA100_SXM4"
+#BSUB -gpu "num=1"
 #BSUB -o scripts/wexac_logs/base_retrain_full_%J.out
 #BSUB -e scripts/wexac_logs/base_retrain_full_%J.err
 #BSUB -J base_full
 
-# Resubmit note: the first attempt (224204) landed on a contended node (~26 min/500
-# epochs, ~100x slow). Request a DEDICATED A100 (j_exclusive) — the good-GPU rule.
+# Node note: attempt 1 (224204) hit a contended node (~26 min/500 epochs, ~100x
+# slow); attempt 2 (236781) PENDed forever on j_exclusive A100. This is a tiny MLP
+# — any free GPU is plenty (the 10-class job did 500 steps in ~15s on plain num=1).
+# So: plain num=1 (schedules immediately); the job monitor's Epoch-500 timing check
+# catches a bad node → re-roll if slow. No exclusive/gmodel constraint.
 
 # =====================================================================
 # TIER A — "make the base model better" (binary, drop-in). The 88% base was an
