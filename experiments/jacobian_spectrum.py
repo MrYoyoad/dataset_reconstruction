@@ -613,7 +613,7 @@ def _toy_ctx(seed=0, N=2, k=4, T=5, d_in=6, d_h=5, rank=2, lr=0.1,
 
 def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
                seed=42, device='cpu', tangent_method='qr', dataset='mnist',
-               anchor_alpha=0.0):
+               anchor_alpha=0.0, b0_seed=None):
     """Real single-module context via generate_target (784-dim θ₀).
 
     generate_target trains an all-layer LoRA; we reuse only frozen / b0 / B0[0]
@@ -622,8 +622,12 @@ def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
     dataset: private-image source (784-dim track: 'mnist'/'fashion'/'flowers',
         all reuse the MNIST θ₀ — the 28×28 transfer-attack cookbook).
     anchor_alpha: linearize/train the LoRA map from a shifted work point
-        θ_anchor = (1−α)θ₀ + α·θ_T (θ_T = the composed fine-tuned endpoint), to
-        check the leakage result is not specific to θ₀. α=0 is the θ₀ baseline.
+        θ_anchor = (1−α)θ₀ + α·θ_T (θ_T = the composed fine-tuned endpoint).
+    b0_seed: if given, override the LoRA B0 with a DETERMINISTIC seeded draw
+        (_draw_B0). Needed when comparing col(J) ACROSS tangent methods (H1) —
+        generate_target's B0 is RNG-order-dependent, so two ctx built in sequence
+        would otherwise get different B0 and their col(J) would differ for reasons
+        unrelated to the tangents. Fixed B0 ⇒ the col(J) difference isolates U.
     """
     n_per_class = N // 2
     x_ft, y_ft, digits, _ = get_finetuning_data(n_per_class, seed=seed,
@@ -637,7 +641,10 @@ def _mnist_ctx(N=2, k=8, T=5, rank=2, activation='gelu', lr=TRAIN_LR,
                   + anchor_alpha * theta_T_all[f'layers.{l}.weight']
                   for l in frozen}
     target_layers = (0,)
-    B0 = {l: B0_all[l] for l in target_layers}
+    if b0_seed is not None:
+        B0 = _draw_B0(frozen, rank, target_layers, b0_seed, device)
+    else:
+        B0 = {l: B0_all[l] for l in target_layers}
     x0_centered = (x_ft - ds_mean) if ds_mean is not None else x_ft
     d = x0_centered.reshape(N, -1).shape[1]
     # Basis dispatch (H1). ALWAYS pass dataset=dataset to _pca_basis (Blocker-2:
@@ -916,7 +923,7 @@ def run_h1(methods=('pca', 'difference', 'pca_tail', 'residual', 'qr'),
             ctxp, _cs, _d, _m = _mnist_ctx(
                 N=N, k=kk, T=T, rank=rank, activation=activation, seed=seed,
                 device=device, tangent_method='pca', dataset=dataset,
-                anchor_alpha=anchor_alpha)
+                anchor_alpha=anchor_alpha, b0_seed=seed)
             a0p = torch.zeros(N * ctxp.U.shape[2], dtype=torch.float64, device=device)
             pca_cache[kk] = (ctxp, exact_jacobian(a0p, ctxp))
         return pca_cache[kk]
@@ -932,7 +939,7 @@ def run_h1(methods=('pca', 'difference', 'pca_tail', 'residual', 'qr'),
         ctx, cs, digits, dsm = _mnist_ctx(
             N=N, k=km, T=T, rank=rank, activation=activation, seed=seed,
             device=device, tangent_method=method, dataset=dataset,
-            anchor_alpha=anchor_alpha)
+            anchor_alpha=anchor_alpha, b0_seed=seed)
         k_eff = ctx.U.shape[2]
         Nk = N * k_eff
         a0 = torch.zeros(Nk, dtype=torch.float64, device=device)
