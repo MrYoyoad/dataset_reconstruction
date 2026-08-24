@@ -1,10 +1,13 @@
 #!/bin/bash
 #BSUB -q long-gpu
 #BSUB -R "rusage[mem=16384] select[ngpus>0]"
-#BSUB -gpu "num=1"
+#BSUB -gpu "num=1:j_exclusive=yes:gmodel=NVIDIAA100_SXM4"
 #BSUB -o scripts/wexac_logs/base_retrain_full_%J.out
 #BSUB -e scripts/wexac_logs/base_retrain_full_%J.err
 #BSUB -J base_full
+
+# Resubmit note: the first attempt (224204) landed on a contended node (~26 min/500
+# epochs, ~100x slow). Request a DEDICATED A100 (j_exclusive) — the good-GPU rule.
 
 # =====================================================================
 # TIER A — "make the base model better" (binary, drop-in). The 88% base was an
