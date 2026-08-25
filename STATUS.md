@@ -25,17 +25,26 @@ Revised near-term order: **H1 → H2 → SGD-noise phase → J2.**
 
 ---
 
-## Rigor upgrade: honest theta0 + leakage-GROWS-with-memorization (2026-08-24, jobs 188663/199977/201658/201904)
+## Rigor upgrade: honest theta0; r_J is T-robust (eff_rank-rise is spectrum SHAPE, NOT leakage) (2026-08-24, jobs 188663/199977/201658/201904; CORRECTED 2026-08-25)
 - Fixed the 'GELU-on-ReLU-weights swap': retrained honest per-(dataset,activation) base models via Main.py
   (mnist/fashion x relu/gelu/modifiedrelu, mnist ~89% test); leakage pipeline loads
   weights-<dataset>_<act>.pth UNDER its true activation, FD-validated end-to-end (199977).
   modifiedrelu=accuracy-only (guarded out of exact-J).
-- run_rigor (honest mnist N4 k8): **eff_rank(J) RISES monotonically with fine-tune length to a plateau at
-  full memorization -> memorization<=>leakage.** gelu 13->24/32 (~0.75) at lr=0.1 T=200 (full memorization,
-  max per-sample BCE<1e-3); relu 16->22. Overtraining plateaus. **ReLU leaks MORE than GELU.** lr sanity:
-  0.01 slow/underfit, 0.03 overshoots, 0.1 memorizes by T=200. One consistent hard sample.
-- **Implication:** the earlier T=5 numbers were the deeply-underfit corner; the realistic fully-memorized
-  regime leaks ~0.75 of coordinate directions. (Write-up: plan "RIGOR-UPGRADE RESULTS", yoado-89 commit b7383fd.)
+- **⚠ CORRECTED (metric law + Round-0 retraction):** the original entry framed **eff_rank rising with T**
+  (gelu 13->24, relu 16->22) as "leakage GROWS with memorization / leaks ~0.75 of directions." That
+  CONFLATES eff_rank with leakage — which the NON-NEGOTIABLE metric law forbids (leakage = **r_J/hard_rank**,
+  NOT eff_rank; eff_rank reads backwards, DROPS as the spectrum concentrates). The leakage metric
+  **hard_rank/r_J was FULL (32/32) and T-ROBUST from T=5** for both activations, so **leakage is NOT
+  memorization-gated** on the r_J metric. eff_rank 13->24 is spectral CONCENTRATION (a shape diagnostic),
+  not a leakage increase. "ReLU leaks more than GELU" (via eff_rank) is therefore **NOT a leakage claim**
+  (both are full r_J). Memorization facts stand (lr=0.1 memorizes by T=200, max BCE 6.48e-4 — verified
+  job 201904). **RETRACTS** "leakage-grows-with-memorization" and "leaks 0.75 of directions."
+- **Cross-ref:** the MULTI-CLASS "~2x r_J amplification" (99->160 binary vs 10-class, job 247834) is ALSO
+  RETRACTED as fundamental — Round 0 (job 396692) shows BOTH bases full-rank from T=5 at healthy lr; the
+  "2x" was a low-lr/undersampled artifact (exactly what the convergence control was built to catch). The
+  surviving open question is **q_eff-under-noise at convergence** (Round B, running). Honest state: leakage
+  is real + reconstructable (bridge track, pixels/SSIM) and identifiability is HIGH, but NOT fundamentally
+  multi-class-amplified. (Write-up: plan "RIGOR-UPGRADE RESULTS", commit b7383fd; retraction per yoado-dc.)
 
 ## Tier B: multi-class (CrossEntropy) support — IMPLEMENTED + gated (2026-08-25)
 "Make the base better" + "more than 2 classes". KEY INSIGHT: the base model's regime is DECOUPLED from
