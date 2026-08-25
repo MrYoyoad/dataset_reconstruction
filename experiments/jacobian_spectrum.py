@@ -1496,9 +1496,13 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
            tangent_method='qr', S_list=(16, 32, 64),
            eps_list=(0.01, 0.1, 0.3, 1.0), shrink_list=(1e-4, 1e-2, 1e-1),
            seed=42, save=False, tag=None, dataset='mnist', anchor_alpha=0.0,
-           num_classes=2, classes_present=None, subhead_k=None):
+           num_classes=2, classes_present=None, subhead_k=None, lr=TRAIN_LR):
     """Phase J1: seed-whiten the Jacobian and compute q_eff (the FIRST
     privacy-meaningful number).
+
+    lr: fine-tune step size for the unroll (default TRAIN_LR). Round B needs this
+    exposed to measure q_eff at the memorization recipe (lr=0.5), not the underfit
+    default — the amplification q_eff (247834) was at the default lr/T=50 = underfit.
 
     Σ_seed = Cov over LoRA-B0 init draws (ordinary-training randomness; full
     batch ⇒ B0 is the main stochasticity). J is taken at a reference seed; the
@@ -1513,7 +1517,7 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
         N=N, k=k, T=T, rank=rank, activation=activation, seed=seed,
         device=device, tangent_method=tangent_method, dataset=dataset,
         anchor_alpha=anchor_alpha, num_classes=num_classes,
-        classes_present=classes_present, subhead_k=subhead_k)
+        classes_present=classes_present, subhead_k=subhead_k, lr=lr)
     if num_classes > 2:
         # frozen[2] conditioning gates amplification: the (K-1) extra CE-residual
         # directions only inject if the output rows are well-separated (yoado-8a).
@@ -1825,7 +1829,7 @@ if __name__ == '__main__':
                seed=args.seed, save=args.save, tag=args.tag,
                dataset=args.dataset, anchor_alpha=args.anchor_alpha,
                num_classes=args.num_classes, classes_present=args.classes_present,
-               subhead_k=args.subhead_k)
+               subhead_k=args.subhead_k, lr=args.lr)
 
     if args.coord_transforms:
         run_coord_transforms(N=args.N, k=args.k, T=args.T, rank=args.rank,
