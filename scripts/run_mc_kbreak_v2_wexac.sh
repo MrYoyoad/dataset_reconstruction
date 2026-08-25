@@ -1,7 +1,7 @@
 #!/bin/bash
 #BSUB -q long-gpu
 #BSUB -R "rusage[mem=65536] select[ngpus>0 && hname!='lgn28' && hname!='hgn46']"
-#BSUB -gpu "num=1:gmodel=NVIDIAA100_SXM4"
+#BSUB -gpu "num=1"
 #BSUB -o scripts/wexac_logs/mc_kbreak_v2_%J.out
 #BSUB -e scripts/wexac_logs/mc_kbreak_v2_%J.err
 #BSUB -J mc_kbreak2
@@ -33,8 +33,11 @@ python -u -m experiments.jacobian_spectrum --smoke --device cuda
 if [ $? -ne 0 ]; then echo "FATAL: AD gate failed. Aborting."; exit 1; fi
 
 echo ""; echo "########## k-BREAK v2: N=20, k in {512,768,1024} straddling dimY=14272 ##########"; date
-for K in 512 768 1024; do
-  for NC in 2 10; do
+# BINARY (nc=2) FIRST — narrow graph, fits any GPU, shows the break fast. Then
+# 10-class (nc=10, wide CE graph) — may OOM on a non-A100; the || keeps going and
+# I re-run just those on A100 if needed. NC outer so all binary lands before 10-class.
+for NC in 2 10; do
+  for K in 512 768 1024; do
     NK=$((20*K))
     echo ""; echo "-- rigor mnist num_classes=$NC N=20 k=$K lr=0.1 T=200 (Nk=$NK vs dimY=14272; BREAK) --"; date
     python -u -m experiments.jacobian_spectrum --rigor \
