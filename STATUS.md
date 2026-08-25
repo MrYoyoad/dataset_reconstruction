@@ -132,7 +132,28 @@ leakage re-run is a real 88→96.7% base-quality change (worth running); (2) for
 accuracy (~96.7 vs 96.8), so the amplification result is CLEANER — at matched base accuracy the
 multi-class base leaks ~2x more, attributable to the loss/head-width, not classifier quality.
 
-## HEADLINE: multi-class CE ~DOUBLES leakage & dissolves collinearity (2026-08-25, job 247834)
+## ROUND B VERDICT: at convergence, multi-class q_eff is LOWER than binary — amplification REVERSED (2026-08-25, job 399884)
+The last fundamental test after Round 0 retracted the r_J amplification: with BOTH bases full-rank (r_J=160)
+at convergence, does multi-class recover MORE under noise (q_eff)? Recipe: lr=0.5 (memprobe+yoado-35),
+T∈{500,1000}, S∈{640,1280} (adequate + stability-gated), deep-FD gate passed (2.5e-8). q_eff|col(J):
+
+| ε | binary (nc=2) | 10-class (nc=10) |
+|---|---|---|
+| 0.3 | 50–53 | 4–8 |
+| 1   | 114–119 | **73–76** |
+| 3   | 150–151 | 132 |
+| 10  | 155–156 | 144 |
+
+**Multi-class recovers FEWER coordinates than binary at EVERY ε** (S-stable across S=640↔1280; T=500 shown,
+T=1000 plateau-check pending). Mechanism: the wider CE gradient channel injects MORE training noise into
+col(J) (tr(Σ_J)/(μ·r_J) = 0.35 for 10-class vs 0.28 binary) → higher noise floor → fewer recoverable.
+**VERDICT: no fundamental multi-class q_eff advantage — if anything the REVERSE.** Combined with Round 0
+(r_J equal/full for both), the "multi-class is fundamentally leakier" story is FULLY CLOSED: at a fair,
+converged, adequately-sampled comparison, multi-class is EQUAL in what's recorded and somewhat LESS
+recoverable under realistic training noise. The original "2×" (q_eff 45→97) was low-lr underfit + S=64
+undersampling. yoado-35's convergence caution + the S≥4·Nk adequacy rule both vindicated.
+
+## (SUPERSEDED — see Round B verdict above) HEADLINE: multi-class CE ~DOUBLES leakage & dissolves collinearity (2026-08-25, job 247834)
 Tier B amplification result — yoado-8a's hypothesis CONFIRMED, mechanism REFINED. Fixed honest 10-class
 GELU base θ0; N=20 k8 r8 T=50 qr tangents; q_eff at ε=0.1, col(J)-whitened.
 
