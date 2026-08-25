@@ -66,7 +66,7 @@ Full-data (dpc=10000) binary odd/even bases, healthy init 0.05, 4000 epochs, nod
 | mnist-modifiedrelu | 88.5% | **96.7%** | 96.8% |
 | fashion-relu | 95.9% | **96.5%** | 88.7% |
 | fashion-gelu | 94.9% | **95.6%** | 87.7% |
-| fashion-modifiedrelu | 95.5% | (finishing) | ~87.8% |
+| fashion-modifiedrelu | 95.5% | **96.5%** | ~87.8% |
 
 **CORRECTION:** an earlier claim that "binary odd/even caps ~90% (parity is hard)" was WRONG — it read an
 epoch-1000 (undertrained) number off the crawling lgn28 run. Converged full-data binary reaches ~96.7%
