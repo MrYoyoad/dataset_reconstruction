@@ -55,6 +55,24 @@ the attack (the attack targets the LoRA fine-tune's private imgs, not the base t
 - Jobs: 231594 (10-class bases → weights-<ds>10_<act>.pth); leakage re-run script ready
   (run_leakage_multiclass, N-sweep N∈{10,20}, nc∈{2,10}). CIFAR-10 deferred (heavier arch).
 
+## 10-class base accuracy table (2026-08-25, job 231594 — Tier B honest K-class bases)
+Genuine multi-class classifiers (CrossEntropy, full-ish data dpc=5000, init 0.05), saved as
+weights-<ds>10_<act>.pth. These are the fixed θ0 for the amplification leakage run.
+
+| | binary odd/even (old d250) | **10-class (new)** |
+|---|---|---|
+| mnist-relu | 89.8% | **96.8%** |
+| mnist-gelu | 87.9% | **95.7%** |
+| mnist-modifiedrelu | 88.5% | **96.8%** |
+| fashion-relu | 95.9% | 88.7% |
+| fashion-gelu | 94.9% | 87.7% |
+| fashion-modifiedrelu | 95.5% | ~87.8% |
+
+Honest & informative: MNIST 10-class ≫ binary (odd/even PARITY is incoherent/hard for an MLP);
+Fashion 10-class < binary (10-way clothing classification is genuinely hard — shirt/coat/pullover
+confusion — while its odd/even split was artificially easy). Both are legitimate realistic bases.
+Amplification leakage run (job 246640) uses the GELU 10-class bases.
+
 ## Base-classifier accuracy table (2026-08-25, job 188663 — all 6 honest base models)
 Binary odd/even, d250, trained to convergence (test-error at final epoch; these are the θ₀ the leakage
 pipeline loads UNDER its true activation):
