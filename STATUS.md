@@ -174,11 +174,15 @@ col(J) (tr(Σ_J)/(μ·r_J) = 0.35-0.45 for 10-class vs 0.28 binary) → higher n
 lr=0.5/T=500; 10-class is NOT (underfit, one hard sample, max_bce 1.8e-3) and its q_eff is still RISING with
 T (73→81, T500→T1000), NOT plateaued. So converged-binary vs UNDERFIT-10-class = the SAME underfit-arm trap
 we killed the amplification for; the reversal could NARROW/vanish at true 10-class convergence. SYMMETRIC
-RIGOR: a reversal on an underfit arm earns the identical scrutiny as the amplification. CROSS-CHECK FIRING:
-lr=1.0/T=500, both bases (probe: both memorize there), FD-gated. Holds at matched convergence → "CE
-self-protects under noise" is real; narrows → it was the asymmetry. Reversal is REAL AS MEASURED but NOT
-the locked headline yet. (The original "2×" q_eff 45→97 retraction STANDS — that was low-lr underfit + S=64
-undersampling, independent of this.)
+RIGOR: a reversal on an underfit arm earns identical scrutiny. CROSS-CHECK lr=1.0/T=500 FD-FAILED (job
+478856: rel err 2.7e-2 — high lr makes the exact unroll J chaotic; gate rejected it). NUMERICAL WALL: no
+recipe gives BOTH a converged 10-class arm AND a clean J (clean lr=0.5 → hard sample STUCK ~1.8e-3, 19/20
+memorized; lr=1.0 that memorizes it → chaotic J). INSTEAD firing a PLATEAU check (job 481153: lr=0.5,
+T=1500/2000, FD-gated) — does 10-class q_eff FLATTEN (~81-85, far below binary ~117) or climb toward binary?
+Reversal MECHANISM is NOISE-based (Σ_seed coupling into col(J)), a property of the training MAP not of
+sample convergence → likely robust to the one-stuck-sample underfit. READ: reversal is DIRECTIONALLY
+ROBUST (large gap + noise mechanism) but a matched-convergence LOCK is blocked by the AD-vs-high-lr wall.
+PROVISIONAL. (The original "2×" q_eff 45→97 retraction STANDS — low-lr underfit + S=64 undersampling, independent.)
 
 **CORRECTION to "memorization-free":** at REAL convergence (lr=0.5/T=1000) memorizing the 20 private images
 HARMS held-out accuracy — binary 0.91→0.81 (−0.10), 10-class 0.97→0.94 (−0.03); binary more fragile. The
