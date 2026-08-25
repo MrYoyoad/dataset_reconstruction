@@ -176,7 +176,28 @@ lock. The ONLY thing bounded: the exact fully-converged N=20 MAGNITUDE — memor
 needs a recipe that provably destabilizes the exact J (sharp meta-gradient-chaos wall, bracketed BOTH axes:
 lr≥0.7 chaotic + T≥2000 chaotic; clean island lr≤0.6/T≤1000; FD 3.9e-8@lr0.6 → 1.0@lr0.7 = 8 orders/0.1lr).
 That's a characterized METHOD boundary (Metz), not a hole in the result. yoado-35's convergence + adequacy
-cautions (both directions) fully vindicated.
+cautions (both directions) fully vindicated. GREEN-LIT by yoado-35 (log-verified).
+
+**Strongest internal-consistency check — the ε-DEPENDENCE (yoado-35).** The reversal is STRONG in the
+NOISE-LIMITED regime (low ε: 36 vs 59 at ε=1) and VANISHES in the SIGNAL-LIMITED regime (high ε: 71 vs 72
+at ε=3, both ~full by ε=10) — EXACTLY where the noise-floor mechanism predicts (extra CE noise suppresses
+recovery most when signal≈noise, is irrelevant when signal≫noise). The reversal is located precisely where
+the mechanism says it should be — far harder to fake than a single-point gap. Corroborating: Σ_J/μ #(>0.5μ)
+= 30/160 (10-class) vs 10/160 (binary) at N=20 — CE contaminates MORE col(J) directions with near-isotropic
+noise, the direct fingerprint.
+
+**Held-acc ASYMMETRY (bonus, sharpens the earlier correction):** memorizing the private set HARMS general
+accuracy for BINARY but NOT for 10-class — N=10: binary 0.91→0.80 (−0.11), 10-class 0.96→0.96 (0.00);
+N=20 lr=0.6: binary 0.91→0.81 (−0.10), 10-class 0.97→0.95 (−0.02). So the utility cost is a BINARY-base
+effect; the 10-class base memorizes 10-20 private images at ~no utility cost. Interesting privacy twist:
+10-class leaks LESS through the adapter (the q_eff reversal) AND memorizes more cheaply (utility-wise).
+
+**FINAL confirmed end-state:** multi-class CE reaches full-rank leakage FASTER but, at matched convergence
+under realistic training noise, is LESS extractable than binary (q_eff reversal) — a training-MAP property
+(mechanism: wider CE head injects more seed-noise into col(J), iso 0.68 vs 0.49; confirmed at N=10 clean
+lock + N=20 gap-stable trend + ε-dependence matching the mechanism + two problem sizes), plus binary-only
+held-acc harm. Exact N=20 magnitude bounded by the meta-gradient-chaos wall. Identifiability HIGH for both
+(not "safe"); pixel reconstruction real (gradient-bridge SSIM ~0.6). The "2×" was underfit + undersampling.
 The last fundamental test after Round 0 retracted the r_J amplification: with BOTH bases full-rank (r_J=160)
 at convergence, does multi-class recover MORE under noise (q_eff)? Recipe: lr=0.5 (memprobe+yoado-35),
 T∈{500,1000}, S∈{640,1280} (adequate + stability-gated), deep-FD gate passed (2.5e-8). q_eff|col(J):
