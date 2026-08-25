@@ -62,7 +62,16 @@ def compute_known_coefficients(model, x, y):
     """
     model.eval()
     with torch.no_grad():
-        logits = model(x).view(-1)
+        out = model(x)
+        # Multi-class base (Tier B): the binary sigmoid-coefficient c_i=(σ(f)-y)/N
+        # is undefined for a [N,K>1] head, and every caller that USES this value is
+        # binary-only (the multi-class path in _honest_target discards it — it calls
+        # this helper only via compute_multi_step_update_lora with n_steps=0, for the
+        # loss-independent frozen/b0/B0/ds_mean). Return zeros to avoid the shape
+        # crash without touching the binary path (out=[N,1] falls through unchanged).
+        if out.dim() > 1 and out.shape[1] > 1:
+            return torch.zeros(x.shape[0], device=out.device, dtype=out.dtype)
+        logits = out.view(-1)
         probs = torch.sigmoid(logits)
         N = x.shape[0]
         coefficients = (probs - y) / N

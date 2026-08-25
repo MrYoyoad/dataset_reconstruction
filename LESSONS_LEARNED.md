@@ -4,6 +4,34 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A predicted gotcha slipped past the gates because the gates didn't exercise the real path (2026-08-25)
+
+**Bug:** Tier B multi-class leakage (job 246640) — every `num_classes=10` arm crashed instantly:
+`compute_known_coefficients ... coefficients=(probs - y)/N: size of tensor a (200) must match b (20)`.
+**Presented as:** the job "completed" (=== DONE) but only the binary stage-B rows had numbers; all
+multi-class stage-A/rigor arms silently produced nothing (shell has no `set -e`, so failed python calls
+just advance to the next echo — looks like fast progress, not failure).
+**Root cause:** `compute_multi_step_update_lora` (ntk_steps.py:233) calls `compute_known_coefficients`
+UNCONDITIONALLY before the step loop; that helper is binary-only (`(sigmoid(logits)-y)/N` with
+`logits=model(x).view(-1)` → 200 elts for a [20,10] head vs y [20]). Our multi-class `_honest_target`
+uses `n_steps=0` (correctly skipping the binary inner training loop) but n_steps=0 does NOT skip this
+pre-loop coefficient call. **The sibling (yoado-8a) EXPLICITLY predicted this exact line** ("n_steps=0
+doesn't guard compute_known_coefficients ... harmless AS LONG AS it tolerates long multi-class y") — and
+it was acknowledged but not guarded.
+**Why the gates missed it:** the CE toy-AD gate builds `frozen` directly in `_toy_ctx` and never touches
+`_honest_target`/`compute_multi_step_update_lora`; the real-MNIST smoke is binary. So NO gate exercised
+the multi-class REAL-DATA path. FD/rev gates passing ≠ the real pipeline works.
+**Fix:** guard `compute_known_coefficients` — if the head is [N,K>1], return zeros (the value is
+discarded in the multi-class path); binary [N,1] falls through byte-identical.
+**Lessons:** (1) when a reviewer flags a specific line, GUARD IT THEN, don't just note it. (2) A gate must
+exercise the actual code path the experiment uses — a toy that bypasses the data/target builder validates
+AD, not the pipeline; add a tiny real-data multi-class sanity to the gate. (3) Shell job scripts that
+fan out python calls need `set -e` or explicit per-call rc checks, else a crash reads as "done" with
+missing rows. (4) Cheap targeted sanity (one small multi-class J1) before a 30-45 min sweep catches this
+in ~1 min.
+
+---
+
 ## Underfit fine-tuning hides leakage; measure at memorization (2026-08-24)
 
 The whole J0/J1/H1/H2 line ran at T=5 (deeply underfit — the fine-tune hadn't memorized, max per-sample
