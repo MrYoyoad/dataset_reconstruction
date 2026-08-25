@@ -154,7 +154,27 @@ leakage re-run is a real 88→96.7% base-quality change (worth running); (2) for
 accuracy (~96.7 vs 96.8), so the amplification result is CLEANER — at matched base accuracy the
 multi-class base leaks ~2x more, attributable to the loss/head-width, not classifier quality.
 
-## ROUND B: multi-class q_eff LOWER than binary — amplification REVERSED (PROVISIONAL, lr=1.0 cross-check pending) (2026-08-25, job 399884)
+## ROUND B: multi-class q_eff LOWER than binary — amplification REVERSED, CONFIRMED via N=10 clean lock (2026-08-25, jobs 399884 + 484948)
+
+**✅ CONFIRMED (N=10 clean lock, job 484948).** The N=20 reversal was measured on a slightly-underfit 10-class
+arm (one stuck sample) — so it was checked at N=10 where 10-class uses 1 img/class and FULLY converges,
+sidestepping the stuck-sample/AD wall. At N=10, BOTH bases fully memorized (10-class max_bce 7.25e-4 = YES),
+BOTH full-config FD-clean (binary 3.3e-8, 10-class 3.7e-8), r_J=80 (full) both:
+
+| N=10 fully-converged | binary | 10-class |
+|---|---|---|
+| iso_ratio (noise coupling) | 0.491 | **0.683** (higher) |
+| q_eff @ε=1 | 59/80 | **36/80** (lower) |
+
+So at a FAIR, fully-trained, matched comparison the REVERSAL (10-class q_eff lower) AND its MECHANISM
+(10-class higher noise coupling) BOTH hold → the reversal is a REAL training-MAP property, NOT a convergence
+artifact. Supporting: (1) mechanism matched-recipe-confirmed at identical lr=0.5; (2) N=20 gap STABLE as
+10-class approaches convergence (lr=0.5→0.6: gap ~40→~39pt, iso 10-class 0.376>binary 0.293); (3) N=10 clean
+lock. The ONLY thing bounded: the exact fully-converged N=20 MAGNITUDE — memorizing the one stuck N=20 sample
+needs a recipe that provably destabilizes the exact J (sharp meta-gradient-chaos wall, bracketed BOTH axes:
+lr≥0.7 chaotic + T≥2000 chaotic; clean island lr≤0.6/T≤1000; FD 3.9e-8@lr0.6 → 1.0@lr0.7 = 8 orders/0.1lr).
+That's a characterized METHOD boundary (Metz), not a hole in the result. yoado-35's convergence + adequacy
+cautions (both directions) fully vindicated.
 The last fundamental test after Round 0 retracted the r_J amplification: with BOTH bases full-rank (r_J=160)
 at convergence, does multi-class recover MORE under noise (q_eff)? Recipe: lr=0.5 (memprobe+yoado-35),
 T∈{500,1000}, S∈{640,1280} (adequate + stability-gated), deep-FD gate passed (2.5e-8). q_eff|col(J):
