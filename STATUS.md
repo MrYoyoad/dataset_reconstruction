@@ -127,12 +127,16 @@ multi-class base leaks ~2x more, attributable to the loss/head-width, not classi
 Tier B amplification result — yoado-8a's hypothesis CONFIRMED, mechanism REFINED. Fixed honest 10-class
 GELU base θ0; N=20 k8 r8 T=50 qr tangents; q_eff at ε=0.1, col(J)-whitened.
 
-**⚠ RESOLVED (Round 0, job 396692) — the r_J amplification is a CONVERGENCE-RATE effect, RETRACTED as a
-fundamental gap.** T-plateau sweep (both bases, SAME lr=0.1, N=20, Ts 5/50/200/500), r_J-vs-T:
-- k=8 (Nk=160): binary mnist 99(T50)→**160**(T200,500); binary fashion 107(T50)→**160**(T200); 10-class
-  both **160 from T50**. k=32 (Nk=640): ALL FOUR cells (mnist/fashion × binary/10-class) → **640 (FULL)** by T200.
-- **So at the plateau, r_J = Nk (FULL) for BOTH bases at every k.** The binary→CE "gap" (99/107 vs 160)
-  existed ONLY at the underfit T=50 — CE just fills full rank FASTER; binary catches up completely.
+**⚠ RESOLVED (Round 0, job 396692) — the r_J amplification is an lr/underfit ARTIFACT, RETRACTED as a
+fundamental gap.** T-sweep (both bases, SAME lr=0.1, N=20, Ts 5/50/200/500), actual r_J(hard)-vs-T:
+- k=8 (Nk=160): **r_J = 160 (FULL) for BOTH bases at EVERY T — including T=5 (underfit, max_bce 0.58).**
+  (binary nc=2: r_J 160 at T=5/50/200/500; 10-class nc=10: r_J 160 at T=5/50/200/500. eff_rank/shape
+  differs and grows with T, but hard rank is pinned full throughout.) k=32 (Nk=640): all four cells → 640 (FULL) by T200.
+- **CORRECTION (yoado-19 caught this):** the "99/107 (binary) vs 160" gap was NOT a Round-0 climb — it came
+  from job 247834 at the DEFAULT lr (~0.01), where binary at T=50 was underfit (r_J=99) while CE had already
+  filled (160). At a HEALTHY lr=0.1, binary fills col(J) fully from T=5. So the gap is a LEARNING-RATE /
+  underfit-snapshot artifact, not a gradual convergence climb and not a capacity gap. (Do NOT cite "binary
+  climbs 99→160 in Round 0" — Round 0 shows binary=160 at all T.)
 - **r_J is DOMAIN-limited, not measurement-limited** — no plateau below Nk even at k=32 (need k=64/128 to
   probe further, but the pattern says domain-limited). r_J also DECOUPLED from memorization (full rank at
   max_bce~0.02, well before <1e-3).
