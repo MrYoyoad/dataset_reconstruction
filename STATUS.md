@@ -144,8 +144,8 @@ T∈{500,1000}, S∈{640,1280} (adequate + stability-gated), deep-FD gate passed
 | 3   | 150–151 | 132 |
 | 10  | 155–156 | 144 |
 
-**Multi-class recovers FEWER coordinates than binary at EVERY ε** (S-stable across S=640↔1280; T=500 shown,
-T=1000 plateau-check pending). Mechanism: the wider CE gradient channel injects MORE training noise into
+**Multi-class recovers FEWER coordinates than binary at EVERY ε** — CONFIRMED across S=640↔1280 AND
+T=500↔1000 (10-class ε=1: T500 73-76, T1000 80-81; binary ε=1: 114-119). All gates passed. Mechanism: the wider CE gradient channel injects MORE training noise into
 col(J) (tr(Σ_J)/(μ·r_J) = 0.35 for 10-class vs 0.28 binary) → higher noise floor → fewer recoverable.
 **VERDICT: no fundamental multi-class q_eff advantage — if anything the REVERSE.** Combined with Round 0
 (r_J equal/full for both), the "multi-class is fundamentally leakier" story is FULLY CLOSED: at a fair,
