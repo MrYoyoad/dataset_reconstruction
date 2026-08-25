@@ -4,6 +4,22 @@ Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; 
 
 ---
 
+## COMBINED leakage story (identifiability + reconstruction) — Round B REVERSES multi-class amplification (2026-08-25, job 399884 + bridge)
+
+The two tracks now tell ONE honest story (figure: figures/combined/leakage_identifiability_plus_reconstruction.png):
+- **IDENTIFIABILITY (Jacobian q_eff|col(J), converged/gated, mnist N=20 k=8, both full r_J=160):** high for
+  BOTH — binary q_eff ~51/117/150/156 at ε=0.3/1/3/10 (≈73-94% of directions at moderate ε); **10-class
+  recovers FEWER at EVERY ε** (7/77/134/144). Mechanism: CE injects MORE training noise into col(J)
+  (tr(Σ_J)/(μ·r_J) 0.35-0.45 for 10-class vs 0.28 binary, GROWS with T) → higher noise floor → fewer
+  recoverable. **The old "2× amplification" (45→97) is fully DEAD and REVERSED** — it was low-lr underfit +
+  S=64 undersampling; the converged, S-adequate number reverses it. Gates: deep-FD 2.5e-8, stable T500↔1000
+  and S640↔1280.
+- **RECONSTRUCTION (gradient-bridge, pixels):** leakage is real + reconstructable — recognizable images from
+  the LoRA adapter alone, clip-corrected ssim_norm ~0.57-0.61 (MNIST/Fashion) + true-vs-recon grids.
+- **Honest headline for Gal:** *LoRA leakage is real, high, and reconstructable to pixels — but NOT
+  fundamentally multi-class-amplified; if anything CE self-protects via its own training noise.* Utility
+  cost: memorizing harms held-acc (binary -0.10, 10-class -0.03 at T=1000). Data: results/jacobian_j1_roundB_*.pth (yoado-dc).
+
 ## Open hypotheses H1–H5 + PROVISIONAL status of the collinearity results (2026-08-24)
 
 New research directions documented in **notes/jacobian_leakage_experiment_plan.md Part 6** (test before
