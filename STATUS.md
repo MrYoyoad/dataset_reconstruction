@@ -55,6 +55,26 @@ the attack (the attack targets the LoRA fine-tune's private imgs, not the base t
 - Jobs: 231594 (10-class bases → weights-<ds>10_<act>.pth); leakage re-run script ready
   (run_leakage_multiclass, N-sweep N∈{10,20}, nc∈{2,10}). CIFAR-10 deferred (heavier arch).
 
+## Softplus-beta eff_rank sweep (2026-08-25, job 386339) — for the twin-axis figure
+Honest softplus base models (mnist, N=4 k8 r8 seed42, qr, lr=0.1, T=200 memorized). Softplus smooth ⇒
+exact J valid. eff_rank(J)/32, hard_rank(col J), held_acc(base→T200):
+
+| beta | eff_rank/32 | hard_rank | held_acc |
+|---|---|---|---|
+| 0.5 | 2.02 | 32 | 0.82→0.72 |
+| 1   | 12.43 | 32 | 0.82→0.69 |
+| 2   | 15.90 | 32 | 0.83→0.72 |
+| 5   | 19.28 | 32 | 0.87→0.86 |
+| 10  | 20.24 | 32 | 0.88→0.87 |
+| 50  | 24.20 | 32 | 0.86→0.83 |
+
+Monotonic: eff_rank 2.0→24.2 as beta 0.5→50 (smooth→sharp; beta=50≈ReLU matches ReLU's ~20-24).
+**CRITICAL (read-correction):** hard_rank = 32 (FULL) for ALL beta ⇒ recoverable RANK is beta-independent;
+only eff_rank (spectral SHAPE) varies — smooth activation concentrates the spectrum, it does NOT reduce
+recoverable coordinates. Twin-axis: label eff_rank as "spectral concentration", not "leakage magnitude".
+(Deliverable was for yoado-b1's figure; that session ended — numbers preserved here + in
+results/jacobian_rigor_mnist_softplus_b<beta>_b1sweep.pth.)
+
 ## Binary base QUALITY amplifies leakage too (2026-08-25, job 260804)
 Strong (full-data, ~96.7%) vs weak (d250, 88%) BINARY base, same leakage pipeline (N=4 k8 r8, qr).
 eff_rank/32 (r_J = FULL 32 for ALL strong-base configs; weak base fashion was r_J~25):
