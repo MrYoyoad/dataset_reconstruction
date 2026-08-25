@@ -41,7 +41,7 @@ ctx,_,_,_ = j._mnist_ctx(N=4,k=4,T=1000,rank=8,activation='gelu',seed=42,device=
 a0=torch.zeros(16,dtype=torch.float64,device='cuda')
 J=j.exact_jacobian(a0,ctx,method='jvp_double')
 coords=[0,5,10]; fd=j.finite_difference_jacobian(a0,ctx,coords,eps=1e-5)
-rel=max((J[:,c]-fd[i]).norm().item()/(fd[i].norm().item()+1e-30) for i,c in enumerate(coords))
+rel=max((J[:,c]-fd[c]).norm().item()/(fd[c].norm().item()+1e-30) for c in coords)
 nan=bool(torch.isnan(J).any() or torch.isinf(J).any())
 print(f'DEEP-FD rel err (lr=0.5,T=1000,N4k4): {rel:.3e}  NaN/Inf={nan}')
 assert rel<1e-4 and not nan, 'deep-unroll J FAILS FD/NaN — reject lr=0.5/T=1000 recipe'
