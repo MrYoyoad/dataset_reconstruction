@@ -127,13 +127,21 @@ multi-class base leaks ~2x more, attributable to the loss/head-width, not classi
 Tier B amplification result — yoado-8a's hypothesis CONFIRMED, mechanism REFINED. Fixed honest 10-class
 GELU base θ0; N=20 k8 r8 T=50 qr tangents; q_eff at ε=0.1, col(J)-whitened.
 
-**⚠ PROVISIONAL — convergence caveat (yoado-35 audit, 2026-08-25):** the J1 comparison ran at T=50 with
-DEFAULT lr (~0.01, not the rigor's 0.1), so BINARY (r_J=99) is likely UNDERFIT while CE hit full rank (160).
-Open question that MUST be resolved before locking the headline: at TRUE convergence (max_bce<1e-3 for BOTH
-bases) does binary r_J ALSO climb to ~160? If yes → amplification is a CONVERGENCE-RATE effect (CE reaches
-full rank sooner), NOT a fundamental measurement-width gap. A convergence-matched T-sweep on BOTH bases is
-now PHASE 1 of the multi-class-knobs plan (front-loaded). Report the headline at matched convergence, not
-matched T. "~2×" and "dissolves collinearity" stand as PROVISIONAL until then.
+**⚠ RESOLVED (Round 0, job 396692) — the r_J amplification is a CONVERGENCE-RATE effect, RETRACTED as a
+fundamental gap.** T-plateau sweep (both bases, SAME lr=0.1, N=20, Ts 5/50/200/500), r_J-vs-T:
+- k=8 (Nk=160): binary mnist 99(T50)→**160**(T200,500); binary fashion 107(T50)→**160**(T200); 10-class
+  both **160 from T50**. k=32 (Nk=640): ALL FOUR cells (mnist/fashion × binary/10-class) → **640 (FULL)** by T200.
+- **So at the plateau, r_J = Nk (FULL) for BOTH bases at every k.** The binary→CE "gap" (99/107 vs 160)
+  existed ONLY at the underfit T=50 — CE just fills full rank FASTER; binary catches up completely.
+- **r_J is DOMAIN-limited, not measurement-limited** — no plateau below Nk even at k=32 (need k=64/128 to
+  probe further, but the pattern says domain-limited). r_J also DECOUPLED from memorization (full rank at
+  max_bce~0.02, well before <1e-3).
+- **Consequence:** the r_J-based headlines — "~1.6×/~2× amplification" AND "dissolves fashion's
+  collinearity" — are RETRACTED as fundamental claims; they are convergence-RATE effects. What SURVIVES:
+  (a) CE reaches full-rank leakage FASTER (a real speed claim), (b) q_eff-under-noise AT CONVERGENCE
+  (Round B) is now the ONLY place a fundamental CE advantage could still live — untested. The Round-A r_J
+  master table is largely settled (≈Nk everywhere at plateau); downstream refocuses on q_eff + speed.
+  yoado-35's convergence caution was fully vindicated.
 
 | | binary base | 10-class K_eff=2 | K_eff=5 | K_eff=10 |
 |---|---|---|---|---|
