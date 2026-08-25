@@ -55,6 +55,34 @@ the attack (the attack targets the LoRA fine-tune's private imgs, not the base t
 - Jobs: 231594 (10-class bases → weights-<ds>10_<act>.pth); leakage re-run script ready
   (run_leakage_multiclass, N-sweep N∈{10,20}, nc∈{2,10}). CIFAR-10 deferred (heavier arch).
 
+## Binary base QUALITY amplifies leakage too (2026-08-25, job 260804)
+Strong (full-data, ~96.7%) vs weak (d250, 88%) BINARY base, same leakage pipeline (N=4 k8 r8, qr).
+eff_rank/32 (r_J = FULL 32 for ALL strong-base configs; weak base fashion was r_J~25):
+
+| config (qr) | weak base | strong base |
+|---|---|---|
+| mnist-gelu T5/T50 | 13.4 / 16.7 | 26.4 / 28.2 |
+| mnist-relu T5/T50 | 16.2 / 19.9 | 20.2 / 23.9 |
+| fashion-gelu T5/T50 | 3.4 / 3.4 | 12.1 / 11.8 |
+| fashion-relu T5/T50 | 3.4 / 4.4 | 9.1 / 9.9 |
+
+1. **A stronger/better-trained binary base leaks MORE** (mnist-gelu ~2×; fashion ~3.5×) and drives col(J)
+   to FULL rank — **dissolving fashion's collinearity** (weak base eff_rank 3.4, r_J~25 → strong 12, r_J 32).
+   Same effect as multi-class CE, but here driven by BASE QUALITY (data+init+convergence), not the loss.
+2. **Direction ordering HOLDS** (orthonormal qr > pca everywhere) but the protection weakens: on the strong
+   base BOTH pca and qr are full rank (r_J 32); pca still lower eff_rank (concentrated spectrum) but no
+   longer rank-deficient. So "hide in collinear PCA directions" is a WEAKER defense on a strong base.
+3. **Memorization now HARMS accuracy** (unlike multi-class): strong-base rigor (N=4, lr=0.1, T=200) held-acc
+   mnist-gelu 0.91→0.83 (−0.08), fashion-gelu 0.95→0.87 (−0.08), fashion-relu 0.94→0.91 (−0.03),
+   mnist-relu 0.94→0.94 (0). GELU degrades most; ReLU robust. (N=4 aggressive-lr specific; multi-class
+   N=20 was ~unchanged — different N/loss, so a direction not a decomposition.)
+
+UNIFYING THEME (both this + the multi-class headline): **model CAPABILITY — from a better-trained base OR a
+wider (multi-class) loss — increases leakage and erases the dataset-dependent "collinear = protected"
+advantage.** The weak/binary/undertrained regime was the artificially-safe toy; realistic capable models
+leak more, worst exactly where the toy looked safe (fashion). Caveat: "base quality" bundles
+data+init+convergence (different checkpoint) — a direction, not a clean decomposition.
+
 ## Tier A binary full-data base + a CORRECTION (2026-08-25, job 245178)
 Full-data (dpc=10000) binary odd/even bases, healthy init 0.05, 4000 epochs, node lgn28 EXCLUDED
 (it was ~100x slow — the source of a wrong claim, see below). Test accuracy (binary full vs old d250):
