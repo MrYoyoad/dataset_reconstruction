@@ -12,14 +12,16 @@ The two tracks now tell ONE honest story (figure: figures/combined/leakage_ident
   recovers FEWER at EVERY ε** (7/77/134/144). Mechanism: CE injects MORE training noise into col(J)
   (tr(Σ_J)/(μ·r_J) 0.35-0.45 for 10-class vs 0.28 binary, GROWS with T) → higher noise floor → fewer
   recoverable. **The old "2× amplification" (45→97) is fully DEAD** — it was low-lr underfit + S=64 undersampling.
-  The converged number now shows 10-class LOWER (a mild REVERSE), **BUT ⚠ PROVISIONAL (yoado-35 catch,
-  2026-08-25):** the reversal is measured on an UNDERFIT 10-class arm — at lr=0.5 the 10-class never fully
-  memorizes (max_bce 1.8e-3, q_eff still RISING 73→81 with T, NOT plateaued) while binary IS converged. So
-  it's converged-binary vs underfit-10-class = the SAME underfit-arm asymmetry that killed the amplification,
-  now applied to the reverse. The ~40pt gap may NARROW at true 10-class convergence. **Definitive lr=1.0
-  convergence-matched cross-check running (yoado-dc).** Binary side gated (deep-FD 2.5e-8, stable T500↔1000
-  S640↔1280). Reconstruction side (bridge pixels/SSIM) is SETTLED — only the multi-class q_eff GAP is
-  provisional.
+  The converged number shows 10-class LOWER (a mild REVERSE), and it is now **CONFIRMED at a
+  fully-converged fair comparison — N=10 clean lock (job 484948, 2026-08-25):** BOTH bases memorize
+  (10-class max_bce 7.25e-4, no stuck sample — 1 img/class sidesteps the N=20 obstruction), BOTH full-config
+  FD-clean (3.3e-8/3.7e-8), and BOTH the MECHANISM (10-class iso 0.683 > 0.491 binary) AND the REVERSAL
+  (10-class q_eff ε=1 36/80 < binary 59/80; ε=3 71 vs 72) hold ⇒ **a real training-MAP property, not a
+  convergence artifact.** N=20 gap stays ~40pt as the 10-class converges further (lr0.5→0.6); the N=20 exact
+  MAGNITUDE is bounded by a characterized meta-gradient-chaos limit of the method, but the reversal itself is
+  confirmed. ⏳ **Pending yoado-35's final iso-vs-q_eff consistency audit before declared settled** (the
+  combined-figure PROVISIONAL banner stays until that green-light). Reconstruction side (bridge pixels/SSIM)
+  is SETTLED regardless — only the multi-class q_eff gap's final sign-off is pending.
 - **RECONSTRUCTION (gradient-bridge, pixels):** leakage is real + reconstructable — recognizable images from
   the LoRA adapter alone, clip-corrected ssim_norm ~0.57-0.61 (MNIST/Fashion) + true-vs-recon grids.
 - **Honest headline for Gal:** *LoRA leakage is real, high, and reconstructable to pixels — but NOT
