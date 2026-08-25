@@ -11,9 +11,15 @@ The two tracks now tell ONE honest story (figure: figures/combined/leakage_ident
   BOTH — binary q_eff ~51/117/150/156 at ε=0.3/1/3/10 (≈73-94% of directions at moderate ε); **10-class
   recovers FEWER at EVERY ε** (7/77/134/144). Mechanism: CE injects MORE training noise into col(J)
   (tr(Σ_J)/(μ·r_J) 0.35-0.45 for 10-class vs 0.28 binary, GROWS with T) → higher noise floor → fewer
-  recoverable. **The old "2× amplification" (45→97) is fully DEAD and REVERSED** — it was low-lr underfit +
-  S=64 undersampling; the converged, S-adequate number reverses it. Gates: deep-FD 2.5e-8, stable T500↔1000
-  and S640↔1280.
+  recoverable. **The old "2× amplification" (45→97) is fully DEAD** — it was low-lr underfit + S=64 undersampling.
+  The converged number now shows 10-class LOWER (a mild REVERSE), **BUT ⚠ PROVISIONAL (yoado-35 catch,
+  2026-08-25):** the reversal is measured on an UNDERFIT 10-class arm — at lr=0.5 the 10-class never fully
+  memorizes (max_bce 1.8e-3, q_eff still RISING 73→81 with T, NOT plateaued) while binary IS converged. So
+  it's converged-binary vs underfit-10-class = the SAME underfit-arm asymmetry that killed the amplification,
+  now applied to the reverse. The ~40pt gap may NARROW at true 10-class convergence. **Definitive lr=1.0
+  convergence-matched cross-check running (yoado-dc).** Binary side gated (deep-FD 2.5e-8, stable T500↔1000
+  S640↔1280). Reconstruction side (bridge pixels/SSIM) is SETTLED — only the multi-class q_eff GAP is
+  provisional.
 - **RECONSTRUCTION (gradient-bridge, pixels):** leakage is real + reconstructable — recognizable images from
   the LoRA adapter alone, clip-corrected ssim_norm ~0.57-0.61 (MNIST/Fashion) + true-vs-recon grids.
 - **Honest headline for Gal:** *LoRA leakage is real, high, and reconstructable to pixels — but NOT
@@ -148,7 +154,7 @@ leakage re-run is a real 88→96.7% base-quality change (worth running); (2) for
 accuracy (~96.7 vs 96.8), so the amplification result is CLEANER — at matched base accuracy the
 multi-class base leaks ~2x more, attributable to the loss/head-width, not classifier quality.
 
-## ROUND B VERDICT: at convergence, multi-class q_eff is LOWER than binary — amplification REVERSED (2026-08-25, job 399884)
+## ROUND B: multi-class q_eff LOWER than binary — amplification REVERSED (PROVISIONAL, lr=1.0 cross-check pending) (2026-08-25, job 399884)
 The last fundamental test after Round 0 retracted the r_J amplification: with BOTH bases full-rank (r_J=160)
 at convergence, does multi-class recover MORE under noise (q_eff)? Recipe: lr=0.5 (memprobe+yoado-35),
 T∈{500,1000}, S∈{640,1280} (adequate + stability-gated), deep-FD gate passed (2.5e-8). q_eff|col(J):
@@ -160,14 +166,23 @@ T∈{500,1000}, S∈{640,1280} (adequate + stability-gated), deep-FD gate passed
 | 3   | 150–151 | 132 |
 | 10  | 155–156 | 144 |
 
-**Multi-class recovers FEWER coordinates than binary at EVERY ε** — CONFIRMED across S=640↔1280 AND
-T=500↔1000 (10-class ε=1: T500 73-76, T1000 80-81; binary ε=1: 114-119). All gates passed. Mechanism: the wider CE gradient channel injects MORE training noise into
-col(J) (tr(Σ_J)/(μ·r_J) = 0.35 for 10-class vs 0.28 binary) → higher noise floor → fewer recoverable.
-**VERDICT: no fundamental multi-class q_eff advantage — if anything the REVERSE.** Combined with Round 0
-(r_J equal/full for both), the "multi-class is fundamentally leakier" story is FULLY CLOSED: at a fair,
-converged, adequately-sampled comparison, multi-class is EQUAL in what's recorded and somewhat LESS
-recoverable under realistic training noise. The original "2×" (q_eff 45→97) was low-lr underfit + S=64
-undersampling. yoado-35's convergence caution + the S≥4·Nk adequacy rule both vindicated.
+**Multi-class recovers FEWER coordinates than binary at EVERY ε** (10-class ε=1: 73-81; binary 114-119;
+~40pt non-overlapping gap, S-stable). Mechanism: the wider CE gradient injects MORE training noise into
+col(J) (tr(Σ_J)/(μ·r_J) = 0.35-0.45 for 10-class vs 0.28 binary) → higher noise floor → fewer recoverable.
+
+**⚠ PROVISIONAL — the REVERSAL is measured on an ASYMMETRY (yoado-35 catch).** Binary IS memorized at
+lr=0.5/T=500; 10-class is NOT (underfit, one hard sample, max_bce 1.8e-3) and its q_eff is still RISING with
+T (73→81, T500→T1000), NOT plateaued. So converged-binary vs UNDERFIT-10-class = the SAME underfit-arm trap
+we killed the amplification for; the reversal could NARROW/vanish at true 10-class convergence. SYMMETRIC
+RIGOR: a reversal on an underfit arm earns the identical scrutiny as the amplification. CROSS-CHECK FIRING:
+lr=1.0/T=500, both bases (probe: both memorize there), FD-gated. Holds at matched convergence → "CE
+self-protects under noise" is real; narrows → it was the asymmetry. Reversal is REAL AS MEASURED but NOT
+the locked headline yet. (The original "2×" q_eff 45→97 retraction STANDS — that was low-lr underfit + S=64
+undersampling, independent of this.)
+
+**CORRECTION to "memorization-free":** at REAL convergence (lr=0.5/T=1000) memorizing the 20 private images
+HARMS held-out accuracy — binary 0.91→0.81 (−0.10), 10-class 0.97→0.94 (−0.03); binary more fragile. The
+earlier "leakage at no accuracy cost" was itself a 247834 underfit-run artifact — at convergence there IS a cost.
 
 ## (SUPERSEDED — see Round B verdict above) HEADLINE: multi-class CE ~DOUBLES leakage & dissolves collinearity (2026-08-25, job 247834)
 Tier B amplification result — yoado-8a's hypothesis CONFIRMED, mechanism REFINED. Fixed honest 10-class
