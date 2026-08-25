@@ -4,6 +4,53 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## The multi-class-leakage arc: symmetric rigor + the meta-gradient-chaos wall (2026-08-25)
+
+A full day: "multi-class CE ~doubles LoRA leakage (2×)" → retracted → REVERSED → reversal CONFIRMED. The
+transferable lessons (all bit us, all now guardrails):
+
+1. **eff_rank ≠ leakage — it reads BACKWARDS.** eff_rank is spectral SHAPE (entropy of σ(J)); as CE / smooth
+   activations concentrate the spectrum, eff_rank DROPS even as the true leakage (hard_rank r_J, q_eff) hits
+   MAX. It snuck into a leakage claim THREE times in one day (multi-class headline, an OLD rigor entry, the
+   softplus figure). **Leakage = r_J and q_eff, NEVER eff_rank.** Report eff_rank only as a labeled shape diagnostic.
+
+2. **A convergence control is load-bearing REGARDLESS of the result's direction.** The original 2× was measured
+   at T=50 / default-lr where the BINARY arm was underfit (r_J=99 vs CE's full 160) — at healthy lr both are
+   full-rank from T=5, so the "2×" r_J gap was a training-SPEED artifact. Then the CLEAN comparison REVERSED
+   (multi-class q_eff LOWER) — but that reversal was itself measured where the 10-CLASS arm was underfit (one
+   stuck sample). **Symmetric rigor: an exciting result on an underfit arm earns the SAME convergence scrutiny
+   whether it's amplification OR reversal.** Don't relax the check just because the new direction is the one you
+   now like.
+
+3. **q_eff needs S ≥ 4·Nk (empirical: eff_rank(Σ_seed) ≳ r_J) AND stability across {S,2S}.** The original "97"
+   used S=64 for a 160-dim noise cloud — undersampled, untrustworthy. Half the "2×" was this.
+
+4. **The exact unrolled double-backward Jacobian has a sharp meta-gradient-chaos wall** (Metz et al.,
+   "Gradients Are Not All You Need"). Measured cleanly: FD rel err 3.9e-8 @lr=0.6 → 1.0e+0 @lr=0.7 (8 orders
+   in a 0.1-lr step) AND fails at deep T (lr=0.5/T=2000 chaotic) while lr=0.5/T=1000 is clean. So the
+   differentiable "island" is lr≤0.6, T≤1000. **Memorizing a genuinely-hard sample can require a recipe
+   OUTSIDE the island → the exact q_eff is unmeasurable at full convergence for that config.** Always FD-gate
+   the ACTUAL [dimY,Nk] J at the recipe (not just a small proxy) before quoting q_eff; abort if rel err >1e-4.
+
+5. **When a matched-convergence lock is blocked by the wall, drop to a smaller N where both bases converge
+   cleanly.** N=10 (1 img/class) fully memorizes with no stuck sample → clean-FD, both-converged lock that
+   CORROBORATES the direction + mechanism. Frame smaller-N as corroboration-of-DIRECTION (Nk-scaled magnitude
+   differs), and prefer the MECHANISM invariant (iso_ratio = Σ_seed coupling into col(J), a training-MAP
+   property) over the raw q_eff number — the mechanism holding at a second N is stronger evidence than the number.
+
+6. **The exact Jacobian does not scale to Nk near dimY.** The "k-break" (r_J caps at dimY = rank·(in+hidden) ≈
+   14272) is a mathematical certainty (rank ≤ min(rows,cols)); empirically confirming it needs an ~15000-column
+   double-backward J which is computationally infeasible (hung 3h, killed). Confirmed r_J=Nk up to Nk=10240;
+   the break at dimY is certain by construction — don't burn GPU-days demonstrating a linear-algebra fact.
+
+7. **Net finding (honest):** capable models (better base OR wider CE loss) record ALL private directions FAST
+   (r_J full, equal); at a fair converged comparison multi-class recovers FEWER under training noise
+   (self-protects via its own wider-gradient noise), NOT more. Identifiability is HIGH for both (not "safe");
+   pixel reconstruction is real (gradient-bridge SSIM ~0.6). "2× multi-class amplification" was a stacked
+   underfit+undersampling artifact.
+
+---
+
 ## A predicted gotcha slipped past the gates because the gates didn't exercise the real path (2026-08-25)
 
 **Bug:** Tier B multi-class leakage (job 246640) — every `num_classes=10` arm crashed instantly:
