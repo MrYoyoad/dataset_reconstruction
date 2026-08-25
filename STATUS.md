@@ -180,9 +180,15 @@ recipe gives BOTH a converged 10-class arm AND a clean J (clean lr=0.5 → hard 
 memorized; lr=1.0 that memorizes it → chaotic J). INSTEAD firing a PLATEAU check (job 481153: lr=0.5,
 T=1500/2000, FD-gated) — does 10-class q_eff FLATTEN (~81-85, far below binary ~117) or climb toward binary?
 Reversal MECHANISM is NOISE-based (Σ_seed coupling into col(J)), a property of the training MAP not of
-sample convergence → likely robust to the one-stuck-sample underfit. READ: reversal is DIRECTIONALLY
-ROBUST (large gap + noise mechanism) but a matched-convergence LOCK is blocked by the AD-vs-high-lr wall.
-PROVISIONAL. (The original "2×" q_eff 45→97 retraction STANDS — low-lr underfit + S=64 undersampling, independent.)
+sample convergence → **CAUSE is MATCHED-RECIPE-CONFIRMED (measured at identical lr=0.5); only the exact
+q_eff MAGNITUDE carries the convergence caveat** (yoado-35 #1 — stronger than "directional"). Plateau check
+(481153) ALSO FD-FAILED (lr=0.5/T=2000 chaotic — deep unrolls go chaotic too, not just high lr = a
+CHARACTERIZED methodological boundary of the exact data-Jacobian: Metz "Gradients Are Not All You Need").
+NOW firing lr-window probe (481883): does an intermediate lr {0.6,0.7,0.8} at shallow T=500 memorize the
+10-class hard sample AND stay FD-clean? If yes → clean lock; if no → the AD-vs-aggressive-lr wall is
+fundamental. END-STATE: clean lock (if window) OR "reversal directional + CAUSE matched-confirmed +
+magnitude plateau-bounded + exact-lock bounded by a genuine characterized AD wall." (The original "2×"
+q_eff 45→97 retraction STANDS — low-lr underfit + S=64 undersampling, independent of all this.)
 
 **CORRECTION to "memorization-free":** at REAL convergence (lr=0.5/T=1000) memorizing the 20 private images
 HARMS held-out accuracy — binary 0.91→0.81 (−0.10), 10-class 0.97→0.94 (−0.03); binary more fragile. The
