@@ -55,6 +55,26 @@ the attack (the attack targets the LoRA fine-tune's private imgs, not the base t
 - Jobs: 231594 (10-class bases → weights-<ds>10_<act>.pth); leakage re-run script ready
   (run_leakage_multiclass, N-sweep N∈{10,20}, nc∈{2,10}). CIFAR-10 deferred (heavier arch).
 
+## Tier A binary full-data base + a CORRECTION (2026-08-25, job 245178)
+Full-data (dpc=10000) binary odd/even bases, healthy init 0.05, 4000 epochs, node lgn28 EXCLUDED
+(it was ~100x slow — the source of a wrong claim, see below). Test accuracy (binary full vs old d250):
+
+| | d250 (old) | binary full | 10-class |
+|---|---|---|---|
+| mnist-relu | 89.8% | **96.7%** | 96.8% |
+| mnist-gelu | 87.9% | **93.7%** | 95.7% |
+| mnist-modifiedrelu | 88.5% | **96.7%** | 96.8% |
+| fashion-relu | 95.9% | **96.5%** | 88.7% |
+| fashion-gelu | 94.9% | **95.6%** | 87.7% |
+| fashion-modifiedrelu | 95.5% | (finishing) | ~87.8% |
+
+**CORRECTION:** an earlier claim that "binary odd/even caps ~90% (parity is hard)" was WRONG — it read an
+epoch-1000 (undertrained) number off the crawling lgn28 run. Converged full-data binary reaches ~96.7%
+(mnist) / ~96.5% (fashion). Parity is NOT a ~90% ceiling. Consequences: (1) the binary strong-base
+leakage re-run is a real 88→96.7% base-quality change (worth running); (2) for MNIST binary≈10-class in
+accuracy (~96.7 vs 96.8), so the amplification result is CLEANER — at matched base accuracy the
+multi-class base leaks ~2x more, attributable to the loss/head-width, not classifier quality.
+
 ## HEADLINE: multi-class CE ~DOUBLES leakage & dissolves collinearity (2026-08-25, job 247834)
 Tier B amplification result — yoado-8a's hypothesis CONFIRMED, mechanism REFINED. Fixed honest 10-class
 GELU base θ0; N=20 k8 r8 T=50 (memorized) qr tangents; q_eff at ε=0.1, col(J)-whitened.
