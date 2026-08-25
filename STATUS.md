@@ -19,9 +19,15 @@ The two tracks now tell ONE honest story (figure: figures/combined/leakage_ident
   (10-class q_eff ε=1 36/80 < binary 59/80; ε=3 71 vs 72) hold ⇒ **a real training-MAP property, not a
   convergence artifact.** N=20 gap stays ~40pt as the 10-class converges further (lr0.5→0.6); the N=20 exact
   MAGNITUDE is bounded by a characterized meta-gradient-chaos limit of the method, but the reversal itself is
-  confirmed. ⏳ **Pending yoado-35's final iso-vs-q_eff consistency audit before declared settled** (the
-  combined-figure PROVISIONAL banner stays until that green-light). Reconstruction side (bridge pixels/SSIM)
-  is SETTLED regardless — only the multi-class q_eff gap's final sign-off is pending.
+  confirmed. **CONFIRMED & SETTLED (yoado-35 log-audit passed, 2026-08-25):** banner DROPPED, combined figure finalized.
+  Two strengthening checks folded in: (1) **ε-DEPENDENCE** — the reversal is STRONG at low ε (N=10: q_eff
+  36 vs 59 @ε=1, noise-limited) and VANISHES at high ε (71 vs 72 @ε=3, signal-limited) = it sits EXACTLY where
+  the noise-floor mechanism predicts (hard to fake); (2) **held-acc ASYMMETRY** — memorizing HARMS binary
+  held-acc (−0.10/−0.11) but NOT 10-class (~0.00), so 10-class leaks LESS AND at ~no utility cost. Final
+  honest capstone: *LoRA leakage is real, high, reconstructable to pixels (bridge SSIM/grids), and 10-class
+  leaks FEWER directions than binary (NOT amplified) as a confirmed training-MAP property — N=20 magnitude
+  bounded by a characterized meta-gradient-chaos limit, direction confirmed at fully-converged N=10.* Figure:
+  figures/combined/leakage_identifiability_plus_reconstruction.png.
 - **RECONSTRUCTION (gradient-bridge, pixels):** leakage is real + reconstructable — recognizable images from
   the LoRA adapter alone, clip-corrected ssim_norm ~0.57-0.61 (MNIST/Fashion) + true-vs-recon grids.
 - **Honest headline for Gal:** *LoRA leakage is real, high, and reconstructable to pixels — but NOT
