@@ -125,7 +125,15 @@ multi-class base leaks ~2x more, attributable to the loss/head-width, not classi
 
 ## HEADLINE: multi-class CE ~DOUBLES leakage & dissolves collinearity (2026-08-25, job 247834)
 Tier B amplification result — yoado-8a's hypothesis CONFIRMED, mechanism REFINED. Fixed honest 10-class
-GELU base θ0; N=20 k8 r8 T=50 (memorized) qr tangents; q_eff at ε=0.1, col(J)-whitened.
+GELU base θ0; N=20 k8 r8 T=50 qr tangents; q_eff at ε=0.1, col(J)-whitened.
+
+**⚠ PROVISIONAL — convergence caveat (yoado-35 audit, 2026-08-25):** the J1 comparison ran at T=50 with
+DEFAULT lr (~0.01, not the rigor's 0.1), so BINARY (r_J=99) is likely UNDERFIT while CE hit full rank (160).
+Open question that MUST be resolved before locking the headline: at TRUE convergence (max_bce<1e-3 for BOTH
+bases) does binary r_J ALSO climb to ~160? If yes → amplification is a CONVERGENCE-RATE effect (CE reaches
+full rank sooner), NOT a fundamental measurement-width gap. A convergence-matched T-sweep on BOTH bases is
+now PHASE 1 of the multi-class-knobs plan (front-loaded). Report the headline at matched convergence, not
+matched T. "~2×" and "dissolves collinearity" stand as PROVISIONAL until then.
 
 | | binary base | 10-class K_eff=2 | K_eff=5 | K_eff=10 |
 |---|---|---|---|---|
