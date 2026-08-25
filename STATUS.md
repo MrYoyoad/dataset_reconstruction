@@ -55,6 +55,35 @@ the attack (the attack targets the LoRA fine-tune's private imgs, not the base t
 - Jobs: 231594 (10-class bases → weights-<ds>10_<act>.pth); leakage re-run script ready
   (run_leakage_multiclass, N-sweep N∈{10,20}, nc∈{2,10}). CIFAR-10 deferred (heavier arch).
 
+## HEADLINE: multi-class CE ~DOUBLES leakage & dissolves collinearity (2026-08-25, job 247834)
+Tier B amplification result — yoado-8a's hypothesis CONFIRMED, mechanism REFINED. Fixed honest 10-class
+GELU base θ0; N=20 k8 r8 T=50 (memorized) qr tangents; q_eff at ε=0.1, col(J)-whitened.
+
+| | binary base | 10-class K_eff=2 | K_eff=5 | K_eff=10 |
+|---|---|---|---|---|
+| **mnist** eff_rank / r_J / q_eff | 30 / 99 / 45 | 77 / **160** / **97** | 51 / 160 / 97 | 42 / 160 / 97 |
+| **fashion** eff_rank / r_J / q_eff | 3.4 / 107 / 44 | 92 / **160** / **97** | 77 / 160 / 97 | 74 / 160 / 97 |
+
+1. **~2× amplification, both datasets:** multi-class CE base drives col(J) to FULL rank (r_J 99/107→160)
+   and ~doubles the whitened recoverable count (q_eff 45→97 mnist, 44→97 fashion).
+2. **Driver = CE head WIDTH K, NOT classes-present** (refines yoado-8a): q_eff saturates at 97/160 already
+   at K_eff=2 and is FLAT across K_eff∈{2,5,10}. The K-way CE gradient is K-channels-wide per sample
+   regardless of how many classes the private batch spans — so the (K-1)-dim residual injects as soon as
+   you fine-tune with K-way CE. (raw eff_rank DECREASES with K_eff — spectrum concentrates — but the
+   privacy-meaningful count is saturated.)
+3. **Biggest effect where binary was most PROTECTED:** fashion (binary eff_rank 3.4, the collinear
+   dataset) jumps to 92 under CE — multi-class CE DISSOLVES the dataset-dependent collinearity wall. Ties
+   straight to the "more measurements defeat collinearity" theme (DAGER/MineGrad): K-way CE = K-1
+   measurements/sample vs binary's 1.
+4. **Memorization is free (accuracy-wise):** fine-tuning to memorize the 20 private images leaves general
+   held-out accuracy ~unchanged (mnist 0.97→0.96, fashion 0.83→0.81 at T=200) — the "does fine-tuning
+   help or harm classification?" answer: neither, it just leaks.
+5. **Caveat:** q_eff at S=64 < r_J=160 is UNDER-SAMPLED → 97 is a rough/conservative count; eff_rank and
+   r_J corroborate robustly. A clean q_eff needs S≥~640 (4·r_J) — follow-up. frozen[out] well-conditioned
+   (cond~4.5, eff_rank 9.45/10) so the amplification is not muted by a collapsed output layer.
+Bug en route: job 246640 crashed all multi-class arms (binary-only compute_known_coefficients called with
+n_steps=0) — yoado-8a's predicted gotcha; fixed (guard [N,K>1] head → zeros). See LESSONS_LEARNED.
+
 ## 10-class base accuracy table (2026-08-25, job 231594 — Tier B honest K-class bases)
 Genuine multi-class classifiers (CrossEntropy, full-ish data dpc=5000, init 0.05), saved as
 weights-<ds>10_<act>.pth. These are the fixed θ0 for the amplification leakage run.
