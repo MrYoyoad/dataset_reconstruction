@@ -88,6 +88,10 @@ q_eff@ε1 59/36). r_J=80 (full) at every r → clean raw-count comparison. **All
   comparability, so deliberately not done.)
 - Data: results/jacobian_j1_ranksweep_*.pth; log scripts/wexac_logs/mc_rank_sweep_581629.out; plan
   notes/lora_rank_sweep_plan.md.
+- **Figures (audit-clean, notes/rank_sweep_plots_plan.md rev2; generator experiments/plot_rank_sweep.py
+  reads .pth + anchor self-check, job 933413):** figures/rank_sweep/rank_sweep_headline.png (A q_eff-vs-r
+  converged | B gap 23→13→0 | C iso decouples at r≥N | D convergence gate quarantining r=2/4),
+  rank_sweep_eps.png (ε small-multiples), rank_sweep_spectrum_r8.png (σ(J_SNR) geometry).
 
 ## Open hypotheses H1–H5 + PROVISIONAL status of the collinearity results (2026-08-24)
 
