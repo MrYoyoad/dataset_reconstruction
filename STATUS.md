@@ -68,12 +68,24 @@ q_eff@ε1 59/36). r_J=80 (full) at every r → clean raw-count comparison. **All
   the clean comparison. The low-rank convergence probe (job 635386) confirmed r=2/4 ARE memorizable only
   with deep T≈4000-8000, which is in the FD-chaotic zone → measurable-only-past-the-wall. **r=1 is the only
   genuine capacity floor** (never memorizes at any T).
-- **FASHION crossing check (r∈{8,16}) — PARTIAL:** binary done (r8 iso 0.321 q_eff@ε1 30; r16 iso 0.417
-  q_eff@ε1 35). Both 10-class cells failed the first pass: r=8 nc10 **FD-CHAOTIC → bounded out** (fashion's
-  differentiable island is dataset-dependent, more chaotic than mnist — a finding, not a recipe change);
-  r=16 nc10 **converged (max_bce 2.1e-4) but q_eff crashed on a raw-cloud diagnostic SVD** (cuSOLVER err
-  319). Fixed the SVD (gesvd fallback + skip-on-fail, the diagnostic doesn't feed q_eff) and re-running
-  both cells (job 896854). Note r=16 nc10 held-acc dropped hard (0.90→0.69).
+- **FASHION crossing check (r∈{8,16}) — 10-class BOUNDED OUT (numerically unstable at matched recipe):**
+  binary is clean (r8 iso 0.321 q_eff@ε1 30; r16 iso 0.417 q_eff@ε1 35). **Both 10-class cells are
+  numerically unstable and cannot be measured at the matched recipe** — a real dataset-dependence finding,
+  not a fixable bug:
+  - r=8 nc10: exact-J **FD-CHAOTIC (NaN)**, deterministically, across 2 runs → bounded out.
+  - r=16 nc10: **NONDETERMINISTIC** at every level — the FD gate passed (1.99e-8, 2.4e-8) on 2 runs but
+    FAILED (chaotic NaN) on a 3rd; rigor training NaN'd on 2 healthy nodes even when FD passed; the 320-draw
+    Σ_seed hit NaN even when the reference J was finite (raw eff_rank 62.2). ONE lucky draw (896854)
+    converged (max_bce 2.1e-4, held-acc 0.90→0.69) but q_eff never computed.
+  **Root cause (fully characterized):** NOT dtype (float64 module-wide), NOT a single bad node (recurred on
+  hgn45→hgn15). It is **per-process GPU-atomic nondeterminism** tipping a numerically stiff config over the
+  NaN edge — fashion 10-class sits on the boundary of the exact-Jacobian method's stable/differentiable
+  island. Robustness added along the way (all committed, MNIST-unaffected): gesvd-fallback + skip-on-fail
+  for the diagnostic SVDs (they don't feed q_eff), and NaN-draw filtering in estimate_sigma_seed (drop
+  non-finite unrolls, average the healthy majority, report the count). **The fashion binary-vs-10class
+  crossing is INCONCLUSIVE under the matched recipe; MNIST (clean, reproducible, all 5r×2bases) carries the
+  headline.** (Would need a gentler recipe for fashion 10-class alone — but that breaks cross-config
+  comparability, so deliberately not done.)
 - Data: results/jacobian_j1_ranksweep_*.pth; log scripts/wexac_logs/mc_rank_sweep_581629.out; plan
   notes/lora_rank_sweep_plan.md.
 

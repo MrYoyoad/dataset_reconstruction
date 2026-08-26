@@ -34,6 +34,20 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
    at r≥N — iso gap flips sign at r=16 while q_eff still reverses. **A mechanism that explains an effect in
    one regime is not guaranteed to carry it in another; sweep the regime axis before generalizing.**
 
+5. **A borderline-stiff config can be NONDETERMINISTIC even at float64, same seed — the FD gate itself flips.**
+   Fashion 10-class r=16 passed the full-config FD gate clean (1.99e-8, 2.4e-8) on two runs and FAILED it
+   (chaotic NaN) on a third — identical code, seed, recipe, float64 module-wide. Its rigor training NaN'd on
+   two different healthy nodes, and the 320-draw Σ_seed hit NaN even when the reference J was finite (raw
+   eff_rank 62.2). Root cause is **per-process GPU-atomic nondeterminism** (non-deterministic reduction
+   order) tipping a config sitting on the boundary of the meta-gradient-chaos island over the NaN edge —
+   NOT dtype, NOT a single bad node (recurred across nodes). **Lessons:** (a) when a "bad node" fix
+   (exclude hgn45) doesn't stop a NaN, suspect nondeterminism, not hardware — reproduce on ≥2 nodes before
+   blaming one. (b) A single NaN draw in an S-sample covariance poisons the whole mean → filter non-finite
+   draws (average the healthy majority, report the count) rather than let one unroll sink the estimate.
+   (c) A config whose FD gate is itself a coin-flip is genuinely UNMEASURABLE at that recipe → bound it out;
+   don't resample a coin-flip hoping for a clean draw, and don't soften the recipe for one config (breaks
+   cross-config comparability). Fashion 10-class is outside the method's stable island; mnist is inside it.
+
 ## The multi-class-leakage arc: symmetric rigor + the meta-gradient-chaos wall (2026-08-25)
 
 A full day: "multi-class CE ~doubles LoRA leakage (2×)" → retracted → REVERSED → reversal CONFIRMED. The
