@@ -519,6 +519,7 @@ def estimate_sigma_seed(ctx_factory, S, a0):
     stochasticity), holding the data at a0 fixed.
     """
     samples = []
+    dropped = 0
     for s in range(S):
         ctx = ctx_factory(s)
         # no torch.no_grad(): forward_Y's inner SGD needs grad tracking; we
@@ -526,8 +527,19 @@ def estimate_sigma_seed(ctx_factory, S, a0):
         # create_graph=False: single-backward unroll — identical Y values, far
         # cheaper (Σ_seed only needs values, not the 2nd-order graph). Big win at
         # S≥4·Nk (Round B) — makes the S-heavy runs feasible without an A100.
-        samples.append(forward_Y(a0, ctx, create_graph=False).detach())
-    Ys = torch.stack(samples, dim=0)             # [S, dimY]
+        y = forward_Y(a0, ctx, create_graph=False).detach()
+        # A single divergent (NaN/Inf) B0-draw unroll would poison the whole
+        # mean/covariance. On numerically stiff configs (fashion nc=10) a small
+        # fraction of the S draws can NaN nondeterministically — drop them and
+        # average the healthy majority (report the count; never silently cap).
+        if torch.isnan(y).any() or torch.isinf(y).any():
+            dropped += 1
+            continue
+        samples.append(y)
+    if dropped:
+        print(f"[Σ_seed] dropped {dropped}/{S} non-finite (NaN/Inf) B0-draw unrolls "
+              f"({100*dropped/S:.1f}%); Σ_seed averaged over the {len(samples)} finite draws")
+    Ys = torch.stack(samples, dim=0)             # [S_finite, dimY]
     return Ys - Ys.mean(dim=0, keepdim=True)
 
 
@@ -1618,8 +1630,11 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
         # low overlap is a dimensionality artifact, not orthogonality. λ_i = sv_i².
         # Honest fallback under an ISOTROPIC init-noise model: floor = measured mean
         # variance μ = trace(Σ)/dimY (NOT the shrinkage ρμ). σ_i(J_SNR)=σ_i(J)/√μ.
+        # Use the ACTUAL finite-draw count (rows), not the requested S — some draws
+        # may have been dropped as non-finite by estimate_sigma_seed.
+        S_fin = centered.shape[0]
         mu = (centered.double().pow(2).sum()
-              / ((S - 1) * centered.shape[1])).item()
+              / ((S_fin - 1) * centered.shape[1])).item()
         sigma_iso = svals.to(centered.device) / (mu ** 0.5)
         qeff_iso = {eps: int((eps * sigma_iso > 1).sum().item()) for eps in eps_list}
         isostr = "  ".join(f"ε={e:g}:{qeff_iso[e]}/{Nk}" for e in eps_list)

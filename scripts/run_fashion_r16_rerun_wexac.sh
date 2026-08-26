@@ -1,6 +1,6 @@
 #!/bin/bash
 #BSUB -q long-gpu
-#BSUB -R "rusage[mem=24576] select[ngpus>0 && hname!='lgn28' && hname!='hgn46']"
+#BSUB -R "rusage[mem=24576] select[ngpus>0 && hname!='lgn28' && hname!='hgn46' && hname!='hgn45']"
 #BSUB -gpu "num=1"
 #BSUB -o scripts/wexac_logs/fashion_mc_rerun_%J.out
 #BSUB -e scripts/wexac_logs/fashion_mc_rerun_%J.err
