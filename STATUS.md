@@ -28,11 +28,24 @@ The two tracks now tell ONE honest story (figure: figures/combined/leakage_ident
   leaks FEWER directions than binary (NOT amplified) as a confirmed training-MAP property — N=20 magnitude
   bounded by a characterized meta-gradient-chaos limit, direction confirmed at fully-converged N=10.* Figure:
   figures/combined/leakage_identifiability_plus_reconstruction.png.
-- **RECONSTRUCTION (gradient-bridge, pixels):** leakage is real + reconstructable — recognizable images from
-  the LoRA adapter alone, clip-corrected ssim_norm ~0.57-0.61 (MNIST/Fashion) + true-vs-recon grids.
-- **Honest headline for Gal:** *LoRA leakage is real, high, and reconstructable to pixels — but NOT
-  fundamentally multi-class-amplified; if anything CE self-protects via its own training noise.* Utility
-  cost: memorizing harms held-acc (binary -0.10, 10-class -0.03 at T=1000). Data: results/jacobian_j1_roundB_*.pth (yoado-dc).
+- **RECONSTRUCTION (gradient-bridge, pixels) — CORRECTED 2026-08-26 (was overclaimed):** the earlier
+  "recognizable images, ssim_norm ~0.57-0.61" claim leaned on the mean/std-MATCHED ssim_norm (inflated) vs a
+  RAW mean-image baseline — apples-to-oranges. Checked against the project's own baseline gate
+  (experiments/metrics.py: a result ≤ ssim_mean_baseline carries NO instance-specific info), the DECODED
+  (adapter-only) reconstruction **beats the mean-image baseline in only 3/12 cells** (all low-N fashion, tiny
+  abs ssim 0.25-0.32); **every MNIST cell FAILS** (decoded raw ssim 0.34-0.46 vs baseline 0.56-0.76; even the
+  inflated ssim_norm 0.61 < 0.76 baseline on mnist_N2_softplus). The TRUE-ΔW **oracle** reaches ~0.83 (info
+  IS present in the full gradient) but that is the known-recipe upper bound, not the attack. **Honest status:
+  end-to-end pixel reconstruction from the adapter alone does NOT yet clear the trivial baseline — an OPEN
+  LIMITATION, not a result.** Data: results/gb_e2e_*.pth; decoded-vs-baseline computed 2026-08-26 (audit
+  yoado-a2 + yoado-aa). ⚠ figures/combined/leakage_identifiability_plus_reconstruction.png caption still
+  carries the old claim → needs regeneration.
+- **Honest headline for Gal:** *LoRA leakage geometry is real and high for both bases (large recoverable
+  q_eff), and NOT fundamentally multi-class-amplified (if anything CE mildly self-protects at low-ε/low-rank).
+  Pixel reconstruction from the adapter alone is an OPEN LIMITATION — the information is present at the oracle
+  level but the current decoder doesn't beat the trivial mean-image baseline.* Utility cost: memorizing harms
+  held-acc (binary -0.10, 10-class ~-0.02 at T=1000). Consolidated writeup: notes/leakage_story_consolidated.md.
+  Data: results/jacobian_j1_roundB_*.pth, results/gb_e2e_*.pth.
 
 ## LoRA RANK SWEEP — the reversal is a LOW-RANK phenomenon; vanishes at full fine-tuning (2026-08-26, job 581629)
 

@@ -4,6 +4,28 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A normalized metric hid a below-baseline reconstruction — always gate on the trivial baseline (2026-08-26)
+
+**Bug (overclaim, caught in audit before it reached Gal):** the reconstruction half of the leakage story
+carried "recognizable images from the adapter alone, ssim_norm ~0.57-0.61" in STATUS + the combined figure.
+It was WRONG. `ssim_norm` matches each reconstruction's mean/std to its target before scoring (removes the
+luminance/contrast penalty) — it *inflates* the number for a structurally-poor but brightness-matched image.
+The `ssim_mean_baseline` (what the trivial dataset-mean predictor scores) is RAW ssim. So the cited
+comparison was apples-to-oranges, and the honest like-for-like (decoded RAW ssim vs RAW baseline) shows the
+adapter-only decoder clears NOTHING on MNIST (0.34-0.46 vs 0.56-0.76) and beats baseline in only 3/12 cells
+(all low-N fashion, tiny abs ssim). The information IS present at the TRUE-ΔW oracle (~0.83) — but that's the
+upper bound, not the attack.
+
+**Lessons:** (a) **Always report a metric against its trivial baseline** — metrics.py even says it in words
+("a result at or below ssim_mean_baseline carries no instance-specific information"), and we still shipped a
+number that didn't clear it. A high absolute score means nothing without the baseline next to it. (b) A
+**normalization that removes a penalty is not free** — ssim_norm removing luminance/contrast is legitimate
+for "is it structurally recognizable" but must NOT be compared to a raw baseline, and must NOT become the
+headline without the raw/baseline numbers beside it. (c) **Oracle (known-recipe) success ≠ attack success** —
+TRUE-ΔW 0.83 proves the info exists; it does not prove the adapter-only decoder recovers it. Keep the two
+columns distinct in every claim. (d) This is why the audit step exists: yoado-a2 flagged the unsourced
+number, verification turned it into a real correction.
+
 ## Rank sweep: don't let a DIAGNOSTIC crash kill the real result; low-rank measurability bracket (2026-08-26)
 
 1. **A non-essential diagnostic SVD aborted an otherwise-complete q_eff run (bug, found+fixed).** In
