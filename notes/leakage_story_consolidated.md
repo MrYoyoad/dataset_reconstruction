@@ -85,27 +85,31 @@ S=320; all r_J=80, all FD-clean incl r=32 dimY=57088; anchor r=8 reproduces the 
 **Figure:** `figures/combined/leakage_identifiability_plus_reconstruction.png` (right panel).
 **Data:** `results/gb_e2e_{mnist,fashion}_N{2,4,10}_{gelu,softplus}.pth` (gradient-bridge Phase-2 e2e, Aug 2026).
 
-Honest status (corrected against the metric gate — audit yoado-a2, verified here): the project's own metric
-convention (experiments/metrics.py) is that **`ssim_mean_baseline` = what the trivial dataset-mean predictor
-scores; a reconstruction at or below it carries NO instance-specific information.** Checked against that gate:
+Honest status (corrected against the metric gate — audit yoado-a2, independently re-verified by yoado-aa
+across all 20 result files): the project's own metric convention (experiments/metrics.py) is that
+**`ssim_mean_baseline` = what the trivial dataset-mean predictor scores; a reconstruction at or below it
+carries NO instance-specific information.** That baseline is RAW ssim, so the like-for-like test is decoded
+RAW ssim vs raw baseline. Checked against that gate:
 
-- The **DECODED (adapter-only) reconstruction does NOT beat the mean-image baseline on any MNIST cell.**
-  Raw ssim (like-for-like with the raw baseline) 0.34–0.46 vs baseline 0.56–0.76 — e.g. mnist N=2 softplus
-  decoded raw 0.43 vs baseline 0.76. The `ssim_norm ≈ 0.57–0.61` figure previously cited is the mean/std-
-  MATCHED score (which removes the luminance/contrast penalty and inflates the number); it is **not** the
-  like-for-like comparison to the raw baseline, and on the raw basis the decoder clears nothing on MNIST.
-- Decoded beats baseline in only **3 of 12 cells** — all low-N fashion (fashion N10-gelu 0.255 vs 0.207,
-  N4-gelu 0.291 vs 0.283, N4-softplus 0.323 vs 0.283) — and even there the absolute ssim is very low
-  (barely-structured), so "recognizable" overstates it.
-- The **TRUE ΔW (oracle upper bound)** does better (ssim_norm up to ~0.83) and confirms the *information* is
-  present in the full gradient — but that is the known-recipe upper bound, not the adapter-only attack.
+- On the like-for-like raw comparison, **0 of 40 decoded (adapter-only) arms beat the mean-image baseline**
+  (20 result files × {all-layers, input-only}). MNIST is decisive: decoded raw ssim 0.22–0.46 vs baseline
+  0.56–0.76 (e.g. mnist N=10 gelu 0.221 vs 0.564; mnist N=2 softplus 0.43 vs 0.76). Not one MNIST, fashion,
+  or cifar decoded arm clears its raw baseline.
+- The `ssim_norm ≈ 0.57–0.61` that circulated (STATUS, combined figure) is the mean/std-**MATCHED** score,
+  which removes the luminance/contrast penalty and inflates raw by ~0.1–0.3 (e.g. mnist N=10 gelu raw 0.221 →
+  norm 0.522). It was never compared to a baseline. Comparing that inflated ssim_norm to a **raw** baseline is
+  the invalidating apples-to-oranges error; there is no legitimate normalized-baseline framing that rescues it
+  (a matched baseline would mean-/std-match to the *mean-image predictor itself* — circular).
+- Even the **TRUE ΔW (oracle upper bound)** fails the baseline in several cells (e.g. fashion N=2 gelu 0.411
+  vs 0.646), so it is not merely a decoder weakness — the whole reconstruction pipeline is weak on these small
+  nets. The oracle reaching ~0.83 on the easy MNIST cells shows the *information* exists in the full gradient,
+  but that is the known-recipe upper bound, not the attack.
 
-**So the honest claim:** the leakage is real and high as a *geometry / direction count* (§§1–2, verified),
-and the *information* to reconstruct is present at the oracle (TRUE-ΔW) level — but the **end-to-end
-gradient-bridge decoder from the adapter alone does not yet clear the trivial mean-image baseline** (except
-marginally on a few low-N fashion cells). Pixel-level reconstruction is a **current limitation, not a settled
-result.** (This corrects the earlier "recognizable digits, ssim 0.57–0.61, leakage REAL in pixels" framing in
-STATUS.md line 32 and the combined-figure caption, which leaned on the baseline-uncorrected `ssim_norm`.)
+**So the honest claim:** the leakage is real and high as a *geometry / direction count* (§§1–2, verified) —
+that is THE result. Pixel-level reconstruction from the adapter alone is an **OPEN LIMITATION, not a
+result**: 0/40 decoded arms clear the trivial mean-image baseline on the correct raw comparison. (This
+corrects the earlier "recognizable digits, ssim 0.57–0.61, leakage REAL in pixels" framing in STATUS.md and
+the combined-figure caption, which compared the inflated `ssim_norm` to a raw baseline.)
 
 ---
 

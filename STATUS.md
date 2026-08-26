@@ -31,14 +31,17 @@ The two tracks now tell ONE honest story (figure: figures/combined/leakage_ident
 - **RECONSTRUCTION (gradient-bridge, pixels) — CORRECTED 2026-08-26 (was overclaimed):** the earlier
   "recognizable images, ssim_norm ~0.57-0.61" claim leaned on the mean/std-MATCHED ssim_norm (inflated) vs a
   RAW mean-image baseline — apples-to-oranges. Checked against the project's own baseline gate
-  (experiments/metrics.py: a result ≤ ssim_mean_baseline carries NO instance-specific info), the DECODED
-  (adapter-only) reconstruction **beats the mean-image baseline in only 3/12 cells** (all low-N fashion, tiny
-  abs ssim 0.25-0.32); **every MNIST cell FAILS** (decoded raw ssim 0.34-0.46 vs baseline 0.56-0.76; even the
-  inflated ssim_norm 0.61 < 0.76 baseline on mnist_N2_softplus). The TRUE-ΔW **oracle** reaches ~0.83 (info
-  IS present in the full gradient) but that is the known-recipe upper bound, not the attack. **Honest status:
-  end-to-end pixel reconstruction from the adapter alone does NOT yet clear the trivial baseline — an OPEN
+  (experiments/metrics.py: a result ≤ ssim_mean_baseline carries NO instance-specific info; baseline is RAW
+  ssim), on the like-for-like RAW comparison **0 of 40 decoded (adapter-only) arms beat the mean-image
+  baseline** (20 files × {all-layers, input-only}; yoado-aa independent re-verify). MNIST decisive: decoded
+  raw ssim 0.22-0.46 vs baseline 0.56-0.76. The circulated ssim_norm 0.57-0.61 is mean/std-MATCHED (inflates
+  raw by ~0.1-0.3) compared to a RAW baseline — the invalidating apples-to-oranges error (my first pass's
+  "3/12 beat" was itself that invalid norm-vs-raw comparison; raw-vs-raw is 0/40). Even the TRUE-ΔW **oracle**
+  fails baseline in several cells (fashion_N2_gelu 0.411 < 0.646) → whole pipeline weak on small nets, not
+  just the decoder (oracle ~0.83 only on easy MNIST = info present, upper bound not attack). **Honest status:
+  end-to-end pixel reconstruction from the adapter alone does NOT clear the trivial baseline — an OPEN
   LIMITATION, not a result.** Data: results/gb_e2e_*.pth; decoded-vs-baseline computed 2026-08-26 (audit
-  yoado-a2 + yoado-aa). ⚠ figures/combined/leakage_identifiability_plus_reconstruction.png caption still
+  yoado-a2 + independent yoado-aa). ⚠ figures/combined/leakage_identifiability_plus_reconstruction.png caption still
   carries the old claim → needs regeneration.
 - **Honest headline for Gal:** *LoRA leakage geometry is real and high for both bases (large recoverable
   q_eff), and NOT fundamentally multi-class-amplified (if anything CE mildly self-protects at low-ε/low-rank).
