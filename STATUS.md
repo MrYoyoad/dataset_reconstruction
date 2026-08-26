@@ -34,6 +34,49 @@ The two tracks now tell ONE honest story (figure: figures/combined/leakage_ident
   fundamentally multi-class-amplified; if anything CE self-protects via its own training noise.* Utility
   cost: memorizing harms held-acc (binary -0.10, 10-class -0.03 at T=1000). Data: results/jacobian_j1_roundB_*.pth (yoado-dc).
 
+## LoRA RANK SWEEP — the reversal is a LOW-RANK phenomenon; vanishes at full fine-tuning (2026-08-26, job 581629)
+
+Tested whether the confirmed reversal (10-class q_eff < binary at convergence) is rank-robust across
+**r ∈ {2,4,8,16,32}** (split at r=N=10: r≥16 ≈ full fine-tune, Jang 2024). Locked recipe: mnist gelu
+N=10 k=8 (Nk=80) T=1000 lr=0.5 S=320 qr seed42, both bases; anchor r=8 reproduced EXACTLY (iso 0.491/0.683,
+q_eff@ε1 59/36). r_J=80 (full) at every r → clean raw-count comparison. **All FD-clean incl r=32
+(dimY=57088, 3.2e-8) — the r=32 FD-gate concern never materialized.**
+
+**HEADLINE — the reversal ATTENUATES monotonically with rank and closes at r=32 (full-FT regime):**
+
+| r | regime | binary q_eff@ε1 | 10-class q_eff@ε1 | gap | 10-cls iso | both converged? |
+|---|---|---|---|---|---|---|
+| 2 | r<N | 57 | 7 | (48) | 0.923 | **NO** — 10-cls underfit (max_bce 6.1e-3), q_eff confounded |
+| 4 | r<N | 60 | 35 | (25) | 0.585 | **NO** — 10-cls underfit (max_bce 1.9e-3), q_eff confounded |
+| 8 | r<N | 59 | 36 | **23** | 0.683 | yes (anchor) |
+| 16 | r≥N | 60 | 47 | **13** | 0.389 | yes |
+| 32 | r≫N | 58 | **58** | **~0** | 0.424 | yes |
+
+- **Reversal gap 23 → 13 → 0 across the valid (both-converged) rows r=8/16/32.** Binary q_eff is FLAT
+  (59/60/58) across rank; 10-class climbs to meet it (36→47→58). ⇒ **the reversal is a genuinely low-rank
+  (r<N) effect that VANISHES as LoRA → full fine-tuning.** Directly answers the plan's headline question.
+- **The iso mechanism DECOUPLES from the q_eff reversal at r≥N.** At r=8 the reversal is driven by
+  10-class having HIGHER noise-coupling (iso 0.683 > 0.491 binary). At r=16 the iso gap FLIPS (10-class
+  0.389 < binary 0.808) yet q_eff still reverses (47 < 60) — so noise-coupling no longer explains it at
+  high rank. Both bases' iso trends with rank are opposite (binary rises 0.20→0.81, 10-class falls
+  0.92→0.39, crossing between r=8 and r=16).
+- **iso is rank-INCREASING for binary (0.20→0.81):** more rank = bigger B0 init-noise pool = more noise
+  spills into the 80-dim signal subspace = more masking. But it's a WEAK defense (binary q_eff stays 57-60
+  at every rank). Low-rank LoRA gets LESS "free" init-noise privacy.
+- **Convergence gate bit at low rank (as predicted, gate #2):** r=2/4 10-class do NOT memorize at the
+  matched recipe (priv_acc=1.00 but max_bce > 1e-3), so their q_eff (7, 35) is confounded — excluded from
+  the clean comparison. The low-rank convergence probe (job 635386) confirmed r=2/4 ARE memorizable only
+  with deep T≈4000-8000, which is in the FD-chaotic zone → measurable-only-past-the-wall. **r=1 is the only
+  genuine capacity floor** (never memorizes at any T).
+- **FASHION crossing check (r∈{8,16}) — PARTIAL:** binary done (r8 iso 0.321 q_eff@ε1 30; r16 iso 0.417
+  q_eff@ε1 35). Both 10-class cells failed the first pass: r=8 nc10 **FD-CHAOTIC → bounded out** (fashion's
+  differentiable island is dataset-dependent, more chaotic than mnist — a finding, not a recipe change);
+  r=16 nc10 **converged (max_bce 2.1e-4) but q_eff crashed on a raw-cloud diagnostic SVD** (cuSOLVER err
+  319). Fixed the SVD (gesvd fallback + skip-on-fail, the diagnostic doesn't feed q_eff) and re-running
+  both cells (job 896854). Note r=16 nc10 held-acc dropped hard (0.90→0.69).
+- Data: results/jacobian_j1_ranksweep_*.pth; log scripts/wexac_logs/mc_rank_sweep_581629.out; plan
+  notes/lora_rank_sweep_plan.md.
+
 ## Open hypotheses H1–H5 + PROVISIONAL status of the collinearity results (2026-08-24)
 
 New research directions documented in **notes/jacobian_leakage_experiment_plan.md Part 6** (test before

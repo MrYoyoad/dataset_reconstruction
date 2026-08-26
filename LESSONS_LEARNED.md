@@ -4,6 +4,36 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Rank sweep: don't let a DIAGNOSTIC crash kill the real result; low-rank measurability bracket (2026-08-26)
+
+1. **A non-essential diagnostic SVD aborted an otherwise-complete q_eff run (bug, found+fixed).** In
+   `run_j1`, `torch.linalg.svd(centered.double())` on the raw [S, dimY]=[320, 28544] noise cloud threw
+   `_LinAlgError` error 319 (cuSOLVER gesdd "failed to converge, ill-conditioned") on fashion nc=10 r=16 —
+   a CONVERGED, FD-CLEAN cell — and took the whole config down with no q_eff. **The crashed SVD only feeds
+   an anisotropy/Gaussianity PRINT; the actual q_eff uses `q_eff_colspace`'s SVD of the well-conditioned
+   TALL J [28544, 80], not the wide cloud.** Fix: gesdd→gesvd driver fallback, then skip-the-diagnostic
+   (not the run) on failure. **Lesson: wrap diagnostic-only linalg in try/except so it can never sink the
+   load-bearing computation — and know which SVD is load-bearing (tall J) vs cosmetic (wide cloud).**
+
+2. **The measurable window is BRACKETED — convergence gate at low r, FD-chaos gate at high r/hard data.**
+   Low rank (r=2/4 on 10-class): the adapter can't hit the memorization floor at the matched recipe
+   (max_bce > 1e-3) even though priv_acc=1.00 — so q_eff is convergence-confounded, excluded. Only r=1 is a
+   TRUE capacity floor. High rank / harder dataset (fashion 10-class r=8): the exact Jacobian goes chaotic
+   (FD NaN) → bounded out, NOT a recipe to soften (a different recipe breaks cross-r comparability). **The
+   clean like-for-like comparison lives only where BOTH gates pass simultaneously (mnist r=8/16/32).**
+
+3. **"No convergence" ≠ "useless LoRA".** The `max_bce < 1e-3` gate is a strict near-exact-INTERPOLATION
+   bar imposed so q_eff isn't underfit-confounded — NOT a utility bar. r=4/10-class already classifies all
+   10 private images correctly (priv_acc=1.00); it just leaves max_bce=1.9e-3. In ordinary LoRA terms it
+   works fine. When reporting a convergence-gated exclusion, say WHICH bar failed (interpolation floor, not
+   accuracy) to avoid the "rank-4 LoRA doesn't work" misread.
+
+4. **A confirmed effect can still be RANK-SCOPED — check the independent variable that defines its regime.**
+   The 10-class-leaks-less reversal is real at r<N but ATTENUATES monotonically (gap 23→13→0 at r=8/16/32)
+   and CLOSES at r=32 (full-FT). And its mechanism (iso, noise-coupling) DECOUPLES from the q_eff reversal
+   at r≥N — iso gap flips sign at r=16 while q_eff still reverses. **A mechanism that explains an effect in
+   one regime is not guaranteed to carry it in another; sweep the regime axis before generalizing.**
+
 ## The multi-class-leakage arc: symmetric rigor + the meta-gradient-chaos wall (2026-08-25)
 
 A full day: "multi-class CE ~doubles LoRA leakage (2×)" → retracted → REVERSED → reversal CONFIRMED. The

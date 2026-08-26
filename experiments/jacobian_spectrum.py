@@ -1551,27 +1551,41 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
     results = {}
     for S in S_list:
         centered = estimate_sigma_seed(lambda s: make_ctx(10_000 + s), S, a0)
-        # anisotropy of the seed-noise cloud (motivates whitening)
-        svd = torch.linalg.svd(centered.double(), full_matrices=False)
-        noise_sv = svd.S
-        # mean-centering removes one dof, so noise_sv[S-1]≈0 structurally; report
-        # the smallest *non-trivial* singular value (S-2) for a meaningful ratio.
-        smin_idx = max(0, min(S - 2, len(noise_sv) - 1))
-        print(f"[J1] S={S}  Σ_seed noise svals: max={noise_sv[0]:.3e} "
-              f"min*={noise_sv[smin_idx]:.3e}  "
-              f"(anisotropy {noise_sv[0] / (noise_sv[smin_idx] + 1e-30):.2e}; "
-              f"*smallest non-trivial)")
-        # Gaussianity eyeball (check a): moments of the noise cloud along its top
-        # direction. B0 varies GLOBALLY while J is LOCAL in a, so the CRLB/Gaussian
-        # framing is only approximate if this cloud is heavy-tailed/multimodal.
-        proj = centered.double() @ svd.Vh[0]                  # [S]
-        proj = (proj - proj.mean()) / (proj.std() + 1e-30)
-        skew = (proj ** 3).mean().item()
-        exkurt = (proj ** 4).mean().item() - 3.0
-        gflag = ("NON-Gaussian → Σ_seed crude, q_eff approximate"
-                 if abs(skew) > 1 or abs(exkurt) > 2 else "≈Gaussian")
-        print(f"[J1] S={S}  noise top-dir moments: skew={skew:+.2f} "
-              f"excess_kurt={exkurt:+.2f}  ({gflag})")
+        # anisotropy of the seed-noise cloud (motivates whitening). This SVD of the
+        # raw [S, dimY] cloud is DIAGNOSTIC ONLY — q_eff itself uses q_eff_colspace's
+        # SVD of the well-conditioned tall J, not this. On ill-conditioned clouds the
+        # default gesdd driver can fail to converge (cuSOLVER err 319, seen on
+        # fashion nc=10 r=16); fall back to the robust gesvd driver, and if even that
+        # fails, SKIP the diagnostic rather than aborting the whole q_eff run.
+        try:
+            try:
+                svd = torch.linalg.svd(centered.double(), full_matrices=False)
+            except torch._C._LinAlgError:
+                svd = torch.linalg.svd(centered.double(), full_matrices=False,
+                                       driver='gesvd')
+            noise_sv = svd.S
+            # mean-centering removes one dof, so noise_sv[S-1]≈0 structurally; report
+            # the smallest *non-trivial* singular value (S-2) for a meaningful ratio.
+            smin_idx = max(0, min(S - 2, len(noise_sv) - 1))
+            print(f"[J1] S={S}  Σ_seed noise svals: max={noise_sv[0]:.3e} "
+                  f"min*={noise_sv[smin_idx]:.3e}  "
+                  f"(anisotropy {noise_sv[0] / (noise_sv[smin_idx] + 1e-30):.2e}; "
+                  f"*smallest non-trivial)")
+            # Gaussianity eyeball (check a): moments of the noise cloud along its top
+            # direction. B0 varies GLOBALLY while J is LOCAL in a, so the CRLB/Gaussian
+            # framing is only approximate if this cloud is heavy-tailed/multimodal.
+            proj = centered.double() @ svd.Vh[0]                  # [S]
+            proj = (proj - proj.mean()) / (proj.std() + 1e-30)
+            skew = (proj ** 3).mean().item()
+            exkurt = (proj ** 4).mean().item() - 3.0
+            gflag = ("NON-Gaussian → Σ_seed crude, q_eff approximate"
+                     if abs(skew) > 1 or abs(exkurt) > 2 else "≈Gaussian")
+            print(f"[J1] S={S}  noise top-dir moments: skew={skew:+.2f} "
+                  f"excess_kurt={exkurt:+.2f}  ({gflag})")
+        except torch._C._LinAlgError as e:
+            print(f"[J1] S={S}  anisotropy/Gaussianity diagnostic SKIPPED "
+                  f"(raw-cloud SVD failed: {type(e).__name__}); q_eff below is "
+                  f"UNAFFECTED — it uses col(J) whitening on the tall J, not this cloud")
         # Reliability: adequacy ratio (Nk vs S, NOT dimY vs S) + fraction of J's
         # energy actually spanned by the measured noise (yoado-29). q_eff is
         # trustworthy only for the J-energy the noise subspace supports.
