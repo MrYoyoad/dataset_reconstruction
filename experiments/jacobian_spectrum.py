@@ -655,7 +655,20 @@ def noise_subspace_energy(J, centered):
     M = centered                                  # [S, dimY], rows = noise samples
     Gram = M @ M.t()                              # [S, S]
     MJ = M @ J                                     # [S, Nk]
-    PJ = M.t() @ (torch.linalg.pinv(Gram) @ MJ)   # projection of J's cols
+    # pinv(Gram) does an SVD that can fail to converge on a pathologically
+    # ill-conditioned/degenerate cloud (cuSOLVER err 319, seen on fashion nc=10).
+    # This is a DIAGNOSTIC (J-energy overlap); it must never sink the q_eff run, so
+    # fall back to the robust gesvd driver, then return NaN if even that fails.
+    try:
+        Ginv = torch.linalg.pinv(Gram)
+    except torch._C._LinAlgError:
+        try:
+            U, s, Vh = torch.linalg.svd(Gram, full_matrices=False, driver='gesvd')
+            s_inv = torch.where(s > 1e-12 * s[0], 1.0 / s, torch.zeros_like(s))
+            Ginv = (Vh.t() * s_inv) @ U.t()
+        except torch._C._LinAlgError:
+            return float('nan')
+    PJ = M.t() @ (Ginv @ MJ)                       # projection of J's cols
     return (PJ.norm() ** 2 / (J.norm() ** 2 + 1e-30)).item()
 
 
@@ -1551,6 +1564,10 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
     results = {}
     for S in S_list:
         centered = estimate_sigma_seed(lambda s: make_ctx(10_000 + s), S, a0)
+        # diagnostic-only vars; safe defaults so a skipped/failed wide-cloud SVD
+        # never NameErrors the load-bearing q_eff_colspace path below.
+        noise_sv = None
+        skew = exkurt = cov_eff_rank = float('nan')
         # anisotropy of the seed-noise cloud (motivates whitening). This SVD of the
         # raw [S, dimY] cloud is DIAGNOSTIC ONLY — q_eff itself uses q_eff_colspace's
         # SVD of the well-conditioned tall J, not this. On ill-conditioned clouds the
@@ -1599,9 +1616,6 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
         # Decisive dimensionality check (yoado-29): eff_rank(Σ_seed) and whether it
         # GROWS with S. Growing/flat-spectrum ⇒ high-dim noise undersampled ⇒ the
         # low overlap is a dimensionality artifact, not orthogonality. λ_i = sv_i².
-        lam = (noise_sv[:smin_idx + 1].double()) ** 2
-        p = lam / (lam.sum() + 1e-30)
-        cov_eff_rank = float(torch.exp(-(p * p.log()).sum()))
         # Honest fallback under an ISOTROPIC init-noise model: floor = measured mean
         # variance μ = trace(Σ)/dimY (NOT the shrinkage ρμ). σ_i(J_SNR)=σ_i(J)/√μ.
         mu = (centered.double().pow(2).sum()
@@ -1609,9 +1623,16 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
         sigma_iso = svals.to(centered.device) / (mu ** 0.5)
         qeff_iso = {eps: int((eps * sigma_iso > 1).sum().item()) for eps in eps_list}
         isostr = "  ".join(f"ε={e:g}:{qeff_iso[e]}/{Nk}" for e in eps_list)
-        print(f"[J1] S={S}  eff_rank(Σ_seed)={cov_eff_rank:.1f} "
-              f"(track vs S: growing ⇒ undersampled high-dim)  |  μ={mu:.3e}  "
-              f"q_eff|iso: {isostr}")
+        # cov_eff_rank needs the raw-cloud svals; skip it (not q_eff|iso) if the
+        # diagnostic SVD was skipped — noise_sv stays None there.
+        if noise_sv is not None:
+            lam = (noise_sv[:smin_idx + 1].double()) ** 2
+            p = lam / (lam.sum() + 1e-30)
+            cov_eff_rank = float(torch.exp(-(p * p.log()).sum()))
+            cerstr = f"eff_rank(Σ_seed)={cov_eff_rank:.1f} (track vs S: growing ⇒ undersampled high-dim)  |  "
+        else:
+            cerstr = "eff_rank(Σ_seed)=n/a (raw-cloud SVD skipped)  |  "
+        print(f"[J1] S={S}  {cerstr}μ={mu:.3e}  q_eff|iso: {isostr}")
         # SOUND diagnostic: whiten INSIDE col(J) — measures noise where the signal
         # lives, sidestepping the high-dim undersampling. iso_ratio≈0 ⇒ noise avoids
         # col(J) (init doesn't mask); ≈1 ⇒ isotropic-in-col(J) (masks). (yoado-29)
@@ -1635,7 +1656,7 @@ def run_j1(N=2, k=8, T=5, rank=8, activation='gelu', device='cuda',
                   f"min={sigma_snr[-1]:.3e}  |  {qstr}")
             results[(S, shrink)] = {
                 'sigma_snr': sigma_snr.cpu(), 'q_eff': qeffs,
-                'noise_svals': noise_sv.cpu(),
+                'noise_svals': (noise_sv.cpu() if noise_sv is not None else None),
                 'noise_skew': skew, 'noise_exkurt': exkurt,
                 'adequacy_S_over_Nk': adequacy, 'j_noise_energy_frac': jenergy,
                 'energy_chance_baseline': chance, 'cov_eff_rank': cov_eff_rank,
