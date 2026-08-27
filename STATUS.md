@@ -41,8 +41,12 @@ The two tracks now tell ONE honest story (figure: figures/combined/leakage_ident
   just the decoder (oracle ~0.83 only on easy MNIST = info present, upper bound not attack). **Honest status:
   end-to-end pixel reconstruction from the adapter alone does NOT clear the trivial baseline — an OPEN
   LIMITATION, not a result.** Data: results/gb_e2e_*.pth; decoded-vs-baseline computed 2026-08-26 (audit
-  yoado-a2 + independent yoado-aa). ⚠ figures/combined/leakage_identifiability_plus_reconstruction.png caption still
-  carries the old claim → needs regeneration.
+  yoado-a2 + independent yoado-aa). **Honest figure: figures/combined/reconstruction_vs_baseline.png**
+  (experiments/plot_reconstruction_baseline.py, job 21772) — decoded beats baseline 0/12 (0/40 both arms),
+  oracle only 5/12. ⚠ the OLD combined figure leakage_identifiability_plus_reconstruction.png still shows the
+  overclaimed reconstruction panel — its identifiability (left) panel is verified-correct, but its
+  reconstruction (right) panel is SUPERSEDED by reconstruction_vs_baseline.png; regenerate the combined
+  figure if it's used going forward.
 - **Honest headline for Gal:** *LoRA leakage geometry is real and high for both bases (large recoverable
   q_eff), and NOT fundamentally multi-class-amplified (if anything CE mildly self-protects at low-ε/low-rank).
   Pixel reconstruction from the adapter alone is an OPEN LIMITATION — the information is present at the oracle
