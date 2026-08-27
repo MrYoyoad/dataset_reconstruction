@@ -1535,3 +1535,56 @@ through one helper with hardcoded flags. Split the helpers (`run_full` without `
 `run_lora` with it). And: **verify a sweep produced the files you expect per config**, not just that
 the job exited cleanly — `ls results/…full…npc*` would have flagged this immediately.
 
+
+## Whitened/normalizer artifacts hide in the DENOMINATOR (2026-08-27, arm-B sensitivity)
+Three would-be headlines this session were all the same artifact class — a normalizer/denominator inflating:
+(1) the "2x multi-class amplification" (low-lr + S=64-undersampled q_eff), (2) the reconstruction ssim_norm
+(mean/std-matched inflation, never vs baseline), (3) the arm-B "per-image effect sharpens with N" (d² 14->63
+was entirely lambda[0]->0, a downward-MP-biased small eigenvalue in the whitening denominator).
+LESSON: whenever a whitened/normalized metric shows a surprising TREND, the denominator is the first suspect.
+Diagnostics that caught it: permutation/label-shuffle null (floor-free, exact debias at any K); a floor/
+shrinkage sweep (if the trend dies under a sane denominator floor, it was the small-eigenvalue tail);
+{K,2K} on the specific small eigenvalue (Marchenko-Pastur downward bias: small eigenvalues rise with more
+samples). Report the rank-based p-value, not the floor-dependent magnitude. Non-monotonicity of a "law" is a
+tell of an estimation-noise-dominated small eigenvalue.
+
+### Sharper (arm-B post-mortem, yoado-34): K-non-convergence is the PRIMARY artifact tell
+- **K-non-convergence is a mechanism-AGNOSTIC, sufficient artifact disqualifier on its own.** A real quantity
+  STABILIZES as K grows; the arm-B d² MORE THAN DOUBLED at 2x samples (N=64: 63->161). Don't need to know the
+  exact bias mechanism — if the statistic doesn't converge in K, it's not real. Pair with floor-sensitivity = airtight.
+- **Don't trust the mechanism story; force the convergence test.** (Here the {K,2K} test overruled the auditor's
+  OWN specific mechanism guess — MP small-eigenvalue upward-correction — which was WRONG: lambda DROPPED, not rose.
+  The test is what's authoritative, not the story.)
+- **The estimator fix = 3-WAY disjoint split, not 2-way.** The winner's-curse coupling is between "pick the
+  direction U where Delta-mu_A is large" and "measure noise lambda along that SAME picked direction on the SAME
+  sample." Cross-fitting numerator-vs-denominator is insufficient. Correct recipe: U (subspace), numerator
+  (Delta-mu . U), denominator (lambda along U) each from DISJOINT seed sets, via K-fold rotation over the three roles.
+
+## 3-way disjoint cross-fit fixes the whitened-metric denominator (2026-08-27)
+
+**Bug:** the whitened sensitivity metric's magnitude (d²) inflated with sample count K instead of
+converging — arm-B's decomposition read d² 63→161 across K=50→100. **How it presented:** a fake
+"per-image sensitivity sharpens with N" headline (retracted; the 3rd denominator artifact this program).
+**Root cause:** *winner's-curse* — the 2-way cross-fit estimated the noise denominator λ along a subspace
+U that the SAME held-out samples had helped define, so λ was systematically under-estimated (d² inflated),
+worse as K grew. **Fix:** 3-way disjoint cross-fit — role A defines U, role B the numerator Δμ·U, role C
+the denominator λ, all from THREE disjoint folds (rotated + averaged). λ is now never measured along a
+subspace its own samples helped pick. **Acceptance gate (the real proof):** at the level of E[d²(K)] over
+many synthetic datasets the 3-way is stable (drift +6.3% K→2K) while the old 2-way inflates +44% (~1.5×) —
+reproducing the arm-B pathology exactly. Single-instance K-flatness is a knife-edge (two competing
+finite-sample biases cancel only in expectation), so the gate is written as a population mean, not a
+single draw. Code: experiments/dataset_sensitivity/whitened_metric.py (public API unchanged, 12 keys).
+
+## The 3-way metric's K-growth on real data is BENIGN (signal resolution, not bias) (2026-08-27)
+After the 3-way fix, arm-B whitened sensitivity still grew ~2.6×/K-doubling (8→22, K=50→100). Alarm:
+is this a 4th artifact? DECISIVE TEST (job 212413): run the metric on NO-SIGNAL data (v_j = reseed_B −
+reseed_A, same set, no swap) across K. Result: null_sens = 0.095 (K50,N4) → −0.002 (K100,N4), ~0 and
+NON-significant (p=0.17–0.64) and NOT growing (shrinks toward 0). vs real swap 8→22, p=0.002, qeff 1 vs
+0. CONCLUSION: the estimator is UNBIASED — it reads ~0 on no-signal data at every K, so the real-data
+K-growth is genuine SIGNAL-DIRECTION RESOLUTION (with more retrainings the top-p signal subspace locks
+onto the true leakage direction better ⇒ the disjoint-fold numerator confirms more real signal). d² is
+therefore an honest LOWER BOUND that TIGHTENS with K, not an inflating artifact. RULE: report leakage as
+(a) detection via the permutation p-value, (b) magnitude as a lower bound AT A STATED K, (c) comparisons
+AT FIXED K — never a bare absolute d². Lesson: "estimate grows with sample size" is NOT automatically
+bias — test it on a signal-free control; a consistent estimator grows toward truth from below on signal
+and stays 0 on null.

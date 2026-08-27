@@ -2431,3 +2431,45 @@ Hybrid gradient-matching + SDS loss for low-rank reconstruction. Blocked on havi
 ### Reading (Sprint 3 prep)
 - [ ] **Read Inverting Gradients (Geiping et al.)** — the gradient inversion algorithm Phase 0 implements. **HIGH PRIORITY** — may reveal hyperparameter guidance we're missing
 - [ ] Read R2F paper Section 3 in detail (decoder architecture) — needed for Sprint 4
+
+### 2026-08-27 — whitened metric fixed (3-way cross-fit); arm-B re-confirm launched
+- **Metric fix LANDED**: whitened_metric.py upgraded 2-way→3-way disjoint cross-fit (U/numerator/denominator
+  from 3 disjoint folds). Removes the winner's-curse denominator bias that faked "sharpens with N".
+  All 4 self-test gates PASS incl. a NEW K-convergence gate (3-way E[d²] drift +6.3% vs old 2-way +44%).
+- **Next**: arm-B belt-and-suspenders re-run (K=50 vs K=100 must now CONVERGE + read flat in N), then the
+  full sensitivity battery on the fixed metric (see notes/dataset_sensitivity_program_plan.md "BATTERY
+  TRACKER": duplication E, class-imbalance C, context-rarity D, cross-dataset F, OOD G, validation gate H;
+  crossed with axes rank/data-type/model-size; then Phase-2 adapter clustering).
+
+### 2026-08-27 — Arm E (duplication) DONE: imprint is SUB-LINEAR and rank-invariant
+Fixed-prevalence copies-vs-distinct, Σ frozen across k, 3-way whitened metric. N=16, K=50, T=1000.
+Whitened sensitivity vs copy-count k (job 162114):
+- rank 8 : k=1,2,4,8 -> 9.5, 9.8, 10.5, 16.0   (β=0.234, R²=0.85)
+- rank 32: k=1,2,4,8 -> 144, 154, 169, 244      (β=0.241, R²=0.85)
+HEADLINE: duplication imprint scales SUB-LINEARLY (β≈0.24 on d², i.e. ‖Δμ‖∝k^0.12 — flatter than even
+incoherent √k). Nearly FLAT for k≤4; the only real rise is at k=8 = full concentration (positive class
+= 8 copies of T). And β(r=8)≈β(r=32): the low-rank bottleneck does NOT drive the saturation — same
+scaling at full capacity. So the EMPIRICAL-NULL read is "duplication leaks the same regardless of
+capacity", NOT low-rank-protective.
+SECOND AXIS: rank hugely sets ABSOLUTE leakage — r=32 is ~15× r=8 (d² 160 vs 11 at k=1), consistent
+with "leakage grows with rank up to r≥N" from the jacobian program.
+INTERPRETATION (hypothesis): at CONVERGENCE the max-margin/KKT geometry absorbs multiplicity — k copies
+of a support vector rescale its dual weight but barely move the normalized margin direction. CAVEAT:
+measured at T=1000 (converged); duplication may bite harder at fixed/short training budget (the
+memorization literature's usual regime) -> a training-length (T) sweep is the natural follow-up.
+Also: arm-B re-confirm K=50 shows the "sharpens with N" artifact GONE (sens bounded 5-10, non-monotone,
+vs old 63->161); K=100 convergence check still running.
+
+### 2026-08-27 — CORRECTION: 3-way fix lowered scale but did NOT kill arm-B's K-growth
+Apples-to-apples (SAME metric, K=50 vs K=100), arm-B whitened sensitivity:
+  OLD 2-way: 63 -> 161 (2.55x);  NEW 3-way: 8 -> 22 (2.75x).
+The 3-way dropped the ABSOLUTE ~8x but the K-growth RATIO persists (~2.6x/doubling, all N).
+reseed_noise (denominator) is FLAT across K -> growth is numerator/signal side, NOT the denominator.
+My earlier "artifact GONE, bounded 5-10 vs 63->161" compared new-K50 to old-K100 (invalid). What is
+ACTUALLY solid: (1) detection p=0.002 flat everywhere; (2) the N-SHAPE (flat then decline at N=32) is
+identical at K=50 & K=100 -> the specific "monotone super-linear RISE with N" artifact IS gone; (3) arm E
+UNAFFECTED (β is a fixed-K log-log slope; a multiplicative K-bias cancels). Absolute d² is NOT a
+converged point estimate -> treat as fixed-K RELATIVE statistic + p-value, not a quotable absolute.
+DECISIVE DIAGNOSTIC RUNNING (job 212413): 3-way metric on NO-SIGNAL data (reseed-vs-reseed) at K=50/100/
+200. null ~0 & flat => real-data growth is genuine signal-direction resolution (d² = K-tightening lower
+bound, benign); null grows => residual bias the sign-flip null misses (must fix before any absolute).
