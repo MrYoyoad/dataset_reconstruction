@@ -2473,3 +2473,28 @@ converged point estimate -> treat as fixed-K RELATIVE statistic + p-value, not a
 DECISIVE DIAGNOSTIC RUNNING (job 212413): 3-way metric on NO-SIGNAL data (reseed-vs-reseed) at K=50/100/
 200. null ~0 & flat => real-data growth is genuine signal-direction resolution (d² = K-tightening lower
 bound, benign); null grows => residual bias the sign-flip null misses (must fix before any absolute).
+
+### 2026-08-28 — Arm E T-sweep + Arm C (imbalance) DONE
+ARM E T-SWEEP (job 217123, rank 8, N=16, K=50): β(sensitivity vs copy-count k) vs training budget T:
+  T=50 -> 0.313 (R².97) | T=200 -> 0.256 (R².87) | T=1000 -> 0.234 (R².76).
+T=1000 block reproduced the earlier full run EXACTLY (9.53,9.76,10.54,15.96) = consistency check.
+Read: duplication bites slightly MORE at short/fixed budget (β rises as T falls) but stays deeply
+SUB-LINEAR at every budget (β<=0.31). Arm-E headline (sub-linear, rank-invariant) holds; T-caveat closed.
+
+ARM C — CLASS IMBALANCE (job 229722, N=16, K=50, T=1000, all memorized): per-example whitened
+sensitivity, minority(class-1) vs majority(class-0) single-image swap, m minority images:
+  m=1: sens_min 18.9 / sens_maj 2.6 / raw ratio 7.1
+  m=2: 19.3 / 3.3 / 5.9
+  m=4: 10.3 / 2.5 / 4.1
+  m=8(balanced): 11.6 / 3.5 / 3.3      (all p_min=p_maj=0.002)
+TWO SEPARABLE EFFECTS (the built-in balanced control disentangled them):
+ (1) INTRINSIC CLASS-IDENTITY ASYMMETRY: at m=8 (balanced) the ratio is 3.3, NOT ~1 -> a class-1 image
+     leaves ~3.3x the per-example imprint of a class-0 image regardless of rarity. So the naive "minority
+     leaks 7x" is CONFOUNDED by class identity; must normalize by the balanced control.
+ (2) IMBALANCE/RARITY EFFECT (ratio(m) / 3.3): 2.2x -> 1.8x -> 1.2x -> 1.0 as m 1->8. Rarity ~DOUBLES an
+     example's per-example leakage on top of the class asymmetry (driven by sens_min ~11 balanced -> ~19
+     singleton). Monotone; consistent with Feldman memorization of rare examples.
+FOLLOW-UP implied: swap class roles (minority=class-0) to confirm the rarity effect is symmetric and fully
+separate it from class identity; + a per-digit breakdown of the intrinsic asymmetry.
+Caveat: rarity is entangled with "swapped image is a larger fraction of its class" (at m=1 the sole rep)
+— that IS the mechanism, not a nuisance.

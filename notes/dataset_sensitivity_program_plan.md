@@ -206,7 +206,7 @@ Gate: fix whitened_metric to 3-way (in flight) -> generalize arm-B into a reusab
 PHASE-1 ARMS (composition changes):
 - [~] B  subset size / dilution  -- DONE (detection flat in N; magnitude re-confirm pending 3-way metric)
 - [x] E  duplication  -- DONE (job 162114): SUB-LINEAR β≈0.24, rank-INVARIANT (not low-rank-protective); ~15x more absolute leakage at r=32; caveat=at convergence, T-sweep is follow-up
-- [ ] C  class imbalance  -- minority per-example sensitivity > majority?
+- [x] C  class imbalance  -- DONE (job 229722): minority leaks more, BUT balanced control exposed a 3.3x intrinsic class-identity asymmetry; net RARITY effect ~2x (m1) after normalizing. Follow-up: swap class roles.
 - [ ] D  context-rarity (minority-slot)  -- SAME image, vary context (typical vs lone-minority); needs care
 - [ ] A  swap-one vs typicality  -- needs a theta0-INDEPENDENT typicality proxy + gradient-norm partial-corr (M1)
 - [ ] F  cross-dataset composition  -- mnist vs mixed mnist+fashion private set

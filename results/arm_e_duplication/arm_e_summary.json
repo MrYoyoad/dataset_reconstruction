@@ -10,8 +10,7 @@
     8
   ],
   "rank_list": [
-    8,
-    32
+    8
   ],
   "by_rank": {
     "8": [
@@ -95,88 +94,6 @@
         "cop_dropped": 0,
         "n_metric": 4
       }
-    ],
-    "32": [
-      {
-        "rank": 32,
-        "k": 1,
-        "N": 16,
-        "lr": 0.5,
-        "T": 1000,
-        "K": 50,
-        "n_targets": 4,
-        "d2_obs": 160.72854530658913,
-        "d2_null_mean": 16.291969995392787,
-        "whitened_sensitivity": 144.43657531119635,
-        "whitened_pvalue": 0.001996007984031936,
-        "whitened_qeff": 1.0,
-        "copies_vs_distinct_subspace_cos": 0.0955634951537049,
-        "coherent_signal": 1.1645269742198205,
-        "reseed_noise": 5.038534807371065,
-        "dis_dropped": 0,
-        "cop_dropped": 0,
-        "n_metric": 4
-      },
-      {
-        "rank": 32,
-        "k": 2,
-        "N": 16,
-        "lr": 0.5,
-        "T": 1000,
-        "K": 50,
-        "n_targets": 4,
-        "d2_obs": 171.82970689506396,
-        "d2_null_mean": 17.41657805098584,
-        "whitened_sensitivity": 154.41312884407813,
-        "whitened_pvalue": 0.001996007984031936,
-        "whitened_qeff": 1.0,
-        "copies_vs_distinct_subspace_cos": 0.0961828658042184,
-        "coherent_signal": 1.1981052687861076,
-        "reseed_noise": 5.038534807371065,
-        "dis_dropped": 0,
-        "cop_dropped": 0,
-        "n_metric": 4
-      },
-      {
-        "rank": 32,
-        "k": 4,
-        "N": 16,
-        "lr": 0.5,
-        "T": 1000,
-        "K": 50,
-        "n_targets": 4,
-        "d2_obs": 188.4517765223609,
-        "d2_null_mean": 19.10333255856667,
-        "whitened_sensitivity": 169.3484439637942,
-        "whitened_pvalue": 0.001996007984031936,
-        "whitened_qeff": 1.0,
-        "copies_vs_distinct_subspace_cos": 0.0965952462530644,
-        "coherent_signal": 1.2738312039282502,
-        "reseed_noise": 5.038534807371065,
-        "dis_dropped": 0,
-        "cop_dropped": 0,
-        "n_metric": 4
-      },
-      {
-        "rank": 32,
-        "k": 8,
-        "N": 16,
-        "lr": 0.5,
-        "T": 1000,
-        "K": 50,
-        "n_targets": 4,
-        "d2_obs": 271.79922443453626,
-        "d2_null_mean": 27.50832337331462,
-        "whitened_sensitivity": 244.29090106122163,
-        "whitened_pvalue": 0.001996007984031936,
-        "whitened_qeff": 1.0,
-        "copies_vs_distinct_subspace_cos": 0.0943648905061018,
-        "coherent_signal": 1.6404653083183265,
-        "reseed_noise": 5.038534807371065,
-        "dis_dropped": 0,
-        "cop_dropped": 0,
-        "n_metric": 4
-      }
     ]
   },
   "scaling": {
@@ -186,13 +103,6 @@
       "beta_dropped_nonpos": 0,
       "beta_d2obs": 0.23231580468966528,
       "r2_d2obs": 0.7569271181548759
-    },
-    "32": {
-      "beta_sensitivity": 0.2407691342097812,
-      "r2_sensitivity": 0.8450736446560961,
-      "beta_dropped_nonpos": 0,
-      "beta_d2obs": 0.2406961413283272,
-      "r2_d2obs": 0.8451556317871531
     }
   }
 }
