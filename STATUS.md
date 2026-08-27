@@ -2530,3 +2530,25 @@ fixed image T vs how rare its context is:
    asymmetry and (b) DIFFERENT (atypical) images being swapped at different m — NOT by context rarity.
    Making an image rarer in the set barely raises its OWN leakage. HEADLINE: "some training images leak
    more" is driven by the IMAGE (its class + atypicality), not by how rare/minority its context is.
+
+### 2026-08-28 — MARGIN/SUPPORT-VECTOR TEST (job 260171) + ViT scaled + fashion duplication
+MARGIN HYPOTHESIS (user's question: are the leaky images the "support-vector-like" ones?):
+ - P2 SUPPORTED (STRONG): per-image sensitivity vs BASE-GRADIENT-NORM g0(θ0): Spearman rho=+0.857
+   (n=12, sign + at every m). The "work" the base model needs on an image PREDICTS its leakage.
+ - P3 SUPPORTED: sens vs post-LoRA KKT dual proxy lam=sigmoid(-margin_T): rho=+0.538, all signs +.
+ - P4 SUPPORTED (the 3.3x class asymmetry EXPLAINED): class-1 has SMALLER mean base margin (2.95 vs
+   4.70) and 2.4x LARGER mean base gradnorm (1.50 vs 0.61) and larger lam. The louder class is simply
+   the one θ0 is less confident about -> adapter does more work -> bigger imprint.
+ - P1 MIXED: raw base-margin rho=-0.296 (right sign at every m, weak) — gradnorm is the sharper
+   predictor (margin saturates through the sigmoid; internal check spearman(m0,g0)=-0.994).
+ - ATTACKER-RELEVANT HEADLINE: leakage-per-image is predictable FROM THE PUBLIC BASE MODEL ALONE
+   (no adapter access needed to rank which private images are most exposed). Haim/KKT mechanism
+   confirmed at the per-image level. CAVEAT: n=12 targets for P1-P3 (small-n); P4 uses all 36 pool
+   images. Follow-up: scale n_targets for a publishable rho.
+VIT SCALED (job 256540, N=16, K=50, 3 targets): ALL targets p=0.002, sens 1.13/1.24/1.52,
+   detectable=TRUE, fit 2.3e-4. Single-image detectability in a REAL ViT LoRA at the same certainty
+   floor as the MLP. Thesis-grade.
+FASHION DUPLICATION (job 246873): replicates sub-linear (β r8=0.288, r32=0.359, R²=.99); rank still
+   the dangerous knob (sens ~45-71 at r32 vs single-digits at r8). Twist vs mnist: β(r32)>β(r8) slightly
+   (mnist was equal) — capacity modulates duplication a bit on harder data. Fashion detectability
+   (246872) still running.

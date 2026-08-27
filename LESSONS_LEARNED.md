@@ -1588,3 +1588,14 @@ therefore an honest LOWER BOUND that TIGHTENS with K, not an inflating artifact.
 AT FIXED K — never a bare absolute d². Lesson: "estimate grows with sample size" is NOT automatically
 bias — test it on a signal-free control; a consistent estimator grows toward truth from below on signal
 and stays 0 on null.
+
+## Per-image leakage is predictable from the base model alone (margin test, 2026-08-28)
+The strongest per-image predictor of LoRA leakage is the BASE-model per-image gradient norm (rho=+0.86),
+not the raw margin (rho=-0.30, right sign, weak — the sigmoid saturates the margin; gradnorm IS
+sigmoid(-margin)-weighted so it's the sharper functional). The 3.3x class asymmetry that looked like a
+mystery is fully explained: the louder class sits at smaller base margins / 2.4x larger base gradients.
+METHOD LESSON: when testing a margin/support-vector hypothesis, correlate against the GRADIENT NORM at
+the start point (the actual "work" functional), not the geometric margin — they are rank-anticorrelated
+(-0.99) but the gradnorm carries the loss curvature that drives the imprint. Also: reconstructing
+measurement identity by IMPORTING the arms' own construction functions + hard-asserting saved metadata
+(target digits) beats re-implementing — zero drift risk.
