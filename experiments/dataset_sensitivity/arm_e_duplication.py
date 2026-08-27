@@ -69,7 +69,7 @@ def _train_dW(frozen, b0, seed, x0, y, lr, T, act, rank, out_f, device):
     return dW
 
 
-def run_for_rank(rank, k_list, N, K, n_targets, lr, T, device, frozen, b0, ds_mean, pool, y_pool, tag=""):
+def run_for_rank(rank, k_list, N, K, n_targets, lr, T, device, frozen, b0, ds_mean, pool, y_pool, tag="", dataset="mnist"):
     """All k for one rank. Distinct baseline (hence Σ) is fixed across k -> trained ONCE here."""
     act = make_activation("gelu")
     out_f = frozen[0].shape[0]
@@ -140,8 +140,10 @@ def run_for_rank(rank, k_list, N, K, n_targets, lr, T, device, frozen, b0, ds_me
         )
         results.append(res)
         os.makedirs(RESULTS, exist_ok=True)
+        ds_tag = "" if dataset == "mnist" else f"_{dataset}"
         torch.save(dict(metrics=res, dW_distinct_mean=dis_stack.mean(0).cpu(),
-                        rank=rank, k=k, N=N), os.path.join(RESULTS, f"arme_r{rank}_k{k}_N{N}{tag}.pth"))
+                        rank=rank, k=k, N=N, dataset=dataset),
+                   os.path.join(RESULTS, f"arme_r{rank}_k{k}_N{N}{ds_tag}{tag}.pth"))
     return results
 
 
@@ -164,13 +166,13 @@ def fit_beta(ks, ys):
     return beta, r2, n, n_drop
 
 
-def build_base(N, lr, T, device):
+def build_base(N, lr, T, device, dataset="mnist"):
     """FIXED base θ0 (pretrained checkpoint; NOT fit to the private data) + ds_mean + image pool.
     Rank-independent, so built ONCE and shared across the rank sweep."""
     n_per_class = N // 2
-    x_ref, y_ref, _ = build_set(n_per_class, seed=42, device=device)   # only supplies ds_mean / bias
-    _, frozen, b0, _, ds_mean = _honest_target(x_ref, y_ref, T, 8, "gelu", lr, device, "mnist", num_classes=2)
-    x_pool, y_pool, _, _ = get_finetuning_data(max(N, 18), seed=42, device=device, dataset="mnist")
+    x_ref, y_ref, _ = build_set(n_per_class, seed=42, device=device, dataset=dataset)   # only supplies ds_mean / bias
+    _, frozen, b0, _, ds_mean = _honest_target(x_ref, y_ref, T, 8, "gelu", lr, device, dataset, num_classes=2)
+    x_pool, y_pool, _, _ = get_finetuning_data(max(N, 18), seed=42, device=device, dataset=dataset)
     return frozen, b0, ds_mean, x_pool.to(torch.float64), y_pool.to(torch.float64)
 
 
@@ -185,13 +187,16 @@ def main():
     ap.add_argument("--T", type=int, default=1000)
     ap.add_argument("--stage0", action="store_true", help="tiny sanity: N=12, k∈{1,2}, rank 8, K=12, 2 targets")
     ap.add_argument("--device", default="cuda")
+    ap.add_argument("--dataset", default="mnist", choices=["mnist", "fashion"],
+                    help="base dataset (checkpoint models/weights-<ds>_gelu.pth); mnist = byte-identical legacy path")
     args = ap.parse_args()
     dev = args.device
+    ds = args.dataset
 
     if args.stage0:
-        print("=== STAGE-0 SANITY (N=12, k∈{1,2}, rank 8, K=12, 2 targets) ===")
-        frozen, b0, ds_mean, pool, y_pool = build_base(12, args.lr, args.T, dev)
-        rs = run_for_rank(8, [1, 2], 12, 12, 2, args.lr, args.T, dev, frozen, b0, ds_mean, pool, y_pool, tag="_stage0")
+        print(f"=== STAGE-0 SANITY (N=12, k∈{{1,2}}, rank 8, K=12, 2 targets) [dataset={ds}] ===")
+        frozen, b0, ds_mean, pool, y_pool = build_base(12, args.lr, args.T, dev, dataset=ds)
+        rs = run_for_rank(8, [1, 2], 12, 12, 2, args.lr, args.T, dev, frozen, b0, ds_mean, pool, y_pool, tag="_stage0", dataset=ds)
         for r in rs:
             print(json.dumps(r, indent=2))
             assert math.isfinite(r["d2_obs"]), "d2_obs NaN (metric integration broken)"
@@ -199,19 +204,19 @@ def main():
         print("STAGE-0 OK")
         return
 
-    frozen, b0, ds_mean, pool, y_pool = build_base(args.N, args.lr, args.T, dev)
+    frozen, b0, ds_mean, pool, y_pool = build_base(args.N, args.lr, args.T, dev, dataset=ds)
     by_rank = {}
     for rank in args.rank_list:
         print(f"\n########## RANK {rank} ##########", flush=True)
         rs = run_for_rank(rank, args.k_list, args.N, args.K, args.n_targets, args.lr, args.T, dev,
-                          frozen, b0, ds_mean, pool, y_pool)
+                          frozen, b0, ds_mean, pool, y_pool, dataset=ds)
         for r in rs:
             print(json.dumps(r), flush=True)
         assert any(math.isfinite(r["d2_obs"]) for r in rs), \
             f"rank {rank}: ALL d2_obs NaN — metric starved (too many dropped draws). Aborting."
         by_rank[rank] = rs
 
-    summary = dict(N=args.N, K=args.K, T=args.T, lr=args.lr, k_list=args.k_list, rank_list=args.rank_list,
+    summary = dict(N=args.N, K=args.K, T=args.T, lr=args.lr, dataset=ds, k_list=args.k_list, rank_list=args.rank_list,
                    by_rank={}, scaling={})
     print("\n=== SUMMARY (rank | k | sensitivity | d2_obs | p | Σ-noise | subcos | n_metric) ===")
     for rank in args.rank_list:
@@ -230,7 +235,8 @@ def main():
               f"β(d2_obs)={b_d2:.3f} (R²={r2_d2:.3f})", flush=True)
 
     os.makedirs(RESULTS, exist_ok=True)
-    with open(os.path.join(RESULTS, "arm_e_summary.json"), "w") as f:
+    ds_tag = "" if ds == "mnist" else f"_{ds}"
+    with open(os.path.join(RESULTS, f"arm_e_summary{ds_tag}.json"), "w") as f:
         json.dump(summary, f, indent=2)
     if len(args.rank_list) >= 2:
         lo, hi = min(args.rank_list), max(args.rank_list)
