@@ -2498,3 +2498,17 @@ FOLLOW-UP implied: swap class roles (minority=class-0) to confirm the rarity eff
 separate it from class identity; + a per-digit breakdown of the intrinsic asymmetry.
 Caveat: rarity is entangled with "swapped image is a larger fraction of its class" (at m=1 the sole rep)
 — that IS the mechanism, not a nuisance.
+
+### 2026-08-28 — Arm C role-swap control (job 237301): class asymmetry ROBUST, rarity is CLASS-DEPENDENT
+Re-ran arm C with minority = class-0 (was class-1). Per-image whitened sensitivity by (class, count):
+ - CLASS ASYMMETRY confirmed + inverts cleanly: balanced(m=8) ratio 3.28 (min=class1) -> 0.34 (min=class0)
+   ≈ 1/3.28. class-1 sens ~10-11, class-0 sens ~3.5 REGARDLESS of which is labelled minority. So the 3.3x
+   is genuine class identity (class-1/odd digits leave ~3x the imprint of class-0/even), symmetric.
+ - RARITY EFFECT is NOT symmetric across classes (the nuance the control exposed):
+     class-1 sens vs its own count: 1->18.9, 2->19.3, 4->10.3, 8->~11, 12->9.2, 14->5.6, 15->5.8
+       => clear rarity effect: a class-1 image leaks ~3x MORE when rare (count 1-2) than common (14-15).
+     class-0 sens vs its own count: ~2.5-5 FLAT across counts 1..15 => NO clear rarity effect.
+   REVISED HEADLINE: rarity amplifies leakage for the already-LOUD class (class-1), not the quiet one
+   (class-0). arm C's "~2x symmetric rarity" was really "rarity x class-identity" interaction.
+Arm D (fixed-image, class-1 targets) will confirm the class-1 rarity effect on a SINGLE fixed image
+(removing the different-image confound). All p=0.002 (everything detectable), all memorized.

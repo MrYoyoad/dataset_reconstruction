@@ -73,22 +73,26 @@ def build_base(N, lr, T, device):
     return frozen, b0, ds_mean, x_pool.to(torch.float64), y_pool.to(torch.float64), list(digit_pool)
 
 
-def _build_imbalanced(pool_x, pool_y, pool_digits, N, m, device):
-    """Imbalanced private set: (N-m) MAJORITY (class 0) first, then m MINORITY (class 1).
-    Returns (x_D [N], y_D [N], digits_D, majority_positions, minority_positions). Indices into
-    x_D are position-aligned with digits_D and with the control tensor built from digits_D."""
+def _build_imbalanced(pool_x, pool_y, pool_digits, N, m, device, minority_class=1):
+    """Imbalanced private set: (N-m) MAJORITY images first, then m MINORITY images. `minority_class`
+    (0 or 1) selects which class is the rare one — the role-swap CONTROL sets it to 0 to prove the
+    balanced-point asymmetry is genuine class identity (it should INVERT) while the rarity effect
+    stays. Returns (x_D [N], y_D [N], digits_D, majority_positions, minority_positions), position-
+    aligned with digits_D and with the control tensor built from digits_D."""
     assert 1 <= m <= N - 1, f"m={m} must leave >=1 image in BOTH classes at N={N}"
+    assert minority_class in (0, 1)
     n_maj = N - m
+    maj_class = 1 - minority_class
     yl = pool_y.tolist()
-    c0 = [i for i, v in enumerate(yl) if v == 0.0]     # class-0 (majority) pool
-    c1 = [i for i, v in enumerate(yl) if v == 1.0]     # class-1 (minority) pool
-    assert len(c0) >= n_maj, f"need >= N-m={n_maj} class-0 pool imgs, have {len(c0)}"
-    assert len(c1) >= m, f"need >= m={m} class-1 pool imgs, have {len(c1)}"
-    idx = c0[:n_maj] + c1[:m]
+    min_pool = [i for i, v in enumerate(yl) if int(v) == minority_class]
+    maj_pool = [i for i, v in enumerate(yl) if int(v) == maj_class]
+    assert len(maj_pool) >= n_maj, f"need >= N-m={n_maj} class-{maj_class} pool imgs, have {len(maj_pool)}"
+    assert len(min_pool) >= m, f"need >= m={m} class-{minority_class} pool imgs, have {len(min_pool)}"
+    idx = maj_pool[:n_maj] + min_pool[:m]
     x_D = pool_x[idx].clone()
     digits_D = [pool_digits[i] for i in idx]
-    y_D = torch.cat([torch.zeros(n_maj, dtype=torch.float64, device=device),
-                     torch.ones(m, dtype=torch.float64, device=device)], 0)
+    y_D = torch.cat([torch.full((n_maj,), float(maj_class), dtype=torch.float64, device=device),
+                     torch.full((m,), float(minority_class), dtype=torch.float64, device=device)], 0)
     maj_pos = list(range(0, n_maj))
     min_pos = list(range(n_maj, N))
     return x_D, y_D, digits_D, maj_pos, min_pos
@@ -134,7 +138,7 @@ def _measure_class(target_positions, x_D, y_D, controls, dW_base, seeds,
 
 
 def run_for_m(m, N, K, n_targets_per_class, lr, T, rank, device,
-              frozen, b0, ds_mean, pool_x, pool_y, pool_digits, tag=""):
+              frozen, b0, ds_mean, pool_x, pool_y, pool_digits, minority_class=1, tag=""):
     """All measurements for one imbalance ratio m. Baseline ensemble (hence Σ) shared across BOTH
     classes at this m by construction: the ONLY thing differing minority vs majority is the class
     of the swapped image."""
@@ -143,7 +147,7 @@ def run_for_m(m, N, K, n_targets_per_class, lr, T, rank, device,
     subk = min(rank, 8)
     seeds = [1000 + j for j in range(K)]
 
-    x_D, y_D, digits_D, maj_pos, min_pos = _build_imbalanced(pool_x, pool_y, pool_digits, N, m, device)
+    x_D, y_D, digits_D, maj_pos, min_pos = _build_imbalanced(pool_x, pool_y, pool_digits, N, m, device, minority_class)
     x0_D = x_D - ds_mean
 
     # held-out same-class controls, position-aligned with digits_D (control[i] shares x_D[i]'s digit)
@@ -178,7 +182,7 @@ def run_for_m(m, N, K, n_targets_per_class, lr, T, rank, device,
     sm, sM = minr["sensitivity"], majr["sensitivity"]
     ratio = (sm / sM) if (sM is not None and math.isfinite(sM) and abs(sM) > 1e-12) else float("nan")
     res = dict(
-        m=m, N=N, minority_fraction=m / N, rank=rank, lr=lr, T=T, K=K,
+        m=m, N=N, minority_fraction=m / N, minority_class=minority_class, rank=rank, lr=lr, T=T, K=K,
         n_targets_per_class=n_targets_per_class,
         sens_minority=sm, sens_majority=sM, ratio=ratio,
         p_minority=minr["pvalue"], p_majority=majr["pvalue"],
@@ -203,6 +207,8 @@ def main():
     ap.add_argument("--N", type=int, default=16)
     ap.add_argument("--K", type=int, default=50)
     ap.add_argument("--n_targets_per_class", type=int, default=3)
+    ap.add_argument("--minority_class", type=int, default=1, choices=[0, 1],
+                    help="which class is the rare one; role-swap control uses 0 (asymmetry should invert)")
     ap.add_argument("--lr", type=float, default=0.5)
     ap.add_argument("--T", type=int, default=1000)
     ap.add_argument("--rank", type=int, default=8)
@@ -216,7 +222,8 @@ def main():
         print("=== STAGE-0 SANITY (N=12, m∈{2,4}, K=12, 1 target/class, rank 8) ===")
         frozen, b0, ds_mean, px, py, pd = build_base(12, args.lr, args.T, dev)
         for m in [2, 4]:
-            r = run_for_m(m, 12, 12, 1, args.lr, args.T, 8, dev, frozen, b0, ds_mean, px, py, pd, tag="_stage0")
+            r = run_for_m(m, 12, 12, 1, args.lr, args.T, 8, dev, frozen, b0, ds_mean, px, py, pd,
+                          minority_class=args.minority_class, tag="_stage0")
             print(json.dumps(r, indent=2))
             assert math.isfinite(r["sens_minority"]), "sens_minority NaN (metric integration broken)"
             assert math.isfinite(r["sens_majority"]), "sens_majority NaN (metric integration broken)"
@@ -232,7 +239,8 @@ def main():
             continue
         print(f"\n===== m={m} (minority fraction {m/args.N:.3f}) =====", flush=True)
         r = run_for_m(m, args.N, args.K, args.n_targets_per_class, args.lr, args.T, args.rank, dev,
-                      frozen, b0, ds_mean, px, py, pd)
+                      frozen, b0, ds_mean, px, py, pd,
+                      minority_class=args.minority_class, tag=f"_minc{args.minority_class}")
         all_res.append(r)
         if not r["memorized"]:
             print(f"WARNING: m={m} baseline NOT memorized (max_bce={r['ref_max_bce']:.2e} > 1e-3) — "
@@ -242,9 +250,9 @@ def main():
         "ALL m have NaN sensitivity — metric starved (too many dropped draws). Aborting."
 
     os.makedirs(RESULTS, exist_ok=True)
-    with open(os.path.join(RESULTS, "arm_c_summary.json"), "w") as f:
+    with open(os.path.join(RESULTS, f"arm_c_summary_minc{args.minority_class}.json"), "w") as f:
         json.dump(dict(N=args.N, K=args.K, T=args.T, lr=args.lr, rank=args.rank,
-                       m_list=args.m_list, results=all_res), f, indent=2)
+                       minority_class=args.minority_class, m_list=args.m_list, results=all_res), f, indent=2)
 
     print("\n=== SUMMARY (m | frac | sens_min | sens_maj | ratio | p_min | p_maj | mem) ===")
     for r in all_res:
