@@ -2512,3 +2512,21 @@ Re-ran arm C with minority = class-0 (was class-1). Per-image whitened sensitivi
    (class-0). arm C's "~2x symmetric rarity" was really "rarity x class-identity" interaction.
 Arm D (fixed-image, class-1 targets) will confirm the class-1 rarity effect on a SINGLE fixed image
 (removing the different-image confound). All p=0.002 (everything detectable), all memorized.
+
+### 2026-08-28 — ViT+LoRA FIRST RESULT + context-rarity (arm D): two headlines
+VIT+LoRA MVP (job 247474, vit_tiny_patch16_224, rank-4 LoRA on blocks.0-2 qkv, N=6, K=10, 1 target):
+ - timm 0.9.12 / peft 0.7.1 OK. LoRA (9216 params) FIT the 6 images: mean_final_loss=3.7e-04 (<<ln2)
+   -> the frozen-random-head convergence worry was UNFOUNDED; it trains fine.
+ - **A SINGLE private image is DETECTABLE in a real ViT's LoRA adapter**: sensitivity=4.84, p=0.030,
+   qeff=1, detectable=TRUE. The MLP leakage premise GENERALIZES to a Vision Transformer. (Modest scale;
+   p=0.03 at K=10 — scaling to N=16/K=50 to firm it up + add rank/duplication variants.)
+
+ARM D — CONTEXT RARITY (job 245964, fixed-image, class-1 targets, N=16, K=50): sensitivity of the SAME
+fixed image T vs how rare its context is:
+   m=1(15:1)->11.77  m=2->10.60  m=4->7.75  m=8(8:8)->10.79 ; rarity gain sens(m=1)/sens(m=8) per target
+   = 1.21, 0.96, 1.16 -> mean 1.11 (NON-monotone, noisy).
+ - CLEAN RESULT: with image identity CONTROLLED, context rarity per se gives only ~1.1x (weak, ~noise).
+ - RECONCILES arm C: arm C's big "minority leaks up to 7x" was DOMINATED by (a) the 3.3x class-identity
+   asymmetry and (b) DIFFERENT (atypical) images being swapped at different m — NOT by context rarity.
+   Making an image rarer in the set barely raises its OWN leakage. HEADLINE: "some training images leak
+   more" is driven by the IMAGE (its class + atypicality), not by how rare/minority its context is.

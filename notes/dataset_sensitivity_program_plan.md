@@ -207,7 +207,7 @@ PHASE-1 ARMS (composition changes):
 - [~] B  subset size / dilution  -- DONE (detection flat in N; magnitude re-confirm pending 3-way metric)
 - [x] E  duplication  -- DONE (job 162114): SUB-LINEAR β≈0.24, rank-INVARIANT (not low-rank-protective); ~15x more absolute leakage at r=32; caveat=at convergence, T-sweep is follow-up
 - [x] C  class imbalance  -- DONE (job 229722): minority leaks more, BUT balanced control exposed a 3.3x intrinsic class-identity asymmetry; net RARITY effect ~2x (m1) after normalizing. Follow-up: swap class roles.
-- [ ] D  context-rarity (minority-slot)  -- SAME image, vary context (typical vs lone-minority); needs care
+- [x] D  context-rarity  -- DONE (job 245964): fixed-image rarity is WEAK (~1.1x). arm C's effect was image/class identity, NOT context rarity.
 - [ ] A  swap-one vs typicality  -- needs a theta0-INDEPENDENT typicality proxy + gradient-norm partial-corr (M1)
 - [ ] F  cross-dataset composition  -- mnist vs mixed mnist+fashion private set
 - [ ] G  OOD-style injection  -- other-style digits (SVHN/USPS/EMNIST/printed-font) into an mnist set
@@ -216,7 +216,7 @@ PHASE-1 ARMS (composition changes):
 
 CROSS-CUTTING AXES (cross the arms with these — the user's reminder, don't forget):
 - [ ] RANK r  -- LoRA rank as a sensitivity axis (connect to the rank-sweep reversal)
-- [ ] DATA TYPE  -- different base datasets/architectures for the adapter (mnist/fashion/flowers/cifar)
+- [~] DATA TYPE  -- fashion runs launched (arm B+E, jobs 246872/246873); ViT+LoRA MVP DONE (single image detectable in a real ViT, job 247474).
 - [ ] BASE/MODEL SIZE  -- width/depth of the frozen base
 - [ ] training-length/convergence  -- Carlini control (hold fixed OR sweep deliberately)
 

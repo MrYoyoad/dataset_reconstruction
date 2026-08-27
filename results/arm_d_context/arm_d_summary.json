@@ -1,0 +1,170 @@
+{
+  "N": 16,
+  "K": 50,
+  "T": 1000,
+  "lr": 0.5,
+  "rank": 8,
+  "n_targets": 3,
+  "m_list": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "results": [
+    {
+      "m": 1,
+      "N": 16,
+      "minority_fraction": 0.0625,
+      "rank": 8,
+      "lr": 0.5,
+      "T": 1000,
+      "K": 50,
+      "n_targets": 3,
+      "sens": 11.769312196617433,
+      "pvalue": 0.001996007984031936,
+      "d2_obs": 13.380705839958742,
+      "qeff": 1.0,
+      "coherent_signal": 1.1448350958951805,
+      "reseed_noise": 9.340792560961656,
+      "swap_subspace_cos": 0.9999290452545003,
+      "memorized": true,
+      "ref_max_bce": 0.00012653438739462786,
+      "per_target_sens": [
+        19.90037956759671,
+        14.1759934539163,
+        1.2315635683392923
+      ],
+      "per_target_pvalue": [
+        0.001996007984031936,
+        0.001996007984031936,
+        0.001996007984031936
+      ],
+      "per_target_digit": [
+        5,
+        5,
+        7
+      ],
+      "base_dropped": 0,
+      "swap_dropped": 0,
+      "n_targets_finite": 3
+    },
+    {
+      "m": 2,
+      "N": 16,
+      "minority_fraction": 0.125,
+      "rank": 8,
+      "lr": 0.5,
+      "T": 1000,
+      "K": 50,
+      "n_targets": 3,
+      "sens": 10.59550687034167,
+      "pvalue": 0.001996007984031936,
+      "d2_obs": 12.039197458237284,
+      "qeff": 1.3333333333333333,
+      "coherent_signal": 1.091690187481676,
+      "reseed_noise": 9.459931327048109,
+      "swap_subspace_cos": 0.9999398122913433,
+      "memorized": true,
+      "ref_max_bce": 0.00012722859520242428,
+      "per_target_sens": [
+        18.49630351580888,
+        12.221443868206356,
+        1.0687732270097732
+      ],
+      "per_target_pvalue": [
+        0.001996007984031936,
+        0.001996007984031936,
+        0.001996007984031936
+      ],
+      "per_target_digit": [
+        5,
+        5,
+        7
+      ],
+      "base_dropped": 0,
+      "swap_dropped": 0,
+      "n_targets_finite": 3
+    },
+    {
+      "m": 4,
+      "N": 16,
+      "minority_fraction": 0.25,
+      "rank": 8,
+      "lr": 0.5,
+      "T": 1000,
+      "K": 50,
+      "n_targets": 3,
+      "sens": 7.74595150386763,
+      "pvalue": 0.001996007984031936,
+      "d2_obs": 8.764964294755288,
+      "qeff": 1.0,
+      "coherent_signal": 1.0132779620928238,
+      "reseed_noise": 9.745703865112093,
+      "swap_subspace_cos": 0.9999582851437755,
+      "memorized": true,
+      "ref_max_bce": 0.00014840653262737646,
+      "per_target_sens": [
+        12.055040063190193,
+        9.097054863419451,
+        2.085759584993248
+      ],
+      "per_target_pvalue": [
+        0.001996007984031936,
+        0.001996007984031936,
+        0.001996007984031936
+      ],
+      "per_target_digit": [
+        5,
+        5,
+        7
+      ],
+      "base_dropped": 0,
+      "swap_dropped": 0,
+      "n_targets_finite": 3
+    },
+    {
+      "m": 8,
+      "N": 16,
+      "minority_fraction": 0.5,
+      "rank": 8,
+      "lr": 0.5,
+      "T": 1000,
+      "K": 50,
+      "n_targets": 3,
+      "sens": 10.788468812451717,
+      "pvalue": 0.001996007984031936,
+      "d2_obs": 12.151069128223007,
+      "qeff": 1.0,
+      "coherent_signal": 1.0544596858671558,
+      "reseed_noise": 9.931832236275612,
+      "swap_subspace_cos": 0.9999448067520347,
+      "memorized": true,
+      "ref_max_bce": 0.00017220593001769183,
+      "per_target_sens": [
+        16.494819735977707,
+        14.812546195715717,
+        1.0580405056617215
+      ],
+      "per_target_pvalue": [
+        0.001996007984031936,
+        0.001996007984031936,
+        0.001996007984031936
+      ],
+      "per_target_digit": [
+        5,
+        5,
+        7
+      ],
+      "base_dropped": 0,
+      "swap_dropped": 0,
+      "n_targets_finite": 3
+    }
+  ],
+  "per_target_rarity_gain": [
+    1.2064623855325292,
+    0.957026109259762,
+    1.1640041772966392
+  ],
+  "mean_rarity_gain": 1.1091642240296435
+}
