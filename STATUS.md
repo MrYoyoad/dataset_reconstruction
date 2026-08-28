@@ -190,8 +190,9 @@ Revised near-term order: **H1 → H2 → SGD-noise phase → J2.**
   RETRACTED as fundamental — Round 0 (job 396692) shows BOTH bases full-rank from T=5 at healthy lr; the
   "2x" was a low-lr/undersampled artifact (exactly what the convergence control was built to catch). The
   surviving open question is **q_eff-under-noise at convergence** (Round B, running). Honest state: leakage
-  is real + reconstructable (bridge track, pixels/SSIM) and identifiability is HIGH, but NOT fundamentally
-  multi-class-amplified. (Write-up: plan "RIGOR-UPGRADE RESULTS", commit b7383fd; retraction per yoado-dc.)
+  GEOMETRY is real and identifiability is HIGH, but NOT fundamentally multi-class-amplified — AND pixel
+  reconstruction from the adapter does NOT beat the mean-image baseline (0/40, CORRECTED 2026-08-28; the
+  earlier "reconstructable, ssim ~0.6" was inflated ssim_norm, retracted — see the RECONSTRUCTION bullet). (Write-up: plan "RIGOR-UPGRADE RESULTS", commit b7383fd; retraction per yoado-dc.)
 
 ## Tier B: multi-class (CrossEntropy) support — IMPLEMENTED + gated (2026-08-25)
 "Make the base better" + "more than 2 classes". KEY INSIGHT: the base model's regime is DECOUPLED from
@@ -320,7 +321,8 @@ under realistic training noise, is LESS extractable than binary (q_eff reversal)
 (mechanism: wider CE head injects more seed-noise into col(J), iso 0.68 vs 0.49; confirmed at N=10 clean
 lock + N=20 gap-stable trend + ε-dependence matching the mechanism + two problem sizes), plus binary-only
 held-acc harm. Exact N=20 magnitude bounded by the meta-gradient-chaos wall. Identifiability HIGH for both
-(not "safe"); pixel reconstruction real (gradient-bridge SSIM ~0.6). The "2×" was underfit + undersampling.
+(not "safe"); pixel reconstruction does NOT beat the trivial mean-image baseline (0/40 raw, CORRECTED
+2026-08-28 — the "~0.6" was inflated ssim_norm, retracted). The "2×" was underfit + undersampling.
 The last fundamental test after Round 0 retracted the r_J amplification: with BOTH bases full-rank (r_J=160)
 at convergence, does multi-class recover MORE under noise (q_eff)? Recipe: lr=0.5 (memprobe+yoado-35),
 T∈{500,1000}, S∈{640,1280} (adequate + stability-gated), deep-FD gate passed (2.5e-8). q_eff|col(J):

@@ -8,6 +8,7 @@ auto-wrapping table() API (avoids the O9 fixed-width-cell truncation trap).
 Usage: python scripts/md_to_pdf.py <in.md> <out.pdf> ["Title"]
 """
 import sys
+import os
 import re
 from fpdf import FPDF
 
@@ -89,6 +90,37 @@ def build(md_path, pdf_path, title=None):
 
         if not s:
             pdf.ln(1.4)
+            i += 1
+            continue
+
+        # image: ![caption](path) — embed at content width, capped height, centered
+        m_img = re.match(r'^!\[(.*?)\]\((.+?)\)\s*$', s)
+        if m_img:
+            cap, path = m_img.group(1), m_img.group(2)
+            if os.path.exists(path):
+                w = pdf.epw
+                try:
+                    from PIL import Image
+                    iw, ih = Image.open(path).size
+                    h = w * ih / iw
+                except Exception:
+                    iw, ih, h = 16, 10, w * 0.62
+                maxh = pdf.eph * 0.60
+                if h > maxh:
+                    h = maxh
+                    w = h * iw / ih
+                if pdf.get_y() + h + 8 > pdf.h - pdf.b_margin:
+                    pdf.add_page()
+                pdf.image(path, x=pdf.l_margin + (pdf.epw - w) / 2, w=w)
+                pdf.ln(1.5)
+                if cap:
+                    pdf.set_font("DejaVu", "I", 8)
+                    pdf.set_text_color(90)
+                    pdf.multi_cell(0, 4.2, _clean(cap), align="C")
+                    pdf.set_text_color(0)
+                    pdf.ln(2.5)
+            else:
+                para(f"[missing figure: {path}]", size=8, color=(200, 40, 40))
             i += 1
             continue
 
