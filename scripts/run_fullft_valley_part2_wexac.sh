@@ -42,6 +42,18 @@ for R in D B2; do
 done
 echo "S5 band check: D + B2 lr in-band (frozen from calibration.json)."
 
+# BRACKET ENFORCEMENT (ε-linearity gate, auditor-unanimous): never run the PRIMARY arm D on a
+# failing/unmeasurable ε-bracket. Require bracket['D'] to have PASSED both gates (α∈[-2.3,-1.7]
+# AND d*-ratio<2) at the final (possibly ε-shrunk) eps, and measurable != False (adequacy floor).
+DPASS=$(python -c "import json;g=json.load(open('results/fullft_valley/calibration.json'))['bracket']['D']['gate'];print(int(bool(g.get('passed')) and g.get('measurable', True)))")
+if [ "$DPASS" != "1" ]; then
+  echo "FATAL: arm-D ε-bracket did NOT pass linearity+adequacy (calibration.json bracket['D'].gate)."
+  echo "       Either no ε in the shrink loop was linear-AND-adequate (arm D UNMEASURABLE — an honest"
+  echo "       finding, report it), or calib predates the shrink loop. NOT running the primary arm on a"
+  echo "       failing ε. Aborting the wave."; exit 1
+fi
+echo "arm-D ε-bracket PASS (linearity + adequacy, post-shrink) — proceeding to the primary arm."
+
 echo ""; echo "########## ARM D — FULL FT all layers [PRIMARY], eps-noise, per-layer readout ##########"; date
 python -u -m experiments.dataset_sensitivity.fullft_valley --arm D \
     --K 50 --n_targets 2 --T 1000 --rank 8 --N 16 --device cuda

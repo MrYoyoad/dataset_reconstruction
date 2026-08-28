@@ -1,6 +1,6 @@
 #!/bin/bash
 #BSUB -q long-gpu
-#BSUB -R "rusage[mem=32768] select[ngpus>0 && hname!='lgn28' && hname!='hgn46']"
+#BSUB -R "rusage[mem=32768] select[ngpus>0 && hname!='lgn28' && hname!='hgn46' && hname!='hgn45' && hname!='lgn13']"
 #BSUB -gpu "num=1"
 #BSUB -o scripts/wexac_logs/fullft_valley_core1_%J.out
 #BSUB -e scripts/wexac_logs/fullft_valley_core1_%J.err

@@ -1195,8 +1195,39 @@ def run_calibration(args):
     brackets = {}
     for regime, lr_key in (("C", "C"), ("D", "D"), ("E_eps", "lora")):
         print(f"\n-- eps-bracket: regime {regime} --", flush=True)
-        brackets[regime] = run_bracket(regime, ctx, lrs[lr_key]["selected"],
-                                       eps[regime]["eps_scale"], encoder, args)
+        lr_r = lrs[lr_key]["selected"]
+        br = run_bracket(regime, ctx, lr_r, eps[regime]["eps_scale"], encoder, args)
+        # ε-SHRINK LOOP (auditor rule, unanimous — yoado-6d metric + yoado-18 theory):
+        # the normalized s(d)/d* is ε-INVARIANT in the linear regime (the ε⁻² cancels), so
+        # magnitude FLOATS and only LINEARITY is load-bearing. If the gate fails (α∉[-2.3,-1.7]
+        # or d*-ratio≥2), shrink ε and re-bracket, requiring BOTH gates at the FINAL ε. Guard 3
+        # (Σ-adequacy floor): if the slope goes unfittable (signal sank into the noise floor),
+        # ABORT as UNMEASURABLE rather than floor-run — the honest "no linear-AND-adequate window".
+        n_shrink, MAX_SHRINK = 0, 4
+        while (not br["gate"]["passed"]) and n_shrink < MAX_SHRINK:
+            if not math.isfinite(br["gate"].get("slope", float("nan"))):
+                br["gate"]["measurable"] = False
+                br["gate"]["abort_reason"] = (
+                    "slope unfittable at eps=%.5g (Σ floor-dominated) — no linear-AND-adequate window"
+                    % eps[regime]["eps_scale"])
+                print(f"  *** ADEQUACY FLOOR ({regime}): {br['gate']['abort_reason']} ***", flush=True)
+                break
+            new_eps = eps[regime]["eps_scale"] * 0.5
+            n_shrink += 1
+            print(f"  [ε-shrink {regime} #{n_shrink}] {eps[regime]['eps_scale']:.5g} -> {new_eps:.5g} "
+                  f"(restore linearity; magnitude floats — s(d)/d* ε-invariant)", flush=True)
+            eps[regime]["eps_scale"] = new_eps
+            eps[regime]["shrunk_iters"] = n_shrink
+            br = run_bracket(regime, ctx, lr_r, new_eps, encoder, args)
+        br["gate"]["shrink_iters"] = n_shrink
+        br["gate"].setdefault("measurable", bool(br["gate"]["passed"]))
+        if n_shrink and br["gate"].get("measurable", False):
+            eps[regime]["rms_undershoot_note"] = (
+                "eps shrunk %dx below the LoRA-RMS match to restore linearity — IMMATERIAL to the "
+                "normalized s(d)/d* headline (ε-invariant; magnitude floats), confirmed by d*-bracket "
+                "stability (ratio=%.3f<2); the RMS-undershoot caveat attaches to the RAW-sensitivity "
+                "panel only." % (n_shrink, br["gate"].get("dstar_ratio", float("nan"))))
+        brackets[regime] = br
     _bracket_figure(brackets)
 
     # 4. §4.1.3 reseed-vs-reseed null uniformity on the NEW noise source (C and D)
