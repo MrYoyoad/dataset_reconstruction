@@ -58,6 +58,8 @@ Which images leak most is predictable **from the public base model alone** — n
 - **The adapter records the CONCEPT, not the instance** — on the similarity distance‑dial, near‑duplicate swaps are nearly invisible (sensitivity 0.03–0.07) while cross‑digit swaps are large; the d=0 identity rung is calibrated (sensitivity 0, p=1.000).
 - **Transfers to a real ViT** — a single private image is detectable in a `vit_tiny` LoRA adapter at p=0.002 (jobs 247474 / 256540).
 
+**Effect of fine‑tuning on classification (from the rigor logs).** Memorizing the N private images via LoRA *harms* held‑out classification, and the harm is strongly asymmetric with the task: **MNIST 10‑class ≈ unchanged** (held‑acc 0.96 → 0.94–0.96, Δ ≈ −0.01 to −0.02), **MNIST binary moderate** (0.91 → 0.80–0.82, Δ ≈ −0.09 to −0.11), and **Fashion 10‑class large‑to‑catastrophic** (0.85–0.90 → 0.67–0.10, up to Δ ≈ −0.75, i.e. collapse toward chance). So there is a genuine memorization↔utility tradeoff, worst exactly where memorization is hardest (Fashion multi‑class). Measured across the rank‑sweep + Round‑B rigor runs (base θ₀ → T=1000 held‑acc; MNIST/Fashion × binary/10‑class × r∈{2..32}).
+
 ![Similarity distance-dial: sensitivity vs swap distance — near-duplicates nearly invisible (concept, not instance); d=0 calibrated to zero.](figures/similarity_ladder/similarity_ladder.png)
 
 ![Validation gate: high-sensitivity images have higher leave-one-out memorization scores (ρ=+0.88) — the sensitivity→memorization link that licenses calling this "leakage".](figures/h_spotcheck/h_spotcheck_scatter.png)
@@ -109,7 +111,7 @@ These are the guardrails that were violated once and then fixed — they are why
 |---|---|---|
 | Rank sweep, powers of two + "low rank actually fails" | **DONE** | job 581629; r=1 capacity floor (635386); Fashion 10‑class bounded‑out → MNIST carries it |
 | Make the base model better / >89% | **DONE (binary)** | binary 88 → 96.7% (245178); Fashion 10‑class genuinely *harder* (94.9→87.7%) |
-| Effect of fine‑tuning on classification accuracy | **PARTIAL** | held‑acc asymmetry measured (memorizing harms binary −0.10, 10‑class ~0); no systematic pre/post‑FT accuracy study |
+| Effect of fine‑tuning on classification accuracy | **DONE (from rigor logs)** | memorization↔utility tradeoff, asymmetric: MNIST 10‑class ~unchanged (Δ≈−0.02), binary moderate (Δ≈−0.10), Fashion 10‑class catastrophic (up to Δ≈−0.75) — §2.5 |
 | Multi‑class (>2) + re‑run across datasets | **DONE (MNIST+Fashion)** | CIFAR deferred; `multiclass_replication_plan_DRAFT.md` never finalized |
 | Consolidate the leakage story | **DONE** | `leakage_story_consolidated.{md,pdf}` + canonical figure; STATUS contradictions now fixed |
 | Supervisor top ask: activation × anchor × linearization crux | **PARTIAL / STALLED** | softplus_b knob done (911475); **job 857271 (21 configs) never analyzed** — the least‑complete ask |
