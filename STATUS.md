@@ -2618,3 +2618,17 @@ uniform only in the high-g0 range."
 OOD full (job 268961): style-only swap ~ within-USPS swap => "the STYLE is what the adapter notices";
 amplification <1 (USPS leak less/equal despite higher g0) stands at full scale — the g0 counterexample
 in the OOD regime persists (likely smoothness confound; scheduled follow-up).
+
+### 2026-08-28 — Arm-B addendum (relayed audit finding, orphaned from a rotated session): NO 1/N exponent claim
+Survey of the landed arm_b_dilution results (relay via yoado-18; original finder's session rotated out):
+detection is REAL and null-controlled (null-diag K=200 p~0.5/qeff=0 vs real swap p=0.002) and the
+permutation test is tail-robust — the banked detection claim STANDS. BUT the 1/N DILUTION LAW is NOT
+cleanly measurable with the current readouts: (a) the coherent-Frobenius signal sits AT its estimation
+floor at every N (coh ~ incoherent/sqrt(K): 1.07/1.22, 1.00/1.06, 0.94/0.94, 0.72/0.67) so its decline
+tracks the shrinking noise floor, not dilution; (b) whitened p is pinned at the permutation floor
+(1/501) at every N so the N-shape is unreadable from it; (c) reseed_noise GROWS with N (9.0->11.3) so a
+naive signal/noise ratio can MANUFACTURE a spurious 1/N exponent. RULE (logged): no dilution-exponent
+fit on coherent-Frobenius; any dilution claim must use the null-referenced d2 machinery AND separate
+reseed_noise(N)'s own scaling first. The earlier "flat-then-decline at N=32" N-shape note inherits this
+caveat (the decline may be floor-tracking — the §III.1 asymptote probe should use the null-referenced
+readout).
