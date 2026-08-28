@@ -90,50 +90,41 @@ def main():
     axL.set_xlabel("attacker SNR budget  ε", fontsize=12)
     axL.set_ylabel(f"q_eff|col(J) = recoverable directions (of {rJ})", fontsize=12)
     axL.set_ylim(0, rJ + 14)
-    axL.set_title("A. IDENTIFIABILITY — 10-class leaks FEWER at every ε",
+    axL.set_title("A. Identifiability — recoverable directions vs attacker budget ε",
                   fontsize=10.5, fontweight="bold")
     axL.legend(loc="upper left", fontsize=9, framealpha=0.95)
-    axL.text(0.03, 0.05,
-             f"multi-class NOT amplified — it leaks FEWER directions\n"
-             f"(iso {mcs['iso_ratio']:.2f} > {bcs['iso_ratio']:.2f}: CE couples more init-noise into col(J)).\n"
-             "Gap closes as ε rises (noise->signal limited); confirmed at N=10 clean lock.\n"
-             "Held-acc asymmetry: memorizing harms binary (-0.10), not 10-class (~0.00).",
-             transform=axL.transAxes, fontsize=8.2, va="bottom",
-             bbox=dict(boxstyle="round", fc="#eef6ee", ec="#8ab98a", alpha=0.92))
 
-    # RIGHT panel — 12-cell decoded gap (harvested) + oracle overlay (merged)
+    # RIGHT panel — 12-cell decoded gap + oracle overlay
     axR = fig.add_subplot(gs[0, 1])
     x = np.arange(len(labels))
     axR.bar(x, dec_gap, 0.6, color=[GREEN if g > 0 else RED for g in dec_gap], alpha=0.85,
-            label="DECODED − baseline (adapter-only attack)")
-    axR.plot(x, ora_gap, "D", color=BLUE, ms=6, label="TRUE ΔW oracle − baseline (upper bound)")
+            label="decoded − baseline (adapter-only attack)")
+    axR.plot(x, ora_gap, "D", color=BLUE, ms=6, label="TRUE ΔW oracle − baseline")
     axR.axhline(0, color="k", lw=1)
     for xi, g in zip(x, dec_gap):
-        axR.text(xi, g - 0.012, f"{g:+.2f}", ha="center", va="top", fontsize=7.5,
+        axR.text(xi, g - 0.012, f"{g:+.2f}", ha="center", va="top", fontsize=7,
                  fontweight="bold", color=RED)
     axR.set_ylabel("raw SSIM − mean-image baseline", fontsize=12)
-    axR.set_title(f"B. RECONSTRUCTION — {n_beat}/40 decoded beat baseline; even oracle fails on small nets",
+    axR.set_title("B. Pixel reconstruction — decoded vs mean-image baseline",
                   fontsize=10.5, fontweight="bold")
     axR.set_xticks(x)
-    axR.set_xticklabels(labels, rotation=40, ha="right", fontsize=8)
+    short = [l.replace("fashion", "F").replace("mnist", "M").replace("gelu", "ge")
+             .replace("softplus", "sp").replace("_", " ") for l in labels]
+    axR.set_xticklabels(short, rotation=40, ha="right", fontsize=7.5)
     axR.legend(loc="upper right", fontsize=8.6, framealpha=0.95)
-    axR.text(0.03, 0.05,
-             "Every DECODED bar is negative: the adapter-only decoder carries NO instance-specific\n"
-             "pixel info beyond the mean image. The oracle (♦) clears baseline only on easy cells —\n"
-             "on small nets even it fails. ssim_norm ~0.6 that circulated was a mean/std-MATCHED\n"
-             "score vs a RAW baseline (apples-to-oranges) — retracted. Geometry leaks; pixels do not (yet).",
-             transform=axR.transAxes, fontsize=8.0, va="bottom",
-             bbox=dict(boxstyle="round", fc="#fdecea", ec="#b00020", alpha=0.92))
 
-    fig.suptitle("LoRA leakage is HIGH as GEOMETRY (left, confirmed) — but PIXEL reconstruction from the "
-                 "adapter does NOT yet beat baseline (right, OPEN limitation); 10-class NOT amplified",
-                 fontsize=11.5, fontweight="bold", y=1.0)
-    fig.text(0.5, -0.10,
-             "identifiability: results/jacobian_j1_roundB_*.pth (job 484948 lineage) | "
-             "reconstruction: results/gb_e2e_*.pth + metrics.py baseline gate | audit yoado-a2/aa | "
-             "the 0/40 is the adapter-only DECODER/recipe failing, NOT an information limit — identifiability "
-             "(left) shows the info is present ⇒ decoder/recipe-limited, not information-limited. OPEN.",
-             ha="center", fontsize=7.7, color="#555")
+    fig.suptitle("LoRA leakage — identifiability (left) and pixel reconstruction (right)",
+                 fontsize=12, fontweight="bold", y=1.0)
+    fig.text(0.5, -0.13,
+             "What we OBSERVE. LEFT: both bases recover a large share of private directions; 10-class recovers "
+             "FEWER at every ε (not amplified). RIGHT: every decoded bar sits below the trivial mean-image "
+             "baseline (0/40 arms clear it); the oracle (♦) clears it only on easy cells. This 0/40 is the "
+             "adapter-only DECODER/recipe failing, NOT an information limit — identifiability (left) shows the "
+             "info is present ⇒ decoder/recipe-limited, not information-limited. OPEN: whether priors / "
+             "known-recipe inversion / a stronger decoder cross it.\n"
+             "identifiability: results/jacobian_j1_roundB_*.pth (job 484948) | reconstruction: "
+             "results/gb_e2e_*.pth + metrics.py baseline gate | audit yoado-a2/aa.",
+             ha="center", fontsize=7.6, color="#444")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")
     plt.close(fig)

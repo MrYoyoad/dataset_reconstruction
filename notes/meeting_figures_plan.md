@@ -16,7 +16,18 @@ shows the info is present ⇒ decoder/recipe-limited, not information-limited).
 
 ---
 
-## FIGURE SET (3 fix, 2 add)
+## CURRENT MEETING BUILD (Gal's decisions, via yoado-18)
+**Build now (data-ready):** F1 (declutter, DONE — this session), F2, F3 (existing-data fixes → yoado-1f)
++ the CRUX in-progress block (final crux figure HELD until free-c ladder 392821 lands).
+**F4 (recover-N / dataset-size): FULLY DEFERRED** — Gal: all 3 readings (recover-N / per-image-dilution /
+whole-set-leaks-more-at-N) are open and interesting but "we didn't really check it yet — wait until there
+are results." A future experiment, NOT a meeting figure (building one now would assert an unobserved result,
+against the posture). recover-N is the default re-spec for whenever it runs; all 3 variants stay open.
+**F5 (shared-perturbation): SCOPED, compute-timing = Gal's call** — Gal cares about it, but it's a new run
+with no data yet; don't build a figure before it has data. Scaffold only (yoado-1f), runs pending Gal's
+compute approval (yoado-18 has asked him run-now-vs-defer).
+
+## FIGURE SET (specs)
 
 ### F1 — main combined (identifiability + reconstruction)   ·  builder: this session (I own the generator)
 - **Science / what it measures:** two axes on one page — (left) identifiability = q_eff|col(J) vs attacker
