@@ -4,6 +4,38 @@ Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; 
 
 ---
 
+## Full-FT valley comparison — CODE BUILT (stage-0 unsubmitted) (2026-08-28)
+
+`experiments/dataset_sensitivity/fullft_valley.py` implements the full-fine-tuning side of the
+valley-width comparison (plan `notes/fullft_valley_comparison_plan.md` v1.2 FINAL, unanimous
+audit pass). CLI `--arm {calib,C,D,E_b0,E_eps,B2,F,B1}` + `--stage0`. Arm A (LoRA, job 268959)
+reused not rebuilt; arm G lives in `fullft_jacobian.py` (separate builder). Reuses the LoRA
+program's instrument (`whitened_sensitivity`) and distance dial (`similarity_ladder` rungs)
+verbatim — only the training map (full-batch GD, no LoRA) and the seed-noise source
+(ε init-perturbation, the B0 analogue) change. (NOTE: an earlier one-file draft of this module
+by a parallel session was superseded by this canonical build; arms F and B1 were added into it.)
+- **Modes:** C = full-rank single layer (L0), D = full FT all layers (PRIMARY, per-layer +
+  concat readout), E_b0/E_eps = LoRA B0-noise vs ε-noise exchangeability (P4), B2 =
+  SGD-order-noise cross-check (gate), F = leave-one-out both regimes + g0 piggyback (P5b
+  headline = cross-regime rank corr), B1 = dimension-invariance coordinate-subset CPU rescore
+  of arm-D's saved stacks (gate), calib = per-regime S5 lr search + ε fixed-point calibration +
+  3-point ε-bracket slope gate + null-uniformity + S6c arm-A pre-check.
+- **S5 lr enforcement:** calib does a per-regime lr grid search (LR_GRID, band max_bce∈[1e-4,1e-3))
+  and writes BOTH the chosen lr (per regime, with `in_band`) AND ε to `calibration.json`; arms
+  read lr/ε from it via `resolve_config` (no placeholder lr runs). The wave scripts freeze lr
+  from it and ABORT if any regime's lr is off-band. Default mid rung = `p2_rot5` (arm-A S6c rec).
+- **Arm F (LOO):** v_j = Δθ(D,s_j) − Δθ(D\{i},s_j), REMOVE image i (N−1), full-all-layers +
+  LoRA r=8, 6 class-1 targets; headline P5b = offset-immune cross-regime rank corr (Spearman);
+  P5a/P5d descriptive w/ N→N−1 caveat; free g0 piggyback at θ0. Saves removal Δθ stacks.
+- **Arm B1:** rescores arm-D's saved concat Δθ stacks at fixed-seed nested coordinate fractions
+  {25k,100k,450k,1.79M}; d* must be flat (upcast float32→float64; NO retrain).
+- **Memory:** arm-D concat Δθ ≈ 1.785M float64, K=50 stack ≈ 0.7 GB; metric on CPU (thin K×D
+  SVD); v/reseed stacks saved float32 on disk so B1/per-layer are CPU column-views.
+- **Scripts:** `run_fullft_valley_stage0_wexac.sh` (short-gpu; metric self-test → each arm
+  stage-0 → F → B1 rescore of D-stage0 stacks), `run_fullft_valley_wexac.sh` (part 1: calib +
+  arm C), `run_fullft_valley_part2_wexac.sh` (part 2: D/E_b0/E_eps/B2/F/B1). ast.parse +
+  bash -n clean. NOT submitted.
+
 ## COMBINED leakage story (identifiability + reconstruction) — Round B REVERSES multi-class amplification (2026-08-25, job 399884 + bridge)
 
 The two tracks now tell ONE honest story (figure: figures/combined/leakage_identifiability_plus_reconstruction.png):
@@ -2640,3 +2672,24 @@ co-primary — co-primary would reintroduce the algorithm-class confound the sin
 excludes). Gate-strengthenings folded: B1 multi-fraction dimension sweep {25k,100k,450k,1.8M}; B2 adds
 the d*-determining crossing rung. Builds dispatched (ladder C/D/E + calibration + B2; arm F LOO; arm G
 Jacobian+T-sweep); headline read gated on B1+B2+P4 per the pre-registered sequencing.
+
+### 2026-08-28 — Arm G (Jacobian J_full vs J_LoRA) BUILT, stage-0 staged (not yet run)
+`experiments/dataset_sensitivity/fullft_jacobian.py` + `scripts/run_fullft_jacobian_stage0_wexac.sh`
+(short-gpu) + `scripts/run_fullft_jacobian_wexac.sh` (long-gpu). Implements J_full = ∂vec(Δθ_full)/∂a
+via the SAME forward-over-reverse jvp_double as jacobian_spectrum.exact_jacobian, on the SAME tangents/
+θ₀/D as J_LoRA (built by reusing `_mnist_ctx`; only the parameterization differs). New
+`unrolled_full_theta` = the full-param analogue of `unrolled_lora_AB` (W init at θ₀, biases frozen, raw
+∇_W not the low-rank projection, Δθ=θ_T−θ₀ output). Readouts: RAW singular spectra + r_J (P6 demoted,
+T=5-conditional consistency check) + per-layer col(J_full) energy + the local valley ratio
+‖J·a_nn‖/‖J·a_far‖ (P7 LEADS; a_nn = p0_noise near-dup direction, a_far = toward the farthest
+same-parity different-digit image — encoder-free). Mandatory T-sweep T={1,5,20} + max_bce + the
+"early-training Jacobian, not converged-valley" caveat. Reduced config N=4,k=8,layer-0 PRIMARY,
+all-layer stretch (dimΘ≈1.79M, memory-bound). GELU/float64. ast.parse + bash -n clean; FD gate
+(rel err <1e-4) added. SNR-whitened q_eff (P4-conditional secondary) deferred to a downstream rescore.
+PARITY GATE (audit fix): `_parity_gate()` runs at the TOP of stage0() (hard assert, abort on fail) —
+imports `fullft_valley.train_full` (sibling now landed) and asserts `unrolled_full_theta`(create_graph=
+False) == train_full(eps_scale=0, batch_seed=None) via allclose(atol=1e-9, rtol=1e-7) on a tiny
+N=2/layer-0/T=5 config, so arm G trains the SAME operator as arms C/D (else the cross-arm comparison is
+void). Expected max-abs-diff ≈ machine precision (both = w−lr·grad, BCE, W init frozen.clone(), biases
+frozen; train_full's forward_logits(empty adapter) == _full_forward) — no reconciliation of _full_forward
+needed. Pending parent stage-0 audit + bsub submit.
