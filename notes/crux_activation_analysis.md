@@ -17,10 +17,25 @@
 > - `feature_stability` tracks smoothness only **weakly (+0.29)** — the strong linearization evidence is the
 >   softplus-β β-monotonicity (job 911475), NOT this. softplus-β leakage is **non-monotonic** (b50 rises back
 >   toward relu-like) → report as non-monotonic, not a within-family "+0.60 trend."
-> - Robust takeaway: **no clean monotonic smoothness→leakage law in this first-pass; kinked relu/leaky_relu/selu
->   leak most (wc-provisional).** The matched-wc GPU re-sweep (user approved Full closure) turns this into the
->   actual leakage ranking. Figure + generator: `figures/crux/activation_ranking_857271.png` /
->   `experiments/plot_activation_ranking.py`.
+> - **⚠ MODE = ORACLE (upper bound), NOT the realistic ranking.** The 857271 tensors were generated with
+>   `free_coefficients=False` (template default) → known-coefficient ORACLE. This project has DOCUMENTED
+>   precedent that free-c FLIPS the activation ranking (this file, §"linearization fidelity → leakage": the
+>   non-free/oracle flowers32 files tell the OPPOSITE, softplus-favouring story; on flowers32 free-c the
+>   smooth activations don't leak at all). So the two-cluster "kinked leak most" read may REVERSE under the
+>   realistic free-c attack. −0.38 is therefore provisional on BOTH axes — **wc AND mode**. Present strictly
+>   as "oracle upper-bound, free-c pending" (user rule: oracle is cheating/upper-bound only).
+> - **ntk_passed impossibility (a finding, not a miss):** `ntk_passed = (wc < 0.01 AND feature_stability > 0.99)`
+>   (configs.py NTK_WEIGHT_CHANGE_THRESHOLD=0.01), so a "meaningful" fine-tune at wc≈0.1–0.3 can NEVER be
+>   ntk_passed — the two are DISJOINT BY CONSTRUCTION (all 18 ntk_passed=True configs sit at wc<0.01). The
+>   plan's Step-2a "matched-wc AND ntk_passed" target was ill-posed. Corrected GPU closure (user approved,
+>   yoado-6d-agreed): **free-c wc-LADDER {0.005 (NTK rung), 0.03, 0.1, 0.3}** with exact per-activation
+>   wc-matching, feature_stability as a graded covariate per rung, ranking's **wc-dependence** the headline
+>   (stable across ladder ⇒ robust; flips ⇒ that IS the finding). The NTK rung may be degenerate (tiny wc ⇒
+>   feat_stab≈1 for all, leakage≈noise) — if so, that itself shows leakage is a finite-wc phenomenon.
+> - Robust takeaway: **no clean monotonic smoothness→leakage law in this ORACLE first-pass; kinked
+>   relu/leaky_relu/selu leak most (provisional on wc AND mode).** The free-c wc-ladder + feature-stability-vs-T
+>   (job 390026) GPU closure turns this into the actual leakage ranking. Figure + generator:
+>   `figures/crux/activation_ranking_857271.png` / `experiments/plot_activation_ranking.py`.
 
 **Date:** 2026-08-21 · **Scope:** pure re-analysis of on-disk results (no GPU runs).
 **Sources:** `results/rescored_batch_2026-08-13.csv` (256 rows), `results/flowers32_rescored.csv` (27),

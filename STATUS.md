@@ -16,8 +16,14 @@ at best-matched wc≈0.10, Spearman over n=13 DISTINCT activations (metric-audit
 sign **FLIPS within the smooth-only set (+0.58)**; wc-PROVISIONAL (all T=1, ntk_passed=False → sign/magnitude
 may move under true matched-wc). `feature_stability` tracks smoothness only weakly (+0.29 — strong linearization
 evidence is the softplus-β monotonicity, job 911475, not this); softplus-β leakage is NON-monotonic (not a law).
-Robust: **no clean monotonic smoothness→leakage law in the first-pass; kinked relu/leaky_relu/selu leak most.**
-Figure + committed generator:
+**⚠ ORACLE MODE:** the 857271 tensors are free_coefficients=False (oracle upper bound), and free-c has
+DOCUMENTED precedent for FLIPPING the ranking (crux_activation_analysis.md:165) — so this read may reverse
+under the realistic free-c attack; provisional on BOTH wc AND mode. **ntk_passed impossibility (finding):**
+ntk_passed needs wc<0.01 (NTK_WEIGHT_CHANGE_THRESHOLD) so it's DISJOINT from meaningful wc 0.1–0.3 — the
+plan's "matched-wc AND ntk_passed" was ill-posed. Corrected closure (user approved, yoado-6d-agreed): free-c
+wc-LADDER {0.005,0.03,0.1,0.3} exact per-activation wc-match + feature-stability-vs-T (job 390026 RUNNING).
+Robust: **no clean monotonic smoothness→leakage law in this ORACLE first-pass; kinked relu/leaky_relu/selu
+leak most (provisional on wc AND mode).** Figure + committed generator:
 `figures/crux/activation_ranking_857271.png` / `experiments/plot_activation_ranking.py`.
 **OPEN (needs GPU, user's compute call):** all configs T=1 & ntk_passed=False → this is a first-pass, NOT
 the matched-wc leakage ranking; the clean matched-`weight_change` ranking + the feature-stability-vs-T

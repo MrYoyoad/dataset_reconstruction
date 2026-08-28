@@ -88,11 +88,11 @@ def main():
                   fontsize=11, fontweight="bold")
     axS.text(0.015, 0.97,
              "← kinked            smoothness →            smooth\n"
-             "The positive 'smoother⇒more leakage' hypothesis is REFUTED as a law, but −0.38\n"
-             "is NOT a negative law either: sign FLIPS (smooth-only +0.58 vs full −0.38). It's a\n"
-             "2-CLUSTER gap — relu/leaky_relu/selu leak ~4× the rest (yet hardswish, also kinked,\n"
-             "does NOT). wc-PROVISIONAL (all T=1, ntk-unmatched): sign/magnitude may move.",
-             transform=axS.transAxes, va="top", fontsize=8.0,
+             "⚠ ORACLE upper-bound (free_coefficients=False) — NOT the realistic attack. Documented\n"
+             "precedent: free-c FLIPS the activation ranking (crux_activation_analysis.md:165). So this\n"
+             "two-cluster read may REVERSE under free-c. Positive 'smoother⇒more leakage' law REFUTED,\n"
+             "but −0.38 is NOT a negative law (sign flips smooth-only +0.58). PROVISIONAL on wc AND mode.",
+             transform=axS.transAxes, va="top", fontsize=7.6,
              bbox=dict(boxstyle="round", fc="#fdecea", ec="#b00020", alpha=0.92))
     h1, l1 = axS.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
@@ -126,14 +126,14 @@ def main():
              transform=axB.transAxes, va="top", fontsize=8.0,
              bbox=dict(boxstyle="round", fc="#eef2fb", ec="#8899cc", alpha=0.92))
 
-    fig.suptitle("Activation crux — FIRST-PASS on 152 job-857271 configs (T=1, wc-provisional): "
-                 "the positive 'smoother⇒more leakage' law is REFUTED (no clean law either way)",
-                 fontsize=11, fontweight="bold", y=1.0)
+    fig.suptitle("Activation crux — ORACLE-mode FIRST-PASS (152 configs, T=1): positive 'smoother⇒more "
+                 "leakage' law REFUTED; ranking PROVISIONAL on wc AND mode (free-c may reverse it)",
+                 fontsize=10.5, fontweight="bold", y=1.0)
     fig.text(0.5, -0.03,
-             f"data: {CSV} | leakage=ctrl_margin_norm (NOT raw ctrl_margin, NOT eff_rank) @ best-matched wc≈{TARGET_WC}, "
-             "Spearman over n=13 DISTINCT activations | CAVEAT: all T=1, ntk_passed=False → wc-PROVISIONAL first-pass, "
-             "sign/magnitude may move; matched-wc ranking + feature-stability-vs-T need new GPU runs.",
-             ha="center", fontsize=7.6, color="#555")
+             f"data: {CSV} | leakage=ctrl_margin_norm (NOT raw, NOT eff_rank) @ best-matched wc≈{TARGET_WC}, n=13 DISTINCT acts | "
+             "⚠ MODE=ORACLE (free_coefficients=False) = upper bound, NOT the realistic attack (free-c flips the ranking, "
+             "crux_activation_analysis.md:165) | all T=1, ntk_passed impossible at wc≥0.01 | free-c wc-ladder + feat-stab-vs-T running.",
+             ha="center", fontsize=7.2, color="#555")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")
     plt.close(fig)
