@@ -4,6 +4,22 @@ Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; 
 
 ---
 
+## Crux (Gal's #1) — Step 1 DONE: full 152-config activation rescore + first-pass ranking (2026-08-28)
+
+Job 857271's tensors SURVIVED (152 configs, not 21) — full smoothness spectrum incl. kinked controls
+relu/leaky_relu/hardswish (which DID run, just were never scored; job died at RUNLIMIT before analysis).
+Rescored all 152 (bsub 389926) → `results/rescored_activations_857271_full_2026-08-28.csv`. First-pass
+ranking on `ctrl_margin_norm` (established clip-robust leakage metric; NOT raw ctrl_margin, NOT eff_rank)
+at best-matched wc≈0.10: **Spearman(smoothness, leakage) = −0.38** (kinked relu/leaky_relu/selu leak MOST
+at 0.49–0.59 with LOWEST NTK survival); `feature_stability` tracks smoothness (+0.29). Corroborates &
+strengthens the earlier "+0.03 REFUTED" (crux_activation_analysis.md) on the full spectrum: **smoother→more
+leakage REFUTED; linearization fidelity does NOT set leakage magnitude.** Figure + committed generator:
+`figures/crux/activation_ranking_857271.png` / `experiments/plot_activation_ranking.py`.
+**OPEN (needs GPU, user's compute call):** all configs T=1 & ntk_passed=False → this is a first-pass, NOT
+the matched-wc leakage ranking; the clean matched-`weight_change` ranking + the feature-stability-vs-T
+curve + the flowers matched-wc band require NEW runs with a corrected LR band. This is the crux GPU-closure
+decision surfaced to the user.
+
 ## Full-FT valley comparison — CODE BUILT (stage-0 unsubmitted) (2026-08-28)
 
 `experiments/dataset_sensitivity/fullft_valley.py` implements the full-fine-tuning side of the

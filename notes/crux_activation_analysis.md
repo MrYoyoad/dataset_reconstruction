@@ -1,5 +1,20 @@
 # The Crux: Activation × Anchor × Linearization — Analysis of Existing Data
 
+> **UPDATE 2026-08-28 — full 152-config rescore CORROBORATES the refutation (was 27 configs).**
+> All 152 surviving job-857271 tensors were rescored (`results/rescored_activations_857271_full_2026-08-28.csv`,
+> bsub 389926) — the whole smoothness spectrum incl. the kinked controls relu/leaky_relu/hardswish, which
+> DID run (they were never scored, not never run). On the established metric `ctrl_margin_norm` at
+> best-matched wc≈0.10: **Spearman(smoothness, leakage) = −0.38** (was +0.03 on 27) — kinked relu (+0.588),
+> leaky_relu (+0.542), selu (+0.487) leak the MOST while having the LOWEST NTK survival; `feature_stability`
+> tracks smoothness (+0.29 spectrum, +0.71 within the softplus-β knob). So "smoother→more leakage" is
+> **REFUTED, now stronger and on the full spectrum**; linearization fidelity does NOT set leakage magnitude.
+> Figure + committed generator: `figures/crux/activation_ranking_857271.png` / `experiments/plot_activation_ranking.py`.
+> **Load-bearing caveat:** every config is T=1 and `ntk_passed`=False → this is a FIRST-PASS at the
+> best-matched-wc point, NOT the matched-wc leakage ranking; the clean matched-`weight_change` ranking and
+> the feature-stability-vs-T curve require NEW GPU runs with a corrected LR band (surfaced to the user as
+> the crux GPU-closure decision). softplus-β leakage is +0.60 within-family but NON-monotonic (b50 rises
+> back toward relu-like) — not a clean law either.
+
 **Date:** 2026-08-21 · **Scope:** pure re-analysis of on-disk results (no GPU runs).
 **Sources:** `results/rescored_batch_2026-08-13.csv` (256 rows), `results/flowers32_rescored.csv` (27),
 `results/rescored_activations_857271_2026-08-11.csv` (27), and `results/anchor_sweep_*T10_r8_*_s42.pth`.
