@@ -81,7 +81,7 @@ RESULTS = "/home/projects/galvardi/yoado/results/similarity_ladder"
 FIGURES = "/home/projects/galvardi/yoado/figures/similarity_ladder"
 N_FOLDS = 5
 
-STAGE0_RUNGS = ["p0_noise", "r_nn", "r_far"]      # near-duplicate + retrieved bracket only
+STAGE0_RUNGS = ["p00_identity", "p0_noise", "r_nn", "r_far"]  # d=0 null anchor + near-dup + retrieved bracket
 
 
 # --------------------------------------------------------------------------- #
@@ -110,10 +110,16 @@ def _gauss_blur(img, sigma=1.0, k=5):
 
 def parametric_rungs(T_img):
     """Ordered [(name, T' [1,28,28])] — same image, perturbed at graded magnitude.
-    All deterministic: fixed noise seed, fixed magnitudes."""
+    All deterministic: fixed noise seed, fixed magnitudes.
+
+    p00_identity (audit-mandated d=0 CONTROL, yoado-ba finding 1): T' = T exactly.
+    PRE-REGISTERED: sensitivity(p00_identity) MUST read ~0 / p non-significant (the swap
+    is a null). A significantly nonzero d²(0) is an ARTIFACT-KILL for the entire dial —
+    abort interpretation of every other rung."""
     g = torch.Generator().manual_seed(7)
     noise = torch.randn(T_img.shape, generator=g, dtype=T_img.dtype)
     return [
+        ("p00_identity", T_img.clone()),
         ("p0_noise",  (T_img + 0.02 * noise).clamp(0.0, 1.0)),
         ("p1_bright", (1.25 * T_img + 0.05).clamp(0.0, 1.0)),
         ("p2_rot5",   _rotate(T_img, 5.0)),
