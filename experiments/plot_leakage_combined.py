@@ -68,8 +68,8 @@ def main():
     dec_gap, ora_gap = np.array(dec_gap), np.array(ora_gap)
     n_beat = int((dec_gap > 0).sum())
 
-    fig = plt.figure(figsize=(16, 6.4), dpi=200)
-    gs = fig.add_gridspec(1, 2, width_ratios=[1.0, 1.15], wspace=0.28)
+    fig = plt.figure(figsize=(13.5, 7.6), dpi=200)
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.0, 1.15], wspace=0.26)
 
     # LEFT panel
     axL = fig.add_subplot(gs[0, 0])
@@ -114,17 +114,21 @@ def main():
     axR.legend(loc="upper right", fontsize=8.6, framealpha=0.95)
 
     fig.suptitle("LoRA leakage — identifiability (left) and pixel reconstruction (right)",
-                 fontsize=12, fontweight="bold", y=1.0)
-    fig.text(0.5, -0.13,
-             "What we OBSERVE. LEFT: both bases recover a large share of private directions; 10-class recovers "
-             "FEWER at every ε (not amplified). RIGHT: every decoded bar sits below the trivial mean-image "
-             "baseline (0/40 arms clear it); the oracle (♦) clears it only on easy cells. This 0/40 is the "
-             "adapter-only DECODER/recipe failing, NOT an information limit — identifiability (left) shows the "
-             "info is present ⇒ decoder/recipe-limited, not information-limited. OPEN: whether priors / "
-             "known-recipe inversion / a stronger decoder cross it.\n"
-             "identifiability: results/jacobian_j1_roundB_*.pth (job 484948) | reconstruction: "
-             "results/gb_e2e_*.pth + metrics.py baseline gate | audit yoado-a2/aa.",
-             ha="center", fontsize=7.6, color="#444")
+                 fontsize=12.5, fontweight="bold", y=1.0)
+    # abbreviation key on the right panel
+    axR.text(0.99, -0.30, "F=fashion  M=mnist   ·   ge=gelu  sp=softplus", transform=axR.transAxes,
+             ha="right", va="top", fontsize=7.5, color="#666", style="italic")
+    cap = (
+        "What we OBSERVE\n"
+        "LEFT — both bases recover a large share of private directions; 10-class recovers FEWER at every ε (not amplified).\n"
+        "RIGHT — every decoded bar sits below the trivial mean-image baseline (0/40 arms clear it); the oracle (♦) clears it only on easy cells.\n"
+        "This 0/40 is the adapter-only DECODER/recipe failing, NOT an information limit — identifiability (left) shows the info IS present ⇒ decoder/recipe-limited, not information-limited.\n"
+        "OPEN — whether priors / known-recipe inversion / a stronger decoder cross it."
+    )
+    fig.text(0.5, -0.19, cap, ha="center", va="top", fontsize=8, color="#333")
+    fig.text(0.5, -0.30, "identifiability: results/jacobian_j1_roundB_*.pth (job 484948)  |  reconstruction: "
+             "results/gb_e2e_*.pth + metrics.py baseline gate  |  audit yoado-a2/aa",
+             ha="center", va="top", fontsize=7, color="#888")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")
     plt.close(fig)
