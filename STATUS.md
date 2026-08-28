@@ -2596,3 +2596,25 @@ sens~d_encoder(DINO) +0.399 (WORST — likely DINO out-of-domain on upscaled MNI
 So sensitivity tracks RAW PIXEL distance best here; the semantic-encoder distance underperforms.
 CAVEAT: n=18 small; p1_bright (global brightness) amplified by ds_mean centering — read with care.
 Feeds twin-shielding (S2): near-duplicates invisible predicts a twin should shield.
+
+### 2026-08-28 — MARGIN-AT-SCALE (job 272504, §III.1 headline): INDETERMINATE (strong but not passing)
+n=24 stratified targets. HEADLINE rho(sens, g0) = +0.777, one-sided perm-p=1e-4 (strongly significant),
+bootstrap 95% CI [+0.529, +0.907] half-width 0.189. VERDICT INDETERMINATE: rho 0.78 clears the >0.6 bar
+but (a) CI half-width 0.189 > pre-registered 0.15 (n=24 too few for the width target) and (b) g0-tercile
+sign-flip: top +0.881, mid +0.500, bottom -0.119 => predictor is STRONG for high-g0 (high-leakage)
+images, NOISY/ABSENT among low-g0 ones. Above KILL (0.3), below PASS.
+TYPICALITY CONTROL (mandatory) PASSES: partial rho(sens, g0 | atypicality) = +0.777, CI [+0.535,+0.913]
+=> g0 predicts BEYOND image-intrinsic atypicality (rho(g0,atyp)=+0.13, nearly orthogonal). m0 margin
+anti-correlates -0.79 as expected.
+MECHANISM: rho(sens,g0)=+0.777 > rho(sens,lam_T)=+0.510 (gap +0.27) => NTK/gradient-recording over
+max-margin, confirming the T1 reframe direction. LAZY DIAGNOSTIC: spearman(g0, g_T)=+0.767 (per-image
+gradient RANKING largely preserved base->trained — WHY a base quantity predicts the final leak) BUT
+per-module ||dW||/||W0|| = 0.226 (NOT strictly lazy, >0.1). So: gradient-STRUCTURE stability, not strict
+laziness — a stronger/subtler claim (pre-empts "it's just the lazy regime" dismissal).
+NEXT: scale n_targets to 40-60 to hit the CI-width target; characterize the low-g0 regime separately
+(predictor works where leakage is high = the privacy-relevant regime). Supervisor-memo capstone must be
+softened from "predicts" to "strongly predicts high-leakage images (rho 0.78, p=1e-4), CI not yet tight,
+uniform only in the high-g0 range."
+OOD full (job 268961): style-only swap ~ within-USPS swap => "the STYLE is what the adapter notices";
+amplification <1 (USPS leak less/equal despite higher g0) stands at full scale — the g0 counterexample
+in the OOD regime persists (likely smoothness confound; scheduled follow-up).
