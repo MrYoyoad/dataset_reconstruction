@@ -368,7 +368,14 @@ updated same-turn per house rule.
 - **Q8 (arm G T-mismatch) → S4/TB4:** mandatory T-sweep T={1,5,20} + the early-training caveat;
   P6 T=5-conditional and demoted; P7 leads the arm.
 
-**Q1 — RESOLVED (metric re-check, yoado-6d PASS):** the conditional structure (P4 + §4.1.7 power
+**AUDIT GATE: UNANIMOUS PASS (2026-08-28) — yoado-6d (metric) + yoado-18 (theory), both against the
+on-disk text. Wave launched under the user's standing authorization. Both lenses INDEPENDENTLY
+converged on Q1 (ε primary / SGD as the one-config B2 cross-check, not co-primary): the metric
+argument (SGD co-primary breaks the single-variable design) and the theory argument (ε perturbs the
+training operator of a fixed algorithm — the B0 analogue; SGD-order perturbs the ALGORITHM CLASS,
+reintroducing the excluded confound) are the same conclusion from two sides.**
+
+**Q1 — RESOLVED (metric re-check, yoado-6d PASS; theory re-check CONVERGES):** the conditional structure (P4 + §4.1.7 power
 gate + §4.0-B2 + TF7) IS sufficient license; SGD-order noise is NOT demanded as co-primary — and
 deliberately so: making the full-FT arm SGD would change parameterization AND algorithm at once,
 breaking the single-variable design that is the plan's core strength. B2's role is exactly the

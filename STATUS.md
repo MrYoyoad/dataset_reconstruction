@@ -2632,3 +2632,11 @@ fit on coherent-Frobenius; any dilution claim must use the null-referenced d2 ma
 reseed_noise(N)'s own scaling first. The earlier "flat-then-decline at N=32" N-shape note inherits this
 caveat (the decline may be floor-tracking — the §III.1 asymptote probe should use the null-referenced
 readout).
+
+### 2026-08-28 — Valley-comparison plan v1.2: UNANIMOUS AUDIT PASS -> wave launched
+Both re-checks PASS against the on-disk text (metric + theory lenses), with independent convergence on
+Q1 (ε-noise primary as the training-operator analogue; SGD-order = one-config B2 cross-check, not
+co-primary — co-primary would reintroduce the algorithm-class confound the single-variable design
+excludes). Gate-strengthenings folded: B1 multi-fraction dimension sweep {25k,100k,450k,1.8M}; B2 adds
+the d*-determining crossing rung. Builds dispatched (ladder C/D/E + calibration + B2; arm F LOO; arm G
+Jacobian+T-sweep); headline read gated on B1+B2+P4 per the pre-registered sequencing.
