@@ -2356,122 +2356,16 @@ Four plots in `figures/`:
 
 ---
 
-## Thesis Roadmap (updated 2026-04-09)
+## Superseded planning archaeology (pruned 2026-08-28)
 
-Sprint 2 established the NTK attack on MNIST MLPs. The path forward has three tiers, ordered by thesis impact:
-
-### Tier 1: Gradient Bridge (highest priority — core thesis contribution)
-The LoRA → full gradient → image reconstruction pipeline:
-1. **Sprint 3 (current)**: Scale gradient inversion to ViT/CNN on CIFAR-10 — establishes the inversion engine
-2. **Sprint 4 (future)**: Train Gradient Decoder (R2F-style) — 50K (BA, ∇_W L) pairs from proxy data, per-layer MLP, cosine sim loss
-3. **Sprint 5 (future)**: End-to-end attack — frozen decoder → inversion engine → reconstructed images on victim LoRA adapter
-
-### Tier 2: NTK Reconstruction (supporting evidence)
-Differentiable unrolling (S3.4) extends the NTK approach to exact multi-step matching, removing the linearization assumption. If it works on CIFAR-10, it's a publishable improvement over Sprint 2's NTK results and provides an alternative attack path.
-
-### Tier 3: Diffusion Priors (stretch goal)
-Hybrid gradient-matching + SDS loss for low-rank reconstruction. Blocked on having a working inversion engine (Tier 1). Target: face reconstruction from ViT LoRA adapters fine-tuned on CelebA.
+The April-2026 "Thesis Roadmap" (Sprint 3/4/5 tiers) and the Sprint-1…2c "Pending Tasks" /
+"Research Backlog" / "Reading" checklists that used to live here were superseded and are pruned
+for legibility (a reader could not tell live to-dos from archaeology). **Current sources of truth:**
+live to-do → `notes/next_experiment_plan.md`; consolidated science state → `notes/thesis_scientific_summary.md`;
+active program → `notes/dataset_sensitivity_program_plan.md` (v3) + `notes/fullft_valley_comparison_plan.md`.
+Completed-sprint history remains in git and in the dated findings sections above and below.
 
 ---
-
-## Known Issues & Housekeeping
-
-- **Uncommitted changes** in `dataset_reconstruction/`: `wexac_connect.sh`, `wexac_disconnect.sh` modified — likely WEXAC config tweaks
-- **`settings.default.py` deleted** from git tracking in `dataset_reconstruction/` — README expects it for fresh clone setup
-- **Untracked large file**: `Miniforge3-MacOSX-arm64.sh` (51 MB installer) in `dataset_reconstruction/` — already .gitignored there
-- ~~**Corrupted/duplicate PDFs** in `papers/`~~ — **FIXED** (2026-02-22): removed `2407.15845` and `Djdj .15845`, kept properly named `Oz_et_al_2024_Reconstruction_Transfer_Learning.pdf`
-- **No `runs/` directory** yet — gets created at runtime by Main.py
-
----
-
-## Pending Tasks
-
-### Completed
-- [x] **Run Experiment A on WEXAC** — FAILED (expected): KKT can't separate fine-tuning from pre-training
-- [x] **Run Experiment B on WEXAC** — SUCCESS: SSIM=0.9999 (full) / 0.797 (LoRA r=8) — oracle coefficients
-- [x] **Run rank sweep (Experiment B)** — ranks 8/16/32: SSIM improves with rank — oracle coefficients
-- [x] **Multi-seed analysis (200 seeds)** — 11% of seeds produce strong signal; perfect correlation with model being wrong after centering
-- [x] **Generate Sprint 1 figures** — `rank_sweep_sprint1.png`, `sprint1_summary.png`, `multi_seed_analysis.png`, experiment B grids
-- [x] **Identify oracle-coefficient cheating** — current NTK extraction uses true x to compute cᵢ; documented in LESSONS_LEARNED.md
-- [x] **Sprint 2b Phase 0: Activation ablation** — LeakyReLU wins (stable through T=100, ReLU NaN's at T>=50)
-- [x] **Sprint 2b Phase 1: SGD + free-c baseline (ReLU)** — confirms ReLU instability at T>1
-- [x] **Sprint 2b Phase 2: Random restarts (LeakyReLU)** — LoRA nearly matches full model through T=100
-- [x] **Activation function ablation for LoRA extraction** — ReLU (alpha=10000) + L-BFGS best for LoRA
-- [x] **Free-coefficient LoRA rank sweep** — works at r=8 and r=64, stubborn at r=16/r=32
-
-### Sprint 2a: Free-Coefficient Extraction — DONE
-- [x] **Implement free-coefficient NTK extraction** — `get_coeff_penalty()`, free-c mode, N sweep
-- [x] **Ablate consistency weight α** — α=1 + SGD is optimal (SSIM=0.997, matches oracle)
-- [x] **LoRA rank sweep with free-c** — r=4/8/16/32/64 with ReLU + L-BFGS (WEXAC jobs 674631, 681126)
-- [x] **Activation ablation** — ReLU (alpha=10000) is critical for LoRA (WEXAC job 669885)
-- [x] **Separate optimizer for c** — L-BFGS for x, SGD/Adam for c (mirrors Haim et al.'s λ handling)
-- [x] **Fix r=16/32 convergence** — SGD+LeakyReLU: r=16 0.624, r=32 0.680 (was 0.42)
-- [x] **Multi-seed comparison** — 50 seeds: free-c (0.557) beats oracle (0.408), 46/50 wins
-
-### Sprint 2b: Multi-Step & Scaling
-- [x] **Phase 0**: Activation ablation (3 activations × 5 T values)
-- [x] **Phase 1**: SGD + free-c baseline (T × rank sweep)
-- [x] **Phase 2**: Random restarts
-- [x] **Phase 3**: LR scaling with LeakyReLU — done as Sprint 2c B1
-- [x] **Phase 4**: Progressive warm-start — done as Sprint 2c B1
-- [x] **Multi-seed validation** of LeakyReLU — 30 seeds: SSIM 0.558±0.034 (T=1), 0.572±0.088 (T=10)
-- [x] **Per-image SSIM** — 10 seeds saved as .pth for visual inspection
-
-### Sprint 2c: KKT & NTK Ablations
-- [x] **Track A**: CLOSED — KKT loss 330-350 for all N values, confirms structural failure
-- [x] **Track B1**: Phase 3+4 (LR scheduling + warm-start) — DONE
-- [x] **Track B2**: Loss ratio ablation (verify_weight) — DONE (16 configs)
-- [x] **Track B3a**: Optimizer × activation for LoRA — DONE (winner: SGD + LeakyReLU, SSIM 0.830)
-- [x] **Track B3b**: Scale best combo across T — DONE (SGD+LeakyReLU ≡ L-BFGS for T≤20, NaN at T=100)
-- [x] **Track B4**: N sweep (NTK) — DONE
-- [x] **Track B5-B8**: Additional ablations — DONE
-
-### Phase 0: ViT Gradient Inversion
-- [x] ~~**Setup phase0 conda env**~~ — not needed, `rec` env has timm+peft
-- [x] **Phase 0 (fixed)**: Resubmitted with bug fixes — SSIM=0.089 (full) / 0.264 (LoRA). Poor but real signal (was 0.015 before fixes).
-- [x] **D1 controlled comparison** (2026-04-14): signAdam + tv=1e-2 → SSIM=0.144 (4 configs)
-- [x] **D2 hyperparameter sweep** (2026-04-28): 40 configs, best tv=1e-1 + lr=0.05 + 30K → **SSIM=0.548** — gate crossed on Flowers102
-- [x] **D3v2 freq/LPIPS prior ablation** (2026-04-28): 7 configs; priors don't help (best 0.558, within seed noise of TV-only D2)
-- [x] **Face1 at D3 winner** (2026-04-28): real-face gate crossed — **SSIM=0.522, PSNR=13.8, cos_sim=0.974**
-- [x] **Custom image loading**: `--image_path` flag + 7 unit tests
-- [x] **Partial-save checkpoint hook** (2026-05-13): per-restart .pth save so 48h-wall kills leave usable data
-- [x] **Supervisor handoff report**: `notes/phase0_report.tex` (350 lines, D1→D4) + `notes/phase0_last2days.md`
-- [ ] **D4 face-structure prior sweep**: 9 arms running on WEXAC (jobs 777007-777019/777085-777095); analyzer ready
-- [ ] **D5 chroma-coupled (LAB) TV**: 2 arms running on face1.jpg (jobs 777084/777086); chroma_weight ∈ {5, 20}
-- [ ] **Multi-seed face1**: 5 seeds running (jobs 777058-777063) at D3 winner config — canonical SSIM mean±std
-- [ ] **Re-run face2/face3 at D3 winner**: existing numbers (SSIM 0.21-0.24) are stale, from weak-TV March sweep
-- [ ] **LoRA-only at D2/D3 winner**: rerun tv=1e-1, lr=0.05, 30K with --mode lora across rank 8/16/32/64
-- [ ] **N>1 reconstruction (Phase 0)**: never run; folded into superposition work in CLAUDE.md
-- [ ] **D6 (conditional)**: latent-space recon / SDS — only if D4+D5+multi-seed don't reach SSIM≥0.6
-- [ ] **Phase 0b**: Noise tolerance sweep — deprioritized, folded into Sprint 3
-
-### Sprint 3: Scaling Beyond MNIST
-- [ ] **S3.1**: Phase 0 hyperparameter sweep (lr × tv_weight × optimizer × n_iters)
-- [ ] **S3.2**: Low-dim reconstruction space (32×32 / Fourier / patch-aware)
-- [ ] **S3.3a**: CNN baseline on CIFAR-10 (simplest architecture)
-- [ ] **S3.3b**: ResNet-18 + LoRA on CIFAR-10 (skip connections)
-- [ ] **S3.3c**: DeiT-Tiny on CIFAR-10 (small ViT, 5.7M params)
-- [ ] **S3.4**: Differentiable unrolling — Phase 1: validate on MNIST (T=1 should match Exp B)
-- [ ] **S3.4**: Differentiable unrolling — Phase 2: T=1,2,5,10,20 on MNIST vs NTK
-- [ ] **S3.4**: Differentiable unrolling — Phase 3: apply to best CIFAR-10 architecture
-- [ ] **S3.5**: Image priors (frequency, LPIPS, BN stats, SDS, latent-space)
-
-### Research Backlog
-- [ ] **Image priors for ViT inversion** — folded into S3.5; TV alone is insufficient at 224×224
-- [ ] **N>1 superposition problem** — deprioritized until N=1 works reliably on CIFAR-10. Approaches: diversity penalty, ICA (Cocktail Party Attack), cross-gradient orthogonality
-- [ ] **Read Gradient Inversion on PEFT (Sami et al., CVPR 2025)** — PEFT dimensionality reduction makes inversion *easier*; directly validates thesis. **HIGH PRIORITY** — read before starting S3.3
-- [ ] **Read Cocktail Party Attack (ICML 2023)** — ICA-based gradient inversion, scales to N=1024 (needed for N>1)
-- [ ] **Read SPEAR (NeurIPS 2024)** — exact batch recovery via SVD + ReLU sparsity
-
-### Writing & Communication
-- [ ] **Write LaTeX summary** — `notes/lora_reconstruction_writeup.tex` (after Sprint 3 results)
-- [ ] **Email supervisor** with Sprint 2 + Phase 0 results and Sprint 3 plan
-- [ ] **Verify figure quality** — publication-ready (axes, legends, DPI, colorblind-safe)
-
-### Reading (Sprint 3 prep)
-- [ ] **Read Inverting Gradients (Geiping et al.)** — the gradient inversion algorithm Phase 0 implements. **HIGH PRIORITY** — may reveal hyperparameter guidance we're missing
-- [ ] Read R2F paper Section 3 in detail (decoder architecture) — needed for Sprint 4
-
 ### 2026-08-27 — whitened metric fixed (3-way cross-fit); arm-B re-confirm launched
 - **Metric fix LANDED**: whitened_metric.py upgraded 2-way→3-way disjoint cross-fit (U/numerator/denominator
   from 3 disjoint folds). Removes the winner's-curse denominator bias that faked "sharpens with N".

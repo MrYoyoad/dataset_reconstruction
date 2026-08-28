@@ -115,7 +115,7 @@ These are the guardrails that were violated once and then fixed — they are why
 | Multi‑class (>2) + re‑run across datasets | **DONE (MNIST+Fashion)** | CIFAR deferred; `multiclass_replication_plan_DRAFT.md` never finalized |
 | Consolidate the leakage story | **DONE** | `leakage_story_consolidated.{md,pdf}` + canonical figure; STATUS contradictions now fixed |
 | Supervisor top ask: activation × anchor × linearization crux | **PARTIAL / STALLED** | softplus_b knob done (911475); **job 857271 (21 configs) never analyzed** — the least‑complete ask |
-| Direct weight inversion axis | **Phase 0 DONE** | SSIM 0.57 @N=4 (500913); superposition wall; SimuDy reframe reply to Gal **not confirmed sent** |
+| Direct weight inversion axis | **Phase 0 DONE** | SSIM 0.57 @N=4 (500913); superposition wall; SimuDy reframe email to Gal SENT ~2026‑08‑21 |
 | Gradient bridge decoder | **Phases 1–2 DONE** | 0.951 cosine (956994); pixel end‑result = 0/40 (§2.3) |
 
 ---
@@ -124,7 +124,7 @@ These are the guardrails that were violated once and then fixed — they are why
 
 1. **Pixel reconstruction does not beat baseline (0/40)** — the headline gap. The rigorous next step is the J‑composed Fisher bridge (adapter‑space Fisher → image‑space via the data‑latent Jacobian → Cramér‑Rao/Fano floor) to tell whether the pipeline is information‑limited or decoder‑limited.
 2. **The activation crux (supervisor's top ask) is stalled** — job 857271's 21 configs were never analyzed; feature‑stability‑vs‑T and the flowers matched‑band are untested. Everything else is GELU‑only.
-3. **The SimuDy reframe reply to Gal was drafted but not confirmed sent** — a live blocking loop that gates the framing of the whole direct‑inversion axis.
+3. *(Resolved — the SimuDy reframe email to Gal was sent ~2026‑08‑21; the direct‑inversion axis framing is settled on the supervisor side. Next supervision meeting: ~2026‑08‑31.)*
 4. **The full‑FT‑vs‑LoRA "valley" comparison is built + audit‑passed but not yet run** (stage‑0 re‑running after a calibration‑ordering fix, job 375314); arms F/G unrun.
 5. **The g₀ predictor is INDETERMINATE at scale** — declare a single canonical ρ (n=12 0.857 vs n=24 0.777) and resolve the USPS OOD counterexample with margin‑at‑scale.
 6. **Record hygiene** — the active dataset‑sensitivity code + results are largely uncommitted (untracked package `__init__.py`); STATUS.md carries an old dead to‑do list; CLAUDE.md points at a superseded plan; the handover baton points at the wrong (Jacobian) thread. (STATUS's internal reconstruction contradiction is now fixed.)
