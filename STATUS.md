@@ -2651,3 +2651,15 @@ needed (put to yoado-6d/yoado-18): (a) shrink ε_D to pass linearity, accepting 
 vs LoRA (P4/B2 carry the structure comparability anyway); (b) accept alpha=-2.34 with an explicit caveat,
 conditional on B2 agreeing; (c) re-measure at full K first (K=10 alpha may be noisy) and enforce the
 bracket in the wave. NOT launching the primary arm D on an ε that failed its own linearity check.
+
+### 2026-08-29 — ε_D blocker RESOLVED by the shrink loop; valley part-2 (primary arm) launched
+The full-K α_D reproduced -2.337 FAIL (robust, not K-noise). The auditor-unanimous ε-shrink loop (built
+in-session, committed) fired: ε_D 0.2246 → 0.1123 (one ×0.5 shrink) → bracket PASS: alpha=-2.082
+(gate -2±0.3), d*-ratio 1.002 (<2), null[D] frac(p<.05)=0.05 qeff=0.10 (adequacy floor cleared).
+measurable=True, shrink_iters=1. E_eps needed 2 shrinks (alpha -1.915 PASS); C clean (0 shrinks). So the
+all-layers ε-analogue IS measurable in a linear-AND-adequate window (nonlinearity was at the larger
+RMS-matched ε). RMS undershoot 9.32 vs 9.97 target — IMMATERIAL to the normalized s(d)/d* headline
+(ε-invariant; caveat on raw-sens only). Part-2 (arm D primary + E_b0/E_eps + B2 + F LOO + B1 rescore)
+launched; its bracket-enforcement guard confirmed bracket[D].passed+measurable before running D. Jacobian
+arm G (501620) running in parallel. HEADLINE read still gated on B1 (dimension-invariance) + B2 (SGD
+cross-check) at full scale, per pre-registration. OBSERVE-framed; nothing concluded yet.
