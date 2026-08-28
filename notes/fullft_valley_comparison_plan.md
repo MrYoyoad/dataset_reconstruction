@@ -1,4 +1,9 @@
-# Full-FT Valley Comparison — Plan v1 (2026-08-28, PLANNER draft, pre-audit)
+# Full-FT Valley Comparison — Plan v1.1 (2026-08-28, PLANNER draft, pre-audit)
+
+**v1.1 trim (user directive):** keep the informative core only — the {A, C, D} ladder (rank vs
+depth is the whole story), the E validity control, and the user's explicit F/G asks; rungs 9→6,
+ε-bracket 3→2; arm B, arm H(+P3), and full-regime replication of the resolved composition arms are
+DEFERRED (not dropped, §2.3).
 
 **Parent program:** [dataset_sensitivity_program_plan.md](dataset_sensitivity_program_plan.md) (v3).
 This extension slots in as **§III.2-FV** (after S1, feeding S2/§III.6), and inherits every §II metric
@@ -57,10 +62,11 @@ part of Σ honestly, exactly as B0-randomness is part of ΔW=BA). The path-noise
 ε·std(θ₀,ℓ)·ξ, ξ~N(0,1)) so the trained reseed RMS spread of the LAYER-0 block matches the LoRA
 r=8 arm's measured reseed_noise on the same block (the shared readout surface). One calibration
 job; ε frozen; the same ε machinery reused for the full-rank-single-layer rung of the ladder.
-**Sensitivity check on the choice (mandatory):** rerun {p00_identity, p0_noise, r_cross} at ε/3
-and 3ε — pre-registered: the NORMALIZED profile s(d) (§ D3) moves d* by < 2× across the 9× ε
-bracket, while raw sens scales ≈ ε⁻² (linear-response gate; a fitted exponent far from −2 flags
-that ε is out of the linear regime — shrink ε and redo).
+**Sensitivity check on the choice (mandatory, trimmed to a 2-point bracket):** rerun
+{p00_identity, p0_noise, r_cross} at 3ε (one spot beside the calibrated ε) — pre-registered: the
+NORMALIZED profile s(d) (§D3) moves d* by < 2× across the 3× step, while the raw-sens slope
+between the two points is ≈ ε⁻² (linear-response gate; a slope far from −2 flags that ε is out of
+the linear regime — shrink ε and redo, adding the ε/3 point only then).
 
 **D3 — VALLEY-WIDTH FUNCTIONAL.** "Invisible" is a MAGNITUDE statement (LoRA near-dups were
 already DETECTABLE, p=0.002 at K=50). Per regime and target define the **normalized profile
@@ -85,9 +91,13 @@ rescoring is a CPU job, never a retrain.
 
 ## 2. Arms & configs (all bsub-only; stage-0 smoke first; rsync before submit)
 
-Common: mnist, N=16 (seed 42), gelu, T=1000, full-batch GD, float64, K=50 headline / K=12 stage-0,
-2 targets (the SAME target positions as job 268959), the EXACT similarity_ladder rungs incl.
-p00_identity, whitened_sensitivity(n_folds=5, p_max=3, n_perm=500). Implementation: a
+Common: mnist, N=16 (seed 42), gelu, T=1000, full-batch GD, float64, K=50 headline / K=12 stage-0
+(K stays at 50 — power is not where we trim), 2 targets (the SAME target positions as job 268959).
+**Reduced rung set (trim, 9→6):** {p00_identity, p0_noise, p3_rot15, r_nn, r_far, r_cross} — the
+calibration anchor, the near-duplicate, one mid rung, and the retrieved bracket; the EXACT
+similarity_ladder constructions, just filtered (`rung_filter`). Arm A keeps its completed 9-rung
+data; cross-regime profiles are compared on the SHARED 6 rungs.
+whitened_sensitivity(n_folds=5, p_max=3, n_perm=500). Implementation: a
 `train_full()` sibling of `arm_b_dilution.train_adapter` (same loop, same forward via
 `forward_logits` with all layers trainable and no BA) — swap ONLY the parameterization; import,
 never re-implement (design lock). lr per regime tuned ONCE on the baseline to the memorization
@@ -95,20 +105,27 @@ gate (max_bce < 1e-3 at T=1000), then frozen (see open question Q2).
 
 | Arm | Parameterization | Noise source | Rungs | Purpose |
 |---|---|---|---|---|
-| A (exists) | LoRA r=8, layer 0 | B0 reseed | all 9 | job 268959 = the LoRA profile (re-used, not re-run) |
-| B | LoRA r=32, layer 0 | B0 reseed | all 9 | rank ladder rung |
-| C | FULL-RANK single layer (L0 only trainable) | ε-perturb of L0 | all 9 | rank→∞ at fixed depth |
-| D | FULL FT all layers [PRIMARY] | ε-perturb all layers | all 9 | the full-regime profile + per-layer readout |
-| E (control) | LoRA r=8, layer 0 | ε-perturb of B0-equivalent scale (B0 fixed, θ₀-perturb) | {p00, p0_noise, r_med, r_cross} | **P4 noise-exchangeability**: same arm, both noise sources |
+| A (exists) | LoRA r=8, layer 0 | B0 reseed | 9 done; shared 6 used | job 268959 = the LoRA profile (re-used, not re-run) |
+| C | FULL-RANK single layer (L0 only trainable) | ε-perturb of L0 | the 6 | rank→∞ at fixed depth |
+| D | FULL FT all layers [PRIMARY] | ε-perturb all layers | the 6 | the full-regime profile + per-layer readout |
+| E (control) | LoRA r=8, layer 0 | ε-perturb of B0-equivalent scale (B0 fixed, θ₀-perturb) | {p00, p0_noise, r_far, r_cross} | **P4 noise-exchangeability**: same arm, both noise sources |
 | F | LOO removal, BOTH regimes (full-all vs LoRA r=8) | per-regime as above | one contrast (drop i), 6–8 targets | **leave-one-out weight footprint** (§2.1) |
 | G | Jacobian J = ∂vec(Δθ)/∂a, BOTH regimes | ε / B0 ensembles for SNR-whitening | tangent bases, reduced config | **local valley geometry** (§2.2) |
-| H (anchor, optional) | Haim-faithful from-scratch | ε-perturb of the small init | {p00, p0_noise, r_med, r_cross}, K=20 | regime-where-reconstruction-works anchor; P3 |
 
-The A→B→C→D ladder is the design spine: the valley narrowing monotonically with measurement count
-is the most elegant version of the whole comparison, and C isolates rank-at-fixed-depth from D's
-depth effect. Arms F and G are first-class (user-specified core scope), not optional: F measures
-the valley on the REMOVAL functional (the Feldman LOO object), G measures its LOCAL differential
-geometry (J's small singular directions ARE the flat valley).
+The **A→C→D ladder** is the design spine — three points that separate RANK from DEPTH, which is
+the whole story: A→C is the rank effect at fixed depth (r=8 → full-rank, same single layer), C→D
+is the pure depth/measurement-count effect. Arms F and G are first-class (user-specified core
+scope), not optional: F measures the valley on the REMOVAL functional (the Feldman LOO object),
+G measures its LOCAL differential geometry (J's small singular directions ARE the flat valley).
+
+### 2.3 Deferred (explicitly deferred, NOT dropped — one line each)
+- **Arm B (LoRA r=32 dial):** Jang-adjacent, lowest marginal information — C already anchors the
+  high-measurement end; activates only if the A→C step demands a rank-resolved interior point
+  (P1c then activates with it).
+- **Arm H (budget-Haim from-scratch anchor) + P3:** only if P1 lands AND the user asks; carries
+  the Q6 convergence-honesty question with it.
+- **Full-regime replication of the composition arms (duplication/imbalance/rarity):** resolved on
+  LoRA to image-identity effects (parent §III results table); no full-regime replication planned.
 
 ### 2.1 Arm F — leave-one-out weight effect, full vs LoRA
 
@@ -129,6 +146,11 @@ instead of drop) is listed as open question Q7.
 +0.88. Arm F measures the WEIGHT-SPACE side of the same Feldman LOO functional, in both regimes:
 does the removal footprint that drives behavioral memorization live early or deep, and is it
 proportionally larger in the full-weight regime?
+**Cheap piggyback readout (not an arm, ~0 extra compute):** correlate the full-regime per-target
+removal footprints with the EXISTING g₀ values (margin_vs_sensitivity / job-272504 data for the
+same images) — does the base-gradient predictor, established on LoRA (ρ=+0.78), transfer to the
+full regime for free? Reported as a spearman with n stated (6–8, SMALL-n, descriptive not
+confirmatory).
 
 ### 2.2 Arm G — Jacobian comparison (the "secret a's")
 
@@ -160,10 +182,10 @@ The T=5-vs-T=1000 regime mismatch with the dial is open question Q8.
 | # | Prediction (signed) | Kill / alternative reading |
 |---|---|---|
 | P1 | **d\*_full(D) < d\*_LoRA(A)**: s_full(d) rises EARLIER; s_full(p0_noise) ≥ 3× s_LoRA(p0_noise). Consistent with "reconstruction works because the valley is sub-perceptual". | Profiles identical (d\* ratio in [0.7, 1.4], per-rung s CIs overlapping) ⇒ valley width does NOT explain the reconstruction gap — the gap is pipeline/decoder or measurement-count-independent. Informative: kills the valley narrative, redirects to §III.6 Fisher bridge. |
-| P1b | Ladder monotone: d\*(A) ≥ d\*(B) ≥ d\*(C) ≥ d\*(D). | Non-monotone ⇒ rank per se is not the valley knob; identify which step breaks. |
-| P1c (theory, Jang 2024) | Since r=32 ≥ N=16 (NTK-equivalence regime), the B→C step is SMALL (profiles near-overlap) and the C→D step (adding DEPTH) carries most of the narrowing. | B→C large ⇒ the r≳N equivalence does not govern valley width — a publishable qualification of Jang-style equivalence for privacy. |
+| P1b | Ladder monotone over the trimmed spine: d\*(A) ≥ d\*(C) ≥ d\*(D), with the A→C (rank) and C→D (depth) step sizes reported separately. | Non-monotone ⇒ rank per se is not the valley knob; identify which step breaks. |
+| P1c (theory, Jang 2024; ACTIVATES WITH DEFERRED ARM B) | With r=32 ≥ N=16 (NTK-equivalence regime), the B→C step would be SMALL and C→D (DEPTH) carries most of the narrowing. Until B runs, the A→C step bounds the TOTAL rank effect at fixed depth; a small A→C step already argues depth-dominance without B. | B→C large ⇒ the r≳N equivalence does not govern valley width — a publishable qualification of Jang-style equivalence for privacy. |
 | P2 | Per-layer (arm D): L0 profile rises at smaller d than L1, L2 (pixel-carrying layer records the instance; deep layers the concept): d\*_L0 < d\*_L1. | Reversed ⇒ instance information lives DEEP — surprising; revisit the gradient-recording locality story before any write-up. |
-| P3 (arm H anchor, optional) | Per-image Haim reconstruction SSIM anti-correlates with per-image valley width: spearman ≤ −0.4. | No association ⇒ the valley-diameter reading of Haim blur is not supported; demote to metaphor. |
+| P3 (DEFERRED with arm H) | Per-image Haim reconstruction SSIM anti-correlates with per-image valley width: spearman ≤ −0.4. | No association ⇒ the valley-diameter reading of Haim blur is not supported; demote to metaphor. |
 | P4 (control) | Arm E: LoRA r=8 normalized profile under ε-noise ≈ under B0-noise (per-rung s within CIs). | Mismatch ⇒ the noise analogue is NOT exchangeable; the cross-regime comparison downgrades to qualitative and D2 must be re-based (this is the honest failure mode of the whole design — surface it, don't bury it). |
 | P5 (arm F) | (a) LOO removal detectable at p=0.002 in BOTH regimes; (b) per-target LOO footprints rank-correlate across regimes (spearman ≥ +0.5 over 6–8 targets) — the same images have the biggest removal footprint under either parameterization; (c) the FULL-regime per-layer LOO footprint follows the P2 depth ordering (L0 carries the largest normalized share / rises earliest); (d) normalized LOO footprint (per §D3 normalization by that regime's r_cross swap) is LARGER in full than LoRA — removal is harder to hide when more of it is measured. | (b) fails ⇒ the regimes memorize DIFFERENT images — the LoRA valley is not a widened version of the full-FT valley, and per-image leakage predictors (g₀) do not transfer across parameterization: major, publishable. (c) reversed ⇒ removal footprint lives deep — the depth story fails on the Feldman functional even if it holds on swaps. (d) fails while P1 passes ⇒ swap- and removal-sensitivity dissociate; report both, do not average. |
 | P6 (arm G) | **r_J(full) > r_J(LoRA)** at matched (N, k, T, U) — the measurement-count story made exact (r_J(LoRA) sits at its known saturation; the full map has no rank bottleneck); signed magnitude: r_J(full) ≥ 2× r_J(LoRA) at N=4, k=8. | r_J(full) ≈ r_J(LoRA) ⇒ the identifiable direction COUNT is set by the DATA (Nk), not the parameterization — the valley difference (if P1 passed) must then be spectral (direction gains), not directional (counts): reconcile with §I.4 before write-up. |
@@ -182,8 +204,9 @@ reportable.
    significantly nonzero d²(0) is an artifact-kill for that regime's entire dial. (LoRA reference:
    sens=0, p=1.000 exactly.)
 2. **ε→0 limit:** Σ→0, raw sens→∞ for any d>0; s(d) (a ratio of divergents) should limit finite.
-   Report the ε-bracket (ε/3, ε, 3ε) with the fitted raw-sens∝ε^α exponent (expect α≈−2) and
-   d\*(ε); pre-registered stability: d\* within 2× across the bracket.
+   Report the 2-point ε-bracket (calibrated ε, 3ε) with the between-point raw-sens∝ε^α slope
+   (expect α≈−2) and d\*(ε); pre-registered stability: d\* within 2× across the 3× step (the ε/3
+   point is added only if the slope gate fails).
 3. **Metric-CI gates on the NEW noise source** (§II standing requirement, re-run because Σ changed
    character): p-value uniformity over ≥20 reseed-vs-reseed redraws with ε-noise, and q_eff≈0 on
    that null — prerequisites for quoting ANY full-FT number.
@@ -195,13 +218,14 @@ reportable.
 
 ## 5. Pre-declared plots
 
-1. **HEADLINE — overlaid normalized profiles:** s(d_pixel), log-y, one curve per arm {A r8, B r32,
-   C full-single, D full-all}, threshold 0.1 line + d\* crossings marked. Expected shape: curves
-   shift LEFT monotonically A→D.
+1. **HEADLINE — overlaid normalized profiles:** s(d_pixel) on the shared 6 rungs, log-y, one
+   curve per arm {A r8, C full-single, D full-all}, threshold 0.1 line + d\* crossings marked.
+   Expected shape: curves shift LEFT monotonically A→C→D (a deferred arm-B curve slots between
+   A and C if it ever runs).
 2. **Per-layer fan (arm D):** s(d) for {L0, L1, L2, concat}. Expected: L0 leftmost.
-3. **Calibration panel:** raw sens vs ε (log-log, slope −2 guide) for 2 rungs; plus arm-E overlay
-   (B0-noise vs ε-noise profiles) — the P4 evidence in one figure.
-4. **(arm H anchor)** reconstruction-SSIM vs valley-width scatter, one point per image.
+3. **Calibration panel:** raw sens at the 2-point ε-bracket (log-log, slope −2 guide) for 2
+   rungs; plus arm-E overlay (B0-noise vs ε-noise profiles) — the P4 evidence in one figure.
+4. **(DEFERRED with arm H)** reconstruction-SSIM vs valley-width scatter, one point per image.
 5. **Arm F — per-layer LOO-footprint fan, full vs LoRA:** grouped bars (or paired fan) of the
    normalized LOO footprint per {L0, L1, L2, concat} for the full regime beside the LoRA (single-
    block) value, one panel per target + a pooled panel; expected: L0 dominates in full, and
@@ -213,18 +237,20 @@ reportable.
 
 ## 6. Compute & sequencing (WEXAC long-gpu; python -u; stage-0 gates)
 
-Per full-ladder arm: K=50 baseline + 9 rungs × 50 seeds × 2 targets ≈ 950 trainings × T=1000
-full-batch steps on a 784-1000-1000-1 MLP — same order as the LoRA ladder job (full-FT backprop
-cost ≈ LoRA's; only the update is bigger). Estimate ≈ job-268959 wall-clock per arm; arms B, C, D
-submit as parallel jobs (~1 GPU-day total). Arm E ≈ 0.4×; ε-calibration + bracket ≈ 0.3×;
-per-layer rescoring is CPU-only on saved stacks. Arm F: one contrast × 6–8 targets × K=50 × 2
-regimes ≈ 700–800 trainings + shared baselines ≈ 0.8× a ladder arm. Arm G: Nk=32 J columns × 2
-maps at N=4/k=8/T=5 — the unroll is tiny (T=5); the all-layer stretch is memory-, not time-bound;
-≈ hours (the LoRA half may reuse existing j1 runs). H anchor: 1 config × (K=20+4×20) × 50–100k
-steps ≈ 1–2 GPU-days — submitted LAST, only if P1 lands. Order: (1) stage-0 smoke all arms;
-(2) ε-calibration + metric-CI gates job; (3) arms B/C/D/E parallel + G (independent of the dial);
-(4) arm F (reuses arm-A/D baselines); (5) CPU per-layer rescore + figures; (6) H decision.
-STATUS.md + LESSONS_LEARNED.md updated same-turn per house rule.
+Per trimmed dial arm (C, D): K=50 baseline + 6 rungs × 50 seeds × 2 targets ≈ 650 trainings ×
+T=1000 full-batch steps on a 784-1000-1000-1 MLP (full-FT backprop cost ≈ LoRA's; only the update
+is bigger) ≈ well under the job-268959 wall-clock. Arm E: 4 rungs × 50 × 2 targets + its own
+ε-noise baseline ≈ 450 trainings. Arm F: one contrast × 6–8 targets × K=50 × 2 regimes ≈ 700–800
+trainings, minus baselines shared with A/D. Arm G: Nk=32 J columns × 2 maps at N=4/k=8/T=5 — the
+unroll is tiny; the all-layer stretch is memory-, not time-bound; ≈ hours (the LoRA half may
+reuse existing j1 runs). ε-calibration + the 2-point bracket ≈ 250 trainings. Per-layer rescoring
+and the F g₀-piggyback are CPU-only on saved stacks/existing data. **Total ≈ 2.7k trainings + G —
+comfortably under one GPU-day for the whole wave**, split into 3–4 parallel bsub jobs of a few
+hours each. Deferred arm H (1–2 GPU-days) is out of this wave by construction. Order: (1) stage-0
+smoke all arms; (2) ε-calibration + metric-CI gates job; (3) arms C/D/E parallel + G (independent
+of the dial); (4) arm F (reuses arm-A/D baselines) + the g₀ piggyback; (5) CPU per-layer rescore
++ figures; (6) deferred-item decisions (B, H). STATUS.md + LESSONS_LEARNED.md updated same-turn
+per house rule.
 
 ## 7. Open questions for the auditors (genuinely contestable — attack here)
 
