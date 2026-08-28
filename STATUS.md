@@ -2622,3 +2622,15 @@ N=2/layer-0/T=5 config, so arm G trains the SAME operator as arms C/D (else the 
 void). Expected max-abs-diff ≈ machine precision (both = w−lr·grad, BCE, W init frozen.clone(), biases
 frozen; train_full's forward_logits(empty adapter) == _full_forward) — no reconciliation of _full_forward
 needed. Pending parent stage-0 audit + bsub submit.
+
+### 2026-08-29 — CORRECTION to the margin-at-scale tercile interpretation (verified from source)
+Earlier (2026-08-28) I wrote the g0 predictor is "STRONG for high-g0 (high-leakage) images, noisy/absent
+among low-g0" and "works where leakage is high." THAT IS BACKWARDS. Verified from margin_at_scale.py:566
+(order = sorted ascending by g0) + summary.json: tercile_rhos = [low-g0, mid, high-g0] = [+0.881, +0.500,
+-0.119]. So the predictor is STRONG in the LOW-g0 tercile (+0.88), moderate mid (+0.50), and FLAT/slightly
+REVERSED in the HIGH-g0 tercile (-0.12, the sign-flip). Honest read: ρ(sens,g0) SATURATES with g0 — the
+relationship is strong where the base model does little work and PLATEAUS once g0 is already large. The
+overall ρ=+0.777 (INDETERMINATE) is carried by the low/mid range; the high-g0 flattening is the tercile
+sign-flip that kept it below PASS. The supervisor memo's "strongly predicts the high-leakage images"
+phrasing must be corrected to this saturating structure when next updated. OBSERVE-framed: WHY it saturates
+at high g0 is OPEN.
