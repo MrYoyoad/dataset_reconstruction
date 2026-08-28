@@ -1,0 +1,75 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{parskip}
+\newcommand{\R}{\mathbb{R}}
+\title{\textbf{How the leakage metrics are computed}}
+\author{}\date{}
+\begin{document}
+\maketitle
+\vspace{-3em}
+\noindent The exact-derivative pipeline behind the Jacobian $J$, the hard rank, and $q_{\mathrm{eff}}$ ---
+and where the training noise enters.
+
+\section*{1.\quad The one object: $J$, the sensitivity table}
+We hide $N$ private images and add a tiny nudge to each along $k$ directions. The secret is the
+$N{\times}k$ nudge-numbers, stacked as $a\in\R^{Nk}$. $J$ is a table with one \emph{row} per adapter
+weight ($p\approx 14{,}272$) and one \emph{column} per secret number ($Nk=160$). Entry $(w,j)$ says:
+if I wiggle secret $a_j$ a little, how much does adapter weight $w$ move? Column $j$ is the fingerprint
+secret $j$ leaves on the trained adapter.
+
+\section*{2.\quad The forward map}
+The adapter $\phi=(A,B)$ is the \emph{result} of $T$ fine-tuning steps (base $\theta$ frozen;
+$W=\theta_\ell+s\,BA$; $A_0=0$):
+\begin{align}
+x_i(a_i) &= x_i^0 + U_i\,a_i, \\
+\phi_{t+1}(a) &= \phi_t(a) - \eta\,g_t(a), \qquad g_t(a)=\nabla_\phi\,\mathcal L\big(f(x(a);\theta,\phi_t),y\big), \\
+Y(a) &= \operatorname{vec}\big(A_T(a),B_T(a)\big)\in\R^{p}.
+\end{align}
+The training gradient's core is the output residual, whose dimension is the whole
+binary-vs-multiclass mechanism:
+\[
+\text{residual}=\sigma(f)-y \ \ (\text{binary, }1\text{-dim}), \qquad
+\text{residual}=\operatorname{softmax}(f)-e_y \ \ (K\text{-class, }K{-}1\text{-dim}).
+\]
+
+\section*{3.\quad $J=\partial Y/\partial a$ (second order --- double backprop)}
+Because $\phi_T$ is produced by a process that itself computed gradients, differentiating it in $a$ is a
+derivative-of-a-derivative. With $\Psi_t=\partial\phi_t/\partial a$:
+\begin{equation}
+\Psi_{t+1}=(I-\eta H_t)\,\Psi_t-\eta M_t,\qquad \Psi_0=0,\qquad J=\Psi_T,
+\end{equation}
+\[
+H_t=\frac{\partial g_t}{\partial\phi}=\nabla_\phi^2\mathcal L\ (\text{Hessian}),\qquad
+M_t=\frac{\partial g_t}{\partial a}=\frac{\partial^2\mathcal L}{\partial\phi\,\partial a}\ (\text{mixed}).
+\]
+\[
+J=-\eta\sum_{t=0}^{T-1}\Big(\prod_{s=t+1}^{T-1}(I-\eta H_s)\Big)M_t .
+\]
+Autodiff evaluates the action of $H_t,M_t$ (never forms them). One column $Je_j$ is a
+forward-over-reverse product using $(J^\top u)\!\cdot\! v=u\!\cdot\!(Jv)$: compute $s=u^\top Y$, then
+$J^\top u=\partial s/\partial a$ (keeping the graph), then $Jv=\partial[(J^\top u)^\top v]/\partial u$ with
+$v=e_j$. This is \emph{exact}; finite differences only validate it ($\sim 10^{-8}$).
+
+\section*{4.\quad Hard rank}
+With SVD $J=\sum_i\sigma_i p_i q_i^\top$,
+\[
+r_J=\#\{\,i:\sigma_i>10^{-8}\sigma_1\,\}=\dim\operatorname{col}(J).
+\]
+(Also $\mathrm{eff\_rank}=\exp(-\sum_i\hat p_i\log\hat p_i)$, $\hat p_i=\sigma_i/\sum\sigma$: spectral
+\emph{shape} --- it drops as the spectrum concentrates, so it reads backwards; not a leakage metric.)
+
+\section*{5.\quad $q_{\mathrm{eff}}$ --- signal vs training noise}
+Model $Y=Y(0)+Ja+n$, $n\sim\mathcal N(0,\Sigma)$ with $\Sigma$ the covariance over random training
+seeds. Estimate it from $S$ re-runs, restrict to $\operatorname{col}(J)$ (basis $Q$):
+\[
+\Sigma_J=Q^\top\Sigma\,Q,\qquad J_Q=Q^\top J,\qquad F=J_Q^\top\,\Sigma_J^{-1}\,J_Q\ \ (\text{Fisher information}).
+\]
+With $\rho_i$ the singular values of the whitened $\Sigma_J^{-1/2}J_Q$ (so $\rho_i^2=\lambda_i(F)$),
+\[
+\boxed{\,q_{\mathrm{eff}}(\varepsilon)=\#\{\,i:\varepsilon\,\rho_i>1\,\}\,}.
+\]
+Adequacy: $\Sigma_J$ is $r_J{\times}r_J$, so $S\gtrsim 4r_J$ and $q_{\mathrm{eff}}$ must be stable across
+$\{S,2S\}$. The original ``97'' broke this ($S{=}64\ll r_J{=}160$); Round B uses $S=640,1280$.
+\end{document}
