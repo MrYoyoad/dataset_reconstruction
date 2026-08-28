@@ -155,8 +155,8 @@ max_bce is reported per regime alongside every headline.
 | E (control) | LoRA r=8, layer 0 | ε-perturb of B0-equivalent scale (B0 fixed, θ₀-perturb) | {p00, p0_noise, r_far, r_cross} | **P4 noise-exchangeability**: same arm, both noise sources |
 | F | LOO removal, BOTH regimes (full-all vs LoRA r=8) | per-regime as above | one contrast (drop i), 6–8 targets | **leave-one-out weight footprint** (§2.1) |
 | G | Jacobian J = ∂vec(Δθ)/∂a, BOTH regimes | ε / B0 ensembles for SNR-whitening | tangent bases, reduced config | **local valley geometry** (§2.2) |
-| B1 (§4.0 GATE) | arm-D stacks, dimension varied (all-layers vs random coordinate-half) | ε (same) | rescore + fresh-seed budget | dimension-invariance of d\* — gates the headline |
-| B2 (§4.0 GATE) | FULL FT all layers | SGD minibatch-order | {p0_noise, r_cross} | noise-source consistency of full-FT d\*/s — gates the headline |
+| B1 (§4.0 GATE) | arm-D stacks, dimension varied — coordinate subsets at **{~25k (≈LoRA ambient), ~100k, ~450k, 1.8M}** (re-check strengthening: a single 2× point cannot license the 70× A→D span; d\* must be flat across the fractions spanning toward LoRA's dimension) | ε (same) | rescore (multi-fraction) + fresh-seed budget | dimension-invariance of d\* across the ACTUAL comparison span — gates the headline |
+| B2 (§4.0 GATE) | FULL FT all layers | SGD minibatch-order | {p0_noise, **mid/crossing rung** (the one the arm-A pre-check places at s≈0.1 — re-check strengthening: endpoints can agree while the d\*-determining crossing differs), r_cross} | noise-source consistency of full-FT d\*/s AT the d\*-determining region — gates the headline |
 
 The **A→C→D ladder** is the design spine — COMBINED rank+depth narrowing, presented with **NO
 NTK-equivalence claim (TB3: the Jang framing is dropped)**: A→C is the rank effect at fixed depth
@@ -368,8 +368,14 @@ updated same-turn per house rule.
 - **Q8 (arm G T-mismatch) → S4/TB4:** mandatory T-sweep T={1,5,20} + the early-training caveat;
   P6 T=5-conditional and demoted; P7 leads the arm.
 
-**Still open (for the PASS re-check round):**
-- **Q1 (noise-analogue defensibility):** narrowed, not closed. The empirical adjudication is now
-  P4 (with the §4.1.7 power gate) + §4.0-B2, and TF7 makes every cross-regime statement
-  conditional on them. What remains: whether the re-checks accept that conditional structure as
-  sufficient license, or demand SGD-order noise as a co-primary source.
+**Q1 — RESOLVED (metric re-check, yoado-6d PASS):** the conditional structure (P4 + §4.1.7 power
+gate + §4.0-B2 + TF7) IS sufficient license; SGD-order noise is NOT demanded as co-primary — and
+deliberately so: making the full-FT arm SGD would change parameterization AND algorithm at once,
+breaking the single-variable design that is the plan's core strength. B2's role is exactly the
+scoped adjudication: if full-FT d\*/s flips ε↔SGD the headline dies; if it agrees, the noise
+source is not driving the result. Strengthenings folded: B1 widened to the multi-fraction span
+{~25k, ~100k, ~450k, 1.8M} (a 2× null cannot license the 70× headline span) and B2 gains the
+mid/crossing rung (endpoints can agree while the d\*-determining crossing differs). SCOPE
+STATEMENT (explicit): the claim is the FULL-BATCH full-FT valley under a calibrated init-noise
+analogue, B2-confirmed not a synthetic-noise artifact at the d\*-determining rungs; the
+SGD-regime (ecological) full-FT valley is a separate question, out of scope / future work.
