@@ -24,10 +24,12 @@ The two tracks now tell ONE honest story (figure: figures/combined/leakage_ident
   36 vs 59 @ε=1, noise-limited) and VANISHES at high ε (71 vs 72 @ε=3, signal-limited) = it sits EXACTLY where
   the noise-floor mechanism predicts (hard to fake); (2) **held-acc ASYMMETRY** — memorizing HARMS binary
   held-acc (−0.10/−0.11) but NOT 10-class (~0.00), so 10-class leaks LESS AND at ~no utility cost. Final
-  honest capstone: *LoRA leakage is real, high, reconstructable to pixels (bridge SSIM/grids), and 10-class
-  leaks FEWER directions than binary (NOT amplified) as a confirmed training-MAP property — N=20 magnitude
-  bounded by a characterized meta-gradient-chaos limit, direction confirmed at fully-converged N=10.* Figure:
-  figures/combined/leakage_identifiability_plus_reconstruction.png.
+  honest capstone: *LoRA leakage is real and high AS GEOMETRY (recoverable direction count) for both bases,
+  and 10-class leaks FEWER directions than binary (NOT amplified) — a confirmed training-MAP property; N=20
+  magnitude bounded by a characterized meta-gradient-chaos limit, direction confirmed at fully-converged N=10.
+  **Pixel reconstruction from the adapter does NOT yet beat the mean-image baseline (0/40 — see the corrected
+  RECONSTRUCTION bullet below): the GEOMETRY leaks, the PIXELS do not yet.** Figure (corrected 2026-08-28,
+  honest decoded<baseline bars): figures/combined/leakage_identifiability_plus_reconstruction.png.
 - **RECONSTRUCTION (gradient-bridge, pixels) — CORRECTED 2026-08-26 (was overclaimed):** the earlier
   "recognizable images, ssim_norm ~0.57-0.61" claim leaned on the mean/std-MATCHED ssim_norm (inflated) vs a
   RAW mean-image baseline — apples-to-oranges. Checked against the project's own baseline gate
