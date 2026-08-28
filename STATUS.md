@@ -2634,3 +2634,20 @@ overall ρ=+0.777 (INDETERMINATE) is carried by the low/mid range; the high-g0 f
 sign-flip that kept it below PASS. The supervisor memo's "strongly predicts the high-leakage images"
 phrasing must be corrected to this saturating structure when next updated. OBSERVE-framed: WHY it saturates
 at high g0 is OPEN.
+
+### 2026-08-29 — Full-FT valley STAGE-0: ALL 8 GATES PASS (job 479077) + jacobian stage-0 pass (369715)
+Plumbing fully validated. Runtime: metric self-test 4/4; calib lr-search in-band (C=0.5,D=0.2,B2=0.1);
+arms C/D/E_b0/E_eps/B2/F each STAGE-0 OK; d=0 artifact-kill reads sens=0/p=1.000 in BOTH regimes; arm-F
+LOO ran both regimes; B1 dimension-rescore FIXED (was a KeyError from baseline int-keys vs per-rung
+'v_L{l}' string keys — _concat_stack now accepts both) and shows d* FLAT across fractions (25k→100k:
+2.80→2.72, intervals overlapping). Jacobian stage-0 (369715): parity gate PASSED ("SAME operator as
+arms C/D", FD ~1e-8), r_J 16/16.
+S2 per-layer numerator (K=10 plumbing, NOT for interpretation): at p0_noise arm D, ‖Δμ‖ L0=0.022 > L1=0.013
+> L2=0.003 — the pixel-carrying layer-0 has the largest near-dup signal (P2 direction; must re-check at full K).
+OPEN — the one pre-wave blocker (make-or-break, auditors' Q1): the arm-D (all-layers, PRIMARY) ε-bracket
+FAILED its linearity gate at K=10: alpha=-2.337 vs gate [-2.3,-1.7] (arm C passed, alpha=-2.06). At the
+LoRA-RMS-matched ε (0.225), the all-layers ε-analogue is marginally outside linear response. Decision
+needed (put to yoado-6d/yoado-18): (a) shrink ε_D to pass linearity, accepting a Σ-MAGNITUDE undershoot
+vs LoRA (P4/B2 carry the structure comparability anyway); (b) accept alpha=-2.34 with an explicit caveat,
+conditional on B2 agreeing; (c) re-measure at full K first (K=10 alpha may be noisy) and enforce the
+bracket in the wave. NOT launching the primary arm D on an ε that failed its own linearity check.
