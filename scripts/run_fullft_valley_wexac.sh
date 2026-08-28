@@ -33,14 +33,18 @@ python -u -m experiments.dataset_sensitivity.whitened_metric
 if [ $? -ne 0 ]; then echo "FATAL: metric self-test FAILED. Aborting wave."; exit 1; fi
 echo "metric self-test PASSED."
 
-echo ""; echo "########## GATE 2: stage-0 smoke (arm C tiny: K=10, 1 target, 3 rungs) ##########"; date
+echo ""; echo "########## STEP 2: calibration FIRST (lr search + eps fixed-point + bracket + null gate + S6c pre-check) — arms need calibration.json ##########"; date
+python -u -m experiments.dataset_sensitivity.fullft_valley --arm calib --device cuda
+if [ $? -ne 0 ]; then echo "FATAL: calibration FAILED. Aborting wave."; exit 1; fi
+
+echo ""; echo "########## GATE 3: stage-0 smoke (arm C tiny, now with calibrated lr) ##########"; date
 python -u -m experiments.dataset_sensitivity.fullft_valley --arm C --stage0 --device cuda
 if [ $? -ne 0 ]; then echo "FATAL: stage-0 smoke FAILED. Aborting wave."; exit 1; fi
 echo "stage-0 PASSED."
 
-echo ""; echo "########## STEP 3: calibration (lr search + eps fixed-point + bracket + null gate + S6c pre-check) ##########"; date
-python -u -m experiments.dataset_sensitivity.fullft_valley --arm calib --device cuda
-if [ $? -ne 0 ]; then echo "FATAL: calibration FAILED. Aborting wave."; exit 1; fi
+if [ ! -f results/fullft_valley/calibration.json ]; then
+    echo "FATAL: calibration.json missing after calib step. Aborting."; exit 1
+fi
 if [ ! -f results/fullft_valley/calibration.json ]; then
     echo "FATAL: calibration.json missing after calib step. Aborting."; exit 1
 fi

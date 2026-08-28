@@ -23,6 +23,9 @@ FV="python -u -m experiments.dataset_sensitivity.fullft_valley"
 echo "########## GATE 0: whitened-metric acceptance self-test (CPU) ##########"
 python -u -m experiments.dataset_sensitivity.whitened_metric || { echo FATAL metric; exit 1; }
 
+echo "########## GATE 0.5: calib (lr-search into max_bce band + ε) — WRITES calibration.json (arms need it) ##########"
+$FV --arm calib --stage0 --device cuda || { echo FATAL calib; exit 1; }
+
 echo "########## GATE 1: arm C (full-rank single layer L0, ε-noise) ##########"
 $FV --arm C --stage0 --device cuda || { echo FATAL armC; exit 1; }
 
