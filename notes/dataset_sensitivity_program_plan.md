@@ -25,7 +25,11 @@ private set is present in the adapter, above the training-randomness floor.
 The whitened sensitivity d² is exactly the right object for a ceiling because, under the Gaussian
 equal-Σ approximation, **d² = 2·KL(with-change ‖ without-change) = the optimal-detector (Neyman–Pearson)
 SNR²** — the best ANY attacker can do at telling D from D′. As a Fisher information it **lower-bounds
-(Cramér–Rao) the estimation error of the adapter-space change Δμ**. Therefore:
+(Cramér–Rao) the estimation error of the adapter-space change Δμ — for UNBIASED estimators**; a
+prior-equipped (biased) attacker can beat the CRB floor (that is precisely what the Direction-3
+diffusion/SDS priors of §I.5/§III.6 are designed to do), so the **all-attacker ceiling is the mutual-
+information / Fano rate-distortion bound** (I(image; adapter) ≥ R(D)), with CRB as the unbiased-attacker
+floor beneath it. Therefore:
 
 > **d² is an UPPER BOUND / NECESSARY CONDITION on every downstream attack, reconstruction included.**
 > If d² ≈ 0 (change indistinguishable from reseeding), no attack can recover the change. If d² is large,
@@ -52,8 +56,9 @@ d² as a reconstruction-MSE bound). The honest bridge exists and is buildable:
 > **J-composed Fisher bridge** (next-phase item §III.6). The data-Jacobian **J = ∂(adapter)/∂(image)**
 > already exists and is validated (the jacobian_spectrum / exact double-backprop work). Push the
 > adapter-space Fisher through J to obtain the **image-space Fisher** F_img = Jᵀ Σ⁻¹ J, then Cramér–Rao
-> (or Fano rate-distortion) gives a genuine **lower bound on achievable pixel error**. That converts "the
-> adapter is sensitive" into "no attacker can reconstruct image i to better than distortion δ_i", and
+> gives the **unbiased-attacker pixel-error floor**, and Fano/rate-distortion (I(image;adapter) ≥ R(D))
+> the **all-attacker bound** — prior-equipped attackers can beat CRB but not Fano. That converts "the
+> adapter is sensitive" into "no attacker (of the stated class) reconstructs image i better than δ_i", and
 > makes the 0/40 interpretable (is the pipeline near or far from the information-theoretic floor?).
 
 ### I.4 Definitions reconciliation — ONE leakage vocabulary
@@ -66,13 +71,18 @@ Two programs measure leakage with different instruments; v3 fixes one bridge so 
 
 - **q_eff is the SAME construct in both** — a thresholded/coarsened count of a whitened d²-type spectrum;
   it is NOT an independent metric from d² (§II reporting rule 2).
-- **Rank reconciliation (audit C3).** The two programs' rank behavior is only *apparently* opposite and
-  fully reconciles: **r_J SATURATES at every rank** (a directional COUNT — once the r private directions
-  are spanned, more rank adds no new directions), while **absolute d² GROWS with rank partly
-  MECHANICALLY** (higher rank = more whitened dimensions in the quadratic form, so the scalar inflates by
-  dimension even at fixed per-direction signal). So "leakage grows with rank" (d², absolute) and "leakage
-  saturates with rank" (r_J, directional) are the same physics read on two scales. v3's §II rule 3
-  requires the dimension-corrected d² for any cross-rank claim, which removes the apparent contradiction.
+- **Rank reconciliation (audit C3; precision fix per yoado-6e re-check).** The two programs' rank
+  behavior is only *apparently* opposite: **r_J SATURATES at every rank** (a directional COUNT), while
+  **absolute d² grew ~15× r=8→32 in arm E**. What was actually held fixed in that measurement: the
+  metric's retained-direction count **p≤3 was FIXED at both ranks** (same K=50, N=16, same images) — so
+  the naive "more whitened dimensions in the quadratic form" story does NOT explain the growth. The
+  empirical tell: **the permutation-NULL floor itself grew ~13×** (d²_null ≈1.25 at r=8 → ≈16.3 at r=32,
+  k=1) — the estimator's finite-sample scale is strongly rank-dependent (the ΔW ambient dimension grows
+  4×, inflating both null and observed), while the debiased sensitivity grew ~15×. **Whether
+  per-direction leakage TRULY grows with rank, or the growth is mostly this ambient-dimension scale, is
+  OPEN** pending the §II rule-3 re-analysis (d²-per-recoverable-direction with the null-d²(r) overlay).
+  Until then the honest statement is: directional count saturates (r_J); the absolute-d² rank growth is
+  dimension-confounded and quoted only as "≥, uncorrected, at stated K".
 
 ### I.5 Parked / pointer items (schedule a decision, do not go silent)
 - **Multi-class knob table + `subhead_k` (head-width knob):** PARKED. Executable spec lives in
@@ -140,9 +150,12 @@ Both are prerequisites for quoting ANY arm; schedule them as a standing metric-C
 **MECHANISM — this is NTK / gradient-recording, NOT max-margin (theory reframe T1, MAKE-OR-BREAK).**
 Our OWN data forces this: the init-gradient quantity g₀ fits sensitivity at **ρ=+0.857**, while the
 theory-licensed **max-margin dual proxy λ=σ(−margin_T) fits WORSE at ρ=+0.538** — the KKT quantity is the
-weaker predictor. The correct mechanism is the project's own "LoRA as gradient projection" framing:
-ΔW ≈ a low-rank projection of accumulated training-gradient contributions (Jang 2024: LoRA ≈ NTK in the
-lazy regime), so **a large base gradient ⇒ a large, detectable adapter component.** Max-margin / KKT is
+weaker predictor. The mechanism the evidence POINTS TO — to be **confirmed by the §III.1 lazy/NTK
+diagnostic** (spearman(g₀,g_T) + per-module ‖ΔWℓ‖/‖W₀,ℓ‖), not yet established — is the project's own
+"LoRA as gradient projection" framing: ΔW ≈ a low-rank projection of accumulated training-gradient
+contributions (Jang 2024: LoRA ≈ NTK in the lazy regime), so **a large base gradient ⇒ a large,
+detectable adapter component.** (The g₀>λ evidence EARNS the falsification "not max-margin"; the positive
+identification awaits the diagnostic.) Max-margin / KKT is
 **demoted to the T→∞ limiting connection** (a motivation for *why* hard/atypical images matter
 asymptotically), NOT the operative explanation at our finite T. **No KKT/max-margin language may be used
 as an explanation without the T2 convergence diagnostics below.**
@@ -244,9 +257,17 @@ T's swap-sensitivity twin-PRESENT vs twin-ABSENT.
   independently). The observed drop (or its absence) directly adjudicates the §III mechanism claim.
 - **Headline plot:** paired bars, sensitivity(T) twin-absent vs twin-present; expected under NTK: bars
   ~equal; under max-margin: present ≪ absent.
-- **Kill/interpretation:** either outcome is a result (no drop ⇒ NTK confirmed, contributions separable,
-  instance attribution stands; large drop ⇒ max-margin shielding, similar images NOT separable). The only
-  failure is an underpowered null — enforce K≥50, p≤3.
+- **BLOCKER-FIX (yoado-6e re-check, REQUIRED before S2 runs): decompose — a bare d² drop is AMBIGUOUS.**
+  Both mechanisms can drop the scalar d² by different routes: max-margin shields via the SIGNAL (T's
+  converged contribution shrinks — numerator ‖Δμ(T)‖ DROPS); NTK with a similar twin can drop d² via the
+  DENOMINATOR (T's gradient direction overlaps the twin's ⇒ whitening sees more variance there) while its
+  numerator HOLDS (T still records its own gradient). **S2 must therefore report the NUMERATOR
+  ‖Δμ(T)‖ present-vs-absent separately from d²** (the same numerator/denominator decomposition that
+  cracked the arm-B artifact, used constructively): numerator DROPS ⇒ max-margin; numerator HOLDS (any d²
+  drop denominator-side) ⇒ NTK. The paired-bars plot gets a second panel: ‖Δμ(T)‖ absent vs present.
+- **Kill/interpretation (on the DECOMPOSED readout):** numerator-holds ⇒ NTK confirmed, contributions
+  separable, instance attribution stands; numerator-drops ⇒ max-margin shielding, similar images NOT
+  separable. The only failure is an underpowered null — enforce K≥50, p≤3.
 
 **S3 — OOD-STYLE DIGIT INJECTION (= old arm G, margin-framed).** Inject visually-similar-but-different-
 style digits (**USPS via torchvision**, closest drop-in; EMNIST fallback — no scraping) into an MNIST set.
