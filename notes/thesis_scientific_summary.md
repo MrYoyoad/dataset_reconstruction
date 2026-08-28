@@ -66,7 +66,7 @@ Which images leak most is predictable **from the public base model alone** — n
 
 ### 2.6 The activation crux (the supervisor's top ask) — a clean dissociation
 
-Two links in the chain behave oppositely: **smoothness → linearization fidelity HOLDS** (softplus is the best linearizer; the softplus_b(β) knob is monotonic ~12× over β, job 911475), but **linearization → leakage magnitude is REFUTED** (Spearman ≈ +0.03 on MNIST; it even inverts on flowers). Under the realistic free‑coefficient (ReLU) attacker the ranking flips: **silu/gelu leak MOST** — the oracle "softplus wins" was a matched‑extraction artifact. *(Status: analysis done for the softplus_b knob; the full 21‑config sweep job 857271 remains un‑analyzed — see §6.)*
+Two links in the chain behave oppositely: **smoothness → linearization fidelity HOLDS** (softplus is the best linearizer; the softplus_b(β) knob is monotonic ~12× over β, job 911475), but **linearization → leakage magnitude is REFUTED** (Spearman ≈ +0.03 on MNIST; it even inverts on flowers). Under the realistic free‑coefficient (ReLU) attacker the ranking flips: **silu/gelu leak MOST** — the oracle "softplus wins" was a matched‑extraction artifact. *(Status: softplus_b knob analyzed; job 857271's full spectrum — **152 configs** incl the kinked controls (relu/leaky_relu/hardswish) — is being rescored now (job 389926) for the first‑pass activation ranking. Load‑bearing limitation: every config is T=1 and rarely ntk‑matched, so the *matched‑weight‑change leakage ranking* and the *feature‑stability‑vs‑T* curve still need NEW GPU runs — see §6.)*
 
 ![The activation crux dissociates: smoothness sets linearization fidelity but NOT leakage magnitude.](figures/crux/softplusb_linearization_vs_leakage.png)
 
@@ -114,7 +114,7 @@ These are the guardrails that were violated once and then fixed — they are why
 | Effect of fine‑tuning on classification accuracy | **DONE (from rigor logs)** | memorization↔utility tradeoff, asymmetric: MNIST 10‑class ~unchanged (Δ≈−0.02), binary moderate (Δ≈−0.10), Fashion 10‑class catastrophic (up to Δ≈−0.75) — §2.5 |
 | Multi‑class (>2) + re‑run across datasets | **DONE (MNIST+Fashion)** | CIFAR deferred; `multiclass_replication_plan_DRAFT.md` never finalized |
 | Consolidate the leakage story | **DONE** | `leakage_story_consolidated.{md,pdf}` + canonical figure; STATUS contradictions now fixed |
-| Supervisor top ask: activation × anchor × linearization crux | **PARTIAL / STALLED** | softplus_b knob done (911475); **job 857271 (21 configs) never analyzed** — the least‑complete ask |
+| Supervisor top ask: activation × anchor × linearization crux | **IN PROGRESS** | softplus_b knob done (911475); job 857271 (152 configs, full spectrum incl kinked) rescoring now (389926); matched‑wc leakage ranking + feature‑stability‑vs‑T need new GPU runs (T=1 limitation) |
 | Direct weight inversion axis | **Phase 0 DONE** | SSIM 0.57 @N=4 (500913); superposition wall; SimuDy reframe email to Gal SENT ~2026‑08‑21 |
 | Gradient bridge decoder | **Phases 1–2 DONE** | 0.951 cosine (956994); pixel end‑result = 0/40 (§2.3) |
 
@@ -123,7 +123,7 @@ These are the guardrails that were violated once and then fixed — they are why
 ## 6. Honest limitations & open loops (the things to close)
 
 1. **Pixel reconstruction does not beat baseline (0/40)** — the headline gap. The rigorous next step is the J‑composed Fisher bridge (adapter‑space Fisher → image‑space via the data‑latent Jacobian → Cramér‑Rao/Fano floor) to tell whether the pipeline is information‑limited or decoder‑limited.
-2. **The activation crux (supervisor's top ask) is stalled** — job 857271's 21 configs were never analyzed; feature‑stability‑vs‑T and the flowers matched‑band are untested. Everything else is GELU‑only.
+2. **The activation crux (supervisor's top ask) — in progress.** Job 857271's 152 configs (full smoothness spectrum incl kinked controls) are being rescored now (job 389926) → first‑pass activation ranking. Not yet closed: every config is T=1 and rarely ntk‑matched, so the *matched‑weight‑change leakage ranking* and *feature‑stability‑vs‑T* require new GPU runs with a corrected LR band; flowers matched‑band untested; the rest of the program is GELU‑only.
 3. *(Resolved — the SimuDy reframe email to Gal was sent ~2026‑08‑21; the direct‑inversion axis framing is settled on the supervisor side. Next supervision meeting: ~2026‑08‑31.)*
 4. **The full‑FT‑vs‑LoRA "valley" comparison is built + audit‑passed but not yet run** (stage‑0 re‑running after a calibration‑ordering fix, job 375314); arms F/G unrun.
 5. **The g₀ predictor is INDETERMINATE at scale** — declare a single canonical ρ (n=12 0.857 vs n=24 0.777) and resolve the USPS OOD counterexample with margin‑at‑scale.
