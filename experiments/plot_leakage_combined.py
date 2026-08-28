@@ -131,8 +131,9 @@ def main():
     fig.text(0.5, -0.10,
              "identifiability: results/jacobian_j1_roundB_*.pth (job 484948 lineage) | "
              "reconstruction: results/gb_e2e_*.pth + metrics.py baseline gate | audit yoado-a2/aa | "
-             "honest state: geometry leaks & is high; converting it to PIXELS is an open limitation.",
-             ha="center", fontsize=8, color="#555")
+             "the 0/40 is the adapter-only DECODER/recipe failing, NOT an information limit — identifiability "
+             "(left) shows the info is present ⇒ decoder/recipe-limited, not information-limited. OPEN.",
+             ha="center", fontsize=7.7, color="#555")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")
     plt.close(fig)

@@ -84,15 +84,16 @@ def main():
     ax2.set_ylim(0.55, 1.02)
     axS.set_xticks(x)
     axS.set_xticklabels(acts, rotation=40, ha="right", fontsize=9)
-    axS.set_title("Crux first-pass — NO clean smoothness→leakage law (kinked-cluster driven; sign flips)",
-                  fontsize=11, fontweight="bold")
+    axS.set_title("Crux first-pass OBSERVATION — no positive smoothness→leakage trend here (kinked-cluster; sign flips)",
+                  fontsize=10.5, fontweight="bold")
     axS.text(0.015, 0.97,
              "← kinked            smoothness →            smooth\n"
              "⚠ ORACLE upper-bound (free_coefficients=False) — NOT the realistic attack. Documented\n"
              "precedent: free-c FLIPS the activation ranking (crux_activation_analysis.md:165). So this\n"
-             "two-cluster read may REVERSE under free-c. Positive 'smoother⇒more leakage' law REFUTED,\n"
-             "but −0.38 is NOT a negative law (sign flips smooth-only +0.58). PROVISIONAL on wc AND mode.",
-             transform=axS.transAxes, va="top", fontsize=7.6,
+             "two-cluster read may REVERSE under free-c. What we OBSERVE here: no positive 'smoother⇒more\n"
+             "leakage' trend; −0.38 is not a negative law either (sign flips smooth-only +0.58). Open;\n"
+             "provisional on wc AND mode — free-c ladder + T-sweep are what we observe next.",
+             transform=axS.transAxes, va="top", fontsize=7.4,
              bbox=dict(boxstyle="round", fc="#fdecea", ec="#b00020", alpha=0.92))
     h1, l1 = axS.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
@@ -126,9 +127,9 @@ def main():
              transform=axB.transAxes, va="top", fontsize=8.0,
              bbox=dict(boxstyle="round", fc="#eef2fb", ec="#8899cc", alpha=0.92))
 
-    fig.suptitle("Activation crux — ORACLE-mode FIRST-PASS (152 configs, T=1): positive 'smoother⇒more "
-                 "leakage' law REFUTED; ranking PROVISIONAL on wc AND mode (free-c may reverse it)",
-                 fontsize=10.5, fontweight="bold", y=1.0)
+    fig.suptitle("Activation crux — ORACLE-mode FIRST-PASS OBSERVATION (152 configs, T=1): no positive "
+                 "'smoother⇒more leakage' trend seen; open, provisional on wc AND mode (free-c may reverse)",
+                 fontsize=10, fontweight="bold", y=1.0)
     fig.text(0.5, -0.03,
              f"data: {CSV} | leakage=ctrl_margin_norm (NOT raw, NOT eff_rank) @ best-matched wc≈{TARGET_WC}, n=13 DISTINCT acts | "
              "⚠ MODE=ORACLE (free_coefficients=False) = upper bound, NOT the realistic attack (free-c flips the ranking, "

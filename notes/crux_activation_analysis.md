@@ -1,13 +1,16 @@
 # The Crux: Activation × Anchor × Linearization — Analysis of Existing Data
 
-> **UPDATE 2026-08-28 — full 152-config rescore (was 27); refutation of the POSITIVE law holds and sharpens.**
+> **UPDATE 2026-08-28 — full 152-config rescore (was 27). OBSERVATIONS from the ORACLE first-pass — not
+> conclusions; the free-c ladder (392821) + feature-stability-vs-T (390026) are what we observe next.**
+> (Posture, per Gal via yoado-18: observe, don't conclude — a first-pass is where we start digging.)
 > Rescored all 152 surviving job-857271 tensors (`results/rescored_activations_857271_full_2026-08-28.csv`,
 > bsub 389926) — whole smoothness spectrum incl. kinked controls relu/leaky_relu/hardswish, which DID run
 > (never scored, not never run). Leakage = `ctrl_margin_norm` (clip-robust) at best-matched wc≈0.10, Spearman
 > over **n=13 DISTINCT activations** (softplus-β variants held separate). Honest read (metric-audited, yoado-6d):
-> - **The positive "smoother⇒more leakage" hypothesis is REFUTED** — this *extends* the earlier "+0.03
->   no-relationship" (different metric/scope, and now a sign change), it is **not** "the same number
->   strengthened."
+> - **We do NOT observe the positive "smoother⇒more leakage" hypothesis in this oracle first-pass** (it is
+>   contradicted here) — consistent with, and extending, the earlier "+0.03 no-relationship" observation
+>   (different metric/scope, now a sign change), NOT "the same number strengthened." Whether it holds under
+>   the realistic free-c attack is open — that is exactly what job 392821 is observing.
 > - **−0.38 is NOT a robust negative smoothness law.** It is a **two-cluster** effect: relu (+0.588),
 >   leaky_relu (+0.542), selu (+0.487) leak ~4× the rest (mean 0.43 vs 0.10) — but hardswish, also kinked,
 >   does NOT (0.11). And the sign **FLIPS within the smooth-only set: +0.58** (n=9). A single Spearman

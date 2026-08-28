@@ -4,14 +4,18 @@ Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; 
 
 ---
 
-## Crux (Gal's #1) — Step 1 DONE: full 152-config activation rescore + first-pass ranking (2026-08-28)
+## Crux (Gal's #1) — Step-1 OBSERVATIONS: full 152-config activation rescore + first-pass ranking (2026-08-28)
+
+(Posture per Gal/yoado-18: observe, don't conclude. These are first-pass OBSERVATIONS from ORACLE data,
+not settled conclusions; the free-c ladder + feature-stability-vs-T are what we observe next.)
 
 Job 857271's tensors SURVIVED (152 configs, not 21) — full smoothness spectrum incl. kinked controls
 relu/leaky_relu/hardswish (which DID run, just were never scored; job died at RUNLIMIT before analysis).
 Rescored all 152 (bsub 389926) → `results/rescored_activations_857271_full_2026-08-28.csv`. First-pass
 ranking on `ctrl_margin_norm` (established clip-robust leakage metric; NOT raw ctrl_margin, NOT eff_rank)
-at best-matched wc≈0.10, Spearman over n=13 DISTINCT activations (metric-audited, yoado-6d): **the positive
-"smoother⇒more leakage" law is REFUTED.** But the −0.38 full-spectrum Spearman is NOT a negative law: it's a
+at best-matched wc≈0.10, Spearman over n=13 DISTINCT activations (metric-audited, yoado-6d): **we do NOT
+observe a positive "smoother⇒more leakage" trend** in this oracle first-pass. The −0.38 full-spectrum Spearman
+is NOT a negative law either: it's a
 **two-cluster** effect (relu/leaky_relu/selu leak ~4× the rest — but hardswish, also kinked, does NOT) and the
 sign **FLIPS within the smooth-only set (+0.58)**; wc-PROVISIONAL (all T=1, ntk_passed=False → sign/magnitude
 may move under true matched-wc). `feature_stability` tracks smoothness only weakly (+0.29 — strong linearization
