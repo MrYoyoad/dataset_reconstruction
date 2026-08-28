@@ -2581,3 +2581,15 @@ model gradient predicts behavioral memorization ITSELF, not only our metric => t
 (base gradient -> adapter movement -> memorization -> leakage) holds end-to-end at n=12. Note: g0 has
 only 3 distinct values across the 12 arm-D cells (coarse); margin-at-scale (job 272504, 24 stratified
 targets) is the clean test of the g0->sensitivity link.
+
+### 2026-08-28 — DISTANCE DIAL (job 268959): the adapter records the CONCEPT, not the instance
+S1 similarity-graded swap, 9 rungs x 2 targets, d=0 identity control = sens 0 / p=1.000 (calibrated).
+Sensitivity RISES monotonically with swap distance; near-duplicate (p0_noise, tiny perturbation) is
+NEAR-NULL (sens 0.03-0.07) while a cross-digit swap is large (sens 8-24). => a near-duplicate swap is
+nearly INVISIBLE to the adapter: it records the concept/pixel-neighborhood, not the exact instance.
+PRIVACY STATEMENT: recovery is concept-level — an attacker cannot distinguish an image from its close
+neighbors. Predictor comparison (pooled n=18): sens~d_PIXEL +0.807 (BEST) > sens~|Δg0| +0.657 >
+sens~d_encoder(DINO) +0.399 (WORST — likely DINO out-of-domain on upscaled MNIST, builder-flagged).
+So sensitivity tracks RAW PIXEL distance best here; the semantic-encoder distance underperforms.
+CAVEAT: n=18 small; p1_bright (global brightness) amplified by ds_mean centering — read with care.
+Feeds twin-shielding (S2): near-duplicates invisible predicts a twin should shield.
