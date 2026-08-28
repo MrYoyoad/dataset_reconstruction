@@ -1,13 +1,15 @@
 # Thesis — Consolidated Scientific Summary
 
 *Reconstructing / detecting private training data from LoRA‑fine‑tuned model weights.*
-*Prepared 2026‑08‑28. Single organized record of what has been established, with figures, examples, honest caveats, and open loops. Numbers cite job IDs; every headline carries its limitation.*
+*Prepared 2026‑08‑28 (rev 2026‑08‑29). An organized record of what has been OBSERVED so far, with figures, examples, caveats, and open questions. Numbers cite job IDs; every headline carries its limitation.*
+
+**How to read this — stance (per the user's 2026‑08‑29 directive).** This is **early exploratory research**: the results below are **observations, not thesis‑level conclusions** — hold them loosely. Each carries open questions (CIs, confounds, alternatives); a metric "pass" means "no blocker to observing more," not "settled." **Crucially, the leakage/reconstruction numbers here characterize only the WEAKEST attacker** — prior‑free, recipe‑blind, adapter‑only, per‑image. Stronger attackers go *past* them: generative priors (Direction‑3), known‑recipe inversion (e.g. the recent CNN‑inversion work), structural leakage (class / shared‑perturbation / N‑structure), and simply a better decoder. So "the adapter doesn't reconstruct" means "this weakest attacker doesn't" — a **lower bound on leakage, not an upper bound on what an attacker could do.**
 
 ---
 
 ## 0. State of the project in one paragraph
 
-We ask how much a released fine‑tuned adapter leaks about its private training set, and whether that leakage can be turned back into the images. Two things are now solid and honest: **(1) the leakage GEOMETRY is real and high** — an attacker can recover a large fraction of the private‑data directions from the adapter, and, per image, *how much* an image leaks is predictable from the public base model alone (its base‑gradient‑norm g₀); **(2) but end‑to‑end PIXEL reconstruction from the adapter does not yet beat a trivial baseline** — the information is present, the decoder cannot yet convert it to images. A counter‑intuitive sub‑result: **multi‑class training does not amplify leakage — it leaks *fewer* recoverable directions** than binary, an effect that lives at low LoRA rank and vanishes as the adapter approaches full fine‑tuning. The active frontier extends this to the full‑weight regime (the "valley‑width" comparison) and to a per‑image privacy predictor.
+We ask how much a released fine‑tuned adapter leaks about its private training set, and whether that leakage can be turned back into the images. Two observations so far (held loosely): **(1) the leakage GEOMETRY looks real and high** — an attacker can recover a large fraction of the private‑data directions from the adapter, and, per image, *how much* an image leaks appears predictable from the public base model alone (its base‑gradient‑norm g₀); **(2) but end‑to‑end PIXEL reconstruction by the weakest (prior‑free, adapter‑only) attacker does not yet beat a trivial baseline** — the information is present, that decoder cannot yet convert it to images (a *stronger* attacker — priors, known recipe — may). A counter‑intuitive sub‑result: **multi‑class training does not amplify leakage — it leaks *fewer* recoverable directions** than binary, an effect that lives at low LoRA rank and vanishes as the adapter approaches full fine‑tuning. The active frontier extends this to the full‑weight regime (the "valley‑width" comparison) and to a per‑image privacy predictor.
 
 ---
 
@@ -26,7 +28,7 @@ Both feed the thesis end‑goal (Haim et al. lineage): **reconstruction** of the
 
 ### 2.1 Leakage is high; multi‑class leaks FEWER directions (not amplified)
 
-At convergence both binary (BCE) and 10‑class (CE) bases leak a large fraction of all private directions. The surprise: **10‑class recovers FEWER** at every attacker budget ε — the opposite of the intuition that more classes leak more. Confirmed at a fully‑converged N=10 clean lock (q_eff 36 < 59 @ ε=1; job 484948). The earlier claim of a **"2× multi‑class amplification" is RETRACTED** — it was a low‑lr underfit + undersampling artifact; at healthy lr both bases fill the signal subspace from the first training steps.
+At convergence both binary (BCE) and 10‑class (CE) bases leak a large fraction of all private directions. The surprise: **10‑class recovers FEWER** at every attacker budget ε — the opposite of the intuition that more classes leak more. Observed consistently, including a fully‑converged N=10 lock (q_eff 36 < 59 @ ε=1; job 484948) — a robust *observation* across the configs run so far, not yet a settled conclusion. The earlier claim of a **"2× multi‑class amplification" is RETRACTED** — it was a low‑lr underfit + undersampling artifact; at healthy lr both bases fill the signal subspace from the first training steps.
 
 ![Left: identifiability — multi-class (orange) leaks fewer recoverable directions than binary (blue) at every attacker budget ε. Right: reconstruction — every decoded cell is below the mean-image baseline (0/40).](figures/combined/leakage_identifiability_plus_reconstruction.png)
 
@@ -38,7 +40,7 @@ Sweeping LoRA rank r ∈ {2,4,8,16,32} (job 581629): the multi‑class "leaks‑
 
 ### 2.3 Reconstruction: geometry leaks, pixels do NOT (the honest correction)
 
-On the like‑for‑like RAW‑SSIM comparison, **0 of 40 decoded adapter‑only arms beat the trivial mean‑image baseline** (audit‑verified across 20 result files). The number that had circulated — "recognizable digits, ssim_norm 0.57–0.61" — used the mean/std‑MATCHED `ssim_norm` (which inflates raw by ~0.1–0.3) compared against a RAW baseline: apples‑to‑oranges. Even the **TRUE‑ΔW oracle** (known‑recipe upper bound) fails the baseline on the small nets, clearing it in only 5/12 cells. **Pixel reconstruction from the adapter alone is an OPEN LIMITATION, not a result** — the geometry (§2.1, §2.4) is where the leakage genuinely lives.
+On the like‑for‑like RAW‑SSIM comparison, **0 of 40 decoded adapter‑only arms beat the trivial mean‑image baseline** (audit‑verified across 20 result files). The number that had circulated — "recognizable digits, ssim_norm 0.57–0.61" — used the mean/std‑MATCHED `ssim_norm` (which inflates raw by ~0.1–0.3) compared against a RAW baseline: apples‑to‑oranges. Even the **TRUE‑ΔW oracle** (known‑recipe upper bound) fails the baseline on the small nets, clearing it in only 5/12 cells. **For the weakest (prior‑free, recipe‑blind, adapter‑only) attacker, pixel reconstruction is an OPEN LIMITATION, not a result** — the geometry (§2.1, §2.4) is where the leakage currently shows up. This 0/40 is a **lower bound**: it says this weakest attacker fails, NOT that the images are unrecoverable — generative priors, known‑recipe inversion, or a stronger decoder could exceed it, and testing that is exactly the open direction.
 
 ![Every decoded (adapter-only) reconstruction is BELOW its mean-image baseline (0/40 on the raw comparison); the oracle clears it only on 5/12 easy cells.](figures/combined/reconstruction_vs_baseline.png)
 
