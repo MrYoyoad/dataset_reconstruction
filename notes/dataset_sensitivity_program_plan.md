@@ -34,9 +34,11 @@ SNR²** — the best ANY attacker can do at telling D from D′. As a Fisher inf
 ### I.2 The inherited reconstruction result (the gap between ceiling and achievement)
 On record ([leakage_story_consolidated.md](leakage_story_consolidated.md) §3, verified yoado-a2/aa across
 20 result files): the end-to-end **pixel** reconstruction FAILS the honest bar — **0 of 40 decoded
-adapter-only arms beat the trivial mean-image baseline** on the like-for-like raw-SSIM comparison; even
-the **TRUE-ΔW oracle** fails the baseline on small nets (e.g. fashion N=2 gelu 0.411 < 0.646). The
-*geometry* leaks (r_J / q_eff are high, §I.4); the *pixels* do not yet.
+adapter-only arms beat the trivial mean-image baseline** on the like-for-like raw-SSIM comparison
+(recognizable on the clip-robust ssim_norm — decoded ~0.57–0.61, visible digits in the grids — but soft
+and not baseline-beating on raw; the raw/mean-baseline bar is the honest one, per the clip-correction
+audit); even the **TRUE-ΔW oracle** fails the baseline on small nets (e.g. fashion N=2 gelu
+0.411 < 0.646). The *geometry* leaks (r_J / q_eff are high, §I.4); the *pixels* do not yet.
 
 **This program characterizes the ceiling; the 0/40 is the ceiling-to-achievement gap.** The two are
 consistent: a high detection ceiling with a failed pixel attack means the information is present but the
