@@ -2570,3 +2570,14 @@ stratified, typicality-controlled, job pending) is the clean arbiter of whether 
 break is a scheduled follow-up (is it smoothness or a real OOD predictor breakdown?), NOT yet a
 refutation of the capstone. Supervisor memo's g0 claim stands pending margin-at-scale; the OOD wrinkle
 gets stated honestly.
+
+### 2026-08-28 — VALIDATION GATE PASSED (job 272309, §III.0 make-or-break)
+rho(memorization, sensitivity) = +0.881, perm-p=0.0001, n=12; robust excl. m=1 LOO-degenerate cells:
++0.850, p=0.003 (n=9). => whitened adapter-sensitivity GENUINELY TRACKS behavioral (leave-one-out)
+memorization — the program is measuring memorization, not just parametric detectability. Downstream
+scaling (§III.1 margin-at-scale, §III.2 similarity) is DE-RISKED (the full §III.3 H gate at scale is
+still required before any "privacy" claim). BONUS: rho(memorization, g0) = +0.798, p=0.002 — the base-
+model gradient predicts behavioral memorization ITSELF, not only our metric => the theory chain
+(base gradient -> adapter movement -> memorization -> leakage) holds end-to-end at n=12. Note: g0 has
+only 3 distinct values across the 12 arm-D cells (coarse); margin-at-scale (job 272504, 24 stratified
+targets) is the clean test of the g0->sensitivity link.
