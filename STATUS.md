@@ -10,10 +10,14 @@ Job 857271's tensors SURVIVED (152 configs, not 21) — full smoothness spectrum
 relu/leaky_relu/hardswish (which DID run, just were never scored; job died at RUNLIMIT before analysis).
 Rescored all 152 (bsub 389926) → `results/rescored_activations_857271_full_2026-08-28.csv`. First-pass
 ranking on `ctrl_margin_norm` (established clip-robust leakage metric; NOT raw ctrl_margin, NOT eff_rank)
-at best-matched wc≈0.10: **Spearman(smoothness, leakage) = −0.38** (kinked relu/leaky_relu/selu leak MOST
-at 0.49–0.59 with LOWEST NTK survival); `feature_stability` tracks smoothness (+0.29). Corroborates &
-strengthens the earlier "+0.03 REFUTED" (crux_activation_analysis.md) on the full spectrum: **smoother→more
-leakage REFUTED; linearization fidelity does NOT set leakage magnitude.** Figure + committed generator:
+at best-matched wc≈0.10, Spearman over n=13 DISTINCT activations (metric-audited, yoado-6d): **the positive
+"smoother⇒more leakage" law is REFUTED.** But the −0.38 full-spectrum Spearman is NOT a negative law: it's a
+**two-cluster** effect (relu/leaky_relu/selu leak ~4× the rest — but hardswish, also kinked, does NOT) and the
+sign **FLIPS within the smooth-only set (+0.58)**; wc-PROVISIONAL (all T=1, ntk_passed=False → sign/magnitude
+may move under true matched-wc). `feature_stability` tracks smoothness only weakly (+0.29 — strong linearization
+evidence is the softplus-β monotonicity, job 911475, not this); softplus-β leakage is NON-monotonic (not a law).
+Robust: **no clean monotonic smoothness→leakage law in the first-pass; kinked relu/leaky_relu/selu leak most.**
+Figure + committed generator:
 `figures/crux/activation_ranking_857271.png` / `experiments/plot_activation_ranking.py`.
 **OPEN (needs GPU, user's compute call):** all configs T=1 & ntk_passed=False → this is a first-pass, NOT
 the matched-wc leakage ranking; the clean matched-`weight_change` ranking + the feature-stability-vs-T

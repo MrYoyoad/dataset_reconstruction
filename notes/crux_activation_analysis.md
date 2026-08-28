@@ -1,19 +1,26 @@
 # The Crux: Activation × Anchor × Linearization — Analysis of Existing Data
 
-> **UPDATE 2026-08-28 — full 152-config rescore CORROBORATES the refutation (was 27 configs).**
-> All 152 surviving job-857271 tensors were rescored (`results/rescored_activations_857271_full_2026-08-28.csv`,
-> bsub 389926) — the whole smoothness spectrum incl. the kinked controls relu/leaky_relu/hardswish, which
-> DID run (they were never scored, not never run). On the established metric `ctrl_margin_norm` at
-> best-matched wc≈0.10: **Spearman(smoothness, leakage) = −0.38** (was +0.03 on 27) — kinked relu (+0.588),
-> leaky_relu (+0.542), selu (+0.487) leak the MOST while having the LOWEST NTK survival; `feature_stability`
-> tracks smoothness (+0.29 spectrum, +0.71 within the softplus-β knob). So "smoother→more leakage" is
-> **REFUTED, now stronger and on the full spectrum**; linearization fidelity does NOT set leakage magnitude.
-> Figure + committed generator: `figures/crux/activation_ranking_857271.png` / `experiments/plot_activation_ranking.py`.
-> **Load-bearing caveat:** every config is T=1 and `ntk_passed`=False → this is a FIRST-PASS at the
-> best-matched-wc point, NOT the matched-wc leakage ranking; the clean matched-`weight_change` ranking and
-> the feature-stability-vs-T curve require NEW GPU runs with a corrected LR band (surfaced to the user as
-> the crux GPU-closure decision). softplus-β leakage is +0.60 within-family but NON-monotonic (b50 rises
-> back toward relu-like) — not a clean law either.
+> **UPDATE 2026-08-28 — full 152-config rescore (was 27); refutation of the POSITIVE law holds and sharpens.**
+> Rescored all 152 surviving job-857271 tensors (`results/rescored_activations_857271_full_2026-08-28.csv`,
+> bsub 389926) — whole smoothness spectrum incl. kinked controls relu/leaky_relu/hardswish, which DID run
+> (never scored, not never run). Leakage = `ctrl_margin_norm` (clip-robust) at best-matched wc≈0.10, Spearman
+> over **n=13 DISTINCT activations** (softplus-β variants held separate). Honest read (metric-audited, yoado-6d):
+> - **The positive "smoother⇒more leakage" hypothesis is REFUTED** — this *extends* the earlier "+0.03
+>   no-relationship" (different metric/scope, and now a sign change), it is **not** "the same number
+>   strengthened."
+> - **−0.38 is NOT a robust negative smoothness law.** It is a **two-cluster** effect: relu (+0.588),
+>   leaky_relu (+0.542), selu (+0.487) leak ~4× the rest (mean 0.43 vs 0.10) — but hardswish, also kinked,
+>   does NOT (0.11). And the sign **FLIPS within the smooth-only set: +0.58** (n=9). A single Spearman
+>   dresses a two-group gap with an opposite within-group trend up as a gradient → do not report −0.38 as a law.
+> - **wc-PROVISIONAL:** all T=1, `ntk_passed`=False, not truly matched (sigmoid at wc 0.01). Leakage scales
+>   with weight_change, so sign/magnitude **may move under true matched-wc** — exactly what the GPU re-sweep fixes.
+> - `feature_stability` tracks smoothness only **weakly (+0.29)** — the strong linearization evidence is the
+>   softplus-β β-monotonicity (job 911475), NOT this. softplus-β leakage is **non-monotonic** (b50 rises back
+>   toward relu-like) → report as non-monotonic, not a within-family "+0.60 trend."
+> - Robust takeaway: **no clean monotonic smoothness→leakage law in this first-pass; kinked relu/leaky_relu/selu
+>   leak most (wc-provisional).** The matched-wc GPU re-sweep (user approved Full closure) turns this into the
+>   actual leakage ranking. Figure + generator: `figures/crux/activation_ranking_857271.png` /
+>   `experiments/plot_activation_ranking.py`.
 
 **Date:** 2026-08-21 · **Scope:** pure re-analysis of on-disk results (no GPU runs).
 **Sources:** `results/rescored_batch_2026-08-13.csv` (256 rows), `results/flowers32_rescored.csv` (27),

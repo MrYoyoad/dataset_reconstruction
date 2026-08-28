@@ -84,14 +84,15 @@ def main():
     ax2.set_ylim(0.55, 1.02)
     axS.set_xticks(x)
     axS.set_xticklabels(acts, rotation=40, ha="right", fontsize=9)
-    axS.set_title("Crux first-pass — leakage & NTK-survival DIVERGE across the smoothness spectrum",
+    axS.set_title("Crux first-pass — NO clean smoothness→leakage law (kinked-cluster driven; sign flips)",
                   fontsize=11, fontweight="bold")
     axS.text(0.015, 0.97,
              "← kinked            smoothness →            smooth\n"
-             "REFUTED: kinked relu/leaky_relu/selu (red) leak the MOST yet have the\n"
-             "LOWEST NTK survival — linearization fidelity does NOT set leakage.\n"
-             "Spearman(smoothness, leakage) = −0.38  (feature_stability +0.29).",
-             transform=axS.transAxes, va="top", fontsize=8.4,
+             "The positive 'smoother⇒more leakage' hypothesis is REFUTED as a law, but −0.38\n"
+             "is NOT a negative law either: sign FLIPS (smooth-only +0.58 vs full −0.38). It's a\n"
+             "2-CLUSTER gap — relu/leaky_relu/selu leak ~4× the rest (yet hardswish, also kinked,\n"
+             "does NOT). wc-PROVISIONAL (all T=1, ntk-unmatched): sign/magnitude may move.",
+             transform=axS.transAxes, va="top", fontsize=8.0,
              bbox=dict(boxstyle="round", fc="#fdecea", ec="#b00020", alpha=0.92))
     h1, l1 = axS.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
@@ -119,20 +120,20 @@ def main():
     axB.set_xticklabels([b.replace("softplus_", "") for b in bacts], rotation=30, ha="right", fontsize=9)
     axB.set_title("softplus-β knob (one family, only smoothness varies)", fontsize=11, fontweight="bold")
     axB.text(0.03, 0.97,
-             "sharp ← β → smooth. Within-family: feature_stability rises\n"
-             "with smoothness (+0.71); leakage +0.60 but NON-monotonic\n"
-             "(b50 rises back toward relu-like) — not a clean law either.",
+             "sharp ← β → smooth. feature_stability rises with smoothness,\n"
+             "but leakage is NON-monotonic (b50 rises back toward relu-like)\n"
+             "— NOT a law; a single within-family Spearman would mislead.",
              transform=axB.transAxes, va="top", fontsize=8.0,
              bbox=dict(boxstyle="round", fc="#eef2fb", ec="#8899cc", alpha=0.92))
 
-    fig.suptitle("Activation crux — FIRST-PASS on 152 surviving job-857271 configs (T=1, unmatched-wc): "
-                 "smoothness→NTK-survival holds; smoothness→leakage REFUTED",
-                 fontsize=11.5, fontweight="bold", y=1.0)
+    fig.suptitle("Activation crux — FIRST-PASS on 152 job-857271 configs (T=1, wc-provisional): "
+                 "the positive 'smoother⇒more leakage' law is REFUTED (no clean law either way)",
+                 fontsize=11, fontweight="bold", y=1.0)
     fig.text(0.5, -0.03,
-             f"data: {CSV} | leakage=ctrl_margin_norm (NOT raw ctrl_margin, NOT eff_rank) @ best-matched wc≈{TARGET_WC} | "
-             "CAVEAT: all T=1, ntk_passed=False → first-pass, NOT the matched-wc ranking; "
-             "matched-wc + feature-stability-vs-T need new GPU runs.",
-             ha="center", fontsize=7.8, color="#555")
+             f"data: {CSV} | leakage=ctrl_margin_norm (NOT raw ctrl_margin, NOT eff_rank) @ best-matched wc≈{TARGET_WC}, "
+             "Spearman over n=13 DISTINCT activations | CAVEAT: all T=1, ntk_passed=False → wc-PROVISIONAL first-pass, "
+             "sign/magnitude may move; matched-wc ranking + feature-stability-vs-T need new GPU runs.",
+             ha="center", fontsize=7.6, color="#555")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")
     plt.close(fig)
