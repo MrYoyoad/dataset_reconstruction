@@ -770,8 +770,13 @@ def run_loo_arm(args, tag):
 # arm B1 — dimension-invariance GATE (§4.0-B1): CPU rescore of arm-D's SAVED stacks
 # --------------------------------------------------------------------------- #
 def _concat_stack(per_layer, layers):
-    """{layer: [K, out, in] f32} -> [K, Σ out*in] float64 (upcast for the metric)."""
-    return torch.cat([per_layer[l].reshape(per_layer[l].shape[0], -1).to(torch.float64)
+    """{layer: [K, out, in] f32} -> [K, Σ out*in] float64 (upcast for the metric).
+    Accepts either integer layer keys (the baseline `dtheta_f32={l:...}`) or the
+    per-rung `v_L{l}` string keys (the v-stacks saved by measure_rung) — the two
+    savers key differently, so resolve both here."""
+    def _get(l):
+        return per_layer[l] if l in per_layer else per_layer[f"v_L{l}"]
+    return torch.cat([_get(l).reshape(_get(l).shape[0], -1).to(torch.float64)
                       for l in layers], dim=1)
 
 
