@@ -269,7 +269,7 @@ rsync -avz papers/ wexac:~/papers/
 
 - [STATUS.md](STATUS.md) — current project status: what's done, what's not started, known issues, pending tasks
 - [LESSONS_LEARNED.md](LESSONS_LEARNED.md) — running log of insights, pitfalls, and things to remember
-- [notes/experiment_plan.md](notes/experiment_plan.md) — **single source of actionable to-do** (the three meeting additions + DI-Phase 0…3 direct-inversion sequence + GB-Phase 0…2 Gradient Bridge track). Start here for "what to do next."
+- [notes/next_experiment_plan.md](notes/next_experiment_plan.md) — **single source of actionable to-do (CURRENT).** Start here for "what to do next." (The former [notes/experiment_plan.md](notes/experiment_plan.md) is SUPERSEDED — background only, kept for the DI/GB phase history; do not use its checkboxes as live state.) For the active dataset-sensitivity front see [notes/dataset_sensitivity_program_plan.md](notes/dataset_sensitivity_program_plan.md); the consolidated science-state is [notes/thesis_scientific_summary.md](notes/thesis_scientific_summary.md).
 - [notes/thesis_update_briefing.md](notes/thesis_update_briefing.md) — canonical post-meeting briefing (2026-05-14): direct weight inversion, the three additions, honesty conventions
 - [notes/unified_direction_analysis.md](notes/unified_direction_analysis.md) — direction reconciliation + "Direct Weight Inversion — New Primary Axis" section
 - [notes/reconstruction_approaches.tex](notes/reconstruction_approaches.tex) — catalog of reconstruction approaches and next steps (March 2026); Approach G is the precursor to direct weight inversion
