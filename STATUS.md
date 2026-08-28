@@ -2552,3 +2552,21 @@ FASHION DUPLICATION (job 246873): replicates sub-linear (β r8=0.288, r32=0.359,
    the dangerous knob (sens ~45-71 at r32 vs single-digits at r8). Twist vs mnist: β(r32)>β(r8) slightly
    (mnist was equal) — capacity modulates duplication a bit on harder data. Fashion detectability
    (246872) still running.
+
+### 2026-08-28 (late) — Fashion detectability + OOD injection + distance-dial calibration
+FASHION DETECTABILITY (job 246872, arm B on fashion): DONE. p=0.002 at N=8/16/32, all memorized,
+whitened_sens bounded 0.66-1.66. Core "one image always detectable" result GENERALIZES to Fashion.
+DISTANCE DIAL (job 268959, running): the audit-mandated d=0 identity rung reads sens=0, p=1.000 EXACTLY
+at both stage0 (K=12) and full (K=50) — the dial is CALIBRATED (nonzero would have been an artifact-kill).
+Stage0 (n=4): Spearman(sens,d_encoder)=+0.80, (sens,|Δg0|)=+1.00 — gradient-distance predicts even here.
+Full 9-rung result pending.
+OOD INJECTION (job 268961) — FIRST COUNTEREXAMPLE to the g0 predictor (HONEST FLAG): USPS digits have
+3.3x LARGER base g0 (predicted to leak MORE) but measured amplification ratio 0.675 (leak LESS/equal).
+AND style-only swap (0.338) > within-source USPS swap (0.172) => "the STYLE is what the adapter notices."
+CAVEAT: n=2 (tiny); and the builder-flagged confound is live — USPS 16->28 upsampling makes them SMOOTHER
+(lower HF energy), so a high-g0 image whose swap moves the adapter LITTLE is exactly the smoothness
+confound, not necessarily a true predictor failure. RESOLUTION: margin-at-scale (n=24, in-distribution,
+stratified, typicality-controlled, job pending) is the clean arbiter of whether g0 predicts; the OOD
+break is a scheduled follow-up (is it smoothness or a real OOD predictor breakdown?), NOT yet a
+refutation of the capstone. Supervisor memo's g0 claim stands pending margin-at-scale; the OOD wrinkle
+gets stated honestly.
