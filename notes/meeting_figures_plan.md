@@ -65,17 +65,23 @@ shows the info is present ⇒ decoder/recipe-limited, not information-limited).
 > mean-image baseline — a result at/below its own trivial predictor carries no structural info); and any
 > N-sweep correlation must guard against pseudo-replication (report over DISTINCT units, not correlated rows).
 
-### F4 (NEW) — leakage vs DATASET SIZE (distinct-image N)   ·  builder: yoado-1f + spec-confirm yoado-6d
-- **Science / what it measures:** how per-image leakage/sensitivity changes as N = number of DISTINCT
-  training images grows (NOT duplicate copies — Gal explicitly excludes dilution/duplicate-count).
-- **Metric (yoado-6d to pin):** per-image whitened sensitivity d² (or q_eff|col(J), or margin) measured at
-  N ∈ {2,4,10,20,…}, distinct images, matched recipe. Reuse `whitened_metric.py` / the Jacobian N-sweep;
-  the key control is that added images are DISTINCT, and the readout is per-image (not summed).
-- **Observe-caption:** "What we OBSERVE: does per-image leakage decay / plateau / hold as the distinct
-  dataset grows — leakage BEYOND the weakest attacker's reach (recovering N / structure is a different,
-  easier target than per-image pixels). OPEN: the functional form and whether it's competition or capacity."
-- **Guards:** own trivial-baseline gate (what does a structure-blind predictor of N score?); N-sweep ρ over
-  DISTINCT configs, not correlated rows (no pseudo-replication).
+### F4 (NEW) — RECOVER N (infer dataset size from the adapter)   ·  builder: yoado-1f  ·  METRIC HELD pending Gal
+- **RE-SPEC (yoado-18 audit fix):** the earlier metric ("per-image sensitivity d² vs N") was the per-image
+  DILUTION object the swarm DEPRIORITIZED — dropped. The intended question (Gal: "learn the NUMBER of data
+  points that was used") is a STRUCTURAL leak: can an attacker INFER N from the adapter, above a structure-blind
+  baseline?
+- **Science / what it measures:** is there a signal in the adapter (ΔW / A,B) that predicts the training-set
+  size N — recovering N as a quantity, NOT how each image's fingerprint scales.
+- **Metric (HELD until Gal clarifies (a)/(b)/(c)):** candidate = a predictor of N from adapter features
+  (e.g. ΔW spectrum / hard-rank / a small learned regressor) scored as N-recovery error, vs a structure-blind
+  baseline (guessing the prior-mean N). NOT per-image sensitivity vs N (that is the excluded dilution). yoado-18
+  is flagging the (a) dilution / (b) recover-N / (c) "does the whole set leak more at bigger N" ambiguity to
+  Gal; his "number of data points" wording points to (b). **Do not build until Gal picks the reading.**
+- **Observe-caption:** "What we OBSERVE: whether N is recoverable from the adapter above a structure-blind
+  baseline — leakage BEYOND the weakest attacker's reach (recovering the dataset SIZE is a different, easier
+  target than the per-image pixels the 0/40 measures). OPEN: the reading (pending Gal) and the recovery floor."
+- **Guards:** own structure-blind baseline gate (recovery must beat guessing prior-mean N); any correlation
+  over DISTINCT configs, no pseudo-replication.
 
 ### F5 (NEW) — recover the SHARED PERTURBATION   ·  builder: yoado-1f + spec-confirm this session/yoado-18
 - **Science / what it measures:** a different (often easier) threat model — recover the COMMON transformation
@@ -94,9 +100,11 @@ shows the info is present ⇒ decoder/recipe-limited, not information-limited).
 ### (Track note, not in Gal's F-list) — CRUX closure figures, in-progress from this session
 `figures/crux/activation_ranking_857271.png` (oracle first-pass, re-toned observational),
 `feature_stability_vs_T.png` (job 390026), `freec_ladder_ranking.png` (job 392821, the realistic ranking).
-**Question for yoado-18/Gal:** do the crux (activation×smoothness) figures belong in THIS meeting set, or are
-they a separate crux deliverable? They answer "does smoothness change leakage/linearization," not Gal's
-similar/size/shared-perturbation priorities. Flagging so they're neither force-fit nor dropped.
+**Inclusion = Gal's call (yoado-18 surfaced it with a rec).** It's "Gal's #1" per STATUS so it should be
+REPRESENTED, but it's the most provisional thread (oracle-mode, the "REFUTED" being walked back, free-c ladder
+392821 still running and it could FLIP the ranking). **Decision (adopted, pending Gal):** include as a clearly
+labeled in-progress OBSERVATION block ("first-pass, ranking test running, open"), and HOLD the final crux
+figure until the free-c ladder lands so nothing is premature. Prominence is Gal's.
 
 ---
 
