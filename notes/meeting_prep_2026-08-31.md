@@ -104,26 +104,24 @@ adapter-only inversion is the immediate next step.
   pixel signal concentrated early. Directly answers "how does the imprint distribute across layers."
 - **Caveat:** read on the NUMERATOR (per-layer d* is denominator-confounded); K-scale plumbing.
 
-### F-F. Activation crux — supervisor's TOP ask — OWNED BY yoado-ed (authoritative figure pending)
-- **Status:** yoado-ed owns the crux track and is finishing the FULL 152-config rescore + the free-c
-  wc-ladder (job 392821, landing ~this hour); THEY provide the final crux figure. The current
-  figures/crux/activation_crux_summary.png is FIRST-PASS with PARTIAL panels — do not present as settled.
-- **Shows:** 4 panels — feature-stability by activation; fidelity vs feature-stability; free-c leakage
-  cluster; feature-stability↓ / eff-rank↑ with T. **Panels c/d PARTIAL** (jobs running) — mark
-  "PRELIMINARY" on the figure or wait for yoado-ed's refresh.
-- **Positive characterization (n=6/n=11, exploratory — SUGGESTIVE links, not load-bearing):** activation
-  **smoothness tracks the lazy/NTK regime** (smoothness → feature-stability ρ≈+0.85, n=6), and
-  **feature-stability tracks reconstruction fidelity** (ρ≈+0.94, n=6 — CI spans ~0.5–0.99). This is the
-  implicit-bias/NTK direction Gal cares about; state as observed, not proven.
-- **Observed rejection (observe-framed, not "refuted"):** the naive **"smoother ⇒ more fidelity" does
-  NOT hold on the fuller set** — the smooth-only ρ≈+0.85 drops to ≈+0.11 across 11 activations; the
-  apparent driver is *laziness*, not smoothness per se (weight-change-confounded).
-- **CRITICAL caveat (yoado-ed):** the **kink lead (leaky_relu/selu ~5×)** is an ORACLE / upper-bound
-  read; documented precedent is that the **realistic free-c attack FLIPS the activation ranking** — so
-  do NOT present "kink leaks most" as the realistic result until the free-c ladder lands. Direction-count
-  (eff_rank) is **T-driven, not activation-driven** (grows
-  2→6.3 with T) — consistent with the on-record "r_J β-independent."
-- **Caveat:** n=6 on the CSV smooth subset; c/d partial; small-n throughout — exploratory.
+### F-F. Activation crux — supervisor's TOP ask (figures/crux/freec_ladder_ranking.png — AUTHORITATIVE, 52/52)
+- **Shows:** the REALISTIC free-coefficient leakage ranking across activations, at 4 weight-change rungs,
+  with the oracle overlaid (job 392821, full 52/52; data results/rescored_freec_ladder_2026-08-29.csv).
+  Owner: yoado-ed. (Companion feature-stability-vs-T / NTK-survival panel from job 390026 lands shortly.)
+- **Headline OBSERVATION:** the **KINKED activations (relu / leaky_relu / selu) leak most** — and this is
+  ROBUST: the realistic free-c attack does **not** flip the oracle ranking on MNIST. Spearman(smoothness,
+  leakage) is NEGATIVE at every weight-change rung (wc 0.005:−0.48, 0.03:−0.25, 0.1:−0.27, 0.3:−0.59),
+  and the oracle tracks free-c closely. So "kink leaks most" survives BOTH the coefficient mode and the
+  wc level (resolves the two earlier "provisional" caveats).
+- **Honest caveats (keep in caption):** (1) NOT a monotonic "smoother ⇒ less leakage" law — the sign
+  still flips WITHIN the smooth-only subset, so it's a **two-cluster (kinked-vs-smooth) effect**, not a
+  gradient; (2) the documented free-c "flip" precedent was on **FLOWERS, not MNIST** — dataset-dependence
+  is OPEN; (3) the oracle@wc=0.005 rung is undersampled.
+- **Supporting (exploratory, small-n):** smoothness tracks the lazy/NTK regime (smoothness →
+  feature-stability ρ≈+0.85, n=6) and feature-stability tracks reconstruction fidelity (ρ≈+0.94, n=6,
+  wide CI) — the implicit-bias/NTK direction Gal cares about; observed, not proven. Direction-count
+  (eff_rank) is **T-driven, not activation-driven** (2→6.3 with T) — consistent with on-record "r_J
+  β-independent." The old first-pass activation_crux_summary.png is SUPERSEDED by this ladder.
 
 ---
 
