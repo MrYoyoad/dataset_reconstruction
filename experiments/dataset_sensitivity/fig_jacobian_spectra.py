@@ -183,7 +183,8 @@ def main():
     cap = (
         "What we OBSERVE: the raw (noise-free) singular spectra of J_full and J_LoRA overlap in "
         "range and effective rank, and the P7 valley ratio ||J.a_nn||/||J.a_far|| is ~equal in "
-        f"both regimes ({p7_txt}). So the local-linear Jacobian agrees with the finite-swap dial "
+        f"both regimes ({p7_txt}) — the small full-vs-LoRA gap is NOT direction-robust across sweeps "
+        "(it flips sign), i.e. the two are equal within noise. So the local-linear Jacobian is consistent with the finite-swap dial "
         "(Figs 1-2): full training does not resolve individual images into a tighter valley than "
         "a rank-8 adapter. col(J_full) energy is concentrated in L0 (panel c), echoing the depth "
         "read (Fig 2). CAVEAT: early-training Jacobian (T<=20, max_bce well above convergence) — "

@@ -15,17 +15,20 @@ examples we already have (Phase-0 ViT inversion — recognizable faces / rose st
 a proper, robust inversion is the next-weeks work.** The science to present is the *characterization*
 of what fine-tuning does to the weights and which images are exposed — all positive.
 
-## The one-paragraph story
+## The one-paragraph story (honesty-audited — qualifiers are load-bearing)
 Using a validated instrument (whitened Mahalanobis sensitivity, proven unbiased), we characterize how
-LoRA fine-tuning records its training images. **(1)** Which images are most exposed is *predictable
-from the public base model's gradients* (g₀) — and that predictor *transfers* to full fine-tuning.
-**(2)** The adapter records the **concept, not the instance** — near-duplicate images are
-interchangeable to it. **(3)** New characterization of parameterization: **full fine-tuning imprints
-~5× more signal per image than a rank-8 adapter, but at the same per-image resolution** (the
-indistinguishability "valley" is the same width — two independent methods) — more signal, not finer
-discrimination. **(4)** That extra signal lives disproportionately in the **first (pixel-carrying)
-layer**. **(5)** We already reconstruct recognizable images in favorable settings (Phase-0); turning
-that into a robust adapter-only inversion is the immediate next step.
+LoRA fine-tuning records its training images — all observations bound only the WEAKEST (prior-free,
+adapter-only, per-image) attacker. **(1)** Which images are most exposed is **strongly predictable at
+low base-gradient g₀ and saturates as g₀ grows** (overall verdict INDETERMINATE at n=24), and the
+predictor *transfers* to full fine-tuning (ρ=0.83, n=6). **(2)** The adapter records the **concept, not
+the instance** — *parametric* near-duplicates are ≈invisible to it. **(3)** New characterization of
+parameterization (n=2, qualitative): **full fine-tuning records ~5× more per-image signal (descriptive,
+n=6) at approximately the same resolution** — the noise-free Jacobian SUPPORTS equal resolution; the
+finite-swap dial is qualitatively consistent but noise-source-dependent (SGD reads ~30% narrower);
+scale-up (n=6) running. More signal, not clearly finer discrimination. **(4)** That extra signal lives
+disproportionately in the **first (pixel-carrying) layer**. **(5)** We already get recognizable
+**full-gradient** reconstructions across a real sweep (F-0); the information is present, so a robust
+adapter-only inversion is the immediate next step.
 
 ---
 
@@ -37,7 +40,7 @@ that into a robust adapter-only inversion is the immediate next step.
   (full-gradient setting, `results/gb_e2e_*.pth` → `figures/meeting/positive_reconstruction_gallery.png`,
   building). PLUS the ViT-scale Phase-0 result (recognizable faces `figures/phase0/n3_three_faces.png` /
   rose structure `phase0_full_r8_n1.png`).
-- **Message:** across datasets, image-counts, and activations, the attack recovers recognizable images —
+- **Message:** across datasets, image-counts, and activations, the full-gradient reconstruction recovers recognizable images —
   the information IS in the weights and IS recoverable. **Some configs work cleanly today; making the
   robust ADAPTER-ONLY inversion work across the board is the immediate next-weeks work.** This ties to
   F-C: full fine-tuning holds ~5× more per-image signal, so the open problem is *extraction*, not missing
@@ -64,18 +67,21 @@ that into a robust adapter-only inversion is the immediate next step.
 ### F-B. Distance dial — instance vs concept (fig_f2_similarity_ladder)
 - **Shows:** swap-sensitivity vs graded visual distance; the d=0 self-swap control reads exactly 0.
 - **Expected:** sensitivity rises with distance; near-duplicates ~null ⇒ concept not instance.
-- **Got:** supported — near-dup rungs ≈ floor, sensitivity climbs to the cross-digit anchor. Adapter
+- **Got:** supported — *parametric* near-dup rungs (blur/rotate/brightness) ≈ floor (the retrieved
+  nearest-neighbor rung is moderate, s≈0.24–0.39); sensitivity climbs to the cross-digit anchor. Adapter
   records "a kind of image," not the exact pixels. Privacy statement: attacker recovers the *concept*.
 - **Caveat:** ~9 rungs/target, small-n; d_pixel axis (semantic axis is secondary).
 
 ### F-C. The valley ladder — full-FT vs LoRA (fig_valley_ladder) — THE NEW POSITIVE CHARACTERIZATION
 - **Shows:** normalized profile s(d) for LoRA(A) / full-single-layer(C) / full-all-layers(D), + d* bars.
-- **Positive finding:** full fine-tuning imprints **~5× more total signal per image** than a rank-8
-  adapter (removal footprint, F-D), but at the **same per-image resolution** — d*_full ≈ d*_LoRA
-  (2.6 vs 2.7 / 2.2 vs 2.0), near-dup ratio ~1. **Two independent methods agree** (finite-swap dial +
-  noise-free Jacobian P7 ratio full≈LoRA). So the parameterizations differ in *how much* they record,
-  not in *how finely* they resolve individual images. (We expected full to resolve finer; it doesn't —
-  a clean, understood rejection.)
+- **Positive finding (observed; qualitative):** full fine-tuning records **~5× more per-image signal**
+  (removal footprint, descriptive, n=6) at **approximately the same resolution** — d*_full ≈ d*_LoRA
+  (2.6 vs 2.7 / 2.2 vs 2.0, n=2), near-dup ratio ~1. The **noise-free Jacobian SUPPORTS equal
+  resolution** (P7 full≈LoRA, gap not direction-robust); the **finite-swap dial is qualitatively
+  consistent but noise-source-dependent** (B2: SGD reads ~30% narrower). So the parameterizations
+  differ in *how much* they record, not clearly in *how finely* they resolve. (We expected full to
+  resolve finer; it doesn't — a clean, understood rejection.) Do NOT claim "two methods agree" — one
+  leg is n=2 + B2-divergent. Scale-up (n=6, job 695782) running. Weakest-attacker scope applies.
 - **Guards:** B1 dimension-invariance PASS (the equality is NOT a 70×-dim artifact). B2 ε-vs-SGD noise
   DIVERGENT (SGD ~30% narrower) ⇒ read QUALITATIVELY; the qualitative equality survives via the
   noise-free Jacobian.
@@ -86,8 +92,9 @@ that into a robust adapter-only inversion is the immediate next step.
 ### F-D. Removal cross-regime + g₀ transfer (fig_removal_crossregime) — arm F, the robust one
 - **Shows:** (a) full LOO footprint vs LoRA LOO footprint per image; (b) full footprint vs g₀.
 - **Expected:** same images imprint most in both regimes; g₀ predictor transfers.
-- **Got — clean:** rank corr ρ=+0.943 (same images), ρ(footprint, g₀)=+0.829 (predictor transfers to
-  full FT). Absolute footprint ~5× bigger in full — the reconciliation: **more signal, not finer
+- **Got (n=6, exploratory):** strong rank corr ρ≈+0.94 (same images imprint most in both), ρ≈+0.83
+  (predictor transfers to full FT). Absolute footprint ~5× bigger in full (target-median; per-target
+  ~3–6×) — the reconciliation: **more signal, not finer
   resolution** (feeds the "decoder-side gap" reading in F-C).
 - **Caveat:** n=6; absolute-magnitude comparison is descriptive (N→N−1 offset).
 
@@ -98,19 +105,24 @@ that into a robust adapter-only inversion is the immediate next step.
   pixel signal concentrated early. Directly answers "how does the imprint distribute across layers."
 - **Caveat:** read on the NUMERATOR (per-layer d* is denominator-confounded); K-scale plumbing.
 
-### F-F. Activation crux — supervisor's TOP ask (figures/crux/activation_crux_summary.png)
-- **Shows:** 4 panels — feature-stability by activation (smoothness-ordered); fidelity vs feature-
-  stability; realistic free-c leakage two-cluster @ matched weight-change; feature-stability↓ / eff-rank↑
-  with T. (Panels c/d PARTIAL — the two jobs 390026/392821 still running; re-run plot_activation_crux.py
-  when they finish.)
-- **Positive characterization:** activation **smoothness sets the lazy/NTK regime** (smoothness →
-  feature-stability ρ=+0.85), and **laziness (feature-stability) sets reconstruction fidelity** (ρ=+0.94)
-  — the load-bearing link. This is the implicit-bias/NTK story Gal cares about.
-- **Clean rejection, understood:** the naive **"smoother ⇒ more leakage" is REFUTED** — the strong
-  smoothness→fidelity (+0.85) on the narrow smooth-only subset **dissolves to +0.11** on the fuller
-  11-activation set; the real driver is *laziness*, not smoothness per se (and it's weight-change-
-  confounded). And leakage is a **KINK effect**: leaky_relu (+0.55) / selu (+0.51) lead ~5× the whole
-  smooth family (+0.08–0.12). Direction-count (eff_rank) is **T-driven, not activation-driven** (grows
+### F-F. Activation crux — supervisor's TOP ask — OWNED BY yoado-ed (authoritative figure pending)
+- **Status:** yoado-ed owns the crux track and is finishing the FULL 152-config rescore + the free-c
+  wc-ladder (job 392821, landing ~this hour); THEY provide the final crux figure. The current
+  figures/crux/activation_crux_summary.png is FIRST-PASS with PARTIAL panels — do not present as settled.
+- **Shows:** 4 panels — feature-stability by activation; fidelity vs feature-stability; free-c leakage
+  cluster; feature-stability↓ / eff-rank↑ with T. **Panels c/d PARTIAL** (jobs running) — mark
+  "PRELIMINARY" on the figure or wait for yoado-ed's refresh.
+- **Positive characterization (n=6/n=11, exploratory — SUGGESTIVE links, not load-bearing):** activation
+  **smoothness tracks the lazy/NTK regime** (smoothness → feature-stability ρ≈+0.85, n=6), and
+  **feature-stability tracks reconstruction fidelity** (ρ≈+0.94, n=6 — CI spans ~0.5–0.99). This is the
+  implicit-bias/NTK direction Gal cares about; state as observed, not proven.
+- **Observed rejection (observe-framed, not "refuted"):** the naive **"smoother ⇒ more fidelity" does
+  NOT hold on the fuller set** — the smooth-only ρ≈+0.85 drops to ≈+0.11 across 11 activations; the
+  apparent driver is *laziness*, not smoothness per se (weight-change-confounded).
+- **CRITICAL caveat (yoado-ed):** the **kink lead (leaky_relu/selu ~5×)** is an ORACLE / upper-bound
+  read; documented precedent is that the **realistic free-c attack FLIPS the activation ranking** — so
+  do NOT present "kink leaks most" as the realistic result until the free-c ladder lands. Direction-count
+  (eff_rank) is **T-driven, not activation-driven** (grows
   2→6.3 with T) — consistent with the on-record "r_J β-independent."
 - **Caveat:** n=6 on the CSV smooth subset; c/d partial; small-n throughout — exploratory.
 
