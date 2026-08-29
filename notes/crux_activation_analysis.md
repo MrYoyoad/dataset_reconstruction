@@ -256,3 +256,47 @@ fidelity` on a controlled axis (no activation-identity confound). Combined with 
 analysis above, the honest crux story is: **smoothness buys faithful, linearizable fine-tuning (softplus,
 β≈1 optimal) — the correct/attributable reconstruction — but NOT the largest leakage margin** (that link
 is refuted). Figure: figures/crux/softplusb_linearization.png.
+
+## 2026-08-29 — CSV + PARTIAL running-job reconcile; POSITIVE MECHANISTIC reframe
+
+Re-analysis of the committed CSV (`results/rescored_activations_857271_2026-08-11.csv`, 27 rows)
+EXTENDED with the two still-RUNNING jobs' partial stdout (parsed, labelled PARTIAL):
+`crux_featstab_T_390026.out` (feature-stability-vs-T, 53 rows, 11 activations x T∈{1,2,5,10,20,50}) and
+`crux_freec_ladder_392821.out` (free-c wc-ladder, 48/52 rows, 13 activations x wc∈{0.005,0.03,0.1,0.3}).
+Script + figure: `experiments/plot_activation_crux.py` -> `figures/crux/activation_crux_summary.png`.
+Framing (per supervisor via coordinator, 2026-08-29): POSITIVE mechanistic characterization, NOT a
+mean-baseline pass/fail. Fidelity axis = raw `ssim_norm` (relative). Observe, don't conclude.
+
+**Smoothness ordinal used:** relu/leaky_relu=0 < hardswish=1 < elu/celu/selu=2 (C¹) <
+tanh/sigmoid=3 (bounded C∞) < silu/gelu/gelu_tanh/mish=4 (C∞ smooth-ReLU) < softplus=5 (canonical).
+
+**What smoothness DOES shape (positive):**
+- smoothness → feature_stability (NTK-lazy proxy): ρ=+0.85 (CSV, n=6) / +0.37 (featstab, n=11). Softer
+  activations stay lazier (softplus 0.97, sigmoid 0.999, silu 0.92) — but this is **wc-confounded**: at
+  fixed lr the C¹ set (elu/celu/tanh) take larger steps (wc≈0.17) and drop to feat_stab≈0.70.
+- feature_stability → relative fidelity (ssim_norm): **ρ=+0.94 (n=6)** — laziness is the load-bearing
+  link to invertibility, not smoothness per se.
+
+**What smoothness does NOT set (positive rejections — reconciles with the earlier read):**
+- **Direction-count** (`delta_w_effective_rank`): essentially flat across the activation spectrum
+  (CSV T=1 all =2 except softplus=1). It is a **T-effect**: mean eff_rank per T = {1:2, 2:3.7, 5:5.3,
+  10:5.5, 20:5.9, 50:6.3}. Consistent with the on-record "r_J β-independent" finding.
+- **Realistic leakage** (free-c `ctrl_margin_norm` @ matched wc=0.1, n=12, PARTIAL): ρ_smoothness=−0.20
+  — NOT monotone. **Two-cluster kink effect**: leaky_relu +0.55, selu +0.51 (~5x); the entire smooth
+  family flat at +0.08–0.12 (gelu 0.08, silu 0.10, softplus 0.12). This REPRODUCES the §UPDATE-2026-08-28
+  two-cluster read on the realistic free-c attack (kinked/C¹ selu+leaky lead; smooth flat).
+
+**Verdict on "smoother ⇒ more leakage/direction-count": REFUTED-with-a-reason.** Smoothness sets the
+lazy/linearization regime (and, through laziness, relative fidelity); it does NOT set the leaked
+direction-count (a T-effect) or the realistic leakage magnitude (a kink effect). No contradiction with
+the prior note — it EXTENDS it: the narrow smooth-only CSV subset (elu…softplus, n=6) shows a spurious
+strong smoothness→fidelity ρ=+0.85 that DISSOLVES to +0.11 on the fuller 11-activation set, because the
+true driver is feature_stability (laziness), itself driven by weight_change.
+
+**NTK regime:** CSV ntk_passed True/False = 1/26 (only the wc<0.01 npc16 row passes; `ntk_passed` =
+wc<0.01 AND feat_stab>0.99 is disjoint-by-construction from meaningful-wc fine-tunes). featstab job:
+0/53 passed (oracle, wc grows with T). freec ladder: 10/48 passed (the wc=0.005 rung).
+
+**Caveats:** oracle T=1 for the CSV panel; freec/featstab jobs PARTIAL (still running); single seed;
+feature_stability↔smoothness is wc-confounded. The matched-wc × multi-seed × free-c closure is what
+turns these observations into a ranking.

@@ -2695,3 +2695,26 @@ RECONCILIATION (hypothesis, OPEN): full training imprints MORE total signal per 
 footprint, ~5x) but NOT finer per-image resolution (valley width ≈ LoRA). So reconstruction may exploit the
 larger absolute signal — IF the decoder is good enough — rather than a tighter valley; consistent with the
 0/40 being a decoder/pipeline limit, not an information-geometry (valley) limit. NOT concluded.
+
+---
+## 2026-08-29 — Activation-crux figure + analysis (supervisor TOP ask, was stalled)
+
+Built the honest activation-crux figure, reframed as POSITIVE MECHANISTIC characterization (per
+supervisor: no mean-baseline pass/fail). Script `experiments/plot_activation_crux.py` (CPU, no GPU)
+reads the committed CSV (`results/rescored_activations_857271_2026-08-11.csv`, 27 rows) and parses the
+two STILL-RUNNING jobs' partial stdout (`crux_featstab_T_390026.out` 53 rows; `crux_freec_ladder_392821.out`
+48 rows) -> `figures/crux/activation_crux_summary.png` (4 panels).
+
+HEADLINE (observe, not conclude): activation smoothness sets the **lazy/NTK regime + relative fidelity**,
+NOT the **leaked direction-count or leakage magnitude**.
+- smoothness→feature_stability ρ=+0.85 (CSV n=6)/+0.37 (n=11); feature_stability→fidelity ρ=+0.94 (n=6).
+- direction-count (eff_rank) near-constant across activations (=2 at T=1), grows with T (2→6.3) — a T-effect.
+- realistic free-c leakage @matched wc=0.1 (n=12, PARTIAL): ρ_smoothness=−0.20 — TWO-CLUSTER kink effect
+  (leaky_relu +0.55, selu +0.51 ~5x; smooth family flat +0.08–0.12).
+- "smoother⇒more leakage/direction-count": REFUTED-with-a-reason. Reconciles with (extends) the
+  2026-08-28 note; the narrow smooth-only CSV subset's strong smoothness→fidelity ρ=+0.85 dissolves to
+  +0.11 on the fuller 11-activation set (true driver = laziness, itself wc-confounded).
+- NTK regime: CSV ntk_passed 1/26 (disjoint-by-construction from meaningful wc); featstab 0/53; freec 10/48.
+
+Full reconcile: notes/crux_activation_analysis.md §2026-08-29. Both jobs still RUNNING -> re-run the
+script when they finish to refresh the PARTIAL panels (c)(d).
