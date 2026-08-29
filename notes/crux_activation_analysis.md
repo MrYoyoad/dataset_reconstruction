@@ -297,8 +297,13 @@ tanh/sigmoid=3 (bounded C∞) < silu/gelu/gelu_tanh/mish=4 (C∞ smooth-ReLU) < 
 - smoothness → feature_stability (NTK-lazy proxy): ρ=+0.85 (CSV, n=6) / +0.37 (featstab, n=11). Softer
   activations stay lazier (softplus 0.97, sigmoid 0.999, silu 0.92) — but this is **wc-confounded**: at
   fixed lr the C¹ set (elu/celu/tanh) take larger steps (wc≈0.17) and drop to feat_stab≈0.70.
-- feature_stability → relative fidelity (ssim_norm): **ρ=+0.94 (n=6)** — laziness is the load-bearing
-  link to invertibility, not smoothness per se.
+- feature_stability → relative fidelity (ssim_norm): ρ=+0.94 (n=6) — **⚠ SUPERSEDED 2026-08-29: this n=6
+  link DISSOLVES on the full set.** Pooled Spearman(feature_stability, ssim_norm) = **+0.08 (n=426)**
+  (yoado-f5 source-verify): relu has the LOWEST fidelity (0.670) yet HIGHEST leakage; high-fidelity
+  softplus_b10 leaks LEAST. Same small-n dissolution as smoothness→fidelity (0.85→0.11). So laziness/
+  linearization-fidelity does NOT drive leakage (the two-panel DISSOCIATION, top UPDATE) — leakage is a
+  kink/geometry effect, not laziness. The +0.94 was removed from the meeting deck for exactly this reason
+  (it would have been a live contradiction of the NTK-survival panel).
 
 **What smoothness does NOT set (positive rejections — reconciles with the earlier read):**
 - **Direction-count** (`delta_w_effective_rank`): essentially flat across the activation spectrum
