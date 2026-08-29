@@ -22,10 +22,10 @@ adapter-only, per-image) attacker. **(1)** Which images are most exposed is **st
 low base-gradient g₀ and saturates as g₀ grows** (overall verdict INDETERMINATE at n=24), and the
 predictor *transfers* to full fine-tuning (ρ=0.83, n=6). **(2)** The adapter records the **concept, not
 the instance** — *parametric* near-duplicates are ≈invisible to it. **(3)** New characterization of
-parameterization (n=2, qualitative): **full fine-tuning records ~5× more per-image signal (descriptive,
-n=6) at approximately the same resolution** — the noise-free Jacobian SUPPORTS equal resolution; the
-finite-swap dial is qualitatively consistent but noise-source-dependent (SGD reads ~30% narrower);
-scale-up (n=6) running. More signal, not clearly finer discrimination. **(4)** That extra signal lives
+parameterization (n=2, UNSETTLED): **full fine-tuning records ~5× more per-image signal (descriptive,
+n=6)**; whether it also resolves *finer* is open — the finite-swap dial suggests full is MODESTLY
+NARROWER (d* ~15–20% smaller, n=2), the noise-free Jacobian shows EQUAL resolution, and the SGD-noise
+check diverges. So: clearly more signal; possibly-slightly-finer resolution, not settled (n=6 running). **(4)** That extra signal lives
 disproportionately in the **first (pixel-carrying) layer**. **(5)** We already get recognizable
 **full-gradient** reconstructions across a real sweep (F-0); the information is present, so a robust
 adapter-only inversion is the immediate next step.
@@ -74,14 +74,13 @@ adapter-only inversion is the immediate next step.
 
 ### F-C. The valley ladder — full-FT vs LoRA (fig_valley_ladder) — THE NEW POSITIVE CHARACTERIZATION
 - **Shows:** normalized profile s(d) for LoRA(A) / full-single-layer(C) / full-all-layers(D), + d* bars.
-- **Positive finding (observed; qualitative):** full fine-tuning records **~5× more per-image signal**
-  (removal footprint, descriptive, n=6) at **approximately the same resolution** — d*_full ≈ d*_LoRA
-  (2.6 vs 2.7 / 2.2 vs 2.0, n=2), near-dup ratio ~1. The **noise-free Jacobian SUPPORTS equal
-  resolution** (P7 full≈LoRA, gap not direction-robust); the **finite-swap dial is qualitatively
-  consistent but noise-source-dependent** (B2: SGD reads ~30% narrower). So the parameterizations
-  differ in *how much* they record, not clearly in *how finely* they resolve. (We expected full to
-  resolve finer; it doesn't — a clean, understood rejection.) Do NOT claim "two methods agree" — one
-  leg is n=2 + B2-divergent. Scale-up (n=6, job 695782) running. Weakest-attacker scope applies.
+- **Positive finding (observed):** full fine-tuning records **~5× more per-image signal** (removal
+  footprint, descriptive, n=6). Whether it also resolves *finer* is UNSETTLED at this scale:
+  the finite-swap dial reads full **modestly narrower** (d*: full-D 2.59/2.23 vs LoRA-A 3.11/2.69,
+  ~15–20%, n=2 — live from valley_headline_dstar.json), the **noise-free Jacobian reads EQUAL**
+  (P7 full≈LoRA, gap not direction-robust), and the **SGD-noise check (B2) diverges**. So: clearly more
+  signal; possibly-slightly-finer resolution, not a clean result — do NOT overstate either "narrower" or
+  "equal." Scale-up (n=6, job 695782) running to firm it. Weakest-attacker scope applies.
 - **Guards:** B1 dimension-invariance PASS (the equality is NOT a 70×-dim artifact). B2 ε-vs-SGD noise
   DIVERGENT (SGD ~30% narrower) ⇒ read QUALITATIVELY; the qualitative equality survives via the
   noise-free Jacobian.
