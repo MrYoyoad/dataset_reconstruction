@@ -21,8 +21,11 @@ The REALISTIC free-coefficient wc-ladder (job 392821 -> results/rescored_freec_l
 13 activations x 4 matched-wc rungs, ctrl_margin_norm leakage proxy) CONFIRMS the oracle first-pass and
 does NOT flip it on MNIST: **kinked relu/leaky_relu/selu leak most** (kinked-mean ~0.46 vs smooth-mean
 ~0.09), and Spearman(smoothness, leakage) is NEGATIVE (smoother => LESS leakage) and STRENGTHENS with
-weight-change across the ladder -- -0.234 (wc~0.005) / -0.382 (0.03) / -0.520 (0.1) / -0.823 (0.3),
-kinked leading at EVERY rung (ctrl_margin_norm; ssim_norm corroborates -0.40->-0.71). [SIGN CORRECTED
+weight-change across the ladder -- ~-0.2 -> ~-0.8 (most negative at wc~0.3), kinked leading at EVERY rung. ROBUST/ordering-independent
+facts (what to quote): two-cluster GAP kinked-mean ~0.47 vs smooth ~0.09 (ctrl_margin_norm, no ranking
+needed) + NEGATIVE sign every rung + strengthening-with-wc trend. The EXACT Spearman is smoothness-
+ORDERING-dependent (no unique total order over 13 activations = the two-cluster/not-monotonic point;
+yoado-6d/yoado-04 orderings differ within the smooth cluster) -> do NOT quote a single canonical value. [SIGN CORRECTED
 2026-08-29 per yoado-04's source cross-check: my first pass used a KINKEDNESS index (high=kinked) and
 mislabeled it 'smoothness', reporting +; the correctly-signed smoothness->leakage correlation is NEGATIVE]
 incl. the near-lazy 0.005 NTK rung. Removes the oracle-provisional/'may-flip' caveat for the supervisor's
