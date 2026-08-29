@@ -114,8 +114,11 @@ def facet_c(bank, Ddw):
     Xn = np.array([[c["init_seed"], c["lr"]] + [1.0 * (c["activation"] == a) for a in acts] for c in bank], float)
     sd = Xn.std(0); sd[sd == 0] = 1; Xn = (Xn - Xn.mean(0)) / sd
     Dn = np.sqrt(np.maximum(((Xn[:, None] - Xn[None, :]) ** 2).sum(-1), 0))   # nuisance-feature distance
-    ug = sorted(set(groups)); G = len(ug)
-    fold_of = {g: i % min(5, G) for i, g in enumerate(ug)}
+    # cross-fit over composition-cells, but SHUFFLE cell→fold so each composition stays in TRAIN
+    # (naive i%nfold with 5 comps × 5 folds isolates a whole composition per fold → recovery impossible).
+    ug = sorted(set(groups)); G = len(ug); nf = min(5, G)
+    sh = np.random.default_rng(1).permutation(np.array(ug))
+    fold_of = {g: i % nf for i, g in enumerate(sh)}
     folds = np.array([fold_of[g] for g in groups])
     s_i = np.zeros(len(bank))
     for f in range(min(5, G)):
