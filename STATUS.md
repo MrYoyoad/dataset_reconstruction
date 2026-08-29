@@ -7,9 +7,13 @@ Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; 
 ## Valley n=6 scale-up LANDED — full-FT-vs-LoRA valley width is TARGET-DEPENDENT, no robust narrower direction (2026-08-29, job 695782)
 Arm D (full-FT all-layers, PRIMARY) completed the n_targets=6 dial scale-up. Reading d*(0.1) valley width,
 full-D vs LoRA-A (E_b0), ratio D/A per target: t0=0.83, t1=0.83, t3=0.77, t6=0.88 (full NARROWER on 4/6,
-incl. the original n=2 pair, median ~0.86 = ~14%) BUT t4(digit1)=1.33, t10(digit7)=1.75 (LoRA narrower — 2
-targets FLIP). Mean ratio 1.07 (full slightly WIDER) vs median 0.86 — the mean is OUTLIER-DRIVEN (t10, a
-large-d* target). HONEST READ: the n=2 "full ~17% narrower" was a 2-target artifact; at n=6 there is NO
+incl. the original n=2 pair) BUT t4(digit1)=1.33, t10(digit7)=1.75 (LoRA narrower — 2 targets FLIP).
+CENTRAL TENDENCY (metric-audited yoado-6d): quote the model-free COUNT (4/6) + the SCALE-INVARIANT
+estimators geomean D/A=1.02 / median=0.86 (both ~1) — do NOT quote the arithmetic mean 1.07: for a RATIO
+the arithmetic mean is upward-biased (Jensen) and here inverts the 4/6 majority as an aggregation ARTIFACT,
+not a real LoRA-narrower signal. t10 is high-leverage (log-ratio z=+1.81) but NOT a formal outlier and is
+NOT down-weighted (no outlier test has power at n=6; log-space aggregation already bounds its pull -> geomean
+1.02->0.91 when dropped). HONEST READ: the n=2 "full ~17% narrower" was a 2-target artifact; at n=6 there is NO
 robust narrower direction — the width comparison is target-dependent and ≈equal in central tendency. This
 STRENGTHENS the "valley width ≈ equal / per-image resolution not finer for full-FT" framing (it does NOT
 support a clean "full narrower" claim). Figure + deck JSON refreshed (fig_valley_ladder.py ->
