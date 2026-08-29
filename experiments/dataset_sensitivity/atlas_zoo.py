@@ -32,7 +32,7 @@ torch.set_default_dtype(torch.float64)
 RESULTS = "/home/projects/galvardi/yoado/results/atlas_zoo"
 
 # ---- factorial (balanced, multi-seed-per-cell) ----
-ACTS = ["gelu", "relu", "softplus"]          # smooth C∞ / kinked / smooth C∞ (need weights-mnist_<act>.pth)
+ACTS = ["gelu", "relu", "softplus_b1"]        # smooth C∞ / kinked / smooth C∞ (softplus_b1≈softplus; has a checkpoint)
 COMPOSITIONS = [0, 1, 2, 3, 4]               # data seeds → distinct digit-pairs (recorded)
 LRS = [0.1, 0.5]
 INITS = [100, 101, 102, 103, 104, 105]       # B0 init seeds (the nuisance we must have power to separate)

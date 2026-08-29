@@ -27,7 +27,7 @@ echo "########## STAGE 0: checkpoints + smoke ##########"
 python - <<'PY' || { echo "STAGE 0 FAILED"; exit 1; }
 import os, torch; torch.set_default_dtype(torch.float64)
 from experiments.configs import MODELS_DIR
-for a in ["gelu","relu","softplus"]:
+for a in ["gelu","relu","softplus_b1"]:
     f=os.path.join(MODELS_DIR, f"weights-mnist_{a}.pth")
     assert os.path.exists(f), f"MISSING checkpoint {f}"
     print("  OK", f)
