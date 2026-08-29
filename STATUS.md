@@ -2750,3 +2750,18 @@ NOT the **leaked direction-count or leakage magnitude**.
 
 Full reconcile: notes/crux_activation_analysis.md §2026-08-29. Both jobs still RUNNING -> re-run the
 script when they finish to refresh the PARTIAL panels (c)(d).
+
+### 2026-08-29 — F5 shared-perturbation recovery (user-authorized): HONEST NULL (baseline gate worked)
+Known-recipe ΔW-cosine-matching attack to recover a SHARED transform PARAMETER (rotation θ / blur σ
+applied to all N=16 images) from the LoRA adapter; 8 independent p_true draws, K=3 seeds, skill=1−err/
+transform-blind-error with the meaningful-recovery gate (bootstrap CI lower bound > 0). Result:
+  rot : skill=+0.444 CI[-0.150,+0.786]  -> NOT above blind (CI straddles 0)
+  blur: skill=-0.263 CI[-1.133,+0.320]  -> NOT above blind
+Both HONEST NULLS. Rotation is SUGGESTIVE (recovers several draws EXACTLY — err 0/0/5/10/15/15/25/30°;
+point estimate +0.44) but NOT significant at n=8. Mechanism (flagged + confirmed by low peak_cos ~0.17-
+0.39): proxy-vs-private IMAGE-content mismatch partially swamps the shared-transform signal in ΔW. The
+baseline gate correctly caught this (the stage-0 single-draw perfect recovery was a lucky easy draw).
+DISPOSITION: F5 is NOT a positive meeting figure (did not clear its baseline gate) — stays a next-weeks
+bullet. Next-weeks direction: separate transform from content (e.g. difference-of-adapters, per-draw
+proxy re-fit, or a transform-isolating statistic), more draws for power. The honest-null figure
+(figures/meeting/f5_shared_perturbation.png, grey CI bars) is a BACKUP slide only if asked, not featured.

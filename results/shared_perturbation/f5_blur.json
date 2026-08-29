@@ -1,0 +1,73 @@
+{
+  "kind": "blur",
+  "grid": [
+    0.5,
+    1.0,
+    1.5,
+    2.0,
+    2.5,
+    3.0,
+    3.5,
+    4.0
+  ],
+  "N": 16,
+  "K_seeds": 3,
+  "n_draws": 8,
+  "T": 1000,
+  "lr": 0.5,
+  "rank": 8,
+  "prior_support": [
+    0.5,
+    4.0
+  ],
+  "prior_mean": 2.25,
+  "p_true_draws": [
+    3.5,
+    3.5,
+    0.5,
+    2.5,
+    4.0,
+    3.5,
+    2.5,
+    4.0
+  ],
+  "p_hat_draws": [
+    4.0,
+    1.5,
+    2.5,
+    0.5,
+    1.5,
+    1.0,
+    2.0,
+    4.0
+  ],
+  "recovery_errors": [
+    0.5,
+    2.0,
+    2.0,
+    2.0,
+    2.5,
+    2.5,
+    0.5,
+    0.0
+  ],
+  "baseline_errors": [
+    1.25,
+    1.25,
+    1.75,
+    0.25,
+    1.75,
+    1.25,
+    0.25,
+    1.75
+  ],
+  "mean_error": 1.5,
+  "mean_baseline_error": 1.1875,
+  "analytic_blind_error": 1.0,
+  "skill": -0.26315789473684204,
+  "skill_lo": -1.1333333333333333,
+  "skill_hi": 0.31999999999999995,
+  "verdict": "NOT above blind (CI straddles 0 - honest null)",
+  "obs_mean_max_bce": 0.0004071686381350258,
+  "proxy_mean_max_bce": 0.0004468066970355949
+}
