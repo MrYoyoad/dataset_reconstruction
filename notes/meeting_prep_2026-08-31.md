@@ -86,12 +86,21 @@ that into a robust adapter-only inversion is the immediate next step.
   pixel signal concentrated early. Directly answers "how does the imprint distribute across layers."
 - **Caveat:** read on the NUMERATOR (per-layer d* is denominator-confounded); K-scale plumbing.
 
-### F-F. Activation crux — supervisor's TOP ask (activation_crux_summary) [analysis in flight]
-- **Shows:** reconstruction fidelity (baseline-relative ssim_norm) vs activation smoothness / feature-
-  stability / NTK-regime, across ~21 configs (+ running feature-stability-vs-T).
-- **Expected (prior read):** "smoother ⇒ more leakage" is REFUTED (ρ≈0); smoothness sets fidelity, not
-  direction-count; r_J is β-independent.
-- **Got:** pending the analysis agent + the two running jobs (390026/392821). Report at meeting-time.
+### F-F. Activation crux — supervisor's TOP ask (figures/crux/activation_crux_summary.png)
+- **Shows:** 4 panels — feature-stability by activation (smoothness-ordered); fidelity vs feature-
+  stability; realistic free-c leakage two-cluster @ matched weight-change; feature-stability↓ / eff-rank↑
+  with T. (Panels c/d PARTIAL — the two jobs 390026/392821 still running; re-run plot_activation_crux.py
+  when they finish.)
+- **Positive characterization:** activation **smoothness sets the lazy/NTK regime** (smoothness →
+  feature-stability ρ=+0.85), and **laziness (feature-stability) sets reconstruction fidelity** (ρ=+0.94)
+  — the load-bearing link. This is the implicit-bias/NTK story Gal cares about.
+- **Clean rejection, understood:** the naive **"smoother ⇒ more leakage" is REFUTED** — the strong
+  smoothness→fidelity (+0.85) on the narrow smooth-only subset **dissolves to +0.11** on the fuller
+  11-activation set; the real driver is *laziness*, not smoothness per se (and it's weight-change-
+  confounded). And leakage is a **KINK effect**: leaky_relu (+0.55) / selu (+0.51) lead ~5× the whole
+  smooth family (+0.08–0.12). Direction-count (eff_rank) is **T-driven, not activation-driven** (grows
+  2→6.3 with T) — consistent with the on-record "r_J β-independent."
+- **Caveat:** n=6 on the CSV smooth subset; c/d partial; small-n throughout — exploratory.
 
 ---
 
