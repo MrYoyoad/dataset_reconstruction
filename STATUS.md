@@ -4,12 +4,27 @@ Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; 
 
 ---
 
+## Valley n=6 scale-up LANDED — full-FT-vs-LoRA valley width is TARGET-DEPENDENT, no robust narrower direction (2026-08-29, job 695782)
+Arm D (full-FT all-layers, PRIMARY) completed the n_targets=6 dial scale-up. Reading d*(0.1) valley width,
+full-D vs LoRA-A (E_b0), ratio D/A per target: t0=0.83, t1=0.83, t3=0.77, t6=0.88 (full NARROWER on 4/6,
+incl. the original n=2 pair, median ~0.86 = ~14%) BUT t4(digit1)=1.33, t10(digit7)=1.75 (LoRA narrower — 2
+targets FLIP). Mean ratio 1.07 (full slightly WIDER) vs median 0.86 — the mean is OUTLIER-DRIVEN (t10, a
+large-d* target). HONEST READ: the n=2 "full ~17% narrower" was a 2-target artifact; at n=6 there is NO
+robust narrower direction — the width comparison is target-dependent and ≈equal in central tendency. This
+STRENGTHENS the "valley width ≈ equal / per-image resolution not finer for full-FT" framing (it does NOT
+support a clean "full narrower" claim). Figure + deck JSON refreshed (fig_valley_ladder.py ->
+figures/fullft_valley/fig_valley_ladder.png + results/fullft_valley/valley_headline_dstar.json). Caveats:
+K=50, B2-divergent (read qualitatively), weakest-attacker scoped. Deck F-C prose to update narrower->target-dependent.
+
 ## Activation crux — free-c ladder CONFIRMS kinked-leaks-most on MNIST (2026-08-29, job 392821)
 The REALISTIC free-coefficient wc-ladder (job 392821 -> results/rescored_freec_ladder_2026-08-29.csv,
 13 activations x 4 matched-wc rungs, ctrl_margin_norm leakage proxy) CONFIRMS the oracle first-pass and
 does NOT flip it on MNIST: **kinked relu/leaky_relu/selu leak most** (kinked-mean ~0.46 vs smooth-mean
-~0.09), and Spearman(smoothness_index, leakage) is positive and STRENGTHENS with weight-change across the
-ladder -- +0.236 (wc~0.005) / +0.385 (0.03) / +0.522 (0.1) / +0.824 (0.3), kinked leading at EVERY rung
+~0.09), and Spearman(smoothness, leakage) is NEGATIVE (smoother => LESS leakage) and STRENGTHENS with
+weight-change across the ladder -- -0.234 (wc~0.005) / -0.382 (0.03) / -0.520 (0.1) / -0.823 (0.3),
+kinked leading at EVERY rung (ctrl_margin_norm; ssim_norm corroborates -0.40->-0.71). [SIGN CORRECTED
+2026-08-29 per yoado-04's source cross-check: my first pass used a KINKEDNESS index (high=kinked) and
+mislabeled it 'smoothness', reporting +; the correctly-signed smoothness->leakage correlation is NEGATIVE]
 incl. the near-lazy 0.005 NTK rung. Removes the oracle-provisional/'may-flip' caveat for the supervisor's
 TOP ask (the flowers32 oracle->free-c flip precedent does NOT reproduce on MNIST). CAVEATS: two-cluster
 (kinked lead), NOT a monotonic smoothness law (selu clusters with the sharp kinks); MNIST only, N=2, T=1,
