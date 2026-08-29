@@ -11,6 +11,7 @@ Two clustering methods + the variance-decomposition:
   minus nuisance-only), CI = cluster-robust t_{G-1}·sd_cluster/√G over composition-cells.
 Observe-framed, weakest-attacker. Per-seed zoo → CAN attribute (unlike the seed-mean pre-look).
 """
+import argparse
 import os
 import numpy as np
 import torch
@@ -27,8 +28,8 @@ P = 8
 RNG = np.random.default_rng(0)
 
 
-def _load():
-    d = torch.load(BANK, map_location="cpu", weights_only=False)
+def _load(path=BANK):
+    d = torch.load(path, map_location="cpu", weights_only=False)
     bank = [c for c in d["bank"] if c.get("converged", True)]
     for c in bank:
         A = c["A"].to(torch.float64).numpy(); B = c["B"].to(torch.float64).numpy()
@@ -93,41 +94,36 @@ def assoc(D, labels, n_perm=2000):
     return dict(ARI=float(obs), p=float((null >= obs).mean()), k=k)
 
 
-def _knn_predict(Xtr, ytr, Xte, k):
-    k = max(1, min(k, len(Xtr)))
+def _knn_dist(Dte_tr, ytr, k):
+    """Distance-based kNN: predict the majority composition of the k nearest TRAIN adapters."""
     preds = []
-    for x in Xte:
-        d = ((Xtr - x) ** 2).sum(1)
-        nn = ytr[np.argsort(d)[:k]]
+    for row in Dte_tr:
+        nn = ytr[np.argsort(row)[:k]]
         vals, cnts = np.unique(nn, return_counts=True)
         preds.append(vals[np.argmax(cnts)])
     return np.array(preds)
 
 
-def facet_c(bank):
+def facet_c(bank, Ddw):
+    """Composition recovery beyond nuisance, using the ΔW SUBSPACE distance (Ddw) — composition lives in the
+    directions, not the spectrum. Full = nearest-in-ΔW; baseline = nearest-in-nuisance. Cross-fit by
+    composition-cell, cluster-robust t_{G-1} CI."""
     acts = sorted(set(c["activation"] for c in bank))
-    def feat(c, with_dw):
-        nu = [c["init_seed"], c["lr"]] + [1.0 * (c["activation"] == a) for a in acts]
-        if with_dw:
-            s = _svd_feats(c["dW"])[1]; nu = nu + list(s) + [float(np.linalg.norm(s))]
-        return nu
     y = np.array([c["composition"] for c in bank])
     groups = np.array([f"{c['activation']}|{c['lr']}|{c['composition']}" for c in bank])
-    Xn = np.array([feat(c, False) for c in bank], float)
-    Xf = np.array([feat(c, True) for c in bank], float)
-    # standardize columns (kNN scale)
-    for X in (Xn, Xf):
-        sd = X.std(0); sd[sd == 0] = 1; X[:] = (X - X.mean(0)) / sd
+    Xn = np.array([[c["init_seed"], c["lr"]] + [1.0 * (c["activation"] == a) for a in acts] for c in bank], float)
+    sd = Xn.std(0); sd[sd == 0] = 1; Xn = (Xn - Xn.mean(0)) / sd
+    Dn = np.sqrt(np.maximum(((Xn[:, None] - Xn[None, :]) ** 2).sum(-1), 0))   # nuisance-feature distance
     ug = sorted(set(groups)); G = len(ug)
     fold_of = {g: i % min(5, G) for i, g in enumerate(ug)}
     folds = np.array([fold_of[g] for g in groups])
     s_i = np.zeros(len(bank))
     for f in range(min(5, G)):
-        te = folds == f; tr = ~te
-        if tr.sum() == 0 or te.sum() == 0:
+        te = np.where(folds == f)[0]; tr = np.where(folds != f)[0]
+        if len(tr) == 0 or len(te) == 0:
             continue
-        pf = _knn_predict(Xf[tr], y[tr], Xf[te], 3)
-        pn = _knn_predict(Xn[tr], y[tr], Xn[te], 3)
+        pf = _knn_dist(Ddw[np.ix_(te, tr)], y[tr], 3)
+        pn = _knn_dist(Dn[np.ix_(te, tr)], y[tr], 3)
         s_i[te] = (pf == y[te]).astype(float) - (pn == y[te]).astype(float)
     cl_means = np.array([s_i[groups == g].mean() for g in ug])
     Gn = len(cl_means); est = float(cl_means.mean())
@@ -145,7 +141,14 @@ def _mds(D):
 
 
 def main():
-    bank, meta = _load()
+    global OUT
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--bank", default=BANK)
+    ap.add_argument("--out", default=None)
+    args = ap.parse_args()
+    if args.out:
+        OUT = args.out
+    bank, meta = _load(args.bank)
     n = len(bank)
     print(f"[atlas] {n} converged adapters | acts={meta['acts']} comps={meta['comps']} lrs={meta['lrs']} inits={len(meta['inits'])}")
     Ddw, Dba = dw_distance(bank), ba_distance(bank)
@@ -163,7 +166,7 @@ def main():
             print(f"  (B,A) ~ {fkey:10s} ARI={rba['ARI']:+.3f} p={rba['p']:.3f}  |  ΔW ARI={rdw['ARI']:+.3f}  "
                   f"{'→ (B,A) HIGHER (init frame in factors, scrubbed by product)' if rba['ARI']>rdw['ARI']+0.02 else '→ no clear init-contrast'}")
     print("\n=== Facet-C: composition recovery beyond nuisance (cross-fitted acc-diff, cluster-robust CI) ===")
-    fc = facet_c(bank)
+    fc = facet_c(bank, Ddw)
     real = fc["ci"][0] > 0
     print(f"  acc(nuisance+ΔW) − acc(nuisance) = {fc['acc_diff']:+.3f}  CI95 [{fc['ci'][0]:+.3f},{fc['ci'][1]:+.3f}] "
           f"(G={fc['G']} cells) → {'RECOVERS composition beyond nuisance' if real else 'INDETERMINATE (CI spans 0)'}")

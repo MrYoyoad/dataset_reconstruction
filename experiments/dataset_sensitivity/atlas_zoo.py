@@ -27,6 +27,7 @@ import torch
 import experiments.jacobian_spectrum as J
 from experiments.jacobian_spectrum import _honest_target, make_activation
 from experiments.dataset_sensitivity.arm_b_dilution import train_adapter, draw_B0, build_set
+from experiments.data_utils import get_finetuning_data
 
 torch.set_default_dtype(torch.float64)
 RESULTS = "/home/projects/galvardi/yoado/results/atlas_zoo"
@@ -47,6 +48,11 @@ def main():
     ap.add_argument("--save", action="store_true")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--dataset", default="mnist")
+    ap.add_argument("--same_digits", action="store_true",
+                    help="fixed digit-pair [0,1] across compositions → composition = different IMAGE samples "
+                         "(the STRINGENT instance-level test, vs the default where each composition is a "
+                         "different digit-set).")
+    ap.add_argument("--out", default="zoo_bank.pth")
     args = ap.parse_args()
     dev = args.device if torch.cuda.is_available() else "cpu"
     print(f"[atlas-zoo] device={dev} | {len(ACTS)}×{len(COMPOSITIONS)}×{len(LRS)}×{len(INITS)} = "
@@ -62,7 +68,13 @@ def main():
         out_f = frozen[0].shape[0]
         print(f"\n## activation={act_name}  base=weights-{args.dataset}_{act_name}.pth  out_f={out_f}")
         for comp in COMPOSITIONS:
-            x_ft, y_ft, digits = build_set(N_PER_CLASS, seed=comp, device=dev, dataset=args.dataset)
+            if args.same_digits:   # fixed classes {0,1}, comp-seed varies only the IMAGE sample (instance-level)
+                x_ft, y_ft, digits, _ = get_finetuning_data(N_PER_CLASS, seed=comp, device=dev,
+                                                            dataset=args.dataset, num_classes=2,
+                                                            classes_present=[0, 1])
+                x_ft, y_ft = x_ft.to(torch.float64), y_ft.to(torch.float64)
+            else:
+                x_ft, y_ft, digits = build_set(N_PER_CLASS, seed=comp, device=dev, dataset=args.dataset)
             x0 = (x_ft - ds_mean)
             dig_sig = tuple(sorted(set(int(d) for d in digits)))
             for lr in LRS:
@@ -82,7 +94,7 @@ def main():
     print(f"\n[atlas-zoo] converged {n_conv}/{n_tot} cells (max_bce<{CONV_BCE})")
     if args.save:
         os.makedirs(RESULTS, exist_ok=True)
-        out = os.path.join(RESULTS, "zoo_bank.pth")
+        out = os.path.join(RESULTS, args.out)
         torch.save(dict(bank=bank, meta=dict(acts=ACTS, comps=COMPOSITIONS, lrs=LRS, inits=INITS,
                                              N=2 * N_PER_CLASS, T=T, rank=RANK, dataset=args.dataset,
                                              n_converged=n_conv, n_total=n_tot)), out)
