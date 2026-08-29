@@ -187,7 +187,7 @@ def main():
             for j in range(ncols):
                 axes[sp_row, j].axis("off")
 
-        method_label = "full-gradient reconstruction" if method_key == CEILING_KEY else f"{method_key} reconstruction"
+        method_label = "full-gradient reconstruction (ceiling)" if method_key == CEILING_KEY else f"{method_key} reconstruction"
         block_title = f"{ds}  N={c['n']}  {c['activation']}  ({method_label})"
 
         for j in range(ncols):
@@ -218,15 +218,20 @@ def main():
                       "(see figures/phase0/n3_three_faces.png).")
 
     caption = (
-        "We recover RECOGNIZABLE training images from the weight change across datasets, "
-        "image-counts, and activations (full-gradient setting shown). "
-        "Turning this into a robust ADAPTER-ONLY inversion is the immediate next-weeks work."
+        "Recognizable on mnist / cifar / flowers; fashion partial — recovered from the FULL-gradient "
+        "weight change (strong-attacker / known-recipe upper bound), across datasets, image-counts and "
+        "activations. The robust ADAPTER-ONLY inversion is the immediate next-weeks work."
         + faces_note
     )
 
-    fig.suptitle("Positive reconstruction gallery",
-                 fontsize=18, fontweight="bold", y=0.995)
-    fig.tight_layout(rect=[0.03, 0.055, 1, 0.975])
+    # Suptitle must spell out the CEILING (yoado-bd clarity fix): read first, from across the room.
+    fig.suptitle("Recognizable reconstructions — the FULL-GRADIENT ceiling",
+                 fontsize=18, fontweight="bold", y=0.997)
+    fig.text(0.5, 0.965,
+             "What's recoverable from the full model gradient (strong-attacker upper bound) — "
+             "NOT the adapter-only LoRA attack, which is next-weeks work.",
+             ha="center", va="top", fontsize=11.5, style="italic")
+    fig.tight_layout(rect=[0.03, 0.055, 1, 0.945])
     fig.text(0.5, 0.012, caption, ha="center", va="bottom", fontsize=11,
              wrap=True)
     fig.savefig(OUT_PATH, dpi=150, bbox_inches="tight")
