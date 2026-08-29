@@ -1,12 +1,20 @@
 {
   "lora_A_dstar": {
     "t0": 3.1140468563123247,
-    "t1": 2.6925116259689617
+    "t1": 2.6925116259689617,
+    "t3": 4.714568469640556,
+    "t4": 2.533405646906072,
+    "t6": 1.797052536349929,
+    "t10": 5.498587923942604
   },
   "full_D_dstar": {
     "t0": 2.5935118099640113,
-    "t1": 2.2348311720627176
+    "t1": 2.2348311720627176,
+    "t3": 3.6441957490093286,
+    "t4": 3.3607674647592036,
+    "t6": 1.5892080369025652,
+    "t10": 9.601508698923361
   },
   "threshold": 0.1,
-  "note": "d*(0.1) valley width, pixels; LoRA A (E_b0) vs full-FT all-layers D; qualitative (B2-divergent, small-n)."
+  "note": "d*(0.1) valley width, pixels; LoRA A (E_b0) vs full-FT all-layers D; n=6 TARGET-DEPENDENT (4/6 full narrower, 2 flip; mean D/A 1.07 vs median 0.86, outlier-driven) -> no robust narrower direction; qualitative (B2-divergent, small-n)."
 }
