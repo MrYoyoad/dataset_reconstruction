@@ -157,7 +157,7 @@ def main():
         "lora_A_dstar": {lab: (v if v == v else None) for lab, v in zip(labels, dA)},
         "full_D_dstar": {lab: (v if v == v else None) for lab, v in zip(labels, dD)},
         "threshold": THRESH,
-        "note": "d*(0.1) valley width, pixels; LoRA A (E_b0) vs full-FT all-layers D; n=6 TARGET-DEPENDENT (4/6 full narrower, 2 flip; mean D/A 1.07 vs median 0.86, outlier-driven) -> no robust narrower direction; qualitative (B2-divergent, small-n).",
+        "note": "d*(0.1) valley width, pixels; LoRA A (E_b0) vs full-FT all-layers D; n=6 TARGET-DEPENDENT (4/6 full narrower D/A 0.77-0.88, 2 flip t4=1.33/t10=1.75; geomean 1.02 ~= median 0.86 ~= equal; arithmetic mean upward-biased for ratios, NOT used) -> no robust narrower direction; qualitative (B2-divergent, small-n).",
     }
     try:
         with open(os.path.join(RESULTS, "valley_headline_dstar.json"), "w") as _f:
@@ -203,8 +203,9 @@ def main():
         "What we OBSERVE: the normalized profiles s(d) of the full-FT arms (C, D) sit on "
         "top of the LoRA arm (A). Across 6 targets the width comparison is TARGET-DEPENDENT: full-FT is "
         "modestly narrower on 4/6 (incl. the original n=2 pair; median ratio D/A~0.86, ~14%) but WIDER on "
-        "2 (digit-1 t4 ratio 1.33; digit-7 t10 ratio 1.75) -> mean 1.07 vs median 0.86 (mean outlier-driven), "
-        "i.e. NO robust narrower direction, consistent with d*_full $\\approx$ d*_LoRA. Full "
+        "2 (digit-1 t4 ratio 1.33; digit-7 t10 ratio 1.75) -> geomean D/A 1.02 $\\approx$ median 0.86 $\\approx$ "
+        "equal (arithmetic mean upward-biased for ratios, not used), i.e. NO robust narrower direction, "
+        "consistent with d*_full $\\approx$ d*_LoRA. Full "
         "fine-tuning imprints MORE total signal per image than a rank-8 adapter (removal "
         "footprint ~5x, Fig. 3) but at the SAME per-image RESOLUTION: more signal, not finer "
         "discrimination. B1 dimension-invariance PASS (the s-normalization cancels the 70x "

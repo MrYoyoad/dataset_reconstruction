@@ -16,5 +16,5 @@
     "t10": 9.601508698923361
   },
   "threshold": 0.1,
-  "note": "d*(0.1) valley width, pixels; LoRA A (E_b0) vs full-FT all-layers D; n=6 TARGET-DEPENDENT (4/6 full narrower, 2 flip; mean D/A 1.07 vs median 0.86, outlier-driven) -> no robust narrower direction; qualitative (B2-divergent, small-n)."
+  "note": "d*(0.1) valley width, pixels; LoRA A (E_b0) vs full-FT all-layers D; n=6 TARGET-DEPENDENT (4/6 full narrower D/A 0.77-0.88, 2 flip t4=1.33/t10=1.75; geomean 1.02 ~= median 0.86 ~= equal; arithmetic mean upward-biased for ratios, NOT used) -> no robust narrower direction; qualitative (B2-divergent, small-n)."
 }
