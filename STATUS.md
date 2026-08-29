@@ -2696,6 +2696,38 @@ footprint, ~5x) but NOT finer per-image resolution (valley width ≈ LoRA). So r
 larger absolute signal — IF the decoder is good enough — rather than a tighter valley; consistent with the
 0/40 being a decoder/pipeline limit, not an information-geometry (valley) limit. NOT concluded.
 
+### 2026-08-29 — Meeting figures for the full-FT valley wave BUILT (4 figs) + F2/F3 self-audit PASS
+Wrote 4 CPU matplotlib scripts reading COMMITTED result files (no GPU), rendered to
+`figures/fullft_valley/`. Framing per user: the 0/40 reconstruction number is DROPPED from the
+narrative (buggy experiment, not a finding) — figures are POSITIVE characterizations, no
+"why reconstruction failed" language.
+ - `fig_valley_ladder.py` → fig_valley_ladder.png — HEADLINE: overlaid s(d) profiles for
+   A(=E_b0 LoRA r8)/C(full single-layer)/D(full all-layers) per dial target + d*(0.1) bar panel
+   (LoRA A 3.11/2.69 vs full D 2.59/2.23). Full-FT profiles sit ON the LoRA profile ⇒ same
+   per-image resolution, not a narrower valley. B1 dimension-invariance PASS annotated.
+ - `fig_valley_depth.py` → fig_valley_depth.png — per-layer numerator ‖Δμ_L‖ vs d_pixel (arm D),
+   L0>L1>L2 at every rung ⇒ signal concentrated in layer-0, fading with depth (numerator is the
+   honest statistic; per-layer d* is denominator-confounded).
+ - `fig_removal_crossregime.py` → fig_removal_crossregime.png — arm F: (a) full vs LoRA LOO
+   footprint ρ=+0.943 (same images imprint most) + ~5.8x LARGER absolute footprint in full
+   (median per-target — HEADLINE POSITIVE: full records more per image); (b) full footprint vs
+   g0@θ0 ρ=+0.829 (g0 predictor transfers to full FT).
+ - `fig_jacobian_spectra.py` → fig_jacobian_spectra.png — arm G (parsed from
+   scripts/wexac_logs/fullft_jacobian_501620.out): σ-range bars J_full vs J_LoRA + eff_rank/r_J,
+   P7 valley ratio bars (T=20 full 1.213 ≈ LoRA 1.221), col(J_full) energy L0-dominant. Two
+   independent methods converge; early-training-Jacobian caveat on every readout.
+All captions OBSERVE-not-conclude + weakest-attacker footer. `_n6` scale-up (job 695782) files
+NOT present at build time — scripts auto-detect `{arm}_n6_summary.json` and fall back to n=2, so
+re-render is one command if the n=6 data lands.
+SELF-AUDIT (item 5, the stats-check the rotated-out sibling never finished): F2 and F3 figures
+re-verified against source. F2 (`f2_similarity_ladder.png`): blur d_pixel recomputed from stacks
+= 2.9936 (t0)/3.3582 (t1) MATCHES ~2.99/3.36; r_cross normalizer s=1 MATCHES. F3
+(`f3_margin_who_leaks.png`): tercile_rhos [LOW +0.881, mid +0.500, HIGH −0.119], CI [+0.529,+0.907]
+halfwidth 0.189, INDETERMINATE verdict — ALL MATCH summary.json. Both scripts are data-driven
+(read source at render). One COSMETIC bug in fig_f2: the "[F2] recomputed blur d_pixel" log line
+never prints because main() runs the report loop BEFORE build_figure sets the key — the PLOTTED
+value is correct; only the stdout log is affected.
+
 ---
 ## 2026-08-29 — Activation-crux figure + analysis (supervisor TOP ask, was stalled)
 
