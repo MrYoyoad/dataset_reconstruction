@@ -44,8 +44,13 @@ that into a robust adapter-only inversion is the immediate next step.
   information.
 - **Use:** open here so reconstruction reads as *working-with-traction across a real sweep*, not a result
   to defend. NO pass/fail-vs-baseline numbers, NO "0/40" — dropped per the framing directive.
-- **TODO before Monday:** the gallery build reports which config wins per dataset; drop any dataset where
-  nothing is recognizable, keep the honest winners.
+- **Winners (built, figures/meeting/positive_reconstruction_gallery.png):** mnist N=2 gelu (digits crisp,
+  0.99), cifar10 N=2 gelu (boat+car, 0.9995), flowers32 N=2 gelu (rose+lily, 0.9994), fashion N=2 softplus
+  (boot, 0.64 — honest weakest, still recognizable). All four recognizable — none dropped.
+- **HONESTY LABEL (say this out loud):** these are the **full-gradient / TRUE-ΔW *ceiling*** reconstructions
+  — what's achievable when you have the true weight-change. They prove the information is recoverable; they
+  are NOT the adapter-only decoded attack. The adapter-only inversion is exactly the next-weeks work — and
+  F-C says it has ~5× more signal to work with. Do not let the gallery read as "our LoRA attack got these."
 
 ### F-A. Margin scatter — "WHO leaks" (fig_f3_margin, margin_at_scale)
 - **Shows:** per-image sensitivity vs base-model gradient g₀, n=24, stratified.
