@@ -4,6 +4,19 @@ Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; 
 
 ---
 
+## Activation crux — free-c ladder CONFIRMS kinked-leaks-most on MNIST (2026-08-29, job 392821)
+The REALISTIC free-coefficient wc-ladder (job 392821 -> results/rescored_freec_ladder_2026-08-29.csv,
+13 activations x 4 matched-wc rungs, ctrl_margin_norm leakage proxy) CONFIRMS the oracle first-pass and
+does NOT flip it on MNIST: **kinked relu/leaky_relu/selu leak most** (kinked-mean ~0.46 vs smooth-mean
+~0.09), and Spearman(smoothness_index, leakage) is positive and STRENGTHENS with weight-change across the
+ladder -- +0.236 (wc~0.005) / +0.385 (0.03) / +0.522 (0.1) / +0.824 (0.3), kinked leading at EVERY rung
+incl. the near-lazy 0.005 NTK rung. Removes the oracle-provisional/'may-flip' caveat for the supervisor's
+TOP ask (the flowers32 oracle->free-c flip precedent does NOT reproduce on MNIST). CAVEATS: two-cluster
+(kinked lead), NOT a monotonic smoothness law (selu clusters with the sharp kinks); MNIST only, N=2, T=1,
+n=13 acts -- exploratory; flowers band (dataset-dependence) + feature-stability-vs-T (job 390026) still
+running. Verdict by the metric-auditer; summary notes/thesis_scientific_summary.md §2.6 updated.
+
+
 ## Crux (Gal's #1) — Step-1 OBSERVATIONS: full 152-config activation rescore + first-pass ranking (2026-08-28)
 
 (Posture per Gal/yoado-18: observe, don't conclude. These are first-pass OBSERVATIONS from ORACLE data,
