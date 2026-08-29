@@ -11,7 +11,16 @@
 > subset (two-cluster kinked-vs-smooth effect, not a monotonic gradient). Figure figures/crux/freec_ladder_ranking.png
 > (generator experiments/plot_freec_ladder.py, data results/rescored_freec_ladder_2026-08-29.csv). This is
 > the authoritative realistic crux ranking; supersedes the oracle first-pass. feature-stability-vs-T
-> (job 390026) is the NTK-survival companion, landing shortly.
+> (job 390026) is the NTK-survival companion.
+>
+> **UPDATE 2026-08-29 — NTK-survival panel LANDED (job 390026, 65/65 feature-stability-vs-T).** OBSERVED:
+> at every T the SMOOTHEST activations (sigmoid/softplus) sustain the highest feature_stability
+> (linearization fidelity), the KINKED (relu/leaky_relu) the lowest — robust at the EXTREMES, but NOT a clean
+> monotone smoothness order (gelu/silu C∞ decay fast; elu/celu C¹ hold) = the SAME two-cluster shape as the
+> free-c ladder. Strict NTK regime (fs>0.99) reached only briefly + only by the smoothest (sigmoid→T=5,
+> softplus→T=1). **KEY DISSOCIATION (the two-panel crux story):** kinked activations have the WORST
+> linearization fidelity (this panel) yet LEAK THE MOST (free-c ladder) → linearization fidelity does NOT
+> drive leakage. Figure figures/crux/feature_stability_vs_T.png. Crux panel 2/2 for the F-F deck page.
 
 
 > **UPDATE 2026-08-28 — full 152-config rescore (was 27). OBSERVATIONS from the ORACLE first-pass — not
