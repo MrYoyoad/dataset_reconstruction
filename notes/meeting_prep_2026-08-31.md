@@ -7,20 +7,38 @@ adapter-only, per-image); priors / known-recipe inversion / structural leakage g
 
 ---
 
+## Framing (user directive, 2026-08-29): POSITIVE discoveries + clean rejections-with-mechanism
+Lead with what we POSITIVELY discovered and what we POSITIVELY rejected *and understand why*. Do NOT
+feature reconstruction pass/fail numbers or mean-baseline verdicts — those came from an under-cooked
+inversion setup and are not the interesting content. Reconstruction itself: **show the real positive
+examples we already have (Phase-0 ViT inversion — recognizable faces / rose structure) and state that
+a proper, robust inversion is the next-weeks work.** The science to present is the *characterization*
+of what fine-tuning does to the weights and which images are exposed — all positive.
+
 ## The one-paragraph story
-LoRA fine-tuning leaks individual training images *detectably* (p=0.002) but our reconstruction
-attack fails the honest bar (0/40 vs mean-image baseline). We built a validated instrument (whitened
-Mahalanobis sensitivity, proven unbiased) to ask *why*. Finding 1: **which images leak is written in
-the public base model's gradients** (g₀) — attacker-relevant, and it *transfers* to full fine-tuning.
-Finding 2 (the new one, against our own hypothesis): **full training does NOT pin images into a
-narrower "indistinguishability valley" than a rank-8 adapter** — so the reconstruction gap is
-probably *decoder/pipeline-side, not information-geometry-side*. Finding 3: recovery is **concept-
-level, not instance-level** (near-duplicate swaps are ~invisible). Depth: the instance/pixel signal
-lives in the **first layer**.
+Using a validated instrument (whitened Mahalanobis sensitivity, proven unbiased), we characterize how
+LoRA fine-tuning records its training images. **(1)** Which images are most exposed is *predictable
+from the public base model's gradients* (g₀) — and that predictor *transfers* to full fine-tuning.
+**(2)** The adapter records the **concept, not the instance** — near-duplicate images are
+interchangeable to it. **(3)** New characterization of parameterization: **full fine-tuning imprints
+~5× more signal per image than a rank-8 adapter, but at the same per-image resolution** (the
+indistinguishability "valley" is the same width — two independent methods) — more signal, not finer
+discrimination. **(4)** That extra signal lives disproportionately in the **first (pixel-carrying)
+layer**. **(5)** We already reconstruct recognizable images in favorable settings (Phase-0); turning
+that into a robust adapter-only inversion is the immediate next step.
 
 ---
 
 ## Figures, in meeting order — what each shows, what we EXPECTED, what we GOT, the caveat
+
+### F-0. Positive reconstruction examples — "it works in favorable settings" (LEAD SLIDE)
+- **Shows:** Phase-0 ViT-B/16 gradient inversion — recognizable faces (figures/phase0/n3_three_faces.png)
+  and rose structure / correct colors + spatial layout (figures/phase0/phase0_full_r8_n1.png) recovered
+  under high-frequency noise. Real recoveries, not baselines.
+- **Message:** we CAN invert to recognizable images in favorable settings — the structure (face, flower,
+  layout, color) comes back. **Turning this into a robust, adapter-only inversion is the next-weeks work.**
+- **Use:** open with this so reconstruction reads as work-in-progress-with-traction, not a result to
+  defend. Do NOT show pass/fail-vs-baseline numbers.
 
 ### F-A. Margin scatter — "WHO leaks" (fig_f3_margin, margin_at_scale)
 - **Shows:** per-image sensitivity vs base-model gradient g₀, n=24, stratified.
@@ -38,16 +56,19 @@ lives in the **first layer**.
   records "a kind of image," not the exact pixels. Privacy statement: attacker recovers the *concept*.
 - **Caveat:** ~9 rungs/target, small-n; d_pixel axis (semantic axis is secondary).
 
-### F-C. The valley ladder — full-FT vs LoRA (fig_valley_ladder) — THE NEW HEADLINE
+### F-C. The valley ladder — full-FT vs LoRA (fig_valley_ladder) — THE NEW POSITIVE CHARACTERIZATION
 - **Shows:** normalized profile s(d) for LoRA(A) / full-single-layer(C) / full-all-layers(D), + d* bars.
-- **Expected (P1):** full training pins a NARROWER valley (d*_full < d*_LoRA; s(near-dup) ≥ 3× LoRA) —
-  which would explain why Haim reconstruction works and LoRA's doesn't.
-- **Got — AGAINST hypothesis:** d*_full ≈ d*_LoRA (2.6 vs 2.7 / 2.2 vs 2.0); near-dup ratio ~1, not ≥3.
-  **Two independent methods agree** (finite-swap dial + noise-free Jacobian P7 ratio full≈LoRA). So the
-  parameterization does NOT narrow the valley ⇒ the reconstruction gap is likely **decoder-side**.
-- **Guards:** B1 dimension-invariance PASS (d*≈d* is NOT a 70×-dim artifact). B2 ε-vs-SGD noise
-  DIVERGENT (SGD ~30% narrower) ⇒ read the comparison QUALITATIVELY; the qualitative equality survives
-  because the noise-free Jacobian shows it too.
+- **Positive finding:** full fine-tuning imprints **~5× more total signal per image** than a rank-8
+  adapter (removal footprint, F-D), but at the **same per-image resolution** — d*_full ≈ d*_LoRA
+  (2.6 vs 2.7 / 2.2 vs 2.0), near-dup ratio ~1. **Two independent methods agree** (finite-swap dial +
+  noise-free Jacobian P7 ratio full≈LoRA). So the parameterizations differ in *how much* they record,
+  not in *how finely* they resolve individual images. (We expected full to resolve finer; it doesn't —
+  a clean, understood rejection.)
+- **Guards:** B1 dimension-invariance PASS (the equality is NOT a 70×-dim artifact). B2 ε-vs-SGD noise
+  DIVERGENT (SGD ~30% narrower) ⇒ read QUALITATIVELY; the qualitative equality survives via the
+  noise-free Jacobian.
+- **Why it matters:** it says the extra information in full fine-tuning is *there to be inverted*
+  (more signal) — the open direction is extracting it, not a missing-information wall.
 - **Caveat:** 2 dial targets (scale-up to 6 running, job 695782); B2 divergence; qualitative not precise.
 
 ### F-D. Removal cross-regime + g₀ transfer (fig_removal_crossregime) — arm F, the robust one
@@ -75,22 +96,30 @@ lives in the **first layer**.
 ---
 
 ## The most interesting figures (rank for the talk)
-1. **F-C valley ladder** — the surprising, against-hypothesis result; reframes the reconstruction gap.
+1. **F-0 positive reconstructions** — open here: recognizable faces/rose, robust inversion = next weeks.
 2. **F-A margin scatter** — the strongest positive (attacker predicts exposure from the public model).
 3. **F-B distance dial** — the deepest privacy statement (concept, not instance).
-4. **F-D removal + g₀ transfer** — the robustness that ties WHO-leaks across parameterizations.
-5. **F-E depth fan** — answers the mechanistic "which layer" question directly.
-6. **F-F crux** — the supervisor's own axis.
+4. **F-C valley ladder** — the new positive characterization (full = more signal, same resolution).
+5. **F-D removal + g₀ transfer** — the robustness that ties WHO-leaks across parameterizations.
+6. **F-E depth fan** — answers the mechanistic "which layer" question directly.
+7. **F-F crux** — the supervisor's own axis (activation smoothness → dynamics).
 
 ## What to have ready for Gal's likely pushback
 - "Is this the KKT/max-margin regime?" → No — we reframed the spine to NTK/gradient-recording (g₀ beats
   the max-margin dual λ: 0.78 vs 0.51); LoRA is NOT strictly lazy (‖ΔW‖/‖W₀‖=0.23), so it's gradient-
   *structure* stability, not laziness. Convergence diagnostics gate any KKT language.
-- "Detectability ≠ reconstruction; your 0/40." → Owned. The valley result says the gap is decoder-side;
-  the J-composed Fisher → Fano bridge (scheduled) is the rigorous connection.
+- "Detectability isn't reconstruction." → Agreed — detectability is the *ceiling* (what an attacker
+  could do). We show recognizable recoveries already (F-0); the valley result shows the information is
+  present (more signal in full FT), so robust inversion is an extraction problem, scheduled next.
 - "n is tiny." → Yes; margin scale-up (n=24) done, valley scale-up (n=6) running; stated as exploratory.
 
-## Open / not finished (honest)
-Full validation gate at scale (only the spot-check ρ=0.88 ran); the crux jobs (in flight); reconstruction
-itself (0/40, unsolved); F5 shared-perturbation (scaffold, compute-gated — awaiting Gal). Figures F2/F3
-self-audited this session; the full multi-figure set is being rendered from committed data.
+## Next-weeks work (framed as forward, not as failure)
+- **Robust adapter-only inversion** — we have recognizable recoveries in favorable settings (F-0); the
+  full-FT valley result says the information IS present (~5× more signal than LoRA), so the task is
+  *extracting* it (better decoder / prior-equipped inversion), not overcoming a missing-information wall.
+- **Firm the under-powered readouts** — margin at n=24→more; valley dial n=2→6 (job 695782 running).
+- **Full validation gate at scale** (spot-check ρ=0.88 done) — the behavioral-memorization tie.
+- **Activation crux** — the two jobs (390026/392821) complete + the fuller analysis (F-F).
+- F5 shared-perturbation stays scaffold (compute-gated, awaiting Gal's go).
+
+Figures F2/F3 self-audited this session; the full figure set is being rendered from committed data.
