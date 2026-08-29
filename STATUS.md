@@ -2663,3 +2663,35 @@ RMS-matched ε). RMS undershoot 9.32 vs 9.97 target — IMMATERIAL to the normal
 launched; its bracket-enforcement guard confirmed bracket[D].passed+measurable before running D. Jacobian
 arm G (501620) running in parallel. HEADLINE read still gated on B1 (dimension-invariance) + B2 (SGD
 cross-check) at full scale, per pre-registration. OBSERVE-framed; nothing concluded yet.
+
+### 2026-08-29 — FULL-FT VALLEY WAVE COMPLETE (jobs 507111/520652/501620) — OBSERVATIONS (not conclusions)
+All arms landed. K=50, N=16, 2 dial targets, mnist/gelu/binary. Headline is OBSERVE-framed, weakest-
+attacker-scoped; the valley-width read is qualitative (see B2).
+GUARD GATES:
+ - B1 dimension-invariance: PASS — d*(0.1) max/min across coord-fractions {25k..1.79M} = 1.064 (t0) /
+   1.017 (t1) ≈ 1 ⇒ the s(d)-normalization DOES cancel the 70× ambient-dimension step; d*≈d* is NOT a
+   dimension artifact. (The §I.4 confound is cleared for this comparison.)
+ - B2 ε-vs-SGD noise: PARTIAL/divergent — full-FT under SGD-order noise reads a somewhat NARROWER valley
+   than under ε-noise (t0 concat d*(0.1): SGD 1.98 vs ε 2.59; near-dup s: SGD 0.0082 vs ε 0.0037, ~2×).
+   ⇒ the PRECISE cross-regime d* is noise-source-dependent; read the valley comparison QUALITATIVELY (per
+   the pre-registered "disagreement downgrades to qualitative"). The qualitative finding survives because
+   it also appears in the NOISE-FREE Jacobian (below).
+HEADLINE OBSERVATION (P1) — AGAINST the hypothesis: full-FT does NOT pin images into a NARROWER valley
+than LoRA. Dial d*(0.1): D(full) 2.59/2.23 ≈ A(LoRA) 2.66/1.99; near-dup s ratio D/A = 0.95/0.82 (P1
+predicted ≥3). Jacobian P7 valley ratio ‖J·a_nn‖/‖J·a_far‖: full≈LoRA (T=20: 1.213 vs 1.221; T=5: 1.093 vs
+0.997). TWO independent methods (finite-swap dial + local-linear Jacobian) converge: full training does
+NOT resolve individual images into a tighter valley than a rank-8 adapter. ⇒ the Haim-reconstruction-works
+/ LoRA-0/40 gap is NOT primarily a valley-WIDTH (resolution) effect — it points elsewhere (decoder/pipeline
+and/or absolute footprint magnitude, below).
+ARM F (removal, LOO): P5b HEADLINE cross-regime per-target rank corr rho=+0.943 (n=6) ⇒ the SAME images
+have the biggest removal footprint under full AND LoRA. P5a: removal detectable p<0.002 both regimes. But
+ABSOLUTE footprint is ~5x BIGGER in full (e.g. t1 rm=1: full sens 37.9 |dmu|0.371 vs LoRA sens 7.23) —
+descriptive (N→N−1 caveat). g0 piggyback: rho(full LOO footprint, g0@θ0)=+0.829 (n=6) ⇒ the base-gradient
+leakage predictor (LoRA ρ≈0.78) TRANSFERS to full FT.
+DEPTH (P2, on the NUMERATOR ‖dmu_l‖, S2): at the near-dup rung L0=0.0223 > L1=0.0133 > L2=0.0033 ⇒
+instance/pixel signal concentrated in the FIRST layer, fading with depth — confirms the early-layer-carries-
+instance prediction (the user's "all layers of it" question).
+RECONCILIATION (hypothesis, OPEN): full training imprints MORE total signal per image (bigger absolute
+footprint, ~5x) but NOT finer per-image resolution (valley width ≈ LoRA). So reconstruction may exploit the
+larger absolute signal — IF the decoder is good enough — rather than a tighter valley; consistent with the
+0/40 being a decoder/pipeline limit, not an information-geometry (valley) limit. NOT concluded.
