@@ -87,15 +87,27 @@ def main():
     ax.grid(True, which="both", alpha=0.25)
     ax.legend(fontsize=8.2, ncol=2, loc="lower left", framealpha=0.95, title="smooth → kinked (dashed)")
 
-    # survival-horizon summary ordered by horizon
-    order = sorted(horizon, key=lambda a: -horizon[a])
-    txt = "NTK survival horizon (largest T with feat_stab>0.99):\n" + \
-          "  ".join(f"{a}:{horizon[a]}" for a in order)
-    ax.text(0.5, -0.14, txt, transform=ax.transAxes, ha="center", fontsize=8,
+    # graded readout: feature_stability at the largest T (the strict 0.99 horizon is degenerate here —
+    # only the smoothest reach it — so summarise by the ordering, which IS the signal)
+    maxT = max(max(series[a]) for a in acts)
+    fs_end = {a: series[a][max(series[a])][0] for a in acts}
+    order = sorted(fs_end, key=lambda a: -fs_end[a])
+    sig, soft = horizon.get("sigmoid", 0), horizon.get("softplus", 0)
+    txt = ("What we OBSERVE: at every T the SMOOTHEST (sigmoid/softplus) sustain the highest linearization "
+           "fidelity and the KINKED (relu/leaky_relu) the lowest — robust at the extremes. But NOT a clean "
+           "monotone smoothness order across the middle: gelu/silu (C∞) start high yet decay fast; elu/celu "
+           "(C¹) start low yet hold. Same two-cluster shape as the free-c ladder.\n"
+           f"fs at T={maxT} (high→low):  " + "   ".join(f"{a} {fs_end[a]:.2f}" for a in order) + "\n"
+           f"Strict NTK regime (fs>0.99) reached only briefly & only by the smoothest (sigmoid→T={sig}, "
+           f"softplus→T={soft}) — a GRADED effect at the extremes, not a sharp horizon or a clean law.")
+    ax.text(0.5, -0.19, txt, transform=ax.transAxes, ha="center", va="top", fontsize=7.8,
             color="#333", bbox=dict(boxstyle="round", fc="#eef6ee", ec="#8ab98a", alpha=0.9))
-    fig.text(0.5, -0.02, f"data: {args.csv} | fixed lr=0.01, r=8, N=2, seed 42 | feature_stability is "
-             "coefficient-mode-independent (oracle tensors fine) | job 390026",
-             ha="center", fontsize=7.6, color="#555")
+    fig.text(0.5, -0.30, "PAIR WITH freec_ladder_ranking.png (crux panel 2/2): kinked activations have the WORST "
+             "linearization fidelity HERE yet LEAK THE MOST there → linearization fidelity does NOT drive "
+             "leakage (the two dissociate).  |  "
+             f"data: {args.csv}, fixed lr=0.01 r=8 N=2 seed 42 | feature_stability is coefficient-mode-independent "
+             "(oracle tensors fine) | job 390026",
+             ha="center", va="top", fontsize=7.4, color="#555")
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")
