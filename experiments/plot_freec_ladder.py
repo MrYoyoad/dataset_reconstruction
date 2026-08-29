@@ -121,13 +121,17 @@ def main():
                                    [oracle[a][rung][0] for a in acts]).correlation
     fr = "  ".join(f"{g}:{spearmans.get(g, float('nan')):+.2f}" for g in RUNGS)
     orc = "  ".join(f"{g}:{orho.get(g, float('nan')):+.2f}" for g in RUNGS)
-    fig.suptitle("Crux closure — REALISTIC (free-c) leakage ranking across the wc-ladder vs the ORACLE upper bound",
-                 fontsize=12.5, fontweight="bold", y=1.0)
-    fig.text(0.5, -0.01,
-             f"free-c Spearman(smoothness,leakage) per rung: {fr}   |   oracle: {orc}   "
-             "|  leakage=ctrl_margin_norm, Spearman over DISTINCT activations. "
-             "Sign FLIP free-c-vs-oracle ⇒ oracle read was an artifact; stable across rungs ⇒ robust.",
-             ha="center", fontsize=8.2, color="#333")
+    fig.suptitle("Crux (activation smoothness) — what we OBSERVE: the REALISTIC (free-c) leakage ranking "
+                 "across the wc-ladder, vs the oracle upper bound",
+                 fontsize=12, fontweight="bold", y=1.0)
+    fig.text(0.5, -0.005,
+             "OBSERVED (MNIST): the realistic free-c attack does NOT flip the oracle ranking — kinked "
+             "relu/leaky_relu/selu leak most at EVERY rung, stable across wc; the oracle (♦) tracks free-c closely.\n"
+             f"free-c Spearman(smoothness,leakage) per rung: {fr}   |   oracle: {orc}   |  "
+             "leakage=ctrl_margin_norm, Spearman over DISTINCT activations. "
+             "NOT a 'smoother⇒less leakage' law (sign still flips within the smooth-only subset; flowers behaves "
+             "differently — dataset-dependence OPEN). oracle@0.005 undersampled (first-pass used different LRs).",
+             ha="center", va="top", fontsize=7.8, color="#333")
     fig.tight_layout(rect=[0, 0.01, 1, 0.97])
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight", facecolor="white")
