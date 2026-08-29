@@ -1,23 +1,15 @@
-"""Adapter-space atlas — ANALYSIS of the factorial zoo (plan §1/§4/§5/§12).
+"""Adapter-space atlas — ANALYSIS of the factorial zoo (plan §1/§4/§5/§12). numpy+scipy only (no sklearn).
 
 Consumes results/atlas_zoo/zoo_bank.pth (per-cell raw B,A over {activation}×{composition}×{lr}×{init}).
-Runs the user's TWO clustering methods and the variance-decomposition:
-
-  (1) ΔW = B·A method (gauge-clean, PRIMARY) — cluster the actual adapter value; decompose the partition
-      across {init, lr, activation, composition}: adjusted-Rand vs each factor with a label-permutation null.
-      Headline = "how much is the ΔW-clustering DIFFERENT from init/lr" (the residual = composition signal).
-  (2) raw (B,A) method (SECOND, contrast) — UNcanonicalized (the init frame IS the signal). Test:
-      raw (B,A) should associate with init/activation MORE than ΔW does (init/gauge lives in the factors,
-      scrubbed by the product). Reported as association-vs-null, NOT bare partition divergence.
-
-  Facet-C composition recovery (§12): cross-fitted held-out ACCURACY DIFFERENCE — a classifier predicting
-  composition from (nuisance+ΔW features) minus one from (nuisance features only), scored on held-out cells.
-  CI = cluster-robust t_{G-1}·sd_cluster/√G over composition-cells (NOT z·sd/√n_adapters — pseudo-replication).
-
-Observe-framed, weakest-attacker scoped. Because the zoo is PER-SEED (not seed-means), it CAN attribute the
-clustering to a factor — this is the honest read the pre-look could not give.
-
-Run (bsub):  python -u -m experiments.dataset_sensitivity.atlas_analyze
+Two clustering methods + the variance-decomposition:
+  (1) ΔW=B·A (gauge-clean, PRIMARY) — cluster the actual adapter value; decompose the partition across
+      {init,lr,activation,composition}: adjusted-Rand vs each factor with a label-permutation null.
+      Headline = "how much is the ΔW-clustering DIFFERENT from init/lr" (residual = composition signal).
+  (2) raw (B,A) (SECOND, contrast) — UNcanonicalized (init frame IS the signal): does it associate with
+      init/activation MORE than ΔW does? (association-vs-null, not bare divergence.)
+  Facet-C composition recovery (§12): cross-fitted held-out ACCURACY DIFFERENCE (kNN on nuisance+ΔW feats
+  minus nuisance-only), CI = cluster-robust t_{G-1}·sd_cluster/√G over composition-cells.
+Observe-framed, weakest-attacker. Per-seed zoo → CAN attribute (unlike the seed-mean pre-look).
 """
 import os
 import numpy as np
@@ -25,6 +17,9 @@ import torch
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from scipy.cluster.hierarchy import linkage, fcluster
+from scipy.spatial.distance import squareform
+from scipy import stats
 
 BANK = "results/atlas_zoo/zoo_bank.pth"
 OUT = "figures/atlas/atlas.png"
@@ -36,10 +31,9 @@ def _load():
     d = torch.load(BANK, map_location="cpu", weights_only=False)
     bank = [c for c in d["bank"] if c.get("converged", True)]
     for c in bank:
-        A = c["A"].to(torch.float64).numpy()      # (r, in)
-        B = c["B"].to(torch.float64).numpy()      # (out, r)
-        c["dW"] = B @ A                            # gauge-clean product
-        c["BA_flat"] = np.concatenate([B.ravel(), A.ravel()])  # raw factors (uncanonicalized)
+        A = c["A"].to(torch.float64).numpy(); B = c["B"].to(torch.float64).numpy()
+        c["dW"] = B @ A
+        c["BA_flat"] = np.concatenate([B.ravel(), A.ravel()])
     return bank, d["meta"]
 
 
@@ -69,88 +63,115 @@ def dw_distance(bank):
 
 
 def ba_distance(bank):
-    # raw (B,A) two-sided Euclidean on the UNcanonicalized flattened factors (init frame kept on purpose)
     X = np.stack([c["BA_flat"] for c in bank]); X = X / (np.linalg.norm(X, axis=1, keepdims=True) + 1e-12)
-    G = X @ X.T
-    return np.sqrt(np.maximum(2 - 2 * G, 0))
+    return np.sqrt(np.maximum(2 - 2 * (X @ X.T), 0))
+
+
+def _clabels(D, k):
+    Z = linkage(squareform(D, checks=False), method="average")
+    return fcluster(Z, k, criterion="maxclust")
+
+
+def _ari(a, b):
+    a = np.asarray([str(x) for x in a]); b = np.asarray(b)
+    ca, cb = np.unique(a), np.unique(b)
+    cont = np.array([[np.sum((a == x) & (b == y)) for y in cb] for x in ca], dtype=float)
+    comb = lambda v: (v * (v - 1) / 2).sum()
+    si = comb(cont.sum(1)); sj = comb(cont.sum(0)); s = comb(cont.ravel())
+    n = len(a); tot = n * (n - 1) / 2
+    exp = si * sj / tot; mx = 0.5 * (si + sj)
+    return (s - exp) / (mx - exp) if mx != exp else 0.0
 
 
 def assoc(D, labels, n_perm=2000):
-    from sklearn.cluster import AgglomerativeClustering
-    from sklearn.metrics import adjusted_rand_score
     lab = np.array([str(x) for x in labels]); k = len(set(lab))
     if k < 2 or k >= len(lab):
         return None
-    cl = AgglomerativeClustering(n_clusters=k, metric="precomputed", linkage="average").fit_predict(D)
-    obs = adjusted_rand_score(lab, cl)
-    null = np.array([adjusted_rand_score(RNG.permutation(lab), cl) for _ in range(n_perm)])
-    return dict(ARI=obs, p=float((null >= obs).mean()), k=k)
+    cl = _clabels(D, k)
+    obs = _ari(lab, cl)
+    null = np.array([_ari(RNG.permutation(lab), cl) for _ in range(n_perm)])
+    return dict(ARI=float(obs), p=float((null >= obs).mean()), k=k)
+
+
+def _knn_predict(Xtr, ytr, Xte, k):
+    k = max(1, min(k, len(Xtr)))
+    preds = []
+    for x in Xte:
+        d = ((Xtr - x) ** 2).sum(1)
+        nn = ytr[np.argsort(d)[:k]]
+        vals, cnts = np.unique(nn, return_counts=True)
+        preds.append(vals[np.argmax(cnts)])
+    return np.array(preds)
 
 
 def facet_c(bank):
-    """Composition recovery beyond nuisance — cross-fitted held-out accuracy difference + cluster-robust CI."""
-    from sklearn.neighbors import KNeighborsClassifier
-    from sklearn.model_selection import GroupKFold
-    from scipy import stats
-    # nuisance features: init_seed, lr, activation (one-hot); ΔW features: top-P singular values (gauge-inv)
     acts = sorted(set(c["activation"] for c in bank))
     def feat(c, with_dw):
         nu = [c["init_seed"], c["lr"]] + [1.0 * (c["activation"] == a) for a in acts]
         if with_dw:
-            s = _svd_feats(c["dW"])[1]
-            nu = nu + list(s) + [float(np.linalg.norm(s))]
+            s = _svd_feats(c["dW"])[1]; nu = nu + list(s) + [float(np.linalg.norm(s))]
         return nu
     y = np.array([c["composition"] for c in bank])
-    groups = np.array([f"{c['activation']}|{c['lr']}|{c['composition']}" for c in bank])  # cluster = comp-cell
-    Xn = np.array([feat(c, False) for c in bank]); Xf = np.array([feat(c, True) for c in bank])
-    G = len(set(groups))
-    gkf = GroupKFold(n_splits=min(5, G))
+    groups = np.array([f"{c['activation']}|{c['lr']}|{c['composition']}" for c in bank])
+    Xn = np.array([feat(c, False) for c in bank], float)
+    Xf = np.array([feat(c, True) for c in bank], float)
+    # standardize columns (kNN scale)
+    for X in (Xn, Xf):
+        sd = X.std(0); sd[sd == 0] = 1; X[:] = (X - X.mean(0)) / sd
+    ug = sorted(set(groups)); G = len(ug)
+    fold_of = {g: i % min(5, G) for i, g in enumerate(ug)}
+    folds = np.array([fold_of[g] for g in groups])
     s_i = np.zeros(len(bank))
-    for tr, te in gkf.split(Xf, y, groups):
-        kn = min(3, len(tr))
-        pf = KNeighborsClassifier(kn).fit(Xf[tr], y[tr]).predict(Xf[te])
-        pn = KNeighborsClassifier(kn).fit(Xn[tr], y[tr]).predict(Xn[te])
+    for f in range(min(5, G)):
+        te = folds == f; tr = ~te
+        if tr.sum() == 0 or te.sum() == 0:
+            continue
+        pf = _knn_predict(Xf[tr], y[tr], Xf[te], 3)
+        pn = _knn_predict(Xn[tr], y[tr], Xn[te], 3)
         s_i[te] = (pf == y[te]).astype(float) - (pn == y[te]).astype(float)
-    # cluster-robust CI over composition-cells (G clusters), t_{G-1}
-    cl_means = np.array([s_i[groups == g].mean() for g in sorted(set(groups))])
-    Gn = len(cl_means); est = cl_means.mean()
+    cl_means = np.array([s_i[groups == g].mean() for g in ug])
+    Gn = len(cl_means); est = float(cl_means.mean())
     se = cl_means.std(ddof=1) / np.sqrt(Gn) if Gn > 1 else float("nan")
-    tcrit = stats.t.ppf(0.975, Gn - 1) if Gn > 1 else float("nan")
-    return dict(acc_diff=float(est), ci=(float(est - tcrit * se), float(est + tcrit * se)), G=Gn)
+    t = stats.t.ppf(0.975, Gn - 1) if Gn > 1 else float("nan")
+    return dict(acc_diff=est, ci=(est - t * se, est + t * se), G=Gn)
+
+
+def _mds(D):
+    n = D.shape[0]; J = np.eye(n) - np.ones((n, n)) / n
+    B = -0.5 * J @ (D ** 2) @ J
+    w, V = np.linalg.eigh(B)
+    idx = np.argsort(w)[::-1][:2]
+    return V[:, idx] * np.sqrt(np.maximum(w[idx], 1e-12))
 
 
 def main():
     bank, meta = _load()
     n = len(bank)
-    print(f"[atlas] {n} converged adapters | factors: acts={meta['acts']} comps={meta['comps']} "
-          f"lrs={meta['lrs']} inits={len(meta['inits'])}")
+    print(f"[atlas] {n} converged adapters | acts={meta['acts']} comps={meta['comps']} lrs={meta['lrs']} inits={len(meta['inits'])}")
     Ddw, Dba = dw_distance(bank), ba_distance(bank)
 
-    factors = ["composition", "activation", "lr", "init_seed"]
     print("\n=== (1) ΔW-clustering decomposition — adjusted-Rand vs factor (permutation p) ===")
     dw_assoc = {}
-    for fkey in factors:
+    for fkey in ["composition", "activation", "lr", "init_seed"]:
         r = assoc(Ddw, [c[fkey] for c in bank]); dw_assoc[fkey] = r
         if r:
-            print(f"  ΔW ~ {fkey:12s} ARI={r['ARI']:+.3f} p={r['p']:.3f}{'*' if r['p']<0.05 else ''}")
+            print(f"  ΔW ~ {fkey:12s} ARI={r['ARI']:+.3f} p={r['p']:.3f}{'*' if r['p']<0.05 else ' '} (k={r['k']})")
     print("\n=== (2) raw (B,A) init-contrast — should associate with init/activation MORE than ΔW ===")
     for fkey in ["init_seed", "activation"]:
         rba = assoc(Dba, [c[fkey] for c in bank]); rdw = dw_assoc.get(fkey)
         if rba and rdw:
-            print(f"  (B,A) ~ {fkey:10s} ARI={rba['ARI']:+.3f} p={rba['p']:.3f}  |  ΔW ARI={rdw['ARI']:+.3f} "
-                  f"→ {'(B,A) higher: init frame in factors, scrubbed by product' if rba['ARI']>rdw['ARI'] else 'no init-contrast'}")
+            print(f"  (B,A) ~ {fkey:10s} ARI={rba['ARI']:+.3f} p={rba['p']:.3f}  |  ΔW ARI={rdw['ARI']:+.3f}  "
+                  f"{'→ (B,A) HIGHER (init frame in factors, scrubbed by product)' if rba['ARI']>rdw['ARI']+0.02 else '→ no clear init-contrast'}")
     print("\n=== Facet-C: composition recovery beyond nuisance (cross-fitted acc-diff, cluster-robust CI) ===")
     fc = facet_c(bank)
     real = fc["ci"][0] > 0
     print(f"  acc(nuisance+ΔW) − acc(nuisance) = {fc['acc_diff']:+.3f}  CI95 [{fc['ci'][0]:+.3f},{fc['ci'][1]:+.3f}] "
           f"(G={fc['G']} cells) → {'RECOVERS composition beyond nuisance' if real else 'INDETERMINATE (CI spans 0)'}")
 
-    # figures: MDS coloured by factor for both methods
-    from sklearn.manifold import MDS
     fig, axes = plt.subplots(2, 3, figsize=(16, 10), dpi=140)
     for row, (name, D, cols) in enumerate([("ΔW (gauge-clean)", Ddw, ["composition", "activation", "init_seed"]),
                                            ("raw (B,A)", Dba, ["init_seed", "activation", "composition"])]):
-        emb = MDS(n_components=2, dissimilarity="precomputed", random_state=0, normalized_stress="auto").fit_transform(D)
+        emb = _mds(D)
         for col, fkey in enumerate(cols):
             ax = axes[row, col]; vals = [str(c[fkey]) for c in bank]; uniq = sorted(set(vals))
             cmap = plt.cm.tab10(np.linspace(0, 1, max(len(uniq), 2)))
