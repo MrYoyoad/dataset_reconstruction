@@ -31,14 +31,21 @@ that into a robust adapter-only inversion is the immediate next step.
 
 ## Figures, in meeting order — what each shows, what we EXPECTED, what we GOT, the caveat
 
-### F-0. Positive reconstruction examples — "it works in favorable settings" (LEAD SLIDE)
-- **Shows:** Phase-0 ViT-B/16 gradient inversion — recognizable faces (figures/phase0/n3_three_faces.png)
-  and rose structure / correct colors + spatial layout (figures/phase0/phase0_full_r8_n1.png) recovered
-  under high-frequency noise. Real recoveries, not baselines.
-- **Message:** we CAN invert to recognizable images in favorable settings — the structure (face, flower,
-  layout, color) comes back. **Turning this into a robust, adapter-only inversion is the next-weeks work.**
-- **Use:** open with this so reconstruction reads as work-in-progress-with-traction, not a result to
-  defend. Do NOT show pass/fail-vs-baseline numbers.
+### F-0. Positive reconstructions — "we recover recognizable images" (LEAD SLIDE)
+- **Shows:** a GALLERY across the early reconstruction sweep — **mnist / fashion / cifar10 / flowers ×
+  N∈{2,4,10} × {gelu, softplus}** — recovering recognizable training images from the weight change
+  (full-gradient setting, `results/gb_e2e_*.pth` → `figures/meeting/positive_reconstruction_gallery.png`,
+  building). PLUS the ViT-scale Phase-0 result (recognizable faces `figures/phase0/n3_three_faces.png` /
+  rose structure `phase0_full_r8_n1.png`).
+- **Message:** across datasets, image-counts, and activations, the attack recovers recognizable images —
+  the information IS in the weights and IS recoverable. **Some configs work cleanly today; making the
+  robust ADAPTER-ONLY inversion work across the board is the immediate next-weeks work.** This ties to
+  F-C: full fine-tuning holds ~5× more per-image signal, so the open problem is *extraction*, not missing
+  information.
+- **Use:** open here so reconstruction reads as *working-with-traction across a real sweep*, not a result
+  to defend. NO pass/fail-vs-baseline numbers, NO "0/40" — dropped per the framing directive.
+- **TODO before Monday:** the gallery build reports which config wins per dataset; drop any dataset where
+  nothing is recognizable, keep the honest winners.
 
 ### F-A. Margin scatter — "WHO leaks" (fig_f3_margin, margin_at_scale)
 - **Shows:** per-image sensitivity vs base-model gradient g₀, n=24, stratified.
