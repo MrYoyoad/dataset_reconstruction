@@ -137,11 +137,26 @@ FIGURES = [
         "leaks most' survives BOTH the coefficient mode and the wc level. Honest caveats: (a) NOT a monotonic "
         "'smoother ⇒ less leakage' law — the sign still flips WITHIN the smooth-only subset, so it is a "
         "two-cluster (kinked-vs-smooth) effect, not a gradient; (b) MNIST / N=2 / T=1 / n=13 activations — "
-        "exploratory; (c) the free-c 'flip' precedent was on FLOWERS, not MNIST — dataset-dependence is OPEN, "
-        "and the flowers band + feature-stability-vs-T are still pending. Supporting (exploratory, small-n): "
-        "smoothness → feature-stability ρ≈+0.85, feature-stability → fidelity ρ≈+0.94 (wide CI) — the "
-        "implicit-bias/NTK direction Gal cares about; direction-count (eff_rank) is T-driven, not "
-        "activation-driven (2 → 6.3 with T).",
+        "exploratory; (c) the free-c 'flip' precedent was on FLOWERS, not MNIST — dataset-dependence is OPEN "
+        "(the flowers band is still pending). Direction-count (eff_rank) is T-driven, not activation-driven "
+        "(2 → 6.3 with T). See panel 2/2 (NTK-survival) for the linearization-fidelity story — which "
+        "DISSOCIATES from leakage.",
+    ),
+    (
+        "F-F (panel 2/2). NTK-survival — linearization fidelity dissociates from leakage",
+        "figures/crux/feature_stability_vs_T.png",
+        "Linearization fidelity (feature-stability = cosine of the gradient features at θ0 vs θ_T) vs training "
+        "length T, per activation (job 390026, full 65/65; owner yoado-35; data rescored_tsweep). OBSERVED: at "
+        "every T the SMOOTHEST activations (sigmoid / softplus) sustain the highest fidelity and the KINKED "
+        "(relu / leaky_relu) the lowest — robust at the EXTREMES but NOT a clean monotone smoothness order "
+        "(C∞ gelu/silu decay fast, C¹ elu/celu hold) — the same two-cluster shape as panel 1. The strict NTK "
+        "regime (fs > 0.99) is reached only briefly and only by the smoothest. KEY CROSS-PANEL OBSERVATION: "
+        "the kinked activations have the WORST linearization fidelity HERE yet LEAK MOST on the ladder — "
+        "pooled Spearman(feature-stability, leakage) = +0.08 ≈ 0 (verified at source, n=426) → linearization "
+        "fidelity / laziness does NOT drive leakage; the two DISSOCIATE. Leakage is a kink / geometry effect, "
+        "not a laziness effect. (This supersedes the earlier n=6 'feature-stability → fidelity ρ≈0.94' hint, "
+        "which does not survive the full activation set — the same small-n dissolution as smoothness→fidelity "
+        "0.85→0.11.) Observe-framed: a mechanism observation, not a settled law; MNIST, small-n, exploratory.",
     ),
     (
         "(Optional) Data-latent Jacobian spectra — full vs LoRA",
