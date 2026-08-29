@@ -93,8 +93,8 @@ adapter-only inversion is the immediate next step.
 - **Expected:** same images imprint most in both regimes; g₀ predictor transfers.
 - **Got (n=6, exploratory):** strong rank corr ρ≈+0.94 (same images imprint most in both), ρ≈+0.83
   (predictor transfers to full FT). Absolute footprint ~5× bigger in full (target-median; per-target
-  ~3–6×) — the reconciliation: **more signal, not finer
-  resolution** (feeds the "decoder-side gap" reading in F-C).
+  ~3–6×) — this is a **signal-MAGNITUDE result, not itself a resolution claim** (whether the extra
+  signal also buys finer per-image resolution is the OPEN question in F-C).
 - **Caveat:** n=6; absolute-magnitude comparison is descriptive (N→N−1 offset).
 
 ### F-E. Depth fan — "all layers of it" (fig_valley_depth) — arm D per-layer
