@@ -93,6 +93,12 @@ def build(md_path, pdf_path, title=None):
             i += 1
             continue
 
+        # explicit page break (additive token; no existing note uses it)
+        if s == r"\pagebreak":
+            pdf.add_page()
+            i += 1
+            continue
+
         # image: ![caption](path) — embed at content width, capped height, centered
         m_img = re.match(r'^!\[(.*?)\]\((.+?)\)\s*$', s)
         if m_img:
