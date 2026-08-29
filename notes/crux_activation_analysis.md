@@ -1,5 +1,19 @@
 # The Crux: Activation × Anchor × Linearization — Analysis of Existing Data
 
+> **UPDATE 2026-08-29 — FREE-C LADDER LANDED (job 392821, 52/52): the realistic attack does NOT flip the
+> ranking on MNIST.** We ran the free-coefficient wc-ladder {0.005,0.03,0.1,0.3} with exact per-activation
+> wc-matching (the corrected closure design). OBSERVED: free-c Spearman(smoothness, ctrl_margin_norm) is
+> negative at EVERY rung — 0.005:−0.48, 0.03:−0.25, 0.1:−0.27, 0.3:−0.59 — kinked relu/leaky_relu/selu top
+> every rung, and the oracle tracks free-c closely. So the oracle "kinked leak most" read is robust to BOTH
+> the coefficient MODE and the weight-change LEVEL (resolves the two "provisional" caveats). This does NOT
+> reverse under free-c on MNIST — the documented free-c FLIP precedent (:165) was on FLOWERS, so
+> dataset-dependence is OPEN. Still NOT a "smoother⇒less leakage" law: the sign flips within the smooth-only
+> subset (two-cluster kinked-vs-smooth effect, not a monotonic gradient). Figure figures/crux/freec_ladder_ranking.png
+> (generator experiments/plot_freec_ladder.py, data results/rescored_freec_ladder_2026-08-29.csv). This is
+> the authoritative realistic crux ranking; supersedes the oracle first-pass. feature-stability-vs-T
+> (job 390026) is the NTK-survival companion, landing shortly.
+
+
 > **UPDATE 2026-08-28 — full 152-config rescore (was 27). OBSERVATIONS from the ORACLE first-pass — not
 > conclusions; the free-c ladder (392821) + feature-stability-vs-T (390026) are what we observe next.**
 > (Posture, per Gal via yoado-18: observe, don't conclude — a first-pass is where we start digging.)

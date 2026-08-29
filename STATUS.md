@@ -24,11 +24,16 @@ evidence is the softplus-β monotonicity, job 911475, not this); softplus-β lea
 DOCUMENTED precedent for FLIPPING the ranking (crux_activation_analysis.md:165) — so this read may reverse
 under the realistic free-c attack; provisional on BOTH wc AND mode. **ntk_passed impossibility (finding):**
 ntk_passed needs wc<0.01 (NTK_WEIGHT_CHANGE_THRESHOLD) so it's DISJOINT from meaningful wc 0.1–0.3 — the
-plan's "matched-wc AND ntk_passed" was ill-posed. Corrected closure (user approved, yoado-6d-agreed): free-c
-wc-LADDER {0.005,0.03,0.1,0.3} exact per-activation wc-match + feature-stability-vs-T (job 390026 RUNNING).
-Robust: **no clean monotonic smoothness→leakage law in this ORACLE first-pass; kinked relu/leaky_relu/selu
-leak most (provisional on wc AND mode).** Figure + committed generator:
-`figures/crux/activation_ranking_857271.png` / `experiments/plot_activation_ranking.py`.
+plan's "matched-wc AND ntk_passed" was ill-posed. Corrected closure (user approved): free-c
+wc-LADDER {0.005,0.03,0.1,0.3} exact per-activation wc-match + feature-stability-vs-T.
+**FREE-C LADDER LANDED (job 392821, 52/52, 2026-08-29):** the realistic free-c attack does NOT flip the
+oracle ranking on MNIST — free-c Spearman(smoothness,leakage) NEGATIVE at every rung (0.005:−0.48, 0.03:−0.25,
+0.1:−0.27, 0.3:−0.59), kinked relu/leaky_relu/selu top every rung, oracle tracks free-c closely ⇒ robust to
+BOTH mode AND wc. Still a two-cluster effect (sign flips within smooth-only), NOT a "smoother⇒less leakage"
+law; flowers flip precedent means dataset-dependence OPEN. Authoritative figure
+`figures/crux/freec_ladder_ranking.png` (generator `experiments/plot_freec_ladder.py`, data
+`results/rescored_freec_ladder_2026-08-29.csv`) — SUPERSEDES the oracle first-pass
+`figures/crux/activation_ranking_857271.png`. feature-stability-vs-T (job 390026) landing shortly.
 **OPEN (needs GPU, user's compute call):** all configs T=1 & ntk_passed=False → this is a first-pass, NOT
 the matched-wc leakage ranking; the clean matched-`weight_change` ranking + the feature-stability-vs-T
 curve + the flowers matched-wc band require NEW runs with a corrected LR band. This is the crux GPU-closure
