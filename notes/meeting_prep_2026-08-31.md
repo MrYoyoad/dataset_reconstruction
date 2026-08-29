@@ -127,12 +127,13 @@ adapter-only inversion is the immediate next step.
 
 ## The most interesting figures (rank for the talk)
 1. **F-0 positive reconstructions** — open here: recognizable faces/rose, robust inversion = next weeks.
-2. **F-A margin scatter** — the strongest positive (attacker predicts exposure from the public model).
-3. **F-B distance dial** — the deepest privacy statement (concept, not instance).
-4. **F-C valley ladder** — the new positive characterization (full = more signal, same resolution).
-5. **F-D removal + g₀ transfer** — the robustness that ties WHO-leaks across parameterizations.
-6. **F-E depth fan** — answers the mechanistic "which layer" question directly.
-7. **F-F crux** — the supervisor's own axis (activation smoothness → dynamics).
+2. **F-F crux** — supervisor's OWN axis + a robust positive: kinked activations leak most, does NOT flip
+   under the realistic attack on MNIST (two-cluster, dataset-dependence open). Lead the science with this.
+3. **F-A margin scatter** — the strongest per-image positive (attacker predicts exposure from the public model).
+4. **F-B distance dial** — the deepest privacy statement (concept, not instance).
+5. **F-C valley ladder** — new characterization (full = more signal; finer-resolution UNSETTLED, n=6 pending).
+6. **F-D removal + g₀ transfer** — the robustness that ties WHO-leaks across parameterizations.
+7. **F-E depth fan** — answers the mechanistic "which layer" question directly.
 
 ## What to have ready for Gal's likely pushback
 - "Is this the KKT/max-margin regime?" → No — we reframed the spine to NTK/gradient-recording (g₀ beats
