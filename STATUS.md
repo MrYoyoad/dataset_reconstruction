@@ -68,7 +68,11 @@ BOTH mode AND wc. Still a two-cluster effect (sign flips within smooth-only), NO
 law; flowers flip precedent means dataset-dependence OPEN. Authoritative figure
 `figures/crux/freec_ladder_ranking.png` (generator `experiments/plot_freec_ladder.py`, data
 `results/rescored_freec_ladder_2026-08-29.csv`) — SUPERSEDES the oracle first-pass
-`figures/crux/activation_ranking_857271.png`. feature-stability-vs-T (job 390026) landing shortly.
+`figures/crux/activation_ranking_857271.png`. feature-stability-vs-T (job 390026, 65/65) LANDED: at every T the smoothest (sigmoid/softplus) sustain
+the highest linearization fidelity, kinked (relu/leaky_relu) lowest — robust at extremes, two-cluster (not a
+clean law), same shape as the free-c ladder. KEY DISSOCIATION: kinked have the WORST linearization fidelity
+yet LEAK THE MOST → fidelity does NOT drive leakage. Figure figures/crux/feature_stability_vs_T.png (crux
+panel 2/2).
 **OPEN (needs GPU, user's compute call):** all configs T=1 & ntk_passed=False → this is a first-pass, NOT
 the matched-wc leakage ranking; the clean matched-`weight_change` ranking + the feature-stability-vs-T
 curve + the flowers matched-wc band require NEW runs with a corrected LR band. This is the crux GPU-closure
