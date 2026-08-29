@@ -151,6 +151,19 @@ def main():
         dD.append(dd["point"] if dd else float("nan"))
         iA.append(a["interval"] if a and a.get("interval") else None)
         iD.append(dd["interval"] if dd and dd.get("interval") else None)
+    # Emit the headline d* values to a small JSON so the meeting deck reads them live
+    # (data-freshness: single source of truth — the F-C caption never goes stale on re-render).
+    _dstar_out = {
+        "lora_A_dstar": {lab: (v if v == v else None) for lab, v in zip(labels, dA)},
+        "full_D_dstar": {lab: (v if v == v else None) for lab, v in zip(labels, dD)},
+        "threshold": THRESH,
+        "note": "d*(0.1) valley width, pixels; LoRA A (E_b0) vs full-FT all-layers D; qualitative (B2-divergent, small-n).",
+    }
+    try:
+        with open(os.path.join(RESULTS, "valley_headline_dstar.json"), "w") as _f:
+            json.dump(_dstar_out, _f, indent=2)
+    except Exception:
+        pass
     import numpy as np
     xpos = np.arange(len(labels))
     bA = axb.bar(xpos - width / 2, dA, width, color="#1f77b4",

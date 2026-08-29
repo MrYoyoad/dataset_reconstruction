@@ -1,0 +1,12 @@
+{
+  "lora_A_dstar": {
+    "t0": 3.1140468563123247,
+    "t1": 2.6925116259689617
+  },
+  "full_D_dstar": {
+    "t0": 2.5935118099640113,
+    "t1": 2.2348311720627176
+  },
+  "threshold": 0.1,
+  "note": "d*(0.1) valley width, pixels; LoRA A (E_b0) vs full-FT all-layers D; qualitative (B2-divergent, small-n)."
+}
