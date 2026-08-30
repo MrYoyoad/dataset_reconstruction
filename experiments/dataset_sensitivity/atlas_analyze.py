@@ -58,8 +58,8 @@ def dw_distance(bank):
         for j in range(i + 1, n):
             Uj, sj, Vj = feats[j]
             p = min(len(si), len(sj))
-            cos = float((si[:p] @ sj[:p]) / (np.linalg.norm(si[:p]) * np.linalg.norm(sj[:p]) + 1e-12))
-            D[i, j] = D[j, i] = _grass(Ui, Uj) + _grass(Vi, Vj) + (1 - cos)
+            cos = float(np.clip((si[:p] @ sj[:p]) / (np.linalg.norm(si[:p]) * np.linalg.norm(sj[:p]) + 1e-12), -1, 1))
+            D[i, j] = D[j, i] = max(0.0, _grass(Ui, Uj) + _grass(Vi, Vj) + (1 - cos))  # clamp: residuals can be degenerate
     return D
 
 
