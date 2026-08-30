@@ -130,8 +130,14 @@ observe-framed, DETECTION-not-reconstruction, weakest-attacker lower-bound.
   attacker does NOT need the victim's recipe. **Scope: content-level (separable digits) — the stronger claim
   that INSTANCE identity is also recipe-invariant is B2 (pending).** figure figures/harder_id/b1_recipe_invariance.png,
   code b1_recipe_invariance.py. [DETECTION not reconstruction.]
-- **C — membership inference (pending, job 203683):** MIA AUC with a GLOBALLY-held-out negative pool (disjoint
-  from EVERY adapter — auditor's fix), same-dist mean μ, vs LoRA-Leak 0.775. code mia_zoo.py, c_membership.py.
+- **C — MEMBERSHIP INFERENCE from the adapter (removes closed-set; job 203683).** "Was THIS image in the
+  private set?" s(x)=‖ΔW·(x−μ)‖, μ=same-dist {0,1} mean, negatives = 80 GLOBALLY-held-out {0,1} images disjoint
+  from EVERY adapter (auditor's fix vs pooled-AUC inflation). **MIA AUC = 0.861, CI95 [0.784, 0.938] (G=10
+  private-sets, 20 adapters) → CI excludes the 0.5 floor.** A passive, adapter-only, prior-free attacker infers
+  membership of a specific image — the standard, literature-comparable privacy metric, more meaningful than
+  closed-set matching. Reference anchor LoRA-Leak 0.775 (DIFFERENT setup/LLM — NOT a head-to-head; verify at
+  source). Scope: N=4, MNIST-MLP, weakest-attacker LOWER bound; DETECTION not reconstruction. figure
+  figures/harder_id/c_membership.png, code mia_zoo.py, c_membership.py.
 - **A — resolution limit (swap-k), B2 — instance recipe-invariance: queued next.**
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
