@@ -48,23 +48,33 @@ def main():
     args = ap.parse_args()
     bank, mu, meta = load(args.bank)
     tasks = [tuple(c["task"]) for c in bank]
+    DW = np.stack([c["dw_flat"] for c in bank])                            # (40, D) precomputed once
     print(f"[eco] {len(bank)} converged adapters | tasks={sorted(set(tasks))} p_shared={args.p} N={meta['N']}")
+
+    def _proj(Xc, w, U, vec):
+        """Project vec onto the top-p shared subspace via the Gram trick (basis_k = Xcᵀ U_k/√w_k).
+        Returns (energy-fraction-in-subspace, projected-vector)."""
+        Xcv = Xc @ vec                                                     # (M,)
+        c = (U.T @ Xcv) / np.sqrt(w + 1e-30)                              # (p,) coeffs
+        proj_vec = Xc.T @ (U @ (c / np.sqrt(w + 1e-30)))                  # (D,)
+        return float((c @ c) / (vec @ vec + 1e-30)), proj_vec
 
     per_target = []   # (task, auc_raw, auc_res, gain, auc_rand, proj_frac, proj_top, overlap)
     for ti, tgt in enumerate(bank):
         t_task = tuple(tgt["task"])
-        others = [c for c in bank if tuple(c["task"]) != t_task]           # LEAVE-ONE-OUT by TASK (disjoint)
-        X = np.stack([c["dw_flat"] for c in others]); Xm = X.mean(0)
-        _, _, Vt = np.linalg.svd(X - Xm, full_matrices=False)
-        basis = Vt[:args.p]                                                # shared subspace (p × D)
+        omask = np.array([tuple(c["task"]) != t_task for c in bank])       # LEAVE-ONE-OUT by TASK (disjoint)
+        others = [c for c, m in zip(bank, omask) if m]
+        X = DW[omask]; Xc = X - X.mean(0)                                  # (M, D)
+        Gram = Xc @ Xc.T                                                   # (M, M) — Gram trick, no big SVD
+        wv, Uv = np.linalg.eigh(Gram); idx = np.argsort(wv)[::-1][:args.p]
+        w, U = np.maximum(wv[idx], 0.0), Uv[:, idx]                        # top-p shared directions
         v = tgt["dw_flat"]
-        coeff = basis @ v
-        proj_frac = float((coeff @ coeff) / (v @ v + 1e-30))              # GATE 1: energy in shared subspace
+        proj_frac, proj_vec = _proj(Xc, w, U, v)                          # GATE 1: energy in shared subspace
         # top private singular direction projection
         U1, s1, V1t = np.linalg.svd(tgt["dW"], full_matrices=False)
         top = np.outer(U1[:, 0], V1t[0]).ravel()
-        proj_top = float(((basis @ top) ** 2).sum() / (top @ top + 1e-30))
-        residual = (v - basis.T @ coeff).reshape(tgt["dW"].shape)         # ΔW residual
+        proj_top, _ = _proj(Xc, w, U, top)
+        residual = (v - proj_vec).reshape(tgt["dW"].shape)                # ΔW residual
         # disjoint-content overlap (GATE 3): target digits ∩ population digits
         pop_digits = set(d for c in others for d in tuple(c["task"]))
         overlap = len(set(t_task) & pop_digits)
