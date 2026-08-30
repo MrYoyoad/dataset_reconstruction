@@ -1714,3 +1714,12 @@ and an empty stderr. That message means the EXECUTION HOST (here hgn29) could no
 file — a node-side /scratch failure, nothing in the submitted script. Fix: add the node to the
 exclusion list (`hname!='hgn29'`) and resubmit. Current exclusion list for flaky nodes:
 lgn28, hgn46, hgn45, lgn13, hgn29.
+
+## run_experiment_b: `--no_baseline` + omitted `--rank` = "Nothing to run" (2026-08-31)
+
+The full-fine-tune reconstruction IS the "baseline" branch of `experiments/run_experiment_b.py`. Passing
+`--no_baseline` while omitting `--rank` raises `ValueError("Nothing to run: rank is None and run_baseline
+is False")` — every full-FT cell in jobs 323866/336206 died this way (stderr only; stdout looked normal).
+Full-FT free-c rows must be run WITHOUT `--no_baseline` (job 341742). Related: when a run has both
+`x_recon_full` and `x_recon_lora`, the stored `control_metrics` compare the FULL reconstruction with the
+control image (`recon_for_ctrl` prefers `x_recon_full`) — mirror that when recomputing per-image scores.

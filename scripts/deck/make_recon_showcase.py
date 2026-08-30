@@ -67,7 +67,7 @@ def per_tile(d, key, recon_key=None):
         from experiments.metrics import compute_ssim, compute_ssim_normalized
         dm = d["ds_mean"]
         if key == "control":
-            rk = recon_key or ("lora" if "x_recon_lora" in d else "full")
+            rk = recon_key or ("full" if "x_recon_full" in d else "lora")   # run_experiment_b: recon_for_ctrl prefers x_recon_full
             rec = d[f"x_recon_{rk}"]
             tgt = d["x_ctrl"] - dm
         else:
