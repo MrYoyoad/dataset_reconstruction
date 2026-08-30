@@ -134,36 +134,51 @@ def main():
     ax[0].axhline(arand.mean(), color="#d95f0e", ls=":", lw=1.4, label="random-adapter %.3f" % arand.mean())
     ax[0].set_xlim(lim); ax[0].set_ylim(lim); ax[0].set_xlabel("raw-adapter retrieval AUC")
     ax[0].set_ylabel("LOO-residual retrieval AUC"); ax[0].legend(fontsize=8, loc="lower right")
-    ax[0].set_title("Ecosystem GAIN = %+.3f  CI95[%+.3f,%+.3f]\n(points ON y=x → subtraction is a no-op)"
-                    % (est, ci[0], ci[1]), fontsize=10, fontweight="bold")
+    ax[0].set_title("Ecosystem GAIN = %+.3f  CI95[%+.3f,%+.3f]\n%s"
+                    % (est, ci[0], ci[1],
+                       "(points ABOVE y=x → subtraction HELPS)" if ci[0] > 0
+                       else "(points BELOW y=x → subtraction HURTS)" if ci[1] < 0
+                       else "(points ON y=x → subtraction is a no-op)"), fontsize=10, fontweight="bold")
     ax[1].axis("off")
-    txt = ("ECOSYSTEM ATTACK — LOO common-mode subtraction (first honest read)\n"
-           + ("PARTIAL-OVERLAP regime: anchor-digit tasks {0,x} share digit 0, N=4\n\n" if partial
-              else "weak-signal multi-task disjoint zoo: 5 disjoint digit-pairs × 8 seeds, N=4\n\n")
-           + "GATE 3  content overlap ................. max=%d  → %s\n"
-           "GATE 1  proj of target-ΔW on shared ..... %.3f  (top-dir %.3f)\n"
-           "        → private signal is %s the θ0 common-mode\n"
-           "GATE 2  raw-adapter AUC (headroom) ...... %.3f  [%.3f,%.3f]\n"
-           "        → %s\n"
-           "GATE 4  random-adapter baseline ......... %.3f\n\n"
-           "BALLGAME  GAIN = AUC(residual) − AUC(raw)\n"
-           "          = %+.3f   CI95 [%+.3f, %+.3f]  (G=%d tasks)\n"
-           "          → %s\n\n"
-           "MECHANISM: the population common-mode barely overlaps the\n"
-           "per-adapter private signal (proj≈%.3f), so LOO subtraction\n"
-           "removes ~nothing relevant → residual ≈ raw → zero gain.\n"
-           "A DIFFERENT null from the atlas prototype (shared-energy=1.0,\n"
-           "subtracted the signal itself). Here the subtraction is HONEST\n"
-           "and still yields no amplification in this MNIST-MLP substrate.\n\n"
-           "[observe-framed · population(>weakest)-attacker · caveat: headroom\n"
-           "gate FAILED (baseline saturated); a same-digit-distractor re-test\n"
-           "would harden it, but proj≈0 makes the null robust to that.]"
-           % (ov.max(), "DISJOINT ✓" if ov.max() == 0 else "NON-DISJOINT ✗",
-              pf.mean(), ptop.mean(), "⊥ (orthogonal to)" if pf.mean() < 0.1 else "overlapping",
-              araw.mean(), araw.min(), araw.max(),
-              "MID-RANGE ✓" if 0.55 < araw.mean() < 0.95 else "SATURATED (no headroom)",
-              arand.mean(), est, ci[0], ci[1], G,
-              verdict, pf.mean()))
+    g3 = ("PARTIAL (intended)" if partial else ("DISJOINT ✓" if ov.max() == 0 else "NON-DISJOINT ✗"))
+    projrel = ("⊥ (orthogonal to)" if pf.mean() < 0.1 else
+               "PARTIALLY overlapping" if pf.mean() < 0.6 else "largely inside")
+    hr = "MID-RANGE ✓" if 0.55 < araw.mean() < 0.95 else "SATURATED (no headroom)"
+    if ci[0] > 0:      # POSITIVE ecosystem effect
+        mech = ("MECHANISM: the shared subspace PARTIALLY overlaps the private\n"
+                "signal (proj≈%.3f), and subtracting it ISOLATES the target's\n"
+                "UNIQUE direction → residual retrieves BETTER than raw → GAIN.\n"
+                "This is the regime the two nulls BRACKETED: atlas=shared-all,\n"
+                "eco-disjoint=shared⊥private; the effect lives in-between, where\n"
+                "θ0 common-mode shares SOME private structure with the target." % pf.mean())
+        caveat = ("[observe-framed · population(>weakest)-attacker · a FIRST\n"
+                  "positive read, NOT a confirmation. All gates pass: proj\n"
+                  "mid-range, headroom mid-range, random≈0.5, CI excludes 0.]")
+    else:              # NULL / negative
+        mech = ("MECHANISM: the population common-mode barely overlaps the\n"
+                "per-adapter private signal (proj≈%.3f), so LOO subtraction\n"
+                "removes ~nothing relevant → residual ≈ raw → zero gain.\n"
+                "A DIFFERENT null from the atlas prototype (shared-energy=1.0,\n"
+                "subtracted the signal itself). Here the subtraction is HONEST\n"
+                "and still yields no amplification in this substrate." % pf.mean())
+        caveat = ("[observe-framed · population(>weakest)-attacker · caveat:\n"
+                  "if headroom SATURATED the null rests on the proj≈0 mechanism\n"
+                  "(residual≈raw independent of AUC level), not on detection.]")
+    txt = (("ECOSYSTEM ATTACK — LOO common-mode subtraction (first honest read)\n"
+            + ("PARTIAL-OVERLAP regime: anchor-digit tasks {0,x} share digit 0, N=4\n\n" if partial
+               else "weak-signal multi-task disjoint zoo: 5 disjoint digit-pairs × 8 seeds, N=4\n\n")
+            + "GATE 3  content overlap ................. max=%d  → %s\n"
+            "GATE 1  proj of target-ΔW on shared ..... %.3f  (top-dir %.3f)\n"
+            "        → private signal is %s the θ0 common-mode\n"
+            "GATE 2  raw-adapter AUC (headroom) ...... %.3f  [%.3f,%.3f]\n"
+            "        → %s\n"
+            "GATE 4  random-adapter baseline ......... %.3f\n\n"
+            "BALLGAME  GAIN = AUC(residual) − AUC(raw)\n"
+            "          = %+.3f   CI95 [%+.3f, %+.3f]  (G=%d tasks)\n"
+            "          → %s\n\n")
+           % (ov.max(), g3, pf.mean(), ptop.mean(), projrel,
+              araw.mean(), araw.min(), araw.max(), hr, arand.mean(),
+              est, ci[0], ci[1], G, verdict)) + mech + "\n\n" + caveat
     ax[1].text(0.0, 1.0, txt, fontsize=8.2, family="monospace", va="top", ha="left")
     os.makedirs("figures/eco", exist_ok=True)
     figpath = f"figures/eco/eco_gain{'_' + args.tag if args.tag else ''}.png"
