@@ -28,6 +28,33 @@ against the source file.
 
 ---
 
+## A reference-count asymmetry silently inflates a cross-condition comparison (2026-08-30)
+
+**Bug.** B2 (instance recipe-invariance) reported cross-activation matching = **0.917** and same-activation =
+0.383, read as "instance identity survives a base change even MORE cleanly than within-recipe." Both numbers
+were kNN matching accuracy on the ΔW subspace.
+
+**How it presented.** Nothing looked wrong — both beat chance (0.125) with p<0.001, and the story ("instance
+fingerprint is recipe-invariant") was the one we wanted. It would have gone into a figure as a strong positive.
+
+**Root cause.** The conditions had UNEQUAL reference budgets. With 2 inits × 3 activations, the
+same-activation condition offered only **1 reference adapter per sample** (the other init), while the
+cross-activation condition pooled the other two activations = **4 references per sample**. kNN accuracy scales
+with reference count, so cross-act (richer pool) beat same-act (thin pool) — a pure kNN-richness artifact, not
+a property of recipe-invariance. Equalizing to 1 ref/sample (subsample + average over draws) collapsed
+cross-act **0.92 → 0.34** and flipped the ordering (cross now slightly BELOW same, as expected — a base change
+adds difficulty). The same artifact was hiding in B1 (cross-act 1.00 → 0.97 after equalizing).
+
+**Fix / rule.** When comparing matching/retrieval accuracy ACROSS conditions, **equalize the reference budget**
+(subsample every condition to the same #references-per-label, average over draws) before comparing — and
+**always quote the reference count with any matching number** ("1.000 @ 7 refs, closed-set" vs "0.34 @ 1 ref,
+cross-recipe"): the same signal at different budgets looks like a contradiction otherwise. The per-condition
+permutation null does NOT catch this — it shuffles labels within the same reference structure, so it absorbs
+the richness for free and still reports p<0.001. Only equalization exposes it. This is exactly the kind of
+asymmetry that survives into a paper if nobody equalizes.
+
+---
+
 ## Do not soften a citation you have not opened (2026-08-30)
 
 **Bug.** Three files (`notes/thesis_note_v2.md`, `CLAUDE.md`, `notes/mac_handoff_brief.md` ERRATA #2) stated
