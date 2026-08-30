@@ -95,6 +95,27 @@ NOT a confirmation; observe-framed, population(>weakest)-attacker, N=4, MNIST-ML
 NEEDS the auditor's check + likely a scale/robustness re-test before any strong claim. code
 eco_{zoo,analyze}.py (partial_zoo.py + --tag partial), figure figures/eco/eco_gain_partial.png.
 
+**HARDENING (2026-08-30, auditor yoado-3a's two required controls — both PASS):**
+- **(A) norm-control (job 197807):** the atlas ΔW-distance is already overall-norm-invariant (Grassmann is
+  scale-free; the spectral term is the COSINE of singular-value vectors, also scale-free). The strict control
+  = **Grassmann-ONLY** (drop the spectral term, pure subspace direction): instance recovery stays **1.000**.
+  So instance identity is in the ΔW **DIRECTION** (content), NOT a norm/spectral-magnitude fingerprint —
+  claimable as a direction result. HONEST HEADLINE (auditor's wording): *"instance identity survives in the
+  ΔW direction (closed-set, max-separable, seed-generalization)"* — an EXISTENCE result in the easiest
+  instance setting, NOT "recovery = 1.000" as a difficulty measure. Next: graded-difficulty sweep (more /
+  less-separable samples, open-set).
+- **(B) graded-overlap sweep (job 198437) — the bracketing prediction CONFIRMED as a curve.** GAIN vs
+  content-overlap: **0% (disjoint) −0.000 [−0.001,+0.001] · 50% (anchor-digit) +0.101 [+0.022,+0.180] ·
+  100% (same-digits) +0.023 [−0.005,+0.051].** PEAK at 50%, ~0 at both ends — the effect lives in the
+  partial-overlap regime, precisely where the two nulls bracketed it. Mechanism confirmed: at 100% the shared
+  subspace = the whole signal (subtracting it removes signal, not a confounder → GAIN collapses); at 0%
+  nothing shared to subtract. Scope (auditor): the "shared component" is literally shared PRIVATE content
+  (not θ0 common-mode), so the honest claim is *"when adapters share private content, LOO-subtracting the
+  shared part isolates the unique signal and helps retrieval"* — confounder-removal of shared content, a
+  specific partial-overlap regime, not general θ0-driven amplification. Still G=5 per point (the binary
+  parity constraint caps anchor tasks at 5); the CURVE SHAPE is the evidence, each point's CI is wide. Only
+  the 50% point's CI excludes 0. figure figures/eco/eco_graded_overlap.png; code full_zoo.py, graded_overlap.py.
+
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
 ---
