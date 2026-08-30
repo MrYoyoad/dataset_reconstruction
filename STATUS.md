@@ -56,6 +56,35 @@ Observe-framed, population(>weakest)-attacker. The two nulls now BRACKET the phe
 shared-is-everything, eco = shared-overlaps-nothing; the ecosystem effect (if any) lives in between —
 where θ0 common-mode PARTIALLY overlaps the private signal.
 
+## Open-regime follow-ups (2026-08-30, user "do both") — the bracket's prediction CONFIRMED + instance-level RESOLVED
+
+**(A) INSTANCE-LEVEL atlas — the atlas's OPEN question, now answered.** Same-digits zoo: digits FIXED to
+{0,1}, each composition = a DIFFERENT IMAGE SAMPLE of those same digits, × 8 init seeds (64/64 converged,
+job 194406). The naive Facet-C gave +0.000 CI[0,0] — but that is the FOLD-ISOLATION ARTIFACT (single
+activation+lr ⇒ each image-sample wholly held out per fold ⇒ structurally unpredictable), NOT a real null.
+Correct cross-fit = **leave-one-init-out kNN on the ΔW subspace** (every image-sample stays in train via
+other inits): **instance recovery = 1.000, CI95 [1.000,1.000], chance 0.125, permutation p<0.001 (job
+195578).** So a new adapter (unseen init) is matched to its EXACT training-image-sample from ΔW alone.
+Supporting: ΔW~image-sample ARI=+0.443 (p<0.001) ≫ ΔW~init ARI=+0.051 — ΔW structure is driven by WHICH
+images, not the recipe. **Resolves the atlas's "content-level, instance-level OPEN" → instance-level
+leakage is present and (here) PERFECT.** Scope: CLOSED-SET identification from a known pool of 8 DISJOINT
+image-samples (maximally separable) — not open-world reconstruction; N=4, {0,1}, gelu, MNIST-MLP. The graded
+version (image-samples that SHARE some images) is the natural next test. code instance_{zoo,recovery}.py,
+figure figures/atlas/atlas_instance.png.
+
+**(B) ECOSYSTEM PARTIAL-OVERLAP — the bracket's predicted regime, and the effect IS there.** Anchor-digit
+tasks {0,1},{0,2},{0,3},{0,4},{0,5} all SHARE digit 0 (40/40 converged, job 194406) → the LOO-shared
+subspace PARTIALLY captures the target signal. Now ALL gates pass (unlike the disjoint null): GATE-1
+projection=0.304 MID-RANGE (not 0.001); GATE-2 headroom raw-AUC=0.804 [0.662,0.934] MID-RANGE ✓ (the
+same-content distractors fixed the saturation); GATE-4 random baseline 0.470. **GAIN = AUC(residual) −
+AUC(raw) = +0.101, CI95 [+0.022, +0.180] (5 task-clusters) → CI EXCLUDES 0, POSITIVE (job 195793).**
+Mechanism: subtracting the shared anchor-digit component ISOLATES the target's UNIQUE-digit signal → residual
+retrieves better than raw. **This is exactly the regime the two nulls bracketed — the ecosystem premise
+(population amplifies a target's leakage beyond θ0 alone) is SUPPORTED here.** Scope: a FIRST positive read,
+NOT a confirmation; observe-framed, population(>weakest)-attacker, N=4, MNIST-MLP, G=5 small clusters;
+NEEDS the auditor's check + likely a scale/robustness re-test before any strong claim. code
+eco_{zoo,analyze}.py (partial_zoo.py + --tag partial), figure figures/eco/eco_gain_partial.png.
+
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
 ---
