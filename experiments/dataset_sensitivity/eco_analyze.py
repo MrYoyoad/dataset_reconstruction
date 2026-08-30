@@ -118,6 +118,49 @@ def main():
     print(f"  → {verdict}")
     print("\n  [observe-framed | population(>weakest)-attacker | not a 'confirmation' — a first honest read]")
 
+    # ---- figure (save-visuals rule): raw-vs-residual retrieval per target + gate summary ----
+    import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(1, 2, figsize=(13, 5.2), dpi=140)
+    ax[0].scatter(araw, ares, s=42, c="#2c7fb8", edgecolor="k", lw=0.3, zorder=3, label="targets (n=%d)" % len(araw))
+    lim = [min(araw.min(), ares.min(), arand.min()) - 0.03, 1.02]
+    ax[0].plot(lim, lim, "--", c="#888", lw=1, label="y=x (no gain)")
+    ax[0].axhline(arand.mean(), color="#d95f0e", ls=":", lw=1.4, label="random-adapter %.3f" % arand.mean())
+    ax[0].set_xlim(lim); ax[0].set_ylim(lim); ax[0].set_xlabel("raw-adapter retrieval AUC")
+    ax[0].set_ylabel("LOO-residual retrieval AUC"); ax[0].legend(fontsize=8, loc="lower right")
+    ax[0].set_title("Ecosystem GAIN = %+.3f  CI95[%+.3f,%+.3f]\n(points ON y=x → subtraction is a no-op)"
+                    % (est, ci[0], ci[1]), fontsize=10, fontweight="bold")
+    ax[1].axis("off")
+    txt = ("ECOSYSTEM ATTACK — LOO common-mode subtraction (first honest read)\n"
+           "weak-signal multi-task disjoint zoo: 5 disjoint digit-pairs × 8 seeds, N=4\n\n"
+           "GATE 3  disjoint-content overlap ........ max=%d  → %s\n"
+           "GATE 1  proj of target-ΔW on shared ..... %.3f  (top-dir %.3f)\n"
+           "        → private signal is %s the θ0 common-mode\n"
+           "GATE 2  raw-adapter AUC (headroom) ...... %.3f  [%.3f,%.3f]\n"
+           "        → %s\n"
+           "GATE 4  random-adapter baseline ......... %.3f\n\n"
+           "BALLGAME  GAIN = AUC(residual) − AUC(raw)\n"
+           "          = %+.3f   CI95 [%+.3f, %+.3f]  (G=%d tasks)\n"
+           "          → %s\n\n"
+           "MECHANISM: the population common-mode barely overlaps the\n"
+           "per-adapter private signal (proj≈%.3f), so LOO subtraction\n"
+           "removes ~nothing relevant → residual ≈ raw → zero gain.\n"
+           "A DIFFERENT null from the atlas prototype (shared-energy=1.0,\n"
+           "subtracted the signal itself). Here the subtraction is HONEST\n"
+           "and still yields no amplification in this MNIST-MLP substrate.\n\n"
+           "[observe-framed · population(>weakest)-attacker · caveat: headroom\n"
+           "gate FAILED (baseline saturated); a same-digit-distractor re-test\n"
+           "would harden it, but proj≈0 makes the null robust to that.]"
+           % (ov.max(), "DISJOINT ✓" if ov.max() == 0 else "NON-DISJOINT ✗",
+              pf.mean(), ptop.mean(), "⊥ (orthogonal to)" if pf.mean() < 0.1 else "overlapping",
+              araw.mean(), araw.min(), araw.max(),
+              "MID-RANGE ✓" if 0.55 < araw.mean() < 0.95 else "SATURATED (no headroom)",
+              arand.mean(), est, ci[0], ci[1], G,
+              verdict, pf.mean()))
+    ax[1].text(0.0, 1.0, txt, fontsize=8.2, family="monospace", va="top", ha="left")
+    os.makedirs("figures/eco", exist_ok=True)
+    fig.tight_layout(); fig.savefig("figures/eco/eco_gain.png", bbox_inches="tight", facecolor="white"); plt.close(fig)
+    print("[saved] figures/eco/eco_gain.png")
+
 
 if __name__ == "__main__":
     main()
