@@ -33,3 +33,11 @@ Running log of every remark / request the user gives about slides (mandated by C
    slide at one height; S7 lead back to one line; native-text notation glitches fixed (mathtext axis labels, no bare θ_T,
    superscript exponents); S4 caption names gelu as the smooth outlier; appendix rank block enlarged.
    Not applied: recolouring the kinked series away from red (legends disambiguate; red = kinked is used in every figure).
+10. **Mac-side v2 reconciliation (2026-08-30):** the Mac session produced a v2 pptx + `deck_audit_2026-08-31.md`. Ported into the
+    canonical generator: S5 axis label + "leakage does not follow it"; S15 g₀ row ⚠ "n=24 indeterminate"; S19 lead admits the
+    s=1.39 same-digit swap; S20 title "'leakage', provisionally". Resolved from cluster data (told to the Mac): arm-B bars are
+    the K=100 read (K=50 ≈ 8, K=200 ≈ 46; null ≈ 0 at every K) → panels now labelled K=100 and notes call the absolute a
+    fixed-K relative statistic; R² is 0.76 (JSON), 0.85 is a stale STATUS line; q_eff 156/160 is S=1280 = S=640 (≥ 4·Nk),
+    r_J=160; faces = data/faces/face1–3.jpg, one person, consent line to be stated by the author; the N=4 DI grid's "8"
+    slot collapsed onto the 0 (corr 0.67 with the 0, −0.16 with the 8) → S7 lead says "3 of 4 recovered". NOT ported: the
+    Mac's strapline-only-on-S3/S16 choice (this generator keeps one policy: every leakage-number slide).

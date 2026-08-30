@@ -273,7 +273,7 @@ STATUS.md lines 97-102; notes/crux_activation_analysis.md lines 296-304; thesis_
 # ----------------------------------------------------------------------------------------------
 def slide_anchor(prs):
     s = _story(prs, "Moving the anchor fixes linearity, not leakage",
-               "softplus: already linear at α=0;  relu: linearization error falls 25× while leakage stays flat",
+               "softplus: already linear at α=0;  relu: linearization error falls 25× and leakage does not follow it",
                "your ask: midpoint anchor")
     fig_w = Inches(8.0)
     H.fit_image(s, C.fig("anchor_two_curve.png"), C.MX, CONTENT_Y, fig_w, CONTENT_H)
@@ -382,7 +382,7 @@ PROVENANCE: notes/identifiability_rank_bound.tex lines 95-118; notes/linearizati
 # ----------------------------------------------------------------------------------------------
 def slide_direct_inversion(prs):
     s = _story(prs, "Direct inversion: works at N=4, superposes at N=10",
-               "known-recipe upper bound — the map inverts; joint inversion is the bottleneck  (SimuDy's primitive, reframed)",
+               "known-recipe upper bound: 3 of 4 recovered at N=4 (one collapses onto the 0); joint inversion is the bottleneck",
                "your ask: direct weight inversion")
     n4 = _crop(C.ASSET["di_N4"], "di_N4_crop.png", (0.27, 0.0, 1.0, 0.95))
     n10 = _crop(C.ASSET["di_N10"], "di_N10_crop.png", (0.277, 0.0, 1.0, 0.915))
@@ -412,7 +412,8 @@ def slide_direct_inversion(prs):
     H.add_text(s, "private", C.MX, py2 + Inches(0.5), lab_w, Inches(0.3), size=12, color=C.GRAY)
     H.add_text(s, "recovered", C.MX, py2 + ph2 - Inches(0.7), lab_w, Inches(0.3), size=12, color=C.GRAY)
     H.add_footer(s)
-    H.set_notes(s, """WHAT WE DID: DI-Phase 0 (experiments/direct_inversion.py). Treat fine-tuning as a deterministic differentiable map
+    H.set_notes(s, """N=4 GRID, READ HONESTLY: private digits [5, 5, 0, 8]; recovered slots correlate 0.68 / 0.59 with the two 5s, slot 3 is a weak 0 (corr 0.28), and slot 4 correlates 0.67 with the 0 and -0.16 with the 8 -- i.e. the 8 was NOT recovered, the fourth slot collapsed onto the 0 (duplicate mode). That is the first sign of the superposition that dominates at N=10; mean ssim 0.58 at T=10 (results/direct_inversion_N4_r8_gelu.pth). If asked 'the 8 became a 0?': yes -- say so.
+WHAT WE DID: DI-Phase 0 (experiments/direct_inversion.py). Treat fine-tuning as a deterministic differentiable map
 theta_T = F(theta_0, {x_i}) and minimise the endpoint loss ||theta_T - F(theta_0, x_hat)||^2 over the candidate images
 (Regime A, endpoint only), Adam on x_hat, autograd through an UNROLLED full-batch SGD F. MNIST MLP, LoRA r=8, GELU, T=10.
 WHY THIS FUNCTION: the endpoint loss is exactly Gal's formulation (briefing §3) - no linearization, no decoder, F as a
@@ -457,7 +458,8 @@ def slide_more_data(prs):
                 "the free c_i) that reproduce it.  A released adapter exposes only a low-rank image of ΔW — inverting "
                 "that is the open milestone.", C.MX, ey + Inches(1.2), gal_w, h=Inches(0.85))
     H.add_footer(s)
-    H.set_notes(s, """WHAT WE DID: reconstruction from the TRUE full weight change (the strong-attacker / known-recipe ceiling), N=2,
+    H.set_notes(s, """FACES PROVENANCE (state once): data/faces/face1-3.jpg, three portraits of ONE person (added 2026-04-28; the May cheat-sheet calls them 'real OOD portraits', N=3 same-person joint inversion); state whose photos they are and that they are used with consent before any circulation beyond this meeting.
+WHAT WE DID: reconstruction from the TRUE full weight change (the strong-attacker / known-recipe ceiling), N=2,
 GELU (softplus for Fashion), across MNIST / Fashion-MNIST / CIFAR-10 / Flowers32 (results/gb_e2e_*_N2_gelu.pth, key
 'TRUE dW (ceiling)'), plus the ViT-B/16 Phase-0 run: three faces recovered jointly from one captured fine-tuning gradient
 (figures/phase0/n3_three_faces.png; per-image SSIM 0.38 / 0.26 / 0.52, cropped off the slide).

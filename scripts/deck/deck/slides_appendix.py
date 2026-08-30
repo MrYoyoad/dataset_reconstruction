@@ -227,7 +227,7 @@ def slide_a5_provenance(prs):
         ("E4 g₀ correlation", "+0.857 (n=12) / +0.777 (n=24, CI [0.53, 0.91]) / +0.83 full-FT (n=6)", "260171 / 272504 / 695782"),
         ("E5 valley width", "geomean 1.02, median 0.86, narrower 4/6 (n=6)", "695782"),
         ("E6 ΔW by composition", "ARI +1.00; nuisance ≈ 0; raw (B,A) by seed +0.55; cross-fit +0.989 CI [0.973, 1.005] G=30", "838868 (811847 fold-buggy)"),
-        ("E7 ceiling / wall", "SSIM ~0.99 / 0.57 @ N=4 → 0.27 @ N=10; bridge 0.951 cos; q_eff 156/160", "956994 + DI / bridge / ViT (STATUS)"),
+        ("E7 ceiling / wall", "SSIM ~0.99 / 0.57 @ N=4 → 0.27 @ N=10; bridge 0.951 cos; q_eff 156/160 (ε=10, S=1280 = S=640, r_J=160)", "956994 + DI / bridge / ViT (STATUS)"),
         ("H gate (memorisation vs sensitivity)", "ρ = +0.881, p = 1.5e-4, n=12; excl. m=1: +0.85; ρ(mem, g₀) = +0.80", "272309"),
         ("ViT-tiny rank-4 LoRA", "3 targets p = 0.002, sens 1.13 / 1.24 / 1.52 (N=16, K=50)", "256540 (MVP 247474)"),
         ("metric null-diag", "3-way estimator unbiased on no-signal data at every K", "212413"),

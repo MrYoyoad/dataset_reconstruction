@@ -162,7 +162,7 @@ def fig_anchor():
         print(f"[anchor] {act}: ctrl_margin(α)={[round(v,3) for v in cm]}  lin_fs={[round(v,3) for v in lin]}")
         ax.plot(al, cm, "-", marker="s", color=c, lw=2.6, ms=8, label=f"{act}: leakage")
         ax2.plot(al, lin, "--", marker="o", color=c, lw=2.0, ms=6, alpha=0.8, label=f"{act}: linearization error")
-    ax.set_xlabel("anchor α   (0 = linearize at the public model, 1 = at the fine-tuned endpoint)")
+    ax.set_xlabel("anchor α   (0 = public model  →  1 = fine-tuned endpoint)")
     ax.set_ylabel("leakage  (control-margin, solid)")
     ax2.set_ylabel("linearization error  (dashed)")
     ax2.spines["right"].set_visible(True)
@@ -243,13 +243,13 @@ def fig_estimator():
     null = {r["N"]: r["null_sensitivity"] for r in nd}
     x = np.arange(len(Ns))
     a2.bar(x - 0.2, real, width=0.4, color=BLUE, label="one image swapped  (p = 0.002 at every N)")
-    a2.bar(x + 0.2, [null.get(n, np.nan) for n in Ns], width=0.4, color=GRAY, label="nothing swapped, seeds only  (≈ 0 — invisible at this scale)")
+    a2.bar(x + 0.2, [null.get(n, np.nan) for n in Ns], width=0.4, color=GRAY, label="nothing swapped, seeds only  (≈ 0 at K = 50 / 100 / 200 — invisible here)")
     for i, n in enumerate(Ns):
         if n in null:
             pass
     a2.set_xticks(x)
     a2.set_xticklabels([f"N = {n}" for n in Ns])
-    a2.set_ylabel("whitened sensitivity  d²  (debiased)")
+    a2.set_ylabel("whitened sensitivity  d²  (debiased, K = 100)")
     a2.axhline(0, color="k", lw=1)
     a2.set_ylim(0, max(real) * 1.45)
     a2.legend(frameon=False, loc="upper left", fontsize=12)
@@ -272,7 +272,7 @@ def fig_knobs():
     a1.set_xticks(Ns)
     a1.set_xticklabels([str(n) for n in Ns])
     a1.set_xlabel("dataset size  N")
-    a1.set_ylabel("sensitivity to one swapped image")
+    a1.set_ylabel("sensitivity of one swapped image\n(K = 100)")
     a1.set_ylim(0, max(r["whitened_sensitivity"] for r in b) * 1.25)
     a1.set_title("B · more images around it")
     a1.text(0.04, 0.92, "detected at every N", transform=a1.transAxes, fontsize=13, color=BLUE)

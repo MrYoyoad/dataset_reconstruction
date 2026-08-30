@@ -43,11 +43,11 @@ def slide_r1_knobs(prs):
                 C.MX + Inches(5.9), py + ph + Inches(0.25), Inches(6.3), size=C.SZ_SMALL)
     H.add_footer(s)
     H.add_text(s, "every leakage number here is a lower bound on the weakest attacker (prior-free, adapter-only, per-image)", C.MX, C.SL_H - Inches(0.70), C.CW, Inches(0.24), size=10, color=C.LGRAY, italic=True)
-    H.set_notes(s, """WHAT WE DID: three composition knobs around ONE private image, each read with the 3-way whitened secret-swap ruler at fixed K=50 (T=1000, rank 8, N=16 unless swept). B — dilution: same swap inside N=4/8/16/32. E — duplication: k=1,2,4,8 copies of the image at fixed prevalence, Sigma frozen across k. D — context rarity: the SAME fixed image with m=1,2,4,8 same-class companions.
+    H.set_notes(s, """WHAT WE DID: three composition knobs around ONE private image, each read with the 3-way whitened secret-swap ruler at fixed K (arm B panel = K=100 read; arms C/D/E K=50) (T=1000, rank 8, N=16 unless swept). B — dilution: same swap inside N=4/8/16/32. E — duplication: k=1,2,4,8 copies of the image at fixed prevalence, Sigma frozen across k. D — context rarity: the SAME fixed image with m=1,2,4,8 same-class companions.
 WHY THIS FUNCTION: d^2 is the whitened detectability of the swap (= 2 KL = Neyman-Pearson SNR^2 under equal-Sigma Gaussian). Reporting rule 1: detection p is primary; magnitudes are lower bounds at the stated K; comparisons only at fixed K.
 WHY REPRESENTATIVE: all p = 0.002 (every swap detectable at every N, every k, every m). Panel B: flat in N, the N=32 decline is UNEXPLAINED (open sub-question, plan section III.1). Panel E: beta = 0.234 (r8, R^2 = 0.76) / 0.241 (r32) — rank-INVARIANT exponent, but the absolute d^2 across ranks is dimension-confounded (r32 ~15x r8 at k=1; rule 3: never quote a bare cross-rank magnitude). beta(T) DECREASES 0.313 -> 0.256 -> 0.234 at T=50/200/1000: the system trends toward, but does not reach, the beta=0 max-margin duplication-invariant limit, i.e. it is NOT at the KKT fixed point — beta(T) is a convergence diagnostic. Wording rule: 'sub-linear beta', never 'duplication-invariance'. Fashion replicates (beta 0.288 r8 / 0.359 r32, R^2 0.99; job 246873). Panel D: rarity gain sens(m=1)/sens(m=8) = 1.21, 0.96, 1.16 -> mean 1.11, non-monotone, ~noise.
 GAL-ASK: G2 (more data / distributions, not best runs) — this is a battery, not a best run; the 'sharpens with N' headline was killed by the 3-way estimator (winner's-curse denominator artifact, retracted).
-CAVEATS: MNIST MLP (Fashion for E only); K=50; magnitudes are lower bounds; the N=32 decline is open.
+CAVEATS: MNIST MLP (Fashion for E only); STATE K: the arm-B bars (22/24/24/13) are the K=100 read (job 130198; the K=50 read of the same swap is ~8, K=200 is ~46 for N=4) -- real-data d^2 grows ~2.6x per doubling of K while the reseed-vs-reseed null stays ~0 at K=50/100/200, so the absolute is a fixed-K RELATIVE statistic (signal-direction resolution), NOT a converged point estimate; what is solid is p=0.002 at every N and the N-shape (flat, decline at N=32) identical at K=50 and K=100. Arms C/D/E are K=50. Magnitudes are lower bounds; the N=32 decline is open.
 PROVENANCE: arm B reconfirm job 130198 (K=50/100); arm E job 162114 (r8/r32), T-sweep 217123, Fashion 246873; arm D job 245964; null-diag 212413. STATUS.md 2026-08-27/28; notes/dataset_sensitivity_program_plan.md section III.""")
     return s
 
@@ -113,7 +113,7 @@ PROVENANCE: jobs 260171 (n=12), 272504 (n=24, results/margin_at_scale/summary.js
 def slide_r4_ladder(prs):
     s = H.new_slide(prs)
     H.add_title(s, "The adapter records the concept, not the instance")
-    H.add_lead(s, "near-duplicates are invisible to the adapter; a different digit is loud")
+    H.add_lead(s, "near-duplicates are invisible; far swaps are loud — one same-digit swap even beats the cross-digit anchor")
     px, py, pw, ph = H.fit_image(s, C.fig("ladder_strip.png"), C.MX, _Y0, C.CW, Inches(3.75))
     eq = render_math(r"s(d)=\frac{\mathrm{sens}(d)}{\mathrm{sens}(d_{\mathrm{cross}})}", "eq_r4_ladder")
     ey = py + ph + Inches(0.15)
@@ -135,7 +135,7 @@ PROVENANCE: job 268959; results/similarity_ladder/similarity_ladder_summary.json
 # --------------------------------------------------------------------------------------------------
 def slide_r5_hgate(prs):
     s = H.new_slide(prs)
-    H.add_title(s, "Detection tracks behavioural memorisation — so we may say 'leakage'")
+    H.add_title(s, "Detection tracks memorisation — 'leakage', provisionally")
     H.add_lead(s, "the instrument and a leave-one-out memorisation score rank the same images — spot-check n=12, full gate pending")
     px, py, pw, ph = H.fit_image(s, C.fig("h_gate.png"), C.MX, _Y0, Inches(7.0), Inches(4.9), align="left")
     rx = px + pw + Inches(0.35)
