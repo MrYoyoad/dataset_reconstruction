@@ -1,5 +1,31 @@
 # Project Status
 
+## Adapter atlas + ecosystem prototype (2026-08-30, user-directed)
+
+**ATLAS** (factorial zoo, 169 adapters on a shared base; jobs 808715 build / 838868 analyze):
+- ΔW clusters PERFECTLY by composition (adjusted-Rand +1.0, permutation p<0.001) and is BLIND to
+  init/lr/activation (ARI≈0). So "% different from init/lr" ≈ 100% — the adapter's VALUE is set by WHAT
+  data it saw, not HOW it was trained.
+- Raw (B,A) clusters by INIT seed (ARI +0.55, p<0.001) while ΔW scrubs it (−0.03) — the gauge-contrast;
+  empirically confirms the P_LoRA seed-in-A0 theory (audit cross-validation).
+- Composition recoverable ABOVE the fitted-recipe baseline: cross-fitted acc-diff **+0.989, CI95
+  [+0.973,+1.005], G=30** cluster-robust (the earlier +0.00 INDETERMINATE was a cross-fit fold bug —
+  i%5 with 5 comps isolated a whole composition into the test fold; fixed ab9eb99).
+- SCOPE (tightened w/ yoado-ef): the 5 compositions differ in DIGIT CONTENT (subsets {1,6,7,8} vs {0,1,7}…),
+  so +0.989 recovers **≥ CONTENT-level** (which digits present), NOT instance-level. Converges with the
+  "records the concept not the instance" finding: content-level recovery (+0.989) graded down to single-swap
+  invisibility (arms 0.03–0.07). TRUE instance-level (same content, different exemplars) is the honest OPEN
+  item. Figure figures/atlas/atlas.png; code experiments/dataset_sensitivity/atlas_{zoo,analyze}.py.
+
+**ECOSYSTEM prototype** (user idea — many public LoRAs on shared θ0, subtract the population common-mode to
+amplify a target's private signal; job 161259): **DEGENERATE on this zoo, honest null.** Subtracting the
+top-p POPULATION PCs collapsed composition recovery (ARI 1.0→0.01, shared-energy=1.0) — but that's
+tautological: this zoo's composition IS the dominant variance (by design), so "top PCs" = the composition
+signal itself. NOT a valid test of the premise. Honest read: the idea has support (LoRA-Leak: θ0-as-reference
+helps) but needs a WEAK-SIGNAL MULTI-TASK substrate (different-data adapters where the shared base geometry ≫
+each private residual); our composition-dominant, already-SATURATED (ARI 1.0) zoo can't show amplification.
+PARKED pending user (build the weak-signal multi-task zoo, or shelve). code atlas_ecosystem.py.
+
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
 ---
