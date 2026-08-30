@@ -45,9 +45,13 @@ subspace = **0.001** (private signal ⊥ common-mode — subtraction is HONEST).
 common-mode barely overlaps the per-adapter private signal (proj≈0.001), so LOO subtraction removes ~nothing
 relevant → residual ≈ raw → zero gain. This is a DIFFERENT null from the atlas prototype (that one had
 shared-energy=1.0 and subtracted the signal itself); here the subtraction is verifiably clean and STILL
-yields no amplification in this MNIST-MLP substrate. Caveat: GATE-2 headroom FAILED (raw-adapter AUC=0.970
-saturated; random baseline 0.546) — a same-digit-distractor re-test would harden it, but proj≈0 makes the
-null robust to that. Figure figures/eco/eco_gain.png; code experiments/dataset_sensitivity/eco_{zoo,analyze}.py.
+yields no amplification in this MNIST-MLP substrate. Caveat (stated, not buried): GATE-2 headroom FAILED (raw-adapter AUC=0.970
+saturated; random baseline 0.546) — the null is asserted via the proj≈0 MECHANISM, not via a mid-range
+detection. Why saturation can't hide a gain: residual = raw − (projection onto the shared subspace), and
+proj=0.1% of the target's energy ⇒ residual matches raw to within 0.1% ⇒ AUC(residual)≈AUC(raw) ⇒ GAIN≈0
+INDEPENDENT of the absolute AUC level. So the saturated 0.970 baseline is not masking an effect — there is
+structurally nothing to subtract. A same-digit-distractor re-test would put the baseline mid-range for
+belt-and-suspenders, but proj≈0 already establishes the non-artifact. Figure figures/eco/eco_gain.png; code experiments/dataset_sensitivity/eco_{zoo,analyze}.py.
 Observe-framed, population(>weakest)-attacker. The two nulls now BRACKET the phenomenon: atlas =
 shared-is-everything, eco = shared-overlaps-nothing; the ecosystem effect (if any) lives in between —
 where θ0 common-mode PARTIALLY overlaps the private signal.
