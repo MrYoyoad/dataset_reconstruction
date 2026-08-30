@@ -108,7 +108,7 @@ def slide_a2_d2(prs):
     H.add_footer(s)
     H.set_notes(s, """THE FOUR EQUIVALENCES (whitened_sensitivity_metric.md lines 49-70): under the Gaussian equal-Sigma approximation d^2 is simultaneously (1) the optimal-detector (Neyman-Pearson) SNR^2 — the best any attacker can do at telling D from D'; (2) 2 KL(P_1 || P_0) between the with/without-change adapter distributions; (3) the Fisher information the adapter carries about the change, so by Cramer-Rao it lower-bounds the estimation error of Delta mu in ADAPTER space — NOT pixel MSE (recovering the image pushes Delta mu through the nonlinear data-latent Jacobian of the training map; never state it as a direct reconstruction-MSE bound — the ssim-overclaim class); (4) the f-DP / hypothesis-test statistic: is the change separable from the training-randomness null. It subsumes q_eff: q_eff is the thresholded spectrum of this object.
 WHEN THE EQUIVALENCES FAIL: (S1) if Sigma(D) != Sigma(D') the optimal detector is quadratic (QDA) and pure Mahalanobis drops the KL covariance term — test Sigma-invariance first; if they differ, use symmetrised (Jeffreys) KL with the pooled Sigma. (S2) seed noise is non-Gaussian (heavy tails, NaN draws) — the skew/kurtosis diagnostic is a required gate; if it fails d^2 is a heuristic SNR, not 'the optimal detector'. The permutation null is robust to BOTH failures, which is why it is the primary readout (rule 1).
-ESTIMATOR: 3-way disjoint cross-fit (fold A -> subspace U, fold B -> Delta mu . U, fold C -> lambda), rotated and averaged; proven unbiased on signal-free data (null-diag job 212413: reseed-vs-reseed ~0 at every K while real swaps read 8 -> 22 at p = 0.002); K-drift +6.3% (3-way) vs +44% (old 2-way).
+ESTIMATOR: 3-way disjoint cross-fit (fold A -> subspace U, fold B -> Delta mu . U, fold C -> lambda), rotated and averaged; consistent with unbiased (reads zero on signal-free data at every K) (null-diag job 212413: reseed-vs-reseed ~0 at every K while real swaps read 8 -> 22 at p = 0.002); K-drift +6.3% (3-way) vs +44% (old 2-way).
 PROVENANCE: notes/whitened_sensitivity_metric.md 49-70; notes/dataset_sensitivity_program_plan.md 101-137 (reporting rules verbatim); experiments/dataset_sensitivity/whitened_metric.py.""")
     return s
 
@@ -232,7 +232,7 @@ def slide_a5_provenance(prs):
         ("ViT-tiny rank-4 LoRA", "3 targets p = 0.002, sens 1.13 / 1.24 / 1.52 (N=16, K=50)", "256540 (MVP 247474)"),
         ("metric null-diag", "3-way estimator unbiased on no-signal data at every K", "212413"),
         ("arm B dilution", "p = 0.002 at every N; flat; N=32 decline open", "130198"),
-        ("arm E duplication", "β = 0.234 (r8) / 0.241 (r32), R² 0.85; β(T) 0.313 → 0.256 → 0.234", "162114 / 217123 / 246873"),
+        ("arm E duplication", "β = 0.234 (r8, R² 0.76) / 0.241 (r32); β(T) 0.313 → 0.256 → 0.234", "162114 / 217123 / 246873"),
         ("arm C class imbalance", "balanced ratio 3.28 → 0.34 under role-swap; all p = 0.002", "229722 / 237301"),
         ("arm D context rarity", "rarity gain 1.21 / 0.96 / 1.16 → mean 1.11", "245964"),
         ("S1 similarity ladder", "identity 0 (p = 1.000); near-dup 0.03–0.07; cross-digit 8–24", "268959"),

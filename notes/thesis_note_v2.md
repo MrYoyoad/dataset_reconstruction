@@ -147,7 +147,7 @@ Every negative reconstruction is ambiguous. Naming the worlds forces each experi
 |---|---|---|
 | E2 rank-sweep reversal | 23→13→0 at r=8/16/32 | 581629 |
 | E3 kinked vs smooth | ~5× (control-margin 0.47 vs 0.09); Spearman(fs, ctrl-margin) ≈0 (−0.06) | 392821 / 390026 |
-| E4 g₀ correlation | +0.857 (n=12) / +0.777 (n=24) / +0.83 full-FT (n=6) | 260171 / 272504 / 272309 |
+| E4 g₀ correlation | +0.857 (n=12) / +0.777 (n=24) / +0.83 full-FT (n=6) | 260171 / 272504 / 695782 |
 | E5 valley width | geomean 1.02, median 0.86, narrower 4/6 (n=6) | 695782 |
 | E6 ΔW by composition | ARI +1.00; nuisance ≈0; raw (B,A) by seed +0.55; cross-fit +0.989 CI[0.973,1.005] @ G=30 (content / digit-subset) | 838868 (811847 fold-buggy) |
 | E7 ceiling / wall | SSIM ~0.99 / 0.57@N=4 → 0.27@N=10; bridge 0.951 cos; q_eff 156/160 | multiple (full-grad 956994; direct-inv / bridge / ViT — see STATUS) |

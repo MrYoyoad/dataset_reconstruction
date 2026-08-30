@@ -87,8 +87,8 @@ PROVENANCE: notes/identifiability_feasibility_revision.tex:41-72 ("Read the rank
 # --------------------------------------------------------------------------------------
 def slide_t2(prs):
     s = H.new_slide(prs)
-    H.add_title(s, "Dimension count \u2192 Jacobian rank \u2192 singular spectrum")
-    H.add_lead(s, "only the spectrum measures usable leakage; a rank only sizes the null space")
+    H.add_title(s, "Only the spectrum measures usable leakage")
+    H.add_lead(s, "dimension count → Jacobian rank → singular spectrum; a rank only sizes the null space")
 
     # left: the three-box chain, increasing honesty downwards
     lx, lw = C.MX, Inches(4.15)

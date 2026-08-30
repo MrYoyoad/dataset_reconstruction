@@ -9,6 +9,7 @@ pre-registered arm table) → battery results → three worlds + decisions → 5
 notes (WHAT / WHY THIS FUNCTION / WHY REPRESENTATIVE / GAL-ASK / CAVEATS / PROVENANCE).
 
 ## Done this session
+- Sibling audit round (numbers / honesty / math / clarity) integrated; deck rebuilt; findings in docs/sessions/deck_audit_*.md.
 - Plan (approved after two reframes) → `scripts/deck/` modular python-pptx generator (config, helpers incl. set_notes,
   mathtext eq_render, six slides_*.py modules built by parallel sub-agents, orchestrator with chunked spire audit renderer).
 - `scripts/deck/make_deck_figures.py` → 14 clean figures in `figures/deck_2026_08_31/` from the same result files as the

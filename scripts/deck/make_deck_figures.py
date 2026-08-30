@@ -193,7 +193,7 @@ def fig_rank_sweep():
     ax.plot(xs, qm, "-s", color=ORANGE, lw=2.8, ms=10, label="10-class task")
     ax.fill_between(xs, qm, qb, color=ORANGE, alpha=0.12)
     ax.axvline(np.log2(10), color=GRAY, ls="--", lw=1.5)
-    ax.text(np.log2(10) + 0.05, 0.12, "r = N = 10\n(LoRA ≈ full fine-tune)", color=GRAY, fontsize=12)
+    ax.text(np.log2(10) + 0.05, 0.04, "r = 10 = √(K·N): 10-class threshold\n(binary threshold ≈ √N ≈ 3; Jang 2024)", color=GRAY, fontsize=12)
     for x, y1, y2, r in zip(xs, qb, qm, ranks):
         ax.annotate(f"gap {int(round((y1-y2)*80))}", ((x), (y1 + y2) / 2), fontsize=13, color=GRAY,
                     ha="left", xytext=(8, 0), textcoords="offset points")
@@ -202,7 +202,7 @@ def fig_rank_sweep():
     ax.set_ylim(0, 1)
     ax.set_xlabel("LoRA rank  (N = 10 private images, 8 directions each)")
     ax.set_ylabel("recoverable fraction of private directions")
-    ax.legend(frameon=False, loc="lower right")
+    ax.legend(frameon=False, loc="center right")
     print(f"[rank] q_eff@ε1 binary {[b[r]['q'][1.0] for r in ranks]}  10-class {[m[r]['q'][1.0] for r in ranks]}")
     return save(fig, "rank_sweep.png")
 

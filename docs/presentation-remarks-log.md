@@ -16,3 +16,11 @@ Running log of every remark / request the user gives about slides (mandated by C
    theoretical thoughts that led to the sensitivity tests → the choice of how to measure → experiments + meaning +
    results. Plain, "real" titles — take Gal through the ideas, no showmanship. Tight, plot-heavy sit-down talk.
 7. **Process:** split the build across sub-agents (one per deck part), parallel.
+8. **Sibling audit round (2026-08-30, user: "ask siblings to audit"):** four parallel audits — numbers (yoado-3a),
+   honesty/scoping (yoado-d1), math (yoado-ef), clarity/flow (yoado-23) — findings in `docs/sessions/deck_audit_*.md`.
+   Applied: visible weakest-attacker scope line on the title + leakage slides; "ceiling on detecting the change";
+   DI slide labelled known-recipe upper bound; g₀ title/lead carry the n=24 indeterminate grade; H-gate lead notes the
+   n=12 spot-check; "proven unbiased" → "consistent with unbiased"; ΔW equation linearizes about θ_a; arm-E R² 0.76 (r8);
+   +0.989 on the atlas slide; r=10 relabelled as the 10-class √(K·N) threshold; S10 title leads with the conclusion;
+   S19 "monotonic" softened; faces caption notes colour as the weakest channel. Deliberately NOT applied: trimming
+   S14/S21 density (user wants plot-heavy "meat"); the cut/merge list stays as the short-meeting fallback.

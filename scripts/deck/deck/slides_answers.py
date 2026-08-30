@@ -105,6 +105,9 @@ def slide_title(prs):
                Inches(0.6), size=22, font=C.HEAD, color=C.GRAY, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
     H.add_text(s, "Yoad Oxman  ·  Gal Vardi  ·  2026-08-31", C.MX, Inches(4.7), C.CW, Inches(0.5), size=16,
                color=C.GRAY, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+    H.add_text(s, "we observe, we do not conclude — every leakage number is a lower bound on the weakest attacker "
+               "(prior-free, adapter-only, per-image)", C.MX, Inches(5.6), C.CW, Inches(0.5), size=13,
+               color=C.LGRAY, italic=True, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
     H.set_notes(s, """WHAT WE DID: sit-down deck, four parts. Part 1 answers the six asks from the 2026-05-14 meeting with
 the runs that landed Jul 21-26 (direct inversion, anchor sweep, smooth activations) and Aug 23-29 (free-c ladder,
 feature-stability-vs-T, dissociation). Parts 2-4: the theory that led to the secret-swap test, how we measure, results.
@@ -206,6 +209,7 @@ def slide_crux(prs):
     _caption(s, "red = kinked, green = smooth; diamonds = oracle coefficients (upper bound)", rx,
              CONTENT_Y + Inches(2.6), rw, h=Inches(0.8), italic=True)
     H.add_footer(s)
+    H.add_text(s, "every leakage number here is a lower bound on the weakest attacker (prior-free, adapter-only, per-image)", C.MX, C.SL_H - Inches(0.62), C.CW, Inches(0.25), size=10, color=C.LGRAY, italic=True)
     H.set_notes(s, """WHAT WE DID: MNIST, N=2, T=1, LoRA rank 8, 13 activations, realistic FREE-coefficient attack (Haim-style;
 oracle = diamonds, upper bound only). Four matched weight-change rungs {0.005, 0.03, 0.1, 0.3}; the bars show one rung
 (0.1). Leakage = ctrl_margin_norm (experiments/recompute_metrics.py:87): ssim_norm(recon, private) minus
@@ -378,7 +382,7 @@ PROVENANCE: notes/identifiability_rank_bound.tex lines 95-118; notes/linearizati
 # ----------------------------------------------------------------------------------------------
 def slide_direct_inversion(prs):
     s = _story(prs, "Direct inversion: works at N=4, superposes at N=10",
-               "the map inverts; the joint inversion is the bottleneck  (SimuDy did the same primitive — we reframed)",
+               "known-recipe upper bound: the map inverts, the joint inversion is the bottleneck  (SimuDy did the same primitive — we reframed)",
                "your ask: direct weight inversion")
     n4 = _crop(C.ASSET["di_N4"], "di_N4_crop.png", (0.27, 0.0, 1.0, 0.95))
     n10 = _crop(C.ASSET["di_N10"], "di_N10_crop.png", (0.277, 0.0, 1.0, 0.915))
@@ -443,13 +447,13 @@ def slide_more_data(prs):
     fw = C.SL_W - C.MX - fx
     fpx, fpy, fpw, fph = H.fit_image(s, faces, fx, CONTENT_Y, fw, Inches(3.6), align="left")
     _caption(s, "ViT-B/16 on faces — top: private, bottom: three images recovered jointly from one captured "
-                "gradient", fx, fpy + fph + Inches(0.08), fpw, h=Inches(0.6), italic=True, align=PP_ALIGN.CENTER)
+                "gradient; colour is the ceiling's weakest channel", fx, fpy + fph + Inches(0.08), fpw, h=Inches(0.6), italic=True, align=PP_ALIGN.CENTER)
     # equation under the gallery
     ey = py + ph + Inches(0.3)
     H.add_text(s, "what the ceiling inverts", C.MX, ey, gal_w, Inches(0.3), size=13, bold=True, color=C.BLUE)
-    p = render_math(r"\Delta W\approx\sum_i c_i\,\nabla_W f(\theta_0;x_i)", "eq_delta_w")
+    p = render_math(r"\Delta W\approx\sum_i c_i\,\nabla_W f(\theta_a;x_i),\qquad \theta_a=\theta_0\ \mathrm{here}", "eq_delta_w")
     H.add_eq(s, p, C.MX, ey + Inches(0.4), h=Inches(0.7))
-    _caption(s, "the weight change as a coefficient-weighted sum of per-image feature gradients; recover the x_i (and "
+    _caption(s, "the weight change as a coefficient-weighted sum of per-image feature gradients at the anchor θ_a (α=0 → θ₀); recover the x_i (and "
                 "the free c_i) that reproduce it.  A released adapter exposes only a low-rank image of ΔW — inverting "
                 "that is the open milestone.", C.MX, ey + Inches(1.2), gal_w, h=Inches(0.85))
     H.add_footer(s)

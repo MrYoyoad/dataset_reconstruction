@@ -50,7 +50,7 @@ def slide_c1_close(prs):
     y = _Y0 + Inches(0.3)
     _world(s, C.MX, y, col_w, col_h, "A", "identifiability wall",
            "the information is genuinely not in the adapter", C.AMBER, C.WHITE,
-           "the ruler: r_J, whitened d², q_eff on col(J)\n→ proves A when it happens\n(attack-independent, scoped)",
+           "the ruler: r_J, whitened d², q_eff on col(J)\n→ would establish A when it happens\n(attack-independent, scoped)",
            C.AMBER, "not our case so far")
     _world(s, C.MX + col_w + col_gap, y, col_w, col_h, "B", "extraction-limited",
            "the information is present; the decoder cannot yet reach it", C.BLUE, C.LIGHTBLUE_FILL,
@@ -60,7 +60,7 @@ def slide_c1_close(prs):
            "the pixels come from the decoder's prior, not the weights", C.GRAY, C.LIGHTGRAY_FILL,
            "disjoint-adapter control:\nsame 'recovery' against an unrelated adapter?\n→ subtract it, always",
            C.GRAY, "excluded (planned control)")
-    H.add_text(s, "discipline: A is proven by the ruler; C is excluded by the disjoint-adapter control; only what survives both is a real World-B leak",
+    H.add_text(s, "discipline: A is established by the ruler; C is excluded by the disjoint-adapter control; only what survives both is a real World-B leak",
                C.MX, y + col_h + Inches(0.12), strip_w, Inches(0.55), size=11, color=C.GRAY, italic=True)
     # ---- right: decisions card --------------------------------------------------------------
     rx = C.MX + strip_w + Inches(0.35)
