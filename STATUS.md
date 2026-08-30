@@ -104,17 +104,21 @@ eco_{zoo,analyze}.py (partial_zoo.py + --tag partial), figure figures/eco/eco_ga
   ΔW direction (closed-set, max-separable, seed-generalization)"* — an EXISTENCE result in the easiest
   instance setting, NOT "recovery = 1.000" as a difficulty measure. Next: graded-difficulty sweep (more /
   less-separable samples, open-set).
-- **(B) graded-overlap sweep (job 198437) — the bracketing prediction CONFIRMED as a curve.** GAIN vs
-  content-overlap: **0% (disjoint) −0.000 [−0.001,+0.001] · 50% (anchor-digit) +0.101 [+0.022,+0.180] ·
-  100% (same-digits) +0.023 [−0.005,+0.051].** PEAK at 50%, ~0 at both ends — the effect lives in the
-  partial-overlap regime, precisely where the two nulls bracketed it. Mechanism confirmed: at 100% the shared
-  subspace = the whole signal (subtracting it removes signal, not a confounder → GAIN collapses); at 0%
-  nothing shared to subtract. Scope (auditor): the "shared component" is literally shared PRIVATE content
-  (not θ0 common-mode), so the honest claim is *"when adapters share private content, LOO-subtracting the
-  shared part isolates the unique signal and helps retrieval"* — confounder-removal of shared content, a
-  specific partial-overlap regime, not general θ0-driven amplification. Still G=5 per point (the binary
-  parity constraint caps anchor tasks at 5); the CURVE SHAPE is the evidence, each point's CI is wide. Only
-  the 50% point's CI excludes 0. figure figures/eco/eco_graded_overlap.png; code full_zoo.py, graded_overlap.py.
+- **(B) graded-overlap sweep (job 198437) — the bracketing prediction CONFIRMED as a QUALITATIVE curve.**
+  GAIN vs content-overlap: **0% (disjoint) −0.000 [−0.001,+0.001] · 50% (anchor-digit) +0.101 [+0.022,+0.180]
+  · 100% (same-digits) +0.023 [−0.005,+0.051].** HONEST CLAIM (auditor-worded): *positive in the
+  partial-overlap MIDDLE, consistent-with-zero at BOTH extremes* — NOT "a sharp peak at exactly 50%" (the
+  50% point only MARGINALLY exceeds the 100% point; their CIs graze, soft at G=5). The robust result is the
+  SHAPE (null→positive→~null = a confirmed qualitative prediction), not the peak magnitude. **The two ends
+  null for DIFFERENT mechanistic reasons — this asymmetry is the interesting, well-supported part:** at 0%
+  nothing is shared to subtract (proj≈0.001); at 100% the shared subspace IS the signal (proj 0.336) so
+  subtracting it DESTROYS the signal rather than removing a confounder. Scope (auditor): the "shared
+  component" is literally shared PRIVATE content (not θ0 common-mode), so the honest claim is *"when adapters
+  share private content, LOO-subtracting the shared part isolates the unique signal and helps retrieval"* —
+  confounder-removal of shared content, a specific partial-overlap regime, not general θ0-driven
+  amplification. G=5 per point (binary-parity caps anchor tasks at 5); the auditor confirmed firming each
+  CI is NOT load-bearing for the qualitative bracketing claim — the shape carries it, larger-G is optional
+  magnitude-polish and was SKIPPED. figure figures/eco/eco_graded_overlap.png; code full_zoo.py, graded_overlap.py.
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
