@@ -35,18 +35,27 @@ difficulty collapses from "invert an image" to "pick N atoms from a dictionary."
   don't claim it as strictly stronger. One more domain-specific search before writing "first to select an
   image subset from a LoRA adapter."
 
-## GO / NO-GO — three pre-tests on EXISTING data before ANY build (auditor yoado-d4; all CPU, atlas tensors)
-1. **LoRA-frame warm-start (BLOCKER 1).** Re-measure member rank under (i) full-gradient atoms g(x)xᵀ vs (ii)
-   one-image-LoRA-adapter atoms in the gauge-invariant subspace. If (ii) ≫ (i), the frame was the problem, not
-   the marginal score. (The C AUC 0.861 used the full-weight ‖ΔW·(x−μ)‖ — NOT the correct-frame ranking.)
-2. **Verify resolution gate (BLOCKER 2).** One retrain = one draw from the seed cloud. Require D(S*, S*
-   reseeded) vs D(S*, ONE-swap) ≥ 3× at |S|=4 — else a one-swap displacement sits INSIDE the seed cloud and
-   the nudge random-walks among "consistent" sets. If <3×, switch verify to the WHITENED d² with K retrains
-   (the dataset-sensitivity metric that was NEEDED to see one swap; atlas ARI≈1 only separates whole subsets).
-3. **Identifiability / coherence (necessary, not sufficient).** OMP exact recovery needs mutual coherence
-   μ < 1/(2N−1); MNIST same-digit atoms correlate ~0.8, so greedy WILL substitute lookalikes. Compute μ of
-   the CORRECTLY-FRAMED dictionary; plant-and-recover at two coherence levels. AND pre-register the
-   CLASS-MATCHED-random baseline (below). No build until all three pass/are-in-place.
+## GO / NO-GO — three pre-tests, thresholds PRE-REGISTERED (auditor yoado-d4). No build unless all clear.
+**Compute note (auditor correction):** these are NOT all CPU-on-existing-data. #1 and #3 run on existing
+tensors + a cheap atom computation; **#2 needs one TINY GPU run** — the atlas has NO single-swap adapter (its
+compositions differ by whole digit-subsets; the same-digits zoo never ran), so build S*(N=4)×K seeds +
+one-swap×K seeds (minutes) and compute both the subspace distance and the whitened d². The arm-B/similarity-
+ladder stacks have single-swap data but at N=16 with whitened d² only — usable as a fallback, wrong regime.
+
+1. **LoRA-frame warm-start (BLOCKER 1).** Member rank under (i) full-gradient atoms g(x)xᵀ vs (ii) one-image-
+   LoRA-adapter atoms in the gauge-invariant subspace. **PASS = LoRA-frame median true-member rank ≤ 10% of
+   |G| AND ≤ ½ the full-gradient median rank** (frame is the problem, not the marginal score). (The C AUC 0.861
+   used the full-weight ‖ΔW·(x−μ)‖ — NOT this ranking.)
+2. **Verify resolution gate (BLOCKER 2).** One retrain = one seed-cloud draw. **PASS = median D(S*, ONE-swap) /
+   D(S*, S*-reseeded) ≥ 3× at |S|=4** (subspace distance, over K seed pairs). If <3×, switch verify to the
+   WHITENED d² with K retrains and PASS = its separation is significant (arm-B-style; report Cohen's d).
+   **Also report on the first figure the seed-cloud spread D(S*, S*-reseeded) over K pairs — the NOISE FLOOR
+   every later "consistent" verdict is measured against.**
+3. **Identifiability / coherence (necessary, not sufficient).** Compute mutual coherence μ of the CORRECTLY-
+   FRAMED (LoRA) dictionary (OMP needs μ<1/(2N−1); MNIST same-digit atoms ~0.8, so greedy WILL grab lookalikes).
+   **PASS = plant-and-recover exact-rate ≥ 0.80 at LOW coherence (oracle-init, best case)**; report the
+   exact-rate-vs-μ curve (high-coherence degradation is CHARACTERIZATION, not a fail — but if even low-coherence
+   oracle plant-and-recover is <0.8, the method is dead). Pre-register the CLASS-MATCHED-random baseline (§5).
 
 ## 2. Method — greedy SUBSPACE-matching + retrain-verify + residual-nudge
 **BLOCKER-1 FIX (auditor yoado-d4): the atoms must be in the LoRA frame, not the full-weight frame.**
