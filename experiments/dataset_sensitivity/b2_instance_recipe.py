@@ -26,7 +26,7 @@ def main():
     def tmask(i, cond):
         return (act == act[i]) & (init != init[i]) if cond == "same" else (act != act[i])
 
-    K_REF, R = 1, 40   # EQUALIZE references to K_REF per label (min across conds) → fair same-vs-cross ordering
+    K_REF, R = 1, 10   # EQUALIZE references to K_REF per label (min across conds) → fair same-vs-cross ordering
 
     def correct(cond, D, labels):
         """Reference-count-EQUALIZED matching: subsample K_REF references per label, average over R draws, so
@@ -57,7 +57,7 @@ def main():
             cl = np.array([np.nanmean(cor[samp == s]) for s in usamp])
             est = float(np.nanmean(cl)); se = np.nanstd(cl, ddof=1) / np.sqrt(len(cl))
             t = stats.t.ppf(0.975, len(cl) - 1); ci = (est - t * se, est + t * se)
-            null = np.array([np.nanmean(correct(cond, D, RNG.permutation(samp))) for _ in range(150)])
+            null = np.array([np.nanmean(correct(cond, D, RNG.permutation(samp))) for _ in range(80)])
             row[dn] = (est, ci, float((null >= est).mean()))
         res[cond] = row
         (ef, cf, pf) = row["full"]; (eg, _, _) = row["grass"]

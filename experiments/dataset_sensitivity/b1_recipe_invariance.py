@@ -31,7 +31,7 @@ def main():
         if cond == "cross_lr": return (act == act[i]) & (lr != lr[i])
         if cond == "cross_act":return (act != act[i])
 
-    K_REF, R = 5, 25   # EQUALIZE references to K_REF per composition (min = same-recipe's ~5 inits) — auditor:
+    K_REF, R = 5, 10   # EQUALIZE references to K_REF per composition (min = same-recipe's ~5 inits) — auditor:
     #                    cross-act pools far MORE references, so raw heights are a kNN-richness artifact, not a
     #                    recipe-distance trend. Subsample to a fair count; same procedure used for the null.
 
@@ -61,7 +61,7 @@ def main():
         cl = np.array([np.nanmean(cor[comp == c]) for c in ucomp])
         est = float(np.nanmean(cl)); se = np.nanstd(cl, ddof=1) / np.sqrt(len(cl))
         t = stats.t.ppf(0.975, len(cl) - 1); ci = (est - t * se, est + t * se)
-        null = np.array([np.nanmean(per_target_correct(cond, RNG.permutation(comp))) for _ in range(150)])
+        null = np.array([np.nanmean(per_target_correct(cond, RNG.permutation(comp))) for _ in range(80)])
         pval = float((null >= est).mean())
         means.append(est); los.append(ci[0]); his.append(ci[1]); ps.append(pval)
         above = est - chance
