@@ -42,6 +42,11 @@ models/*.pth
 dataset_reconstruction/models/*.pth
 dataset_reconstruction/models/*.pt
 results/*.pth
+# result tensors in subdirs too (large; keep CSV/JSON metrics tracked, not the .pth/.pt/.npy dumps)
+results/**/*.pth
+results/**/*.pt
+results/**/*.npy
+results/**/*.npz
 
 # --- Dataset reconstruction artifacts ---
 dataset_reconstruction/reconstructions/*.pt
@@ -95,6 +100,12 @@ vscode_cli.tar.gz
 
 # --- Empty dirs ---
 envs/
+
+# --- Runtime / scratch output (large or ephemeral, not shared) ---
+dataset_reconstruction/runs/
+.lsbatch/
+.vscode-server-stale/
+thesis_review_*.zip
 
 # --- Test/coverage ---
 .pytest_cache/

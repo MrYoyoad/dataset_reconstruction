@@ -4,6 +4,22 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Verify an experiment's DEFINITION from source before agreeing with a relabel — even a peer's (2026-08-30)
+
+**Pitfall (multi-session):** during the deck audit a sibling relabelled the composition atlas (+0.989, job 838868)
+from "which digits (content-level)" to "which sample (coarse instance-level)", describing the 5 compositions as
+"the same odd/even task with different image samples." I agreed *without checking*. It was wrong: the DEFAULT
+`atlas_zoo.py` sets `COMPOSITIONS` to **distinct digit-subsets** (build log 808715: comp0={1,6,7,8}, comp1={0,1,7},
+comp2={1,6,7}, comp3={0,1,4,9}, comp4={3,4,8,9}), so 838868 recovers WHICH DIGITS = content/class-level. The
+"different samples" description belongs to the *separate* `--same_digits` variant — which per an existing lesson
+never actually varied samples (degenerate bank), so instance-level recovery is still OPEN. The deck slide (S22)
+was already correct; the note had been mis-edited. **Lesson:** class-level vs instance-level is the whole
+strength of the privacy claim — confirm it from the zoo/build source (digit signatures per composition), never
+from a recollection, mine or a teammate's. `git merge-base --is-ancestor` and a per-comp `digits=` grep settle it
+in seconds. [[a-normalized-metric-hid-a-below-baseline-reconstruction]]
+
+---
+
 ## A normalized metric hid a below-baseline reconstruction — always gate on the trivial baseline (2026-08-26)
 
 **Bug (overclaim, caught in audit before it reached Gal):** the reconstruction half of the leakage story
