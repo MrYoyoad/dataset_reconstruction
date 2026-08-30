@@ -45,7 +45,10 @@ def retrieval_auc(dW, pool, labels, mu):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--bank", default=BANK); ap.add_argument("--p", type=int, default=P_SHARED)
+    ap.add_argument("--tag", default="", help="figure suffix; 'partial' = the anchor-digit partial-overlap regime "
+                                              "(overlap>0 is EXPECTED/intended, not a gate failure)")
     args = ap.parse_args()
+    partial = args.tag == "partial"
     bank, mu, meta = load(args.bank)
     tasks = [tuple(c["task"]) for c in bank]
     DW = np.stack([c["dw_flat"] for c in bank])                            # (40, D) precomputed once
@@ -93,8 +96,12 @@ def main():
     arand = np.array([r[4] for r in arr]); pf = np.array([r[5] for r in arr]); ptop = np.array([r[6] for r in arr])
     ov = np.array([r[7] for r in arr])
 
-    print("\n=== GATE 3 — disjoint-content overlap (target digits ∩ LOO-population digits) ===")
-    print(f"  overlap per target: max={ov.max()} mean={ov.mean():.2f}  → {'DISJOINT ✓ (shared subspace = θ0 common-mode)' if ov.max()==0 else 'NON-DISJOINT ✗ (subspace absorbs target signal)'}")
+    print("\n=== GATE 3 — content overlap (target digits ∩ LOO-population digits) ===")
+    if partial:
+        print(f"  overlap per target: max={ov.max()} mean={ov.mean():.2f}  → PARTIAL-OVERLAP regime (INTENDED: "
+              f"anchor digit shared, so shared subspace partially captures target signal; projection should be MID-RANGE)")
+    else:
+        print(f"  overlap per target: max={ov.max()} mean={ov.mean():.2f}  → {'DISJOINT ✓ (shared subspace = θ0 common-mode)' if ov.max()==0 else 'NON-DISJOINT ✗ (subspace absorbs target signal)'}")
     print("\n=== GATE 1 — PROJECTION test (target-ΔW energy in the LOO-shared subspace; must be LOW/moderate) ===")
     print(f"  energy-fraction in shared subspace: mean={pf.mean():.3f}  (top-singular-dir: mean={ptop.mean():.3f})")
     print(f"  → {'private direction largely ⊥ shared (LOO honest)' if pf.mean()<0.5 else 'HIGH — shared absorbs target signal (subtraction may be circular)'}")
@@ -131,7 +138,8 @@ def main():
                     % (est, ci[0], ci[1]), fontsize=10, fontweight="bold")
     ax[1].axis("off")
     txt = ("ECOSYSTEM ATTACK — LOO common-mode subtraction (first honest read)\n"
-           "weak-signal multi-task disjoint zoo: 5 disjoint digit-pairs × 8 seeds, N=4\n\n"
+           + ("PARTIAL-OVERLAP regime: anchor-digit tasks {0,x} share digit 0, N=4\n\n" if partial
+              else "weak-signal multi-task disjoint zoo: 5 disjoint digit-pairs × 8 seeds, N=4\n\n")
            "GATE 3  disjoint-content overlap ........ max=%d  → %s\n"
            "GATE 1  proj of target-ΔW on shared ..... %.3f  (top-dir %.3f)\n"
            "        → private signal is %s the θ0 common-mode\n"
@@ -158,8 +166,9 @@ def main():
               verdict, pf.mean()))
     ax[1].text(0.0, 1.0, txt, fontsize=8.2, family="monospace", va="top", ha="left")
     os.makedirs("figures/eco", exist_ok=True)
-    fig.tight_layout(); fig.savefig("figures/eco/eco_gain.png", bbox_inches="tight", facecolor="white"); plt.close(fig)
-    print("[saved] figures/eco/eco_gain.png")
+    figpath = f"figures/eco/eco_gain{'_' + args.tag if args.tag else ''}.png"
+    fig.tight_layout(); fig.savefig(figpath, bbox_inches="tight", facecolor="white"); plt.close(fig)
+    print(f"[saved] {figpath}")
 
 
 if __name__ == "__main__":
