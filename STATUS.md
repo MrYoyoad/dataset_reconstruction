@@ -146,7 +146,27 @@ observe-framed, DETECTION-not-reconstruction, weakest-attacker lower-bound.
   breaking point — the differing images are arbitrary {0,1} draws (still sizeable ΔW perturbations); the
   harder near-DUPLICATE-swap version (visually similar replacement) is what would actually locate the limit.
   figure figures/harder_id/a_resolution.png, code a_resolution_zoo.py, a_resolution.py. [DETECTION not reconstruction.]
-- **B2 — instance-level recipe-invariance: building.**
+- **B2 — INSTANCE-level recipe-invariance (job 205342).** {0,1}, 8 image-samples × {gelu,relu,softplus_b1} ×
+  init; match a target to its EXACT image-sample using references of a DIFFERENT activation (different frozen
+  base). **cross-activation acc=0.917, Grassmann-only 0.979, chance 0.125, p<0.001** — the INSTANCE fingerprint
+  (not just content) survives a full base-geometry change → recipe-invariant at the instance level, direction-only.
+  ⚠️ CONFOUND (flagged, not fixed): same-activation came out LOWER (0.383) — but that is almost certainly a
+  REFERENCE-COUNT artifact (same-act had only 1 reference/sample vs 4 for cross-act, 2 inits/activation), NOT a
+  real "cross is easier than same" ordering. So the clean claim is ONLY "cross-activation instance matching ≫
+  chance" (recipe-invariant); the same-vs-cross ORDERING is not claimable until reference counts are equalized
+  (more inits/activation). figure figures/harder_id/b2_instance_recipe.png, code b2_instance_recipe_zoo.py,
+  b2_instance_recipe.py. [DETECTION not reconstruction.]
+
+### Harder-identification — summary (all 3 done)
+Removing the crutches held up: (B1) content matching is recipe-invariant incl. cross-activation (1.000);
+(B2) INSTANCE matching is recipe-invariant cross-activation (0.917/0.979 grass) — the fingerprint survives a
+base change even at the exact-image level; (A) the fingerprint resolves sets differing by ONE image/class
+(1.000, norm-controlled) — resolution ≥ single-image, breaking point not yet found; (C) membership inference
+AUC=0.861 [0.784,0.938] with same-dist globally-held-out negatives — the standard privacy metric, well above
+0.5. Net: the identification claim is MUCH stronger than the original existence floor — recipe-invariant,
+single-image-resolving, and literature-comparable on MIA — while still DETECTION not reconstruction,
+weakest-attacker, small-scale (MNIST-MLP N=4). Open hardening: A near-duplicate swaps (find the real limit),
+B2 equalized-reference same-vs-cross, scale beyond MNIST.
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
