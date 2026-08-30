@@ -138,7 +138,15 @@ observe-framed, DETECTION-not-reconstruction, weakest-attacker lower-bound.
   closed-set matching. Reference anchor LoRA-Leak 0.775 (DIFFERENT setup/LLM — NOT a head-to-head; verify at
   source). Scope: N=4, MNIST-MLP, weakest-attacker LOWER bound; DETECTION not reconstruction. figure
   figures/harder_id/c_membership.png, code mia_zoo.py, c_membership.py.
-- **A — resolution limit (swap-k), B2 — instance recipe-invariance: queued next.**
+- **A — RESOLUTION LIMIT (swap-k; jobs 204292/204768).** Match a held-out-init adapter to its set among M=10
+  candidates that share a common core and differ by only k images/class. **acc=1.000 at EVERY k including
+  k_pc=1 (sets differ by ONE image/class, sharing 3 of 4/class), chance 0.10, p<0.001 — and the Grassmann-only
+  norm-control also 1.000.** The ΔW-DIRECTION fingerprint resolves single-image differences. HONEST caveat:
+  the curve is FLAT AT CEILING across k, so resolution is AT LEAST single-image but we did NOT find the
+  breaking point — the differing images are arbitrary {0,1} draws (still sizeable ΔW perturbations); the
+  harder near-DUPLICATE-swap version (visually similar replacement) is what would actually locate the limit.
+  figure figures/harder_id/a_resolution.png, code a_resolution_zoo.py, a_resolution.py. [DETECTION not reconstruction.]
+- **B2 — instance-level recipe-invariance: building.**
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
