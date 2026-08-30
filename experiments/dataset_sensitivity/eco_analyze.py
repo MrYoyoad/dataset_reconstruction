@@ -140,7 +140,7 @@ def main():
     txt = ("ECOSYSTEM ATTACK — LOO common-mode subtraction (first honest read)\n"
            + ("PARTIAL-OVERLAP regime: anchor-digit tasks {0,x} share digit 0, N=4\n\n" if partial
               else "weak-signal multi-task disjoint zoo: 5 disjoint digit-pairs × 8 seeds, N=4\n\n")
-           "GATE 3  disjoint-content overlap ........ max=%d  → %s\n"
+           + "GATE 3  content overlap ................. max=%d  → %s\n"
            "GATE 1  proj of target-ΔW on shared ..... %.3f  (top-dir %.3f)\n"
            "        → private signal is %s the θ0 common-mode\n"
            "GATE 2  raw-adapter AUC (headroom) ...... %.3f  [%.3f,%.3f]\n"
