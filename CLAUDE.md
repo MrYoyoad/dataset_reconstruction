@@ -288,6 +288,22 @@ rsync -avz papers/ wexac:~/papers/
 - When writing or modifying a docx report generator, follow the style guide's docx conventions (header layout, cover page, TOC, page breaks, logo paths).
 - **Quick markdown → PDF on WEXAC:** use Python `fpdf2` + the system DejaVu fonts. `tectonic`/`pandoc`/`pdflatex`/`xelatex` are all unavailable (glibc too old for the tectonic binary). Formal thesis LaTeX still compiles via Overleaf. See LESSONS_LEARNED.md "Markdown → PDF on WEXAC" and the `reference_pdf_generation_method` memory for the recipe + gotchas.
 
+### Supervisor deck generator (added 2026-08-30)
+
+`scripts/deck/` builds the 2026-08-31 supervisor pptx (white/Cambria, figure-first, modular per `style_guide/pptx.md`):
+
+```bash
+python scripts/deck/make_deck_figures.py            # clean slide-native figures -> figures/deck_2026_08_31/ (CPU, no bsub)
+python scripts/deck/build_deck_2026_08_31.py --render /tmp/deck_render   # pptx + per-slide PNG audit + word/number/notes report
+python scripts/deck/preview_module.py deck.slides_measure /tmp/prev       # build + render ONE slides module
+```
+
+Modules: `deck/config.py` (paths, palette, geometry), `deck/helpers.py` (text/runs/rect/arrow/card/fit_image/add_eq/**set_notes**),
+`deck/eq_render.py` (mathtext → PNG, cached), `deck/slides_{answers,theory,measure,results,close,appendix}.py` (each exposes
+`SLIDES`). Contract for slide modules: `scripts/deck/SLIDE_CONTRACT.md` (≤2 visible numbers per story slide, banned strings,
+notes template). Output pptx is gitignored (`*.pptx`); a copy goes to `figures/supervisor_meeting_2026_08_31_v1.pptx`.
+spire renders ≤10 slides per file (free tier) — the builder renders in chunks. Log slide feedback in `docs/presentation-remarks-log.md`.
+
 ### Data Freshness Rules (Critical)
 
 These rules prevent stale numbers from appearing in documents and presentations:

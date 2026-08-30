@@ -1599,3 +1599,25 @@ the start point (the actual "work" functional), not the geometric margin — the
 (-0.99) but the gradnorm carries the loss curvature that drives the imprint. Also: reconstructing
 measurement identity by IMPORTING the arms' own construction functions + hard-asserting saved metadata
 (target digits) beats re-implementing — zero drift risk.
+
+## Deck generator lessons (2026-08-30, supervisor deck 2026-08-31)
+
+- **spire.presentation (free tier) renders only the first 10 slides of a file.** Slides 11+ come out as a "renew your
+  license" page. `build_deck_2026_08_31.render_all()` therefore splits the pptx into ≤10-slide subsets (slide-id-list
+  manipulation, guardrail B9) and renders each. Also expect an "Evaluation Warning" watermark in previews only.
+- **Default `python3` has no scipy; `experiments/dataset_sensitivity/atlas_analyze.py` imports scipy at module top.**
+  Importing it from a figure script either fails (default python) or — under the `rec` conda env on a loaded node — ran
+  for >1 CPU-hour without finishing. Re-implementing the three numpy-only functions inline (SVD feats once, Grassmann
+  distances, MDS) built the same figure in 54 s. Rule: figure scripts must not import analysis modules with heavy
+  top-level imports; copy the small pure-numpy pieces.
+- **matplotlib mathtext gotchas** (no LaTeX on WEXAC): no `\text`, `\big`, `\ge/\le` (use `\geq/\leq`), `\dim`,
+  `\ker`, `\xrightarrow` (use `\overset{g}{\longrightarrow}`). Unicode `≳ ↔ ₀ ᵢ` inside native pptx text boxes render
+  as boxes in the spire preview (font fallback) — use ASCII/`_i` in shapes, mathtext PNGs for real math.
+- **No generator in the repo ever wrote speaker notes** (`notes_slide` had zero hits). `deck/helpers.set_notes()` now does.
+- **A naive banned-string grep is too blunt:** "0.23" also matches the legitimate arm-E exponent β=0.234, and "settled"
+  matches the question "settled on your side?". The audit bans the specific quantity strings (‖ΔW‖/‖W₀‖, 0.226,
+  ssim_norm 0.6) and whitelists the question phrase.
+- **`figures/atlas/atlas_samedigits.png` is a byte-identical duplicate of `atlas.png`** — the `--same_digits` zoo never
+  actually ran (identical digit signatures in both banks); the instance-level atlas remains OPEN.
+- **Data freshness by construction:** every deck figure reads the same JSON/CSV/pth the analysis generators read, and the
+  anchor/rank-sweep panels assert the known anchor values (relu ctrl-margin 0.382…, q_eff 59/36) at build time.

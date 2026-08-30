@@ -1,5 +1,21 @@
 # Project Status
 
+## Supervisor deck for 2026-08-31 BUILT — pptx, figure-first, modular generator (2026-08-30)
+
+`scripts/deck/build_deck_2026_08_31.py` → `notes/supervisor_meeting_2026_08_31.pptx` (gitignored; copy
+`figures/supervisor_meeting_2026_08_31_v1.pptx`). 28 slides: Part 1 answers to Gal's May asks with the Aug-23–29
+crux runs (kinked leaks ~5×, smooth stays linear, anchor fixes linearity not leakage, σ′ mechanism), DI wall, full-gradient
+ceiling · Part 2 the theory chain (measurement system → rank → spectrum → noise floor / three worlds) · Part 3 the secret-swap
+instrument (d², why NP-optimal, 3-way cross-fit + zero-reads-zero, the pre-registered arm table) · Part 4 the battery
+(knobs weak / class identity / g₀ / concept-not-instance / H gate / ViT+Fashion+full-FT / atlas) · close (three worlds +
+decisions) · 5 appendix slides (rank theorem, d² readings + rules, q_eff|col(J), anchor attribution + retractions, provenance).
+Clean slide-native figures rebuilt from the same result files by `scripts/deck/make_deck_figures.py` →
+`figures/deck_2026_08_31/` (14 PNGs; NEW plots for arms B/C/D/E, null-diag, ViT, d* which had no figure before).
+Rules baked in: ≤2 visible numbers per story slide, banned strings (0/40, ‖ΔW‖/‖W₀‖=0.23, 1.07, ssim_norm 0.6x,
+confirmed/settled), speaker notes on every slide (WHAT / WHY THIS FUNCTION / WHY REPRESENTATIVE / GAL-ASK / CAVEATS /
+PROVENANCE), white/Cambria theme (continuity with the May-14 deck). Audit renders via spire in 10-slide chunks.
+Remarks log created: `docs/presentation-remarks-log.md`.
+
 ## Adapter atlas + ecosystem prototype (2026-08-30, user-directed)
 
 **ATLAS** (factorial zoo, 169 adapters on a shared base; jobs 808715 build / 838868 analyze):
