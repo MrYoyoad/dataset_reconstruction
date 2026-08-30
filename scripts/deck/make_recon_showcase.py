@@ -17,6 +17,7 @@ import csv as csvmod
 import glob
 import os
 import re
+import sys
 
 import numpy as np
 import torch
@@ -54,6 +55,31 @@ def m(d, key):
     return d.get(f"{key}_metrics", {}) or {}
 
 
+def per_tile(d, key, recon_key=None):
+    """Per-image (raw ssim, ssim_norm), mirroring experiments/run_experiment_b.py exactly:
+    recon (centered) vs x_train - ds_mean for key in {lora, full}; for key == "control" the
+    RECONSTRUCTION is compared with the centered same-class control image (that is what the
+    stored control_metrics are — the margin's reference), using the recon named by recon_key.
+    Returns None outside the rec env (kornia missing)."""
+    try:
+        sys.path.insert(0, ROOT)
+        sys.path.insert(0, os.path.join(ROOT, "dataset_reconstruction"))
+        from experiments.metrics import compute_ssim, compute_ssim_normalized
+        dm = d["ds_mean"]
+        if key == "control":
+            rk = recon_key or ("lora" if "x_recon_lora" in d else "full")
+            rec = d[f"x_recon_{rk}"]
+            tgt = d["x_ctrl"] - dm
+        else:
+            rec = d[f"x_recon_{key}"]
+            tgt = d["x_train"] - dm
+        raw, _ = compute_ssim(rec, tgt, dm)
+        nrm, _ = compute_ssim_normalized(rec, tgt, dm)
+        return [(float(a), float(b)) for a, b in zip(raw, nrm)]
+    except Exception:
+        return None
+
+
 def margin_norm(d, key="lora"):
     """ctrl_margin_norm: ssim_norm(recon) - ssim_norm(same-class control)."""
     a, c = m(d, key).get("ssim_norm"), m(d, "control").get("ssim_norm")
@@ -78,7 +104,9 @@ def grid(rows, out, title=None, note=None):
     n = rows[0][1].shape[0]
     fig, axes = plt.subplots(len(rows), n, figsize=(2.35 * n + 3.6, 2.35 * len(rows)))
     axes = np.atleast_2d(axes)
-    for r, (lab, imgs, dm, ms) in enumerate(rows):
+    for r, row in enumerate(rows):
+        lab, imgs, dm, ms = row[:4]
+        tiles = row[4] if len(row) > 4 else None
         for c in range(n):
             ax = axes[r, c]
             im = to_img(imgs[c], dm)
@@ -88,6 +116,8 @@ def grid(rows, out, title=None, note=None):
                 sp.set_visible(False)
             if c == 0:
                 ax.set_ylabel(lab, fontsize=14, rotation=0, ha="right", va="center")
+            if tiles:
+                ax.set_xlabel(f"{tiles[c][0]:.2f} / {tiles[c][1]:.2f}", fontsize=11, color="#555")
         if ms:
             axes[r, n - 1].text(1.06, 0.5, ms, transform=axes[r, n - 1].transAxes,
                                 va="center", fontsize=11.5, color="#555")
@@ -108,8 +138,9 @@ PAT = re.compile(r"exp_b_T(\d+)(?:_(flowers32|fashion))?_(r\d+|full)_free_s42_a(
 def scan(min_T=2):
     cells = []
     seen = set()
-    for f in sorted(set(glob.glob(os.path.join(RES, "exp_b_T*_free_s42_*.pth")) |
-                        set(glob.glob(os.path.join(RES, "exp_b_T*_*_free_s42_*.pth")))):
+    files = set(glob.glob(os.path.join(RES, "exp_b_T*_free_s42_*.pth")))
+    files |= set(glob.glob(os.path.join(RES, "exp_b_T*_*_free_s42_*.pth")))
+    for f in sorted(files):
         if f in seen:
             continue
         seen.add(f)
@@ -175,16 +206,18 @@ def tsweep(write_csv=True):
                     continue
                 row, d, key = best[(ds, T, rk)]
                 if first is None:
-                    first = d
+                    first, first_key = d, key
                     rows.append(("private image", d["x_train"], d["ds_mean"], None))
-                rows.append((lab, d[f"x_recon_{key}"], d["ds_mean"], row_label(d, key)))
+                rows.append((lab, d[f"x_recon_{key}"], d["ds_mean"], row_label(d, key), per_tile(d, key)))
                 gates.append((lab, baseline_note(d, key)))
             if first is None:
                 continue
-            rows.append(("control (same class,\ndifferent sample)", first["x_ctrl"], first["ds_mean"],
-                         row_label(first, "control").replace(f"margin {margin_norm(first,'control'):+.2f}", "")))
+            rows.append(("same-class control image\n(recon scored against it)", first["x_ctrl"], first["ds_mean"],
+                         row_label(first, "control").replace(f"margin {margin_norm(first,'control'):+.2f}", ""),
+                         per_tile(first, "control", first_key)))
             fails = [lab for lab, (g, ok) in gates if not ok]
-            note = ("free coefficients (realistic attack) · margin = ssim_norm(recon) − ssim_norm(control) · "
+            note = ("free coefficients (realistic attack) · under each tile: raw ssim / ssim_norm of the reconstruction vs that tile's image · "
+                    "row label = mean; margin = ssim_norm(recon) − ssim_norm(control) · "
                     + ("all rows beat the dataset-mean baseline" if not fails
                        else "baseline gate FAILED for: " + ", ".join(fails)))
             grid(rows, f"freec_{ds}_T{T}_lora_vs_full.png",
