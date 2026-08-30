@@ -120,6 +120,20 @@ eco_{zoo,analyze}.py (partial_zoo.py + --tag partial), figure figures/eco/eco_ga
   CI is NOT load-bearing for the qualitative bracketing claim — the shape carries it, larger-G is optional
   magnitude-polish and was SKIPPED. figure figures/eco/eco_graded_overlap.png; code full_zoo.py, graded_overlap.py.
 
+## Harder-identification program (2026-08-30, user "do all 3") — removing the crutches. Plan notes/harder_identification_plan.md (auditor-clean)
+The instance-1.000 was an existence floor; 3 experiments each remove a crutch. Sequence B1→C→A→B2, all
+observe-framed, DETECTION-not-reconstruction, weakest-attacker lower-bound.
+- **B1 — RECIPE-INVARIANT content matching (removes "known recipe"; job 202862).** Off the atlas zoo: match an
+  adapter to its digit-content using REFERENCE adapters at graded recipe-distance. **same-recipe 0.981 · cross-lr
+  0.932 · cross-activation 1.000** (chance 0.20, all p<0.001, cluster-robust over 5 comps). The CONTENT
+  fingerprint is recipe-INVARIANT — survives even a full base-geometry change (different activation) → the
+  attacker does NOT need the victim's recipe. **Scope: content-level (separable digits) — the stronger claim
+  that INSTANCE identity is also recipe-invariant is B2 (pending).** figure figures/harder_id/b1_recipe_invariance.png,
+  code b1_recipe_invariance.py. [DETECTION not reconstruction.]
+- **C — membership inference (pending, job 203683):** MIA AUC with a GLOBALLY-held-out negative pool (disjoint
+  from EVERY adapter — auditor's fix), same-dist mean μ, vs LoRA-Leak 0.775. code mia_zoo.py, c_membership.py.
+- **A — resolution limit (swap-k), B2 — instance recipe-invariance: queued next.**
+
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
 ---
