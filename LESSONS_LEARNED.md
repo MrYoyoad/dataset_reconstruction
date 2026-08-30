@@ -4,6 +4,48 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A figure spec that mixes two metric columns survives every downstream audit (2026-08-30)
+
+**Bug.** The designed note's E3 panel A plotted "feature stability at T=50" with kinked activations at ~0.67
+and smooth ones at 0.86–0.98. Neither pair is feature-stability at T=50 (true: sigmoid 0.96 … relu/leaky 0.51).
+
+**How it presented.** Nothing looked wrong: the ordering was right, the magnitudes were plausible, and the
+figure supported the correct conclusion. An external reviewer caught it only by diffing against the committed
+`figures/crux/feature_stability_vs_T.png`.
+
+**Root cause.** `notes/mac_handoff_brief.md` specified the panel numerically — "sigmoid/softplus highest
+(~0.98 / 0.86), kinked relu/leaky lowest (~0.67)" — taking the smooth values from the `feature_stability`
+column and the kinked values from the `ssim_norm` column of the *same* CSV
+(`results/rescored_tsweep_2026-08-29.csv`: relu ssim_norm 0.673 vs relu feature_stability 0.705/0.529/0.51 at
+T=1/10/50). Two columns, one axis label. Every later check compared the numbers to *the brief*, which is why
+three audit passes missed it.
+
+**Fix / rule.** When specifying a figure by numbers rather than by data file, **name the column and the slice
+for every bar** (`feature_stability @ T=50, results/rescored_tsweep_2026-08-29.csv`), and prefer handing over
+the CSV + a filter to handing over values. A number transcribed into a spec loses its provenance immediately;
+a column name keeps it. Corollary: an audit that checks a figure against the spec is not an audit — check it
+against the source file.
+
+---
+
+## Do not soften a citation you have not opened (2026-08-30)
+
+**Bug.** Three files (`notes/thesis_note_v2.md`, `CLAUDE.md`, `notes/mac_handoff_brief.md` ERRATA #2) stated
+that the K-dependent LoRA rank threshold `r(r+1)/2 > K·N` was "our constraint-counting extrapolation, not
+Jang's stated bound". It is Jang, Lee & Ryu's **own** result — it appears in their abstract and is proved by a
+Sard-theorem dimension count (arXiv:2402.11867v3), and their §2 defines K=1 for binary classification, K=k for
+k-class, exactly our usage.
+
+**Root cause.** An earlier correction fixed a *real* error (we had cited "r ≳ N") by retreating to the
+abstract's `r ≳ √N` and disowning everything beyond it — a paper-safety reflex applied without re-reading the
+paper. Over-attributing to ourselves is as much a citation error as under-attributing, and it cost us the
+strongest external anchor for the E2 multiclass story.
+
+**Rule.** Before labelling something "ours, not theirs", grep the source PDF (`curl` the arXiv PDF + pypdf
+text extraction — see the `reference_reading_pdfs` memory). Cheap, and it decides the question outright.
+
+---
+
 ## Verify an experiment's DEFINITION from source before agreeing with a relabel — even a peer's (2026-08-30)
 
 **Pitfall (multi-session):** during the deck audit a sibling relabelled the composition atlas (+0.989, job 838868)

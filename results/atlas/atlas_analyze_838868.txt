@@ -1,0 +1,24 @@
+# Archived stdout of the CORRECTED atlas analysis (job 838868, 2026-08-29).
+# The fold-buggy predecessor is job 811847 (acc-diff +0.00 — a whole composition isolated into the test fold).
+# Archived 2026-08-30 because atlas_analyze.py wrote only a PNG and scripts/wexac_logs/*.out is gitignored,
+# so the headline +0.989 CI[0.973,1.005] had no committed provenance. Script: experiments/dataset_sensitivity/atlas_analyze.py
+# Bank: results/atlas_zoo/zoo_bank.pth | Figure: figures/atlas/atlas.png
+# ---------------------------------------------------------------------------
+=== START Sat Aug 29 18:43:20 IDT 2026 on hgn43.wexac.weizmann.ac.il ===
+[atlas] 169 converged adapters | acts=['gelu', 'relu', 'softplus_b1'] comps=[0, 1, 2, 3, 4] lrs=[0.1, 0.5] inits=6
+
+=== (1) ΔW-clustering decomposition — adjusted-Rand vs factor (permutation p) ===
+  ΔW ~ composition  ARI=+1.000 p=0.000* (k=5)
+  ΔW ~ activation   ARI=-0.010 p=0.987  (k=3)
+  ΔW ~ lr           ARI=-0.006 p=1.000  (k=2)
+  ΔW ~ init_seed    ARI=-0.028 p=1.000  (k=6)
+
+=== (2) raw (B,A) init-contrast — should associate with init/activation MORE than ΔW ===
+  (B,A) ~ init_seed  ARI=+0.546 p=0.000  |  ΔW ARI=-0.028  → (B,A) HIGHER (init frame in factors, scrubbed by product)
+  (B,A) ~ activation ARI=-0.008 p=0.955  |  ΔW ARI=-0.010  → no clear init-contrast
+
+=== Facet-C: composition recovery beyond nuisance (cross-fitted acc-diff, cluster-robust CI) ===
+  acc(nuisance+ΔW) − acc(nuisance) = +0.989  CI95 [+0.973,+1.005] (G=30 cells) → RECOVERS composition beyond nuisance
+
+[saved] figures/atlas/atlas.png
+=== DONE Sat Aug 29 18:44:07 IDT 2026 ===

@@ -2,6 +2,47 @@
 
 *This brief carries every correction and new result since you made the 26-page note. Pair it with the two attached PDFs (see "Files" at the bottom).*
 
+
+---
+
+## ⚠ CORRECTIONS to this brief (2026-08-30, after the external review of the designed PDF)
+
+Two items in this brief were wrong and propagated into the 13-page note. Full triage:
+`notes/note_v2_review_triage.md`.
+
+**C1 — ERRATA #2 (Jang) was wrong in our favour.** Verified against arXiv:2402.11867v3: the abstract states
+*"full fine-tuning admits a rank-r solution such that r(r+1)/2 <= KN ... using LoRA with rank r such that
+r(r+1)/2 > KN eliminates spurious local minima"*, proved by a Sard-theorem dimension count; §2 defines
+**K = 1 for binary classification, K = k for k-class**; and the loss assumption (convex, non-negative,
+twice-differentiable) explicitly covers cross-entropy. So **do NOT label `r(r+1)/2 > K·N` as our
+extrapolation** — attribute it to Jang. Ours is only the informational/leakage *reading* of it. Cite
+arXiv:2605.03724 (2026) alongside as the counterweight (the count is conservative; r=1 suffices for binary
+under a manifold-dimension argument).
+
+**C2 — the E3 panel-A numbers in "Corrected figure numbers" mix two metrics.** The spec
+"sigmoid/softplus highest (~0.98 / 0.86), kinked relu/leaky_relu lowest (~0.67)" takes the smooth values from
+`feature_stability` (T=1) and the kinked values from `ssim_norm`, both in
+`results/rescored_tsweep_2026-08-29.csv`. **Redraw panel A from ONE column at ONE T.** Correct
+`feature_stability`: T=1 — sigmoid 0.983, hardswish 0.918, gelu 0.903, softplus 0.857, silu 0.85, celu 0.839,
+gelu_tanh 0.829, tanh 0.827, mish 0.814, elu 0.787, selu 0.779, leaky_relu 0.709, relu 0.705; T=50 endpoints
+(as committed in `figures/crux/feature_stability_vs_T.png`) — sigmoid 0.96, softplus 0.88, elu/celu 0.70,
+tanh 0.68, mish/selu 0.65, hardswish 0.64, silu 0.62, gelu 0.59, relu/leaky 0.51. The *conclusion is
+unchanged* (kinked lowest at every T). Preferred: three linked panels — feature stability over T -> gate
+spectrum (eff_rank M: relu 6.37, leaky 6.33, selu 3.39, gelu 2.91, mish 2.39, silu 2.34, softplus 1.73,
+sigmoid 1.19) -> measured leakage.
+
+**C3 — other rebuild items from the same review.**
+- **E4:** do not shade a ±0.15 band around zero. The pre-registration is a *precision* gate (PASS = rho > +0.6
+  AND CI half-width <= 0.15); at n=24 rho=+0.777, CI [0.53,0.91], half-width 0.19 -> fails on precision. Draw
+  the CI with the annotation "required half-width <= 0.15, observed 0.19".
+- **E7:** the full-gradient gallery rendered as an empty placeholder box — restore
+  `figures/meeting/positive_reconstruction_gallery.png`. Split the "extraction gap" bar chart: SSIM,
+  ssim_norm, gradient cosine and ViT faces from different cells are not one axis.
+- **E7 bridge:** headline the **converged 0.930** cosine, not the 0.951 best-epoch.
+- **E5:** plot all six per-target valley-width ratios with their censored intervals, not a geomean + median dot.
+- **q_eff:** quote the epsilon-curve (51/117/150/156 at eps=0.3/1/3/10), not the 156/160 maximum.
+- **§1 theory:** G = M ⊙ (V^T C) for K>1 (rank(G)=rank(M) is the K=1 case); the frozen-gate rank bound is a
+  first-order obstruction, not "invisible to any attacker"; split the two kinds of "lower bound".
 ## What to produce
 Re-do the working note you made ("From the Mathematics of the Update to the Experiments"), but:
 
@@ -23,7 +64,9 @@ The attached **thesis_note_v2.pdf** is the corrected, compressed content + lengt
    PROBLEM: a *vanishing* gate-change term means frozen gates → the update stays *more* linear → that points at ReLU as the *better* linearizer, the opposite of the data.
    NOW (correct): the two links are different *kinds* of object. **Informativeness (kinked wins)** = the *static* rank/rigidity of M — a step-like σ′ gives crisp near-binary gate codes → distinct rows → high rank ρ → mixtures separate. **Linearization fidelity (smooth wins)** = the *continuity* of the gate drift dM under fine-tuning — smooth σ has bounded σ″ → small continuous dM → features barely rotate; ReLU is frozen *within* a region but jumps *discontinuously* at every kink-crossing, and those jumps break fidelity where training crosses them. So fidelity tracks the **continuity of dM**, NOT "dM vanishes." Two terms, opposite directions.
 
-2. **Jang citation was wrong, and its attribution must be paper-safe.**
+2. **⚠ SUPERSEDED 2026-08-30 — this erratum was itself wrong; see the CORRECTIONS block above. `r(r+1)/2 > K·N` IS Jang's own stated condition, not our extrapolation.** (Original text kept below for the record.)
+
+   **Jang citation was wrong, and its attribution must be paper-safe.**
    WAS: "r ≳ N" (and, in a later draft, "r(r+1)/2 > K·N attributed to Jang Thm 4.1").
    NOW: Jang, Lee & Ryu (ICML 2024, arXiv:2402.11867) prove LoRA needs **r ≳ √N** (rank on the order of √N, NOT N) to kill spurious local minima; full-FT admits a rank-√N solution. Attribute ONLY **r ≳ √N** to Jang. The output-dimension refinement **r(r+1)/2 > K·N (√(K·N))** used to explain the multi-class E2 anomaly is **OUR constraint-counting extrapolation, NOT Jang's stated bound** — label it as ours. (Jang is a loss-landscape result, so it anchors the leakage boundary by analogy; say so.)
 

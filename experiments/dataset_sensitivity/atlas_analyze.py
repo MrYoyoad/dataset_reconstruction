@@ -13,6 +13,7 @@ Observe-framed, weakest-attacker. Per-seed zoo → CAN attribute (unlike the see
 """
 import argparse
 import os
+import json
 import numpy as np
 import torch
 import matplotlib
@@ -194,6 +195,14 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight", facecolor="white"); plt.close(fig)
     print(f"\n[saved] {OUT}")
+
+    # Provenance sidecar: the headline numbers used to live ONLY in the (gitignored) LSF stdout,
+    # which left the corrected job 838868 result untraceable in the repo. Always write them to disk.
+    side = os.path.splitext(OUT)[0] + "_summary.json"
+    with open(side, "w") as fh:
+        json.dump({"bank": args.bank, "n_adapters": n, "meta": {k: list(map(str, v)) for k, v in meta.items()},
+                   "dw_assoc": dw_assoc, "facet_c": fc}, fh, indent=2, default=str)
+    print(f"[saved] {side}")
 
 
 if __name__ == "__main__":

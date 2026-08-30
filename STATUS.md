@@ -1,5 +1,50 @@
 # Project Status
 
+## External review of the LoRA working note — triaged, corrections applied (2026-08-30)
+
+An external reviewer read the 13-page designed note (Mac PDF), the 26-page predecessor, the rank-bound note
+and the figure bundle. Every checkable claim was verified against the repo or the primary source; verdicts +
+evidence in **notes/note_v2_review_triage.md**. Headlines:
+
+- **Our Jang attribution was wrong, in our own disfavour.** Verified against arXiv:2402.11867v3: `r(r+1)/2 >
+  K·N` is **Jang's own stated condition** (abstract + Sard-theorem proof), and their §2 defines K=1 for binary
+  / K=k for k-class — so our single-BCE-logit K=1 usage is Jang's own convention, and the loss assumption
+  covers cross-entropy. `notes/thesis_note_v2.md`, `CLAUDE.md` and `notes/mac_handoff_brief.md` all said "our
+  extrapolation, not Jang's bound"; **all three fixed.** Only the *informational* reading is ours. Counterweight
+  now cited: arXiv:2605.03724 (2026) — the Sard count is conservative, r=1 suffices for binary.
+- **Theory: rank(G)=rank(M) is a K=1 statement.** For K>1, `G = M ⊙ (VᵀC)` (Hadamard with the head/residual
+  geometry), so K can act on leakage through the data gradient, not just optimization capacity — relevant to
+  the E2 multiclass reversal. Section 1 of the note rewritten around `Ω=GXᵀ → P_LoRA → F_T → J`, with the gate
+  factorization demoted to the interpretable skeleton that shapes J.
+- **The frozen-gate rank bound is a first-order obstruction, not "invisible to any attacker".** Frozen-gate
+  alternatives need not satisfy self-consistency G(X′)=G₀, and Jacobian rank deficiency ≠ local non-injectivity.
+  World A rescoped to a local first-order wall.
+- **Two kinds of "lower bound" were conflated.** Attack results bound leakage from below (weak attacker);
+  J/d²/q_eff are an attack-independent channel diagnostic whose detector is *optimal*. Stance box split.
+- **E3 figure defect, root-caused.** The PDF's panel-A bars mix two columns of
+  `results/rescored_tsweep_2026-08-29.csv` — kinked ~0.67 is `ssim_norm`, smooth 0.86–0.98 is
+  `feature_stability` at T=1 — under a "feature stability at T=50" axis label (true T=50: sigmoid 0.96 …
+  relu/leaky 0.51). Introduced by the handoff brief's figure spec; **the E3 conclusion is unaffected** (kinked
+  lowest at every T). Redraw spec in the brief; the note now foregrounds the stronger mechanism evidence we
+  already had: eff_rank(M) relu 6.37 … softplus 1.73 tracks the leakage order, and the softplus-β dial moves both.
+- **E4's "±0.15" is a precision gate, not an equivalence band.** PASS = ρ>+0.6 AND CI half-width ≤0.15; at n=24
+  ρ=+0.777, CI [0.53,0.91], half-width 0.19 → fails on precision, not effect size.
+- **q_eff: quote the curve.** 51/117/150/156 at ε=0.3/1/3/10 — "156/160" is the ε=10 end. Plus the standing
+  caveat from notes/whitened_sensitivity_metric.md: re-run the 59/36 anchor before any absolute count is a headline.
+- **Bridge headline corrected to the converged 0.930** (0.951 was best-epoch — our own rule says report converged).
+- **E6 provenance hole closed.** `atlas_analyze.py` wrote only a PNG, so the corrected +0.989 CI[0.973,1.005]
+  lived solely in a gitignored LSF log. Archived to `results/atlas/atlas_analyze_838868.txt`, `figures/atlas/atlas.png`
+  committed, and the script now writes a `*_summary.json` sidecar.
+- **Rejected:** the reviewer's suspicion that the binary arm's K=1 contradicts the figure's "nc=2" —
+  `experiments/jacobian_spectrum.py:304` takes the single-logit BCE path, and K=1 is Jang's own binary
+  convention (figure legend needs a footnote, not a number change). Also rejected: "Jang assumes squared error".
+
+**Next (research asks, ranked):** (P0) E3 mediator audit — compute M, the multiclass G, and the J spectrum per
+activation and test whether gate conditioning explains the leakage ranking; (P1) manifold-coordinate experiment
+(random pixel vs local-PCA vs generator-latent tangents); (P2) same-cell World-B test (q_eff, local- vs
+global-init inversion, disjoint-adapter baseline in ONE cell); (P3) exemplar-controlled atlas zoo; (P4) dense
+E2 rank sweep r=10–16.
+
 ## Whitened-Jacobian refinement — crosswalk to experiments recorded (2026-08-30)
 
 The supervisor's 2026-08-20 refinement (J_SNR = Σ_seed^{-1/2} J, q_eff(ε), tangent-coordinate recovery,
