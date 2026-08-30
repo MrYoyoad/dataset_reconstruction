@@ -143,7 +143,7 @@ def fig_fs_vs_T():
         ax.plot(Ts, [series[a][t] for t in Ts], ls, marker="o", color=c, lw=2.6, ms=7, label=a.replace("_", "-"))
     ax.set_xscale("log")
     ax.set_xlabel("fine-tuning steps  T")
-    ax.set_ylabel("feature stability   cos(∇f(θ₀), ∇f(θ_T))")
+    ax.set_ylabel(r"feature stability   $\cos(\nabla_\theta f(\theta_0),\ \nabla_\theta f(\theta_T))$")
     ax.set_ylim(0.45, 1.02)
     ax.legend(frameon=False, loc="center left", bbox_to_anchor=(1.01, 0.5))
     return save(fig, "fs_vs_T.png")
@@ -162,7 +162,7 @@ def fig_anchor():
         print(f"[anchor] {act}: ctrl_margin(α)={[round(v,3) for v in cm]}  lin_fs={[round(v,3) for v in lin]}")
         ax.plot(al, cm, "-", marker="s", color=c, lw=2.6, ms=8, label=f"{act}: leakage")
         ax2.plot(al, lin, "--", marker="o", color=c, lw=2.0, ms=6, alpha=0.8, label=f"{act}: linearization error")
-    ax.set_xlabel("anchor α    θ(α) = (1−α)·θ₀ + α·θ_T")
+    ax.set_xlabel("anchor α   (0 = linearize at the public model, 1 = at the fine-tuned endpoint)")
     ax.set_ylabel("leakage  (control-margin, solid)")
     ax2.set_ylabel("linearization error  (dashed)")
     ax2.spines["right"].set_visible(True)
@@ -243,10 +243,10 @@ def fig_estimator():
     null = {r["N"]: r["null_sensitivity"] for r in nd}
     x = np.arange(len(Ns))
     a2.bar(x - 0.2, real, width=0.4, color=BLUE, label="one image swapped  (p = 0.002 at every N)")
-    a2.bar(x + 0.2, [null.get(n, np.nan) for n in Ns], width=0.4, color=GRAY, label="nothing swapped, seeds only")
+    a2.bar(x + 0.2, [null.get(n, np.nan) for n in Ns], width=0.4, color=GRAY, label="nothing swapped, seeds only  (≈ 0 — invisible at this scale)")
     for i, n in enumerate(Ns):
         if n in null:
-            a2.text(i + 0.2, 0.8, f"{null[n]:+.3f}", ha="center", fontsize=12, color=GRAY)
+            pass
     a2.set_xticks(x)
     a2.set_xticklabels([f"N = {n}" for n in Ns])
     a2.set_ylabel("whitened sensitivity  d²  (debiased)")
@@ -284,9 +284,9 @@ def fig_knobs():
         beta = dat["scaling"][key]["beta_sensitivity"]
         a2.loglog(ks, s, "o", color=c, ms=9)
         kk = np.array([1, 8.0])
-        a2.loglog(kk, s[0] * kk ** beta, "-", color=c, lw=2.2, label=f"{lab}:  d² ∝ k^{beta:.2f}")
+        a2.loglog(kk, s[0] * kk ** beta, "-", color=c, lw=2.2, label=f"{lab}:  $d^2 \\propto k^{{{beta:.2f}}}$")
     a2.loglog([1, 8], [e["by_rank"]["8"][0]["whitened_sensitivity"] * x for x in (1, 8)], ":", color=GRAY, lw=1.5,
-              label="linear  (k¹)")
+              label="linear  ($k^{1}$)")
     a2.set_xticks([1, 2, 4, 8])
     a2.set_xticklabels(["1", "2", "4", "8"])
     a2.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
@@ -346,7 +346,7 @@ def fig_g0():
     names = ["low g₀", "mid g₀", "high g₀"]
     for t in range(3):
         ax.scatter(g0[tier == t], se[tier == t], s=90, color=cols[t], edgecolor="white", lw=0.8, label=names[t], zorder=3)
-    ax.set_xlabel("g₀ = ‖∇_W BCE‖ of the image at the PUBLIC base model θ₀")
+    ax.set_xlabel(r"$g_0=\|\nabla_{W_0}\mathrm{BCE}\|_F$  of the image at the PUBLIC base model $\theta_0$")
     ax.set_ylabel("sensitivity of the adapter to this image")
     ax.text(0.97, 0.06, f"Spearman ρ = {h['rho_sens_g0']:+.2f}   (n = {h['n']}, 95% CI [{h['ci95'][0]:.2f}, {h['ci95'][1]:.2f}])",
             transform=ax.transAxes, ha="right", fontsize=13, color=GRAY)

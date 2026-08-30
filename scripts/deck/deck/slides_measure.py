@@ -70,6 +70,7 @@ def _thumb_grid(slide, x, y, n_cols, n_rows, sq, gap, *, swap_idx, swap_style):
 def slide_m1(prs):
     s = H.new_slide(prs)
     H.add_title(s, "The test: hide one image, swap it, ask the adapter")
+    H.add_tag(s, "part 3 · how we measure", C.SL_W - C.MX - Inches(3.6), C.MY + Inches(0.15), w=Inches(3.6), color=C.GRAY)
     H.add_lead(s, "one number: how far the swap moves the adapter, in units of training noise")
 
     # ---- left: the two datasets ----
@@ -184,15 +185,15 @@ def slide_m2(prs):
     rw = C.SL_W - C.MX - rx
     p = render_math(r"d^2=\mathrm{SNR}^2_{\mathrm{NP}}=2\,\mathrm{KL}(P_{D'}\,\|\,P_D)", "eq_m2_equivalences")
     H.add_eq(s, p, rx, py + Inches(0.1), w=rw - Inches(0.2))
-    H.add_text(s, "⇒  a ceiling on detecting the change — for every attack, reconstruction included", rx, py + Inches(1.2), rw, Inches(0.45),
+    H.add_text(s, "⇒  a ceiling on detecting the change —\nfor every attack, reconstruction included", rx, py + Inches(1.1), rw, Inches(0.8),
                size=16, bold=True, font=C.HEAD, color=C.BLUE, anchor=MSO_ANCHOR.MIDDLE)
-    H.add_text(s, "one object, four readings:", rx, py + Inches(1.85), rw, Inches(0.3), size=C.SZ_SMALL,
+    H.add_text(s, "one object, four readings:", rx, py + Inches(2.0), rw, Inches(0.3), size=C.SZ_SMALL,
                italic=True, color=C.GRAY)
     H.add_text(s, "• optimal-detector (Neyman–Pearson) SNR²\n"
                   "• KL divergence between the with/without-change adapter laws\n"
                   "• Fisher information → Cramér–Rao on the adapter-space change\n"
                   "• the f-INE / DP hypothesis-test statistic",
-               rx, py + Inches(2.15), rw, Inches(1.5), size=13, color=C.BLACK, line_spacing=1.15)
+               rx, py + Inches(2.3), rw, Inches(1.5), size=13, color=C.BLACK, line_spacing=1.15)
     # the caveat chip
     cy_ = Inches(5.75)
     H.add_rect(s, rx, cy_, rw, Inches(0.72), fill_color=C.LIGHTGRAY_FILL, line_color=C.AMBER, line_width=1.0,
@@ -229,9 +230,7 @@ def slide_m3(prs):
     # right column: the two fixes
     rx = C.MX + fw + Inches(0.4)
     rw = C.SL_W - C.MX - rx
-    p = render_lines([r"\hat d^{\,2}_{3\mathrm{-way}}:\ \ \mathcal{A}\to U,\ \ \mathcal{B}\to\Delta\mu\cdot U,\ \ \mathcal{C}\to\lambda",
-                      r"\mathrm{sens}=\hat d^{\,2}_{\mathrm{obs}}-\overline{\hat d^{\,2}_{\mathrm{null}}}"],
-                     "eq_m3_threeway_null")
+    p = render_math(r"\mathrm{sens}=\hat d^{\,2}_{\mathrm{obs}}-\overline{\hat d^{\,2}_{\mathrm{null}}}", "eq_m3_threeway_null")
     H.add_eq(s, p, rx, Y0, w=rw)
     y = Y0 + Inches(1.25)
     fixes = [

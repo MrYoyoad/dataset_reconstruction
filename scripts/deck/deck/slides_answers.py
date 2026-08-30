@@ -209,7 +209,7 @@ def slide_crux(prs):
     _caption(s, "red = kinked, green = smooth; diamonds = oracle coefficients (upper bound)", rx,
              CONTENT_Y + Inches(2.6), rw, h=Inches(0.8), italic=True)
     H.add_footer(s)
-    H.add_text(s, "every leakage number here is a lower bound on the weakest attacker (prior-free, adapter-only, per-image)", C.MX, C.SL_H - Inches(0.62), C.CW, Inches(0.25), size=10, color=C.LGRAY, italic=True)
+    H.add_text(s, "every leakage number here is a lower bound on the weakest attacker (prior-free, adapter-only, per-image)", C.MX, C.SL_H - Inches(0.70), C.CW, Inches(0.24), size=10, color=C.LGRAY, italic=True)
     H.set_notes(s, """WHAT WE DID: MNIST, N=2, T=1, LoRA rank 8, 13 activations, realistic FREE-coefficient attack (Haim-style;
 oracle = diamonds, upper bound only). Four matched weight-change rungs {0.005, 0.03, 0.1, 0.3}; the bars show one rung
 (0.1). Leakage = ctrl_margin_norm (experiments/recompute_metrics.py:87): ssim_norm(recon, private) minus
@@ -247,8 +247,8 @@ def slide_fs(prs):
     H.add_eq(s, p, rx, CONTENT_Y + Inches(0.95), w=rw)
     _caption(s, "cosine between a sample's feature gradient at the public model and after T fine-tuning steps "
                 "— the NTK-laziness proxy", rx, CONTENT_Y + Inches(1.35), rw, h=Inches(1.0))
-    _caption(s, "smooth (green) stays near the linear regime; kinked (red, dashed) leaves it at the first step — "
-                "yet red is the cluster that leaks", rx, CONTENT_Y + Inches(2.55), rw, h=Inches(1.1), italic=True)
+    _caption(s, "smooth (green) stays near the linear regime, gelu (blue) is the smooth outlier that drifts; kinked (red, dashed) "
+                "leaves it at the first step — yet red is the cluster that leaks", rx, CONTENT_Y + Inches(2.55), rw, h=Inches(1.1), italic=True)
     H.add_footer(s)
     H.set_notes(s, """WHAT WE DID: feature-stability-vs-T, 13 activations, T in {1,2,5,10,20,50}, MNIST N=2 LoRA r=8 (job 390026, 65/65).
 Shown: four representative lines (softplus, sigmoid, gelu; relu, leaky-relu).
@@ -382,7 +382,7 @@ PROVENANCE: notes/identifiability_rank_bound.tex lines 95-118; notes/linearizati
 # ----------------------------------------------------------------------------------------------
 def slide_direct_inversion(prs):
     s = _story(prs, "Direct inversion: works at N=4, superposes at N=10",
-               "known-recipe upper bound: the map inverts, the joint inversion is the bottleneck  (SimuDy did the same primitive — we reframed)",
+               "known-recipe upper bound — the map inverts; joint inversion is the bottleneck  (SimuDy's primitive, reframed)",
                "your ask: direct weight inversion")
     n4 = _crop(C.ASSET["di_N4"], "di_N4_crop.png", (0.27, 0.0, 1.0, 0.95))
     n10 = _crop(C.ASSET["di_N10"], "di_N10_crop.png", (0.277, 0.0, 1.0, 0.915))

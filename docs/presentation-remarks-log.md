@@ -24,3 +24,12 @@ Running log of every remark / request the user gives about slides (mandated by C
    +0.989 on the atlas slide; r=10 relabelled as the 10-class √(K·N) threshold; S10 title leads with the conclusion;
    S19 "monotonic" softened; faces caption notes colour as the weakest channel. Deliberately NOT applied: trimming
    S14/S21 density (user wants plot-heavy "meat"); the cut/merge list stays as the short-meeting fallback.
+9. **Visual audit round (2026-08-30, user: "ask the siblings to audit visuals"):** four lenses — layout/typography (yoado-23),
+   figure legibility (yoado-3a), consistency/first-glance (yoado-d1), equation rendering (yoado-ef) — findings in
+   `docs/sessions/deck_audit_visual_*.md`. Applied: S13 callout wrapped (it had clipped after the honesty rewording);
+   A/B/C world colours locked across S11/S23 (A red, B blue, C amber) and the decisions card sized to content; S14 single
+   critical equation + legend states the null series ≈ 0; in-body chips on S18/S20 folded into card titles (top-right chip
+   reserved for Part-1 "your ask" + new gray part eyebrows at the S9/S12/S16 seams); scope line on every leakage-number
+   slide at one height; S7 lead back to one line; native-text notation glitches fixed (mathtext axis labels, no bare θ_T,
+   superscript exponents); S4 caption names gelu as the smooth outlier; appendix rank block enlarged.
+   Not applied: recolouring the kinked series away from red (legends disambiguate; red = kinked is used in every figure).

@@ -49,28 +49,28 @@ def slide_c1_close(prs):
                C.MX, _Y0 - Inches(0.05), strip_w, Inches(0.3), size=11, italic=True, color=C.GRAY)
     y = _Y0 + Inches(0.3)
     _world(s, C.MX, y, col_w, col_h, "A", "identifiability wall",
-           "the information is genuinely not in the adapter", C.AMBER, C.WHITE,
+           "the information is genuinely not in the adapter", C.RED, C.LIGHTRED_FILL,
            "the ruler: r_J, whitened d², q_eff on col(J)\n→ would establish A when it happens\n(attack-independent, scoped)",
-           C.AMBER, "not our case so far")
+           C.RED, "not our case so far")
     _world(s, C.MX + col_w + col_gap, y, col_w, col_h, "B", "extraction-limited",
            "the information is present; the decoder cannot yet reach it", C.BLUE, C.LIGHTBLUE_FILL,
            "full-gradient ceiling works;\ndirect inversion hits the superposition wall\n→ this is where we are",
            C.BLUE, "we are here")
     _world(s, C.MX + 2 * (col_w + col_gap), y, col_w, col_h, "C", "prior hallucination",
-           "the pixels come from the decoder's prior, not the weights", C.GRAY, C.LIGHTGRAY_FILL,
+           "the pixels come from the decoder's prior, not the weights", C.AMBER, C.LIGHTGRAY_FILL,
            "disjoint-adapter control:\nsame 'recovery' against an unrelated adapter?\n→ subtract it, always",
-           C.GRAY, "excluded (planned control)")
+           C.AMBER, "excluded (planned control)")
     H.add_text(s, "discipline: A is established by the ruler; C is excluded by the disjoint-adapter control; only what survives both is a real World-B leak",
                C.MX, y + col_h + Inches(0.12), strip_w, Inches(0.55), size=11, color=C.GRAY, italic=True)
     # ---- right: decisions card --------------------------------------------------------------
     rx = C.MX + strip_w + Inches(0.35)
     rw = C.SL_W - C.MX - rx
-    _card_small_radius(s, rx, _Y0 + Inches(0.05), rw, Inches(4.55), "decisions",
+    _card_small_radius(s, rx, _Y0 + Inches(0.3), rw, Inches(3.3), "decisions",
                "•  SimuDy reframe — agreed on your side?\n\n"
                "•  scale: toy + theory, or ViT / Stable Diffusion?\n\n"
                "•  F5 shared-perturbation compute\n    (honest null at n=8; rotation suggestive)\n\n"
                "•  instance-level atlas zoo — build it?",
-               color=C.RED, fill=C.LIGHTRED_FILL, body_size=13)
+               color=C.BLUE, fill=C.LIGHTBLUE_FILL, body_size=13)
     H.add_footer(s)
     H.set_notes(s, """WHAT WE DID: placed every experiment in the three-worlds map (thesis_note_v2 section 4) and listed the four decisions I need.
 THE DISCIPLINE IN ONE LINE (thesis_note_v2 section 4): World A is proven by the ruler (attack-independent); World C is excluded by the disjoint-adapter control (prior-independent); only what survives both is a genuine World-B leak. A is a SCOPED guarantee — no local, per-image, linearised information survives under Gaussian seed noise; it is not a guarantee against priors, higher-order effects, or the composition channel (E6 is exactly such an escape).

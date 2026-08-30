@@ -51,7 +51,7 @@ def slide_a1_rank_theorem(prs):
         r"\mathrm{rank}(M)=k<N\ \Rightarrow\ \Phi^{-1}(\Omega)=X+K,\qquad K=\{H:\ \mathrm{every\ row\ of\ }H\in\mathrm{ker}\,G\}",
         r"\mathrm{dim}\,K=d\,(N-k)\ \geq\ d\ \geq\ 1",
         r"\mathrm{leakage}\ \leq\ \min(\mathrm{rank}(M),\ r,\ N)",
-    ], "eq_a1_rank", fontsize=22, gap=0.75)
+    ], "eq_a1_rank", fontsize=26, gap=0.8)
     H.add_eq(s, eq, C.MX + Inches(0.2), _Y0, w=Inches(9.6))
     lx = C.MX + Inches(10.1)
     lw = C.SL_W - C.MX - lx
@@ -160,7 +160,7 @@ def slide_a4_anchor_retractions(prs):
     # left: attribution table
     lx = C.MX
     lw = Inches(7.2)
-    _label(s, "MNIST, T = 10, r = 8, N = 2  —  θ(α) = (1−α)θ₀ + αθ_T", lx, _Y0 - Inches(0.05), lw, size=11,
+    _label(s, "MNIST, T = 10, r = 8, N = 2  —  anchor α as on slide 5", lx, _Y0 - Inches(0.05), lw, size=11,
            italic=True)
     col_w = [Inches(1.2), Inches(1.9), Inches(1.6), Inches(2.5)]
     rows = [

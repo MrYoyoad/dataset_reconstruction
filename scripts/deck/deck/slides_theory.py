@@ -32,6 +32,7 @@ def _box(slide, x, y, w, h, title, sub, *, color=C.BLUE, fill=None, title_size=1
 def slide_t1(prs):
     s = H.new_slide(prs)
     H.add_title(s, "Fine-tuning is a measurement system")
+    H.add_tag(s, "part 2 · the theory before the tests", C.SL_W - C.MX - Inches(3.6), C.MY + Inches(0.15), w=Inches(3.6), color=C.GRAY)
     H.add_lead(s, "the whole privacy question in one map: private latents in, released adapter out")
 
     # four stages across, arrows between
