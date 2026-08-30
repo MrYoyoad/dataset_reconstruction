@@ -131,7 +131,7 @@ Every negative reconstruction is ambiguous. Naming the worlds forces each experi
 | "Your decoder hallucinates a prior." | World C — we subtract it with the disjoint-adapter control and report the difference. |
 | "n=24 killed g₀." | Honest: +0.857 at n=12 is strong; +0.777 at n=24 is indeterminate (CI [0.53,0.91]). The tercile structure survives; a lead, not a law. |
 | "Is this the optimizer, not the map?" | The local-vs-global init control and the permutation null separate optimization failure from genuine non-identifiability. |
-| "The composition result is a t-SNE." | Correct, and we don't claim it — the rigorous test is under-powered at G=30. The gauge confirmation (seed in raw B,A, gone in ΔW) is the defensible part. |
+| "The composition result is just a t-SNE picture." | No longer just a picture: the cross-fitted cluster-robust test confirms which-sample recovery above the recipe baseline (acc-diff **+0.989**, CI [0.973, 1.005] excludes 0) after fixing a fold bug — coarse instance-level (odd/even, differing samples), fading to ~0 for single-image swaps (arms 0.03–0.07). The gauge confirmation (seed in raw B,A, gone in ΔW) is the second leg. Caveats: G=30 small; the CI upper clips >1 (near-ceiling Normal-approx artifact). |
 
 **Order:** open with **E3** (mechanism / money figure) → the ruler + **E1** (we measure presence honestly) → **E2** (spectral boundary) → **E4/E5** (who leaks / how much) → close with **E6/E7** (the two frontier channels), each labelled with how far the evidence reaches.
 
@@ -149,7 +149,7 @@ Every negative reconstruction is ambiguous. Naming the worlds forces each experi
 | E3 kinked vs smooth | ~5× (control-margin 0.47 vs 0.09); Spearman(fs, ctrl-margin) ≈0 (−0.06) | 392821 / 390026 |
 | E4 g₀ correlation | +0.857 (n=12) / +0.777 (n=24) / +0.83 full-FT (n=6) | 260171 / 272504 / 272309 |
 | E5 valley width | geomean 1.02, median 0.86, narrower 4/6 (n=6) | 695782 |
-| E6 ΔW by composition | ARI +1.00; nuisance ≈0; raw (B,A) by seed +0.55; cross-fit +0.00 CI[0,0] @ G=30 | 811847 |
+| E6 ΔW by composition | ARI +1.00; nuisance ≈0; raw (B,A) by seed +0.55; cross-fit +0.989 CI[0.973,1.005] @ G=30 (which-sample) | 838868 (811847 fold-buggy) |
 | E7 ceiling / wall | SSIM ~0.99 / 0.57@N=4 → 0.27@N=10; bridge 0.951 cos; q_eff 156/160 | multiple (full-grad 956994; direct-inv / bridge / ViT — see STATUS) |
 
 **To resolve before circulation:** (1) The **'0.23'** from the earlier note is the **weight-space linearization error** (job 480485, a full-FT T=10 config flagged NTK-violating) — mislabeled there as ‖ΔW‖/‖W₀‖, a different quantity. Don't cite it as a relative-update norm; if a 'not strictly lazy' point is wanted, use the weight-space (0.23) vs function-space (0.0023) linearization-error contrast from that block, with the NTK-flag caveat. (2) Log the max-margin dual **λ = 0.538** used in E4, or drop the g₀-vs-λ comparison. (3) One line on the reconstructed-faces dataset provenance/consent.
