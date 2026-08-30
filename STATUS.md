@@ -33,14 +33,24 @@ Remarks log created: `docs/presentation-remarks-log.md`.
   invisibility (arms 0.03–0.07). TRUE instance-level (same content, different exemplars) is the honest OPEN
   item. Figure figures/atlas/atlas.png; code experiments/dataset_sensitivity/atlas_{zoo,analyze}.py.
 
-**ECOSYSTEM prototype** (user idea — many public LoRAs on shared θ0, subtract the population common-mode to
-amplify a target's private signal; job 161259): **DEGENERATE on this zoo, honest null.** Subtracting the
-top-p POPULATION PCs collapsed composition recovery (ARI 1.0→0.01, shared-energy=1.0) — but that's
-tautological: this zoo's composition IS the dominant variance (by design), so "top PCs" = the composition
-signal itself. NOT a valid test of the premise. Honest read: the idea has support (LoRA-Leak: θ0-as-reference
-helps) but needs a WEAK-SIGNAL MULTI-TASK substrate (different-data adapters where the shared base geometry ≫
-each private residual); our composition-dominant, already-SATURATED (ARI 1.0) zoo can't show amplification.
-PARKED pending user (build the weak-signal multi-task zoo, or shelve). code atlas_ecosystem.py.
+**ECOSYSTEM attack** (user idea — many public LoRAs on shared θ0, subtract the population common-mode to
+amplify a target's private signal). Planned via the sibling collaboration (audit-clean plan
+notes/ecosystem_attack_plan.md, auditor yoado-f5), then BUILT + RUN 2026-08-30 (user "build it"):
+weak-signal MULTI-TASK DISJOINT zoo — 5 disjoint digit-pairs {0,1}..{8,9} × 8 seeds, N=4, shared gelu θ0,
+40/40 converged (job 184185); LOO common-mode subtraction + NN-retrieval GAIN (job 187412).
+**Result: a CLEAN, HONEST NULL — GAIN = −0.000, CI95 [−0.001,+0.001] (5 task-clusters).** The gates make
+it interpretable (unlike the earlier degenerate prototype): GATE-3 disjoint-content overlap max=0 ✓ (shared
+subspace IS θ0 common-mode, not absorbed target signal); GATE-1 projection of target-ΔW onto the LOO-shared
+subspace = **0.001** (private signal ⊥ common-mode — subtraction is HONEST). **Mechanism:** the population
+common-mode barely overlaps the per-adapter private signal (proj≈0.001), so LOO subtraction removes ~nothing
+relevant → residual ≈ raw → zero gain. This is a DIFFERENT null from the atlas prototype (that one had
+shared-energy=1.0 and subtracted the signal itself); here the subtraction is verifiably clean and STILL
+yields no amplification in this MNIST-MLP substrate. Caveat: GATE-2 headroom FAILED (raw-adapter AUC=0.970
+saturated; random baseline 0.546) — a same-digit-distractor re-test would harden it, but proj≈0 makes the
+null robust to that. Figure figures/eco/eco_gain.png; code experiments/dataset_sensitivity/eco_{zoo,analyze}.py.
+Observe-framed, population(>weakest)-attacker. The two nulls now BRACKET the phenomenon: atlas =
+shared-is-everything, eco = shared-overlaps-nothing; the ecosystem effect (if any) lives in between —
+where θ0 common-mode PARTIALLY overlaps the private signal.
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
