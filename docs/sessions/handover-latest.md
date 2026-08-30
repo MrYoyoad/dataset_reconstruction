@@ -18,6 +18,7 @@ notes (WHAT / WHY THIS FUNCTION / WHY REPRESENTATIVE / GAL-ASK / CAVEATS / PROVE
   NEW `docs/presentation-remarks-log.md`.
 
 ## Next step(s)
+- Mac-side v2 pptx exists (Mac: supervisor_meeting_2026_08_31_v2.pptx); the CANONICAL build is the generator here — its content fixes were ported (commit below); the Mac copy differs only in strapline placement. Present from whichever, but rebuild from scripts/deck/ for any further edits.
 - Present tomorrow. If Gal gives slide feedback: log it in `docs/presentation-remarks-log.md`, edit the relevant
   `scripts/deck/deck/slides_*.py`, rebuild with `python scripts/deck/build_deck_2026_08_31.py --render <dir>`.
 - Optional polish: slide 7 (DI stack) has a wide gap between the ten-image rows; slide 18 tag wording
