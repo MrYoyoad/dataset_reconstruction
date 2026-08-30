@@ -1,6 +1,6 @@
 #!/bin/bash
 #BSUB -q short-gpu
-#BSUB -R "rusage[mem=16384] select[ngpus>0 && hname!='hgn46']"
+#BSUB -R "rusage[mem=16384] select[ngpus>0 && hname!='hgn46' && hname!='lgn28' && hname!='hgn45' && hname!='lgn13']"
 #BSUB -gpu "num=1"
 #BSUB -W 0:30
 #BSUB -o scripts/wexac_logs/eco_zoo_%J.out

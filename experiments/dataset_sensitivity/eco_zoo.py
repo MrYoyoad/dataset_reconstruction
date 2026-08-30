@@ -27,9 +27,9 @@ def digit_pair_data(digits, n_per_class, data_seed, ds, device):
         idx = (tgt == d).nonzero(as_tuple=True)[0]
         pick = idx[torch.randperm(len(idx), generator=g)[:n_per_class]]
         for i in pick:
-            xs.append(dat[int(i)].to(torch.float64).view(-1) / 255.0)
+            xs.append(dat[int(i)].to(torch.float64).unsqueeze(0) / 255.0)  # (1,28,28) — match get_finetuning_data
             ys.append(float(_get_binary_label(int(d))))
-    return torch.stack(xs).to(device), torch.tensor(ys, dtype=torch.float64, device=device)
+    return torch.stack(xs).to(device), torch.tensor(ys, dtype=torch.float64, device=device)  # (N,1,28,28)
 
 
 def main():
@@ -51,12 +51,13 @@ def main():
             A, B, mbce, _dW = train_adapter(frozen, b0, draw_B0(seed, out_f, RANK, dev), x0, y_ft, 0.5, T, act, RANK)
             conv = mbce < 1e-2; nt += 1; nc += int(conv)
             bank.append(dict(A=A[0].detach().cpu(), B=B[0].detach().cpu(), task=task, seed=seed,
-                             max_bce=mbce, converged=conv, priv_imgs=x_ft.detach().cpu()))  # private images for retrieval
+                             max_bce=mbce, converged=conv,
+                             priv_imgs=x_ft.reshape(x_ft.shape[0], -1).detach().cpu()))  # flat (N,784) for retrieval
         print(f"  task={task}: done ({len(SEEDS)} seeds)")
     print(f"[eco-zoo] converged {nc}/{nt}")
     if args.save:
         os.makedirs(RESULTS, exist_ok=True)
-        torch.save(dict(bank=bank, ds_mean=ds_mean.detach().cpu(),
+        torch.save(dict(bank=bank, ds_mean=ds_mean.reshape(-1).detach().cpu(),  # flat (784,) for retrieval
                         meta=dict(tasks=TASKS, seeds=SEEDS, N=2*N_PER_CLASS, T=T, rank=RANK)),
                    os.path.join(RESULTS, "eco_bank.pth"))
         print(f"[saved] {RESULTS}/eco_bank.pth ({len(bank)} adapters)")
