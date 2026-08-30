@@ -1706,3 +1706,11 @@ measurement identity by IMPORTING the arms' own construction functions + hard-as
   actually ran (identical digit signatures in both banks); the instance-level atlas remains OPEN.
 - **Data freshness by construction:** every deck figure reads the same JSON/CSV/pth the analysis generators read, and the
   anchor/rank-sweep panels assert the known anchor values (relu ctrl-margin 0.382…, q_eff 59/36) at build time.
+
+## WEXAC: "Cannot open your job file: /scratch/<id>" = broken node, not your script (2026-08-31)
+
+Job 322766 EXITed one second after dispatch with `Cannot open your job file: /scratch/1788129682.322766`
+and an empty stderr. That message means the EXECUTION HOST (here hgn29) could not read the LSF spool
+file — a node-side /scratch failure, nothing in the submitted script. Fix: add the node to the
+exclusion list (`hname!='hgn29'`) and resubmit. Current exclusion list for flaky nodes:
+lgn28, hgn46, hgn45, lgn13, hgn29.
