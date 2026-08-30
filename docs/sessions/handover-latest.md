@@ -1,52 +1,39 @@
-# Handover — 2026-08-28 18:59
+# Handover — 2026-08-30 16:12
 
 ## State
-Branch `step1-activation-rescore-retrieval`. The active research front is the **dataset-sensitivity
-program** (whitened-Mahalanobis sensitivity, per-image leakage predicted by base-gradnorm g₀, distance
-dial, margin-at-scale, ViT+LoRA) and its extension the **full-FT-vs-LoRA "valley" comparison**
-(`notes/fullft_valley_comparison_plan.md` v1.2, both audits PASS). A multi-session swarm runs it:
-**executer = yoado-1f**, **theory auditer = yoado-18**, **reconstruction/crux owner = yoado-ed**, and
-**this metric-auditer = yoado-6d**. A deep audit of all plans-vs-asks was just done; a consolidated
-science summary was written (`notes/thesis_scientific_summary.md` + 10pp PDF, figures embedded).
+Branch `step1-activation-rescore-retrieval`. The supervisor deck for the **2026-08-31 meeting is BUILT and committed**
+(commit 9d13e6b): `notes/supervisor_meeting_2026_08_31.pptx` (28 slides, 4.1 MB; gitignored) + copy
+`figures/supervisor_meeting_2026_08_31_v1.pptx`. Flow = answers to Gal's May asks (Aug 23–29 crux runs, DI wall, ceiling)
+→ theory chain (measurement system → rank → spectrum → noise floor) → the secret-swap instrument (d², 3-way cross-fit,
+pre-registered arm table) → battery results → three worlds + decisions → 5 appendix slides. Every slide has speaker
+notes (WHAT / WHY THIS FUNCTION / WHY REPRESENTATIVE / GAL-ASK / CAVEATS / PROVENANCE).
 
 ## Done this session
-- Rank sweep (job 581629) DONE + figured: the multi-class "leaks-fewer" reversal is a LOW-RANK effect,
-  gap 23→13→0 across r=8/16/32, vanishes at full-FT. `figures/rank_sweep/*`.
-- Leakage story consolidated; **reconstruction overclaim CORRECTED to 0/40** (decoded adapter-only never
-  beats the mean-image baseline; the "ssim_norm 0.61" was inflated). Canonical honest figure =
-  `figures/combined/leakage_identifiability_plus_reconstruction.png` (+ generator `experiments/plot_leakage_combined.py`).
-- Metric-rigor audits (this session, as yoado-6d): the whitened metric, the arm-B "sharpens with N"
-  ARTIFACT retraction (3-way cross-fit + K-non-convergence), the full-FT valley plan (B1 dimension-invariance
-  + B2 SGD-noise gates), all folded and PASS.
-- Deep audit → `notes/thesis_scientific_summary.md` (10pp PDF). Fixed STATUS internal contradiction
-  (lines 193/323 still claimed "reconstructable ~0.6"). Fixed CLAUDE.md to point at `next_experiment_plan.md`
-  (not the superseded `experiment_plan.md`). `scripts/md_to_pdf.py` now embeds images.
+- Plan (approved after two reframes) → `scripts/deck/` modular python-pptx generator (config, helpers incl. set_notes,
+  mathtext eq_render, six slides_*.py modules built by parallel sub-agents, orchestrator with chunked spire audit renderer).
+- `scripts/deck/make_deck_figures.py` → 14 clean figures in `figures/deck_2026_08_31/` from the same result files as the
+  analysis generators (NEW plots for arms B/C/D/E, null-diag, ViT, d*, atlas 2-panel).
+- Docs: STATUS.md (top entry), LESSONS_LEARNED.md (deck-generator lessons), CLAUDE.md (deck generator section),
+  NEW `docs/presentation-remarks-log.md`.
 
 ## Next step(s)
-1. **Full-FT valley wave** — stage-0 was RE-RUN after a calibration-ordering fix (arm C fatal'd: calib
-   sequenced after the dial arms → provisional lr=0.05 → metric-starved; fixed to calib-FIRST). Watch
-   **job 375314**; the wave (arms C/D/E/G → F → B1) launches on a green stage-0 under the executer's own
-   authority. Headline read ONLY after B1+B2 gates pass.
-2. **Close the activation crux (supervisor's TOP ask, STALLED)** — job 857271's 21 configs never fully
-   analyzed (partial rescore `results/rescored_activations_857271_2026-08-11.csv` exists); feature-stability-
-   vs-T and flowers matched-wc band untested. `next_experiment_plan.md` QW1.
-3. **Effect of fine-tuning on classification accuracy** — user ask, only PARTIAL (held-acc asymmetry
-   measured; no systematic pre/post-FT accuracy study).
-4. **Commit the untracked dataset-sensitivity program** — 48 untracked results + the package `__init__.py`
-   (module not in git). Flagged to yoado-1f to commit (its live code).
+- Present tomorrow. If Gal gives slide feedback: log it in `docs/presentation-remarks-log.md`, edit the relevant
+  `scripts/deck/deck/slides_*.py`, rebuild with `python scripts/deck/build_deck_2026_08_31.py --render <dir>`.
+- Optional polish: slide 7 (DI stack) has a wide gap between the ten-image rows; slide 18 tag wording
+  ("your ask: direct inversion → KKT?") could be clearer.
+- Unchanged open science items (from previous handover): activation crux dataset-dependence (flowers band), g₀ canonical ρ
+  + USPS counterexample, instance-level atlas zoo (the --same_digits run never actually ran), SimuDy reply sent/unsent
+  contradiction between thesis_scientific_summary.md and next_experiment_plan.md.
 
 ## Open threads / gotchas
-- **Uncommitted active program**: `experiments/dataset_sensitivity/{__init__,margin_at_scale,arm_b_*_diag}.py`
-  + `results/arm_*/` untracked. Biggest hygiene gap.
-- **SimuDy reframe reply to Gal** drafted but never confirmed sent — gates the direct-inversion axis framing.
-- **g₀ predictor**: ρ=+0.857 (n=12, 260171) vs +0.777 (n=24, 272504, INDETERMINATE) — no canonical value;
-  USPS OOD counterexample (higher g₀, leaks less, n=2) unresolved.
-- STATUS.md is 2699 lines with a dead Sprint-3 to-do list buried (~2385-2472) — prune candidate.
-- WEXAC nodes to exclude: lgn28, hgn46, hgn45, lgn13 (flaky/NaN). `python -u` in job scripts; bsub-only.
+- spire free tier renders only 10 slides per file → renderer splits into chunks; previews carry an "Evaluation Warning".
+- Default python3 lacks scipy; the atlas figure uses an inline numpy re-implementation (do NOT import atlas_analyze).
+- Audit banned-strings: 0/40, ‖ΔW‖/‖W₀‖, 0.226, 1.07, ssim_norm 0.6x, confirmed/settled (except "settled on your side").
+- `.tmp_pptx/` (May generator) is gitignored; the new generator lives in tracked `scripts/deck/`.
 
 ## Pointers
-- Consolidated science: `notes/thesis_scientific_summary.md` (+ .pdf). Plans: `notes/dataset_sensitivity_program_plan.md` (v3),
-  `notes/fullft_valley_comparison_plan.md` (v1.2), `notes/whitened_sensitivity_metric.md`, `notes/next_experiment_plan.md` (to-do).
-- Leakage: `notes/leakage_story_consolidated.{md,pdf}`; figures `figures/{combined,rank_sweep,crux,margin_at_scale,similarity_ladder,h_spotcheck}/`.
-- Metric: `experiments/dataset_sensitivity/whitened_metric.py` (3-way cross-fit); full-FT: `experiments/dataset_sensitivity/fullft_valley.py`.
-- Job to watch: `bjobs`; stage-0 log `scripts/wexac_logs/fullft_valley_stage0_375314.out`.
+- Build: `python scripts/deck/make_deck_figures.py && python scripts/deck/build_deck_2026_08_31.py --render /tmp/deck_render`
+- One module: `python scripts/deck/preview_module.py deck.slides_measure /tmp/prev`
+- Contract: `scripts/deck/SLIDE_CONTRACT.md`; plan: `.claude/plans/help-me-plan-a-keen-wigderson.md`
+- Story sources: `notes/thesis_note_v2.md`, `notes/identifiability_feasibility_revision.tex:41-153`,
+  `notes/dataset_sensitivity_program_plan.md` (§II rules, §III table), `notes/meeting_prep_2026-08-31.md`.
