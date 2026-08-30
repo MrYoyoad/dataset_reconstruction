@@ -32,18 +32,18 @@ def main():
         sub = [c for c in bank if c["k_pc"] == k]
         sid = np.array([c["set_id"] for c in sub]); init = np.array([c["init"] for c in sub])
         uinit = sorted(set(init))
+        res = {}
         for name, distfn in [("full", dw_distance), ("grass", grass_only_distance)]:
             D = distfn(sub)
             acc = _loio(D, sid, init, uinit); est = acc.mean()
             se = acc.std(ddof=1) / np.sqrt(len(acc)); t = stats.t.ppf(0.975, len(acc) - 1)
             ci = (est - t * se, est + t * se)
             null = np.array([_loio(D, RNG.permutation(sid), init, uinit).mean() for _ in range(300)])
-            pval = float((null >= est).mean())
+            res[name] = (est, ci, float((null >= est).mean()))
             curves[name].append(est); cis[name].append(ci)
-            if name == "full":
-                print(f"  k_pc={k} (differ by {k}/class): acc={est:.3f} CI[{ci[0]:.3f},{ci[1]:.3f}] "
-                      f"above-chance={est-chance:+.3f} p={pval:.3f}{'*' if pval<0.05 else ''}  "
-                      f"[grass-only={curves['grass'][-1]:.3f}]")
+        (ef, cf, pf), (eg, _, _) = res["full"], res["grass"]
+        print(f"  k_pc={k} (differ by {k}/class): acc={ef:.3f} CI[{cf[0]:.3f},{cf[1]:.3f}] "
+              f"above-chance={ef-chance:+.3f} p={pf:.3f}{'*' if pf<0.05 else ''}  [grass-only={eg:.3f}]")
 
     fig, ax = plt.subplots(figsize=(8.5, 5.5), dpi=140)
     ax.axhline(chance, color="#d95f0e", ls=":", lw=1.4, label=f"chance = {chance:.2f}")
