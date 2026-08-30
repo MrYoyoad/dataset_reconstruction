@@ -417,7 +417,7 @@ Base architecture / width / depth sweep — needs new base checkpoints; not befo
 ---
 
 ## Grounding (compact)
-DP sensitivity: Dwork et al. 2006. NTK / lazy training: Jacot 2018, Jang 2024 (LoRA≈NTK, r≳N ≈ full-FT).
+DP sensitivity: Dwork et al. 2006. NTK / lazy training: Jacot 2018, Jang 2024 (LoRA≈NTK, r≳√N to kill spurious minima; ≈ full-FT).
 Memorization: Feldman 1906.05271, Feldman-Zhang 2008.03703, Carlini 2202.07646, onion 2206.10469.
 Implicit bias (T→∞ limit only): Lyu-Li / Ji-Telgarsky homogeneous-net max-margin. Testing template: f-INE
 2510.10510. Attribution (behavioral, for contrast, NOT used): Koh-Liang 1703.04730, TRAK 2303.14186,
