@@ -1,5 +1,15 @@
 # Project Status
 
+## Whitened-Jacobian refinement — crosswalk to experiments recorded (2026-08-30)
+
+The supervisor's 2026-08-20 refinement (J_SNR = Σ_seed^{-1/2} J, q_eff(ε), tangent-coordinate recovery,
+(N,r,L) phase diagram, disjoint-adapter control Δ_adapter, whitened v_min/v_max, staged-Jacobian bridge
+decomposition) now has an element-by-element crosswalk to what actually ran and what is still open:
+**notes/jacobian_leakage_experiment_plan.md Part 7.** Short form — DONE: J0/J1 machinery, q_eff|col(J)
+(59/36 anchor), rank sweep (23→13→0), H1/H2, arm-B whitened detection. NOT RUN: a col(J)-living noise
+source (SGD/minibatch — the biggest gap), the q_eff/q-vs-recovery curve, the L/width axis, J3 (disjoint-
+adapter recon control), J4 (v_min/v_max figure), J5 (staged Jacobians + DPI). Also saved to session memory.
+
 ## Supervisor deck for 2026-08-31 BUILT — pptx, figure-first, modular generator (2026-08-30)
 
 `scripts/deck/build_deck_2026_08_31.py` → `notes/supervisor_meeting_2026_08_31.pptx` (gitignored; copy
