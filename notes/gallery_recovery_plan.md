@@ -18,20 +18,57 @@ under-constrained. Restricting to a gallery turns reconstruction into SELECTION 
 options; a rank-r adapter (1000×784 numbers) MASSIVELY over-determines a choice of N≈4 items. The intrinsic
 difficulty collapses from "invert an image" to "pick N atoms from a dictionary."
 
-## 2. Method — greedy weight-matching + retrain-verify + residual-nudge
-ΔW = BA ≈ Σᵢ∈S* **gᵢ xᵢᵀ** (sum of per-image gradient outer-products at the training anchor). Each gallery
-image x has a computable ATOM a(x)=g(x)·xᵀ (g(x) = backprop signal through the FROZEN base at x, given its
-label). The task: find S ⊂ G, |S|=N, whose atoms best reconstruct ΔW.
-- **(a) Warm-start ranking** — correlate every atom a(x) with ΔW (this IS the C membership score = MP
-  iteration 1). Keep a shortlist (top-K).
-- **(b) Greedy matching-pursuit select** — pick best atom, subtract its projection from ΔW, correlate the
-  RESIDUAL, pick next, repeat N times → candidate S₀. (Orthogonal MP = re-fit coefficients each step.)
-- **(c) Retrain-verify** — train a fresh adapter on S₀, compare ΔW(S₀) to target ΔW via a GAUGE-INVARIANT
-  SUBSPACE distance (ΔW is init-invariant in DIRECTION, not exact value — atlas finding). Low distance ⇒
-  consistent ⇒ likely S*.
-- **(d) Residual-nudge (discrete local search)** — if inconsistent, the residual ΔW − ΔW(S) says what is
-  missing/extra: swap the guessed image contributing LEAST for the gallery image whose atom best aligns with
-  the residual; iterate to a local min. Beam search / restarts to escape local minima.
+## 1.5 Prior work & novelty (litreview: notes/gallery_recovery_litreview.md) — DO NOT overclaim
+- **SELECT (Zaman et al., arXiv:2506.15553)** is the CLOSEST prior: greedy GRADIENT-MATCHING to select a
+  subset from a fixed corpus that reproduces a finetuned model — essentially our steps (a)+(b), but for TEXT,
+  full-weight diff, UTILITY (not privacy), and with NO retrain-verify, NO nudge, NO LoRA/gallery/exact-
+  membership framing. **Cite it prominently** — a reviewer who knows it will otherwise call this "SELECT for
+  images + a verify step."
+- **GradMatch (Killamsetty, ICML 2021)** = OMP over gradient atoms (coreset selection) — the algorithmic
+  precedent, not privacy-framed. **VGIA "No More Guessing" (2604.15063)** = the retrain/consistency-certificate
+  precedent (our step c). **SoK: Data Reconstruction (2506.07888)** already states the CONCEPT "MIA over a
+  known candidate pool ⇒ reconstruction-by-selection" — so the idea exists; the instantiation does not.
+- **NOVELTY = the COMPOSITION + threat framing, not any single primitive:** LoRA adapter as the measurement;
+  EXACT-subset-membership goal (SELECT targets utility, not this metric); the LoRA-gauge-invariant retrain
+  CERTIFICATE; the residual-nudge backtracking; and closed-world SELECTION as a PASSIVE LoRA-leakage attack
+  (vs the malicious-server ReCIT/MineGrad/PEFTLeak). Passive is a LOWER bound on leakage, NOT the ceiling —
+  don't claim it as strictly stronger. One more domain-specific search before writing "first to select an
+  image subset from a LoRA adapter."
+
+## GO / NO-GO — three pre-tests on EXISTING data before ANY build (auditor yoado-d4; all CPU, atlas tensors)
+1. **LoRA-frame warm-start (BLOCKER 1).** Re-measure member rank under (i) full-gradient atoms g(x)xᵀ vs (ii)
+   one-image-LoRA-adapter atoms in the gauge-invariant subspace. If (ii) ≫ (i), the frame was the problem, not
+   the marginal score. (The C AUC 0.861 used the full-weight ‖ΔW·(x−μ)‖ — NOT the correct-frame ranking.)
+2. **Verify resolution gate (BLOCKER 2).** One retrain = one draw from the seed cloud. Require D(S*, S*
+   reseeded) vs D(S*, ONE-swap) ≥ 3× at |S|=4 — else a one-swap displacement sits INSIDE the seed cloud and
+   the nudge random-walks among "consistent" sets. If <3×, switch verify to the WHITENED d² with K retrains
+   (the dataset-sensitivity metric that was NEEDED to see one swap; atlas ARI≈1 only separates whole subsets).
+3. **Identifiability / coherence (necessary, not sufficient).** OMP exact recovery needs mutual coherence
+   μ < 1/(2N−1); MNIST same-digit atoms correlate ~0.8, so greedy WILL substitute lookalikes. Compute μ of
+   the CORRECTLY-FRAMED dictionary; plant-and-recover at two coherence levels. AND pre-register the
+   CLASS-MATCHED-random baseline (below). No build until all three pass/are-in-place.
+
+## 2. Method — greedy SUBSPACE-matching + retrain-verify + residual-nudge
+**BLOCKER-1 FIX (auditor yoado-d4): the atoms must be in the LoRA frame, not the full-weight frame.**
+ΔW=BA≈Σ gᵢxᵢᵀ is the FULL-weight one-step update. A LoRA step exposes P_LoRA(H)=B₀B₀ᵀH+HA₀ᵀA₀
+(thesis_note_v2.md:26), and here A₀=0 / B₀ random, so the adapter sees the gradient through the COLUMN SPACE
+of a RANDOM B₀ (unknown to a realistic attacker), and over T steps B,A co-evolve. So correlating full-gradient
+atoms g(x)xᵀ against ΔW measures the WRONG object — likely why the marginal warm-start looked weak.
+- **ATOM(x) = a one-image LoRA adapter** trained on {x} with the ATTACKER'S OWN init, represented by its
+  gauge-invariant SUBSPACE (col/row space of ΔW_x). Matching pursuit runs over SUBSPACES, compared with the
+  gauge-invariant subspace distance we already use — NOT raw matrix correlation.
+- **(a) Warm-start ranking** — subspace-align each atom to the target ΔW's subspace; rank. (Re-measures the
+  membership score in the CORRECT frame — the C AUC 0.861 (job 203683) used the full-weight ‖ΔW·(x−μ)‖ score,
+  so it is NOT this ranking; re-measure first, §GO-NO-GO.)
+- **(b) Greedy MP over subspaces** — select best-aligned atom, deflate the target subspace by its component,
+  re-align the RESIDUAL subspace, repeat N times → candidate S₀.
+- **(c) Retrain-verify (3 ARMS, headline = realistic)** — train an adapter on S₀ and compare to the target by
+  a gauge-invariant distance, in THREE arms: ORACLE-init (attacker knows the victim's init/recipe = UPPER
+  BOUND only) / REALISTIC (K independent attacker inits, whitened d² over the seed cloud) / CROSS-RECIPE
+  (different activation/lr). Pre-register the REALISTIC arm as the headline.
+- **(d) Residual-nudge (discrete local search)** — swap the guessed image contributing LEAST for the gallery
+  image whose atom best reduces the residual subspace; iterate to a local min; beam search / restarts.
+See §GO-NO-GO: the verify metric must first be shown to RESOLVE a single swap above the seed cloud.
 
 ## 3. Why it should work + the honest subtleties
 - **Over-determination** ⇒ S* should be the UNIQUE consistent subset (sharp verify minimum). PRE-TEST this
@@ -46,36 +83,48 @@ label). The task: find S ⊂ G, |S|=N, whose atoms best reconstruct ΔW.
   init/recipe. Oracle-init verify = UPPER BOUND only; the realistic verify uses subspace-invariant matching
   and unknown init. Report both, labelled.
 
-## 4. Literature grounding (fold from litreview when it lands)
-Matching pursuit / OMP (sparse selection from a linear measurement; RIP / mutual-coherence guarantees, and
-where greedy breaks = coherent atoms = near-duplicate images). Gradient inversion: Inverting Gradients,
-GradInversion; EXACT batch recovery SPEAR (SVD+ReLU sparsity), Cocktail Party (ICA N-source separation),
-ARES, ReCIT — for the N>1 superposition. Direct weight inversion (‖θ_T−F(θ₀,x̂)‖²) — this is its DISCRETE,
-gallery-restricted analogue. Haim et al. (dataset reconstruction) as the base. R2F / Yao 2024 / MineGrad for
-LoRA-specific leakage. NOVELTY claim to check hard: "greedy weight-matching + retrain-verify + residual-nudge
-over a KNOWN gallery" as a closed-world SELECTION attack.
+## 4. Techniques to borrow (litreview: notes/gallery_recovery_litreview.md)
+1. **Mutual-coherence feasibility test** on gallery atoms — predicts greedy failure, cheap, paper-worthy
+   diagnostic (the go/no-go #3). 2. **Forward-backward / CoSaMP backtracking** to frame the nudge in
+   pursuit-algorithm language (plain OMP can't un-pick a wrong atom). 3. **ICA de-mixing (Cocktail Party)** +
+   **SPEAR/SPEAR++** dictionary-learning for the Σgxᵀ superposition front-end. 4. **DSiRe (2406.19395)** to
+   estimate N from the LoRA spectrum (MP stopping criterion / unknown-N case). 5. **Verifiable-certificate**
+   formalization (VGIA) for step c — report a CERTIFIED-correct rate, not just an accuracy. Unverified/flagged
+   in the note: exact RIP/coherence constants (re-derive before citing); "first to select an image subset from
+   a LoRA adapter" needs one more domain search before writing.
 
 ## 5. Baselines, ablations, pre-registered success criteria
 - **§5.0 plant-and-recover oracle sanity FIRST:** on a KNOWN planted subset, does the pipeline recover it
   (same init)? If not, the method is broken before any realism. Gate everything on this.
-- **Baselines:** random selection (chance exact-recovery ≈ 1/C(|G|,N), ~0); MIA-top-N (marginal only);
-  MP-only (no nudge); MP+nudge (full). Report the LADDER.
-- **Metrics:** EXACT-set recovery rate (all N correct); partial recovery = Jaccard(S, S*) / precision@N;
-  as functions of N, gallery size |G|, and rank r.
+- **Baselines (LADDER):** unconstrained-random (chance exact ≈ 1/C(|G|,N), ~0); **CLASS-MATCHED random — the
+  one that will bite (auditor):** subsets with the SAME digit labels as S*. Content-level recovery is already
+  easy (atlas +0.989), so exact-set rates vs *unconstrained* random are INFLATED by class composition; the
+  honest denominator is class-matched random. Then MIA-top-N (marginal); MP-only (no nudge); MP+nudge (full).
+- **Metrics:** EXACT-set recovery rate (all N correct); Jaccard(S,S*)/precision@N; **plus a "RIGHT DIGIT, WRONG
+  EXEMPLAR" column** (did we get the class right but the specific image wrong — the coherence/lookalike
+  failure) — as functions of N, |G|, rank r, and gallery coherence μ.
+- **Does the attacker know N?** State it. If not, estimate N from the LoRA spectrum (DSiRe, arXiv:2406.19395)
+  as the MP stopping criterion, and report recovery under estimated-N too.
 - **Pre-registered REAL result:** exact-set recovery ≫ random AND ≫ MIA-top-N at N=4, |G|≥1000, realistic
   (unknown-init) verify. NULL if the nudge adds nothing over the marginal ranking, or only the oracle-init
   version works (then it is an upper bound, not an attack).
 
 ## 6. Gates (load-bearing; the ones that bit us before)
-1. **Gauge-clean subspace verify** — never raw ΔW equality (init frame). 2. **Plant-and-recover sanity** before
-any real claim (§5.0). 3. **Random + MIA-top-N baselines** on every recovery number (exact-recovery has a tiny
-chance rate — quote it). 4. **Free-coefficient/realistic vs oracle** labelled separately; oracle = upper bound
-only. 5. **Closed-world assumption** stated on every claim; this is RECOVERY (set), be careful not to imply
-pixel reconstruction. 6. **Near-duplicate / coherence check** — report gallery mutual-coherence; greedy MP is
-known to fail on coherent atoms, so a wrong pick may be a lookalike (tie to the A resolution result).
-7. **N-superposition honesty** — as N grows the Σgxᵀ mixing degrades attribution (cite SPEAR/Cocktail-Party
-limits); sweep N and report where it breaks. 8. Observe-framed, this-attacker (stronger than weakest — it
-uses the gallery + gradient atoms), no "confirmed."
+1. **Gauge-clean subspace verify** — never raw ‖ΔW−ΔW(S)‖: invariant to the B,A sign/scale/rotation
+FACTORIZATION freedom AND to init, not just init (litreview pitfall 3). 2. **Plant-and-recover sanity** before
+any real claim (§5.0). 3. **Class-matched-random + MIA-top-N baselines** on every recovery number (§5). 4.
+**Free-coefficient/realistic vs oracle** labelled separately; oracle = upper bound only. 5. **Closed-world
+assumption** on every claim; RECOVERY (set), not pixel reconstruction; passive = LOWER bound, not the ceiling.
+6. **Near-duplicate / mutual-coherence check** — report gallery μ; greedy fails on coherent atoms (μ<1/(2N−1)),
+a wrong pick is a lookalike (tie to the "right-digit-wrong-exemplar" column + A resolution). 7.
+**N-superposition honesty** — Σgxᵀ mixing degrades with N (two atoms can mimic a third); cite SPEAR /
+Cocktail-Party, cross-check with ICA de-mixing; sweep N, report where it breaks. 8. **3-ARM verify + Q2
+structural controls (auditor):** every verify in oracle/realistic-K/cross-recipe; NULL-VERIFY control (oracle
+must separate S*-reseeded from best-wrong-S while realistic cannot, if init leaks); SEED-SWAP sanity (realistic
+unchanged, oracle drops — if oracle doesn't drop, init leaks via another path); report per-image residual
+contributions under both arms. 9. **Multi-step anchor** — the frozen-base atom degrades as activations drift
+over T (anchor-α); compute atoms at a representative anchor, report the error. 10. Observe-framed, this-attacker
+(uses gallery + atoms — stronger than weakest), no "confirmed."
 
 ## 7. Failure modes to characterize (not hide)
 Near-duplicate gallery lookalikes (coherent dictionary); large-N superposition; greedy local minima (→ beam /
@@ -84,9 +133,12 @@ B1); anchor/linearization error in the atom g(x)·xᵀ (single-step vs T-step ac
 α-sweep + R2F single-step-decoder issue).
 
 ## 8. Sequence, roles, compute
-Order: (0) plant-and-recover oracle sanity on a small gallery (|G|=200, N=4) → (1) MP-select + subspace-verify,
-add the residual-nudge, the baseline ladder → (2) sweep N, |G|, rank; near-duplicate stress → (3) realistic
-(unknown-init, cross-recipe) verify = the honest attack. Each: build/reuse a gallery + adapter zoo (bsub GPU),
-analysis (bsub CPU), save tensors + a figure (recovery-rate curves, the ladder). Roles as before: this session
-specs/co-drafts, **auditor** adversarially reviews (gauge/baseline/oracle-vs-realistic/coherence/N-mixing),
-**executer** builds/runs. Compute-gated on the user's go per stage.
+**PHASE 0 — GO/NO-GO on EXISTING data (CPU, atlas tensors, no new zoo, no user-go needed beyond planning):**
+the three pre-tests — (1) LoRA-frame vs full-gradient warm-start, (2) verify resolution gate (≥3× or whitened
+d²), (3) coherence μ + class-matched baseline pre-registered + plant-and-recover. **No build proceeds unless
+all three clear.** THEN, compute-gated on the user's go: (1) MP-subspace-select + 3-arm verify + residual-nudge
++ the baseline ladder on |G|=200,N=4 → (2) sweep N, |G|, rank, coherence; near-duplicate stress → (3) realistic
+(unknown-init, cross-recipe) verify = the honest headline attack. Each stage: build/reuse a gallery + adapter
+zoo (bsub GPU), analysis (bsub CPU), save tensors + figures (recovery-rate ladder, coherence curve). Roles:
+this session specs/co-drafts, **auditor** adversarially reviews (gauge/baseline/oracle-vs-realistic/coherence/
+N-mixing), **executer** builds/runs. Cite SELECT prominently in any writeup.
