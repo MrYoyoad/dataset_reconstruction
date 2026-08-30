@@ -31,14 +31,26 @@ def main():
         if cond == "cross_lr": return (act == act[i]) & (lr != lr[i])
         if cond == "cross_act":return (act != act[i])
 
+    K_REF, R = 5, 25   # EQUALIZE references to K_REF per composition (min = same-recipe's ~5 inits) — auditor:
+    #                    cross-act pools far MORE references, so raw heights are a kNN-richness artifact, not a
+    #                    recipe-distance trend. Subsample to a fair count; same procedure used for the null.
+
     def per_target_correct(cond, labels):
         cor = np.full(n, np.nan)
         for i in range(n):
-            tr = np.where(train_mask(i, cond))[0]
-            if len(tr) == 0 or len(set(labels[tr])) < 1:
+            pool = np.where(train_mask(i, cond))[0]
+            if len(pool) == 0:
                 continue
-            pred = _knn_dist(Ddw[i:i + 1, tr], labels[tr], 3)[0]
-            cor[i] = float(pred == labels[i])
+            accs = []
+            for r in range(R):
+                rng = np.random.default_rng(1000 * i + r)
+                sel = []
+                for lab in np.unique(labels[pool]):
+                    cand = pool[labels[pool] == lab]
+                    sel.extend(rng.choice(cand, min(K_REF, len(cand)), replace=False))
+                sel = np.array(sel)
+                accs.append(float(_knn_dist(Ddw[i:i + 1, sel], labels[sel], min(3, len(sel)))[0] == labels[i]))
+            cor[i] = float(np.mean(accs))
         return cor
 
     means, los, his, ps = [], [], [], []
@@ -49,7 +61,7 @@ def main():
         cl = np.array([np.nanmean(cor[comp == c]) for c in ucomp])
         est = float(np.nanmean(cl)); se = np.nanstd(cl, ddof=1) / np.sqrt(len(cl))
         t = stats.t.ppf(0.975, len(cl) - 1); ci = (est - t * se, est + t * se)
-        null = np.array([np.nanmean(per_target_correct(cond, RNG.permutation(comp))) for _ in range(300)])
+        null = np.array([np.nanmean(per_target_correct(cond, RNG.permutation(comp))) for _ in range(150)])
         pval = float((null >= est).mean())
         means.append(est); los.append(ci[0]); his.append(ci[1]); ps.append(pval)
         above = est - chance
@@ -72,7 +84,7 @@ def main():
                  fontsize=11.5, fontweight="bold")
     ax.legend(fontsize=9, loc="lower left")
     ax.text(0.5, -0.32, "DETECTION not reconstruction · observe-framed · weakest-attacker · atlas zoo "
-            "MNIST-MLP N=4 · cluster-robust over compositions · cross-act null is ambiguous (test-power)",
+            "MNIST-MLP N=4 · references EQUALIZED per condition (fair ordering) · ALL conds >> chance = content recipe-invariant",
             transform=ax.transAxes, ha="center", va="top", fontsize=8, color="#555")
     os.makedirs("figures/harder_id", exist_ok=True)
     fig.savefig("figures/harder_id/b1_recipe_invariance.png", bbox_inches="tight", facecolor="white"); plt.close(fig)

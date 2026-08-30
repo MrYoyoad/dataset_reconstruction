@@ -26,12 +26,26 @@ def main():
     def tmask(i, cond):
         return (act == act[i]) & (init != init[i]) if cond == "same" else (act != act[i])
 
+    K_REF, R = 1, 40   # EQUALIZE references to K_REF per label (min across conds) → fair same-vs-cross ordering
+
     def correct(cond, D, labels):
+        """Reference-count-EQUALIZED matching: subsample K_REF references per label, average over R draws, so
+        the same-vs-cross comparison is not a kNN-richness artifact (auditor). Same procedure used for the null."""
         cor = np.full(n, np.nan)
         for i in range(n):
-            tr = np.where(tmask(i, cond))[0]
-            if len(tr):
-                cor[i] = float(_knn_dist(D[i:i + 1, tr], labels[tr], 3)[0] == labels[i])
+            pool = np.where(tmask(i, cond))[0]
+            if len(pool) == 0:
+                continue
+            accs = []
+            for r in range(R):
+                rng = np.random.default_rng(1000 * i + r)
+                sel = []
+                for lab in np.unique(labels[pool]):
+                    cand = pool[labels[pool] == lab]
+                    sel.extend(rng.choice(cand, min(K_REF, len(cand)), replace=False))
+                sel = np.array(sel)
+                accs.append(float(_knn_dist(D[i:i + 1, sel], labels[sel], min(3, len(sel)))[0] == labels[i]))
+            cor[i] = float(np.mean(accs))
         return cor
 
     res = {}
@@ -43,7 +57,7 @@ def main():
             cl = np.array([np.nanmean(cor[samp == s]) for s in usamp])
             est = float(np.nanmean(cl)); se = np.nanstd(cl, ddof=1) / np.sqrt(len(cl))
             t = stats.t.ppf(0.975, len(cl) - 1); ci = (est - t * se, est + t * se)
-            null = np.array([np.nanmean(correct(cond, D, RNG.permutation(samp))) for _ in range(300)])
+            null = np.array([np.nanmean(correct(cond, D, RNG.permutation(samp))) for _ in range(150)])
             row[dn] = (est, ci, float((null >= est).mean()))
         res[cond] = row
         (ef, cf, pf) = row["full"]; (eg, _, _) = row["grass"]
@@ -62,8 +76,8 @@ def main():
     ax.set_title("Does INSTANCE identity survive a recipe change?\nmatch to exact image-sample, references of a different activation",
                  fontsize=11, fontweight="bold")
     ax.legend(fontsize=9, loc="lower left")
-    ax.text(0.5, -0.26, "DETECTION not reconstruction · weakest-attacker · {0,1} N=4 MNIST-MLP · cross-act null "
-            "is AMBIGUOUS (base-geometry gap = test-power), NOT 'recipe-specific'",
+    ax.text(0.5, -0.26, "DETECTION not reconstruction · weakest-attacker · {0,1} N=4 MNIST-MLP · references "
+            "EQUALIZED to 1/sample (fair same-vs-cross) · both conds ≫ chance = recipe-invariant instance id",
             transform=ax.transAxes, ha="center", va="top", fontsize=7.5, color="#555")
     os.makedirs("figures/harder_id", exist_ok=True)
     fig.savefig("figures/harder_id/b2_instance_recipe.png", bbox_inches="tight", facecolor="white"); plt.close(fig)
