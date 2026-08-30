@@ -168,13 +168,14 @@ eco_{zoo,analyze}.py (partial_zoo.py + --tag partial), figure figures/eco/eco_ga
 ## Harder-identification program (2026-08-30, user "do all 3") — removing the crutches. Plan notes/harder_identification_plan.md (auditor-clean)
 The instance-1.000 was an existence floor; 3 experiments each remove a crutch. Sequence B1→C→A→B2, all
 observe-framed, DETECTION-not-reconstruction, weakest-attacker lower-bound.
-- **B1 — RECIPE-INVARIANT content matching (removes "known recipe"; job 202862).** Off the atlas zoo: match an
-  adapter to its digit-content using REFERENCE adapters at graded recipe-distance. **same-recipe 0.981 · cross-lr
-  0.932 · cross-activation 1.000** (chance 0.20, all p<0.001, cluster-robust over 5 comps). The CONTENT
-  fingerprint is recipe-INVARIANT — survives even a full base-geometry change (different activation) → the
-  attacker does NOT need the victim's recipe. **Scope: content-level (separable digits) — the stronger claim
-  that INSTANCE identity is also recipe-invariant is B2 (pending).** figure figures/harder_id/b1_recipe_invariance.png,
-  code b1_recipe_invariance.py. [DETECTION not reconstruction.]
+- **B1 — RECIPE-INVARIANT content matching (removes "known recipe"; jobs 202862/208664).** Off the atlas zoo:
+  match an adapter to its digit-content using REFERENCE adapters at graded recipe-distance. **EQUALIZED
+  references (K=5/comp, fair): same-recipe 0.981 · cross-lr 0.933 · cross-activation 0.974** (chance 0.20, all
+  p<0.001, cluster-robust over 5 comps). All conditions ≫ chance and roughly FLAT → the CONTENT fingerprint is
+  strongly recipe-INVARIANT, incl. across a full base change. (The raw un-equalized cross-act=1.000 was a
+  reference-count/kNN-richness ARTIFACT — auditor caught it; do NOT read the ordering, only "all ≫ chance".)
+  Scope: content-level (separable digits). figure figures/harder_id/b1_recipe_invariance.png, code
+  b1_recipe_invariance.py. [DETECTION not reconstruction.]
 - **C — MEMBERSHIP INFERENCE from the adapter (removes closed-set; job 203683).** "Was THIS image in the
   private set?" s(x)=‖ΔW·(x−μ)‖, μ=same-dist {0,1} mean, negatives = 80 GLOBALLY-held-out {0,1} images disjoint
   from EVERY adapter (auditor's fix vs pooled-AUC inflation). **MIA AUC = 0.861, CI95 [0.784, 0.938] (G=10
@@ -191,27 +192,31 @@ observe-framed, DETECTION-not-reconstruction, weakest-attacker lower-bound.
   breaking point — the differing images are arbitrary {0,1} draws (still sizeable ΔW perturbations); the
   harder near-DUPLICATE-swap version (visually similar replacement) is what would actually locate the limit.
   figure figures/harder_id/a_resolution.png, code a_resolution_zoo.py, a_resolution.py. [DETECTION not reconstruction.]
-- **B2 — INSTANCE-level recipe-invariance (job 205342).** {0,1}, 8 image-samples × {gelu,relu,softplus_b1} ×
-  init; match a target to its EXACT image-sample using references of a DIFFERENT activation (different frozen
-  base). **cross-activation acc=0.917, Grassmann-only 0.979, chance 0.125, p<0.001** — the INSTANCE fingerprint
-  (not just content) survives a full base-geometry change → recipe-invariant at the instance level, direction-only.
-  ⚠️ CONFOUND (flagged, not fixed): same-activation came out LOWER (0.383) — but that is almost certainly a
-  REFERENCE-COUNT artifact (same-act had only 1 reference/sample vs 4 for cross-act, 2 inits/activation), NOT a
-  real "cross is easier than same" ordering. So the clean claim is ONLY "cross-activation instance matching ≫
-  chance" (recipe-invariant); the same-vs-cross ORDERING is not claimable until reference counts are equalized
-  (more inits/activation). figure figures/harder_id/b2_instance_recipe.png, code b2_instance_recipe_zoo.py,
-  b2_instance_recipe.py. [DETECTION not reconstruction.]
+- **B2 — INSTANCE-level recipe-invariance (jobs 205342/208664) — equalization CORRECTED an overclaim.** {0,1},
+  8 image-samples × {gelu,relu,softplus_b1} × init; match a target to its EXACT image-sample using references
+  of a DIFFERENT activation. The raw run showed cross-act 0.917 — but that was ENTIRELY the reference-count
+  artifact (cross-act pooled 4 refs/sample vs same-act's 1). **EQUALIZED (K=1/sample, fair): same-activation
+  0.402 · cross-activation 0.339 (grass-only 0.361), both ≫ chance 0.125, p<0.001.** HONEST corrected result:
+  instance identity DOES survive a recipe/base change (cross-act ≫ chance) but WEAKLY (0.34, not the flashy
+  0.92); with fair references cross-act is slightly BELOW same-act, as expected (a base change adds difficulty).
+  Point estimates noisy (1 ref/sample → wide CIs); the permutation null still gives p<0.001. figure
+  figures/harder_id/b2_instance_recipe.png, code b2_instance_recipe_zoo.py, b2_instance_recipe.py. [DETECTION
+  not reconstruction. The equalization catching 0.92→0.34 is the honesty discipline working.]
 
-### Harder-identification — summary (all 3 done)
-Removing the crutches held up: (B1) content matching is recipe-invariant incl. cross-activation (1.000);
-(B2) INSTANCE matching is recipe-invariant cross-activation (0.917/0.979 grass) — the fingerprint survives a
-base change even at the exact-image level; (A) the fingerprint resolves sets differing by ONE image/class
-(1.000, norm-controlled) — resolution ≥ single-image, breaking point not yet found; (C) membership inference
-AUC=0.861 [0.784,0.938] with same-dist globally-held-out negatives — the standard privacy metric, well above
-0.5. Net: the identification claim is MUCH stronger than the original existence floor — recipe-invariant,
-single-image-resolving, and literature-comparable on MIA — while still DETECTION not reconstruction,
-weakest-attacker, small-scale (MNIST-MLP N=4). Open hardening: A near-duplicate swaps (find the real limit),
-B2 equalized-reference same-vs-cross, scale beyond MNIST.
+### Harder-identification — summary (all 3 done, EQUALIZED)
+Removing the crutches held up, with one overclaim corrected by equalization: (B1) CONTENT matching is
+strongly recipe-invariant (equalized: all conditions 0.93–0.98 ≫ chance 0.20, incl. cross-activation);
+(B2) INSTANCE matching is recipe-invariant but WEAKLY (equalized cross-act 0.34/0.36-grass ≫ chance 0.125,
+p<0.001 — the raw 0.92 was a reference-count artifact); (A) the fingerprint resolves sets differing by ONE
+image/class (1.000, norm-controlled) — resolution ≥ single-image, breaking point not yet found (needs
+near-duplicate swaps); (C) membership inference AUC=0.861 [0.784,0.938] with same-dist globally-held-out
+negatives — the standard privacy metric, well above 0.5, the most literature-legible result. Net: the
+identification claim is stronger than the existence floor — content recipe-invariant, single-image-resolving,
+literature-comparable MIA — but INSTANCE recipe-invariance is weak (0.34), and it's all DETECTION not
+reconstruction, weakest-attacker, small-scale (MNIST-MLP N=4). The equalization catching B1 1.000→0.974 and
+B2 0.92→0.34 is the honesty discipline working (auditor caught the shared reference-count confound). Open
+hardening: A near-duplicate swaps (find the real limit), B2 more inits/activation (tighten the weak 0.34),
+scale beyond MNIST.
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
