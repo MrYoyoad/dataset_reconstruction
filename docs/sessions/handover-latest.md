@@ -17,6 +17,12 @@ notes (WHAT / WHY THIS FUNCTION / WHY REPRESENTATIVE / GAL-ASK / CAVEATS / PROVE
 - Docs: STATUS.md (top entry), LESSONS_LEARNED.md (deck-generator lessons), CLAUDE.md (deck generator section),
   NEW `docs/presentation-remarks-log.md`.
 
+## Overnight 2026-08-31 (this session, after the deck)
+- Free-c showcase sweep (jobs 323866/323867/336206/341742; hgn29 excluded) → figures/recon_showcase, v1/v2 zips sent; v3 waits
+  for the MNIST T=10 full-FT row (job 341742) — then `make_recon_showcase.py --tsweep` (rec env), zip, delta visual check (yoado-90).
+- Deck now 29 slides: slide 8 = A₀=0 span-leakage result (yoado-40's arc, audited here); close updated. Visuals artifact republished.
+- Sibling audits: docs/sessions/{showcase_audit_method,showcase_audit_visual,gallery_recovery_audit}.md.
+
 ## Next step(s)
 - Mac-side v2 pptx exists (Mac: supervisor_meeting_2026_08_31_v2.pptx); the CANONICAL build is the generator here — its content fixes were ported (commit below); the Mac copy differs only in strapline placement. Present from whichever, but rebuild from scripts/deck/ for any further edits.
 - Present tomorrow. If Gal gives slide feedback: log it in `docs/presentation-remarks-log.md`, edit the relevant

@@ -1,5 +1,25 @@
 # Project Status
 
+## Free-coefficient LoRA reconstruction at non-trivial T — showcase (2026-08-31, jobs 323866/323867/336206/341742)
+
+User-directed: LoRA reconstruction examples with FREE coefficients (realistic attack) at T>1, vs full fine-tune. MNIST N=2
+leaky-ReLU, T=5: full-FT raw ssim 0.92 / norm 0.97 → LoRA r=32 0.87/0.88 → r=16 0.82/0.85 → r=8 0.79/0.86 (the "0" is
+recovered at 0.87/0.92 by r=8; the "5" is a recognisable superposition); recon-vs-same-class-control 0.64/0.18; all beat the
+mean-image baseline (0.76). T=10 r=8: 0.74/0.85 (margin +0.62, misses the baseline by 0.02). Flowers-102 (32 px) T=5:
+full 0.68 vs LoRA r=8 0.65 / r=32 0.61 (control 0.44), nearly T-independent through T=20; the N=2 mean-image baseline
+(0.65) is nearly an image itself, so flowers cells that miss it by 0.01–0.05 are shown with the failure printed.
+Selection per (dataset, T, rank): baseline gate first, then max ctrl_margin_norm; per-tile ssim/ssim_norm via
+experiments.metrics; oracle mode asserted absent. Figures `figures/recon_showcase/freec_*_lora_vs_full.png`, builder
+`scripts/deck/make_recon_showcase.py`, all cells `results/recon_showcase_sweep.csv`; zips v1/v2 delivered to the user.
+Audited: method (yoado-90, docs/sessions/showcase_audit_method.md) + visual (docs/sessions/showcase_audit_visual.md).
+
+## Deck: slide 8 added — A₀=0 first-layer LoRA publishes its input span (2026-08-31)
+
+Folded yoado-40's overnight arc (notes/lora_span_leakage_note.md; audited adversarially by this session — LoRA-frame atoms,
+the row-span theorem, LP vertex recovery, the Adam/standard-init/N>r boundaries) into the deck as slide 8 + the close
+slide, all numbers read from results/{lp_unmix,robustness_fixes,robustness_checks,precision_sweep,membership_selector}.
+Scope line verbatim on the slide: first-layer LoRA, A₀=0, SGD-family, N ≤ r, no gallery, reads only the released A factor.
+
 ## External review of the LoRA working note — triaged, corrections applied (2026-08-30)
 
 An external reviewer read the 13-page designed note (Mac PDF), the 26-page predecessor, the rank-bound note
