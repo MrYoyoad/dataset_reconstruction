@@ -37,7 +37,7 @@ def gallery(ds, dev):
 
 def full_grad_atom(frozen, b0, x0_i, y_i, act):
     W1 = frozen[0].clone().detach().requires_grad_(True)
-    fz = [W1] + list(frozen[1:])
+    fz = {**frozen, 0: W1} if isinstance(frozen, dict) else [W1] + list(frozen[1:])
     A = {0: torch.zeros(RANK, frozen[0].shape[1], dtype=torch.float64, device=x0_i.device)}
     B = {0: torch.zeros(frozen[0].shape[0], RANK, dtype=torch.float64, device=x0_i.device)}
     out = forward_logits(x0_i.unsqueeze(0), fz, b0, A, B, act).view(-1)
