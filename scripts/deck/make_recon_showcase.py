@@ -89,7 +89,9 @@ def margin_norm(d, key="lora"):
 def row_label(d, key):
     mm = m(d, key)
     s, sn = mm.get("ssim", float("nan")), mm.get("ssim_norm", float("nan"))
-    return f"ssim {s:.2f} · norm {sn:.2f} · margin {margin_norm(d, key):+.2f}"
+    clip = mm.get("clipped_fraction")
+    clip_s = f" · clip {100*clip:.0f}%" if clip is not None else ""
+    return f"ssim {s:.2f} · norm {sn:.2f} · margin {margin_norm(d, key):+.2f}{clip_s}"
 
 
 def baseline_note(d, key):
@@ -160,6 +162,9 @@ def scan(min_T=2):
             continue
         if f"x_recon_{key}" not in d:
             continue
+        mode = (d.get("config") or {}).get("mode") if isinstance(d.get("config"), dict) else None
+        if mode is not None and "FREE" not in str(mode).upper():
+            raise RuntimeError(f"oracle-mode file matched the free-c glob: {b} (mode={mode})")
         row = {"file": b, "dataset": ds, "T": T, "rank": rk,
                "activation": mo.group(4) or "(default)", "lr": mo.group(5) or "(default)",
                "margin_norm": round(margin_norm(d, key), 4)}
@@ -221,7 +226,7 @@ def tsweep(write_csv=True):
                          per_tile(first, "control", first_key)))
             fails = [lab for lab, (g, ok) in gates if not ok]
             note = ("free coefficients (realistic attack) · under each tile: raw ssim / ssim_norm of the reconstruction vs that tile's image · "
-                    "row label = mean; margin = ssim_norm(recon) − ssim_norm(control) · "
+                    "row label = mean; margin = ssim_norm(recon) − ssim_norm(control); clip = pixels outside [0,1] before clamping · "
                     + ("all rows beat the dataset-mean baseline" if not fails
                        else "baseline gate FAILED for: " + ", ".join(fails)))
             grid(rows, f"freec_{ds}_T{T}_lora_vs_full.png",
