@@ -293,6 +293,18 @@ go/no-go pre-tests before building the exact-subset attack (recover which N gall
   SCOPE: A₀=0 first-layer, N≤r, open-world, this-attacker; DETECTION→full RECONSTRUCTION. The B₀=0 (HF-default)
   branch remains OPEN (data on the δ/column side). Full arc: closed-world = 100% identification; open-world =
   near-exact pixel reconstruction — for the A₀=0 init.
+- **ROBUSTNESS / SCOPE (job 367834) — the exact result is SGD-FAMILY-ONLY; ADAM BREAKS IT (decisive caveat).**
+  The row-span exactness needs each A-update to be a LINEAR map of the gradient rows. #2 OPTIMIZER (N=4):
+  **SGD member-resid 5e-15 / LP-SSIM 1.000, SGD+momentum 1.000 — span EXACT; Adam member-resid 0.75 / LP-SSIM
+  0.60, AdamW LP-SSIM 0.50 — span BROKEN** (Adam's elementwise m/√v is not a linear map, as predicted). Since
+  Adam is the fine-tuning DEFAULT, the honest headline is now "first-layer LoRA, A₀=0, **SGD-family** optimizer,
+  N≤r." (SGD+wd=0.05 also broke it at 0.74 — likely a too-strong-wd/barely-converged numerical artifact contra
+  theory (wd only shrinks A, stays in span); needs a gentler-wd recheck before claiming wd breaks it.) #3 N>r
+  CLIFF: my test was BUGGED (used full-dim PLANTED spans, not the rank-r ADAPTER row space) so it did NOT show
+  the cliff (N=9 read 0.99) — must be redone with adapter-derived rank-8 row spaces for N>r. #1 WHICH-PAIRS:
+  no N=8 failures in this sample → inconclusive (need N>r or harder sets to see the nested-support failures).
+  code robustness_checks.py. **Consequence: the writeup scope line must read "first-layer, A₀=0, SGD-family,
+  N≤r, no gallery, this-attacker" — and Adam-breaks-it belongs on the first figure, not a footnote.**
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 

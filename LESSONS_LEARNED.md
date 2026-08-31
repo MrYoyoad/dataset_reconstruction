@@ -48,8 +48,10 @@ coherent (μ=0.57) — but for N≤r exact recovery is NOT sparse approximation,
 test (project onto row(ΔW), members have ~0 residual); coherence is irrelevant there. Rule: **don't reach for
 OMP/greedy when the structure gives you an exact subspace test.** The coherent-dictionary problem only returns
 at N>r, where row(ΔW) is an r-dim projection of the span = the genuine superposition problem (Cocktail-Party/
-SPEAR). SCOPE for any claim: first-layer LoRA, A₀=0, N≤r, closed-world, this-attacker; DETECTION/RECOVERY not
-pixel reconstruction.
+SPEAR). SCOPE for any claim: first-layer LoRA, A₀=0, SGD-FAMILY optimizer, N≤r, closed-world, this-attacker;
+DETECTION/RECOVERY not pixel reconstruction. **ADAM BREAKS the exactness** (job 367834: Adam member-resid 0.75 /
+LP-SSIM 0.60 vs SGD 5e-15 / 1.000) — its elementwise m/√v is not a linear map of the gradient rows, so
+row(A_T)⊄span{xᵢ}. Adam is the fine-tuning default, so this is a headline condition, not a footnote.
 
 **CRITICAL init caveat (realism gate, job 360191).** The exactness is A₀=0-CONVENTION-SPECIFIC. Empirically:
 scale holds (|G|=10k → exact 10/10, member resid 3e-14), BUT under the HF PEFT DEFAULT init (A₀ random Kaiming,
