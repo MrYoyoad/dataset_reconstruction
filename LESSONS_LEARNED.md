@@ -1785,3 +1785,26 @@ text/notes mismatches. Now the hand-edited deck is regenerable, diffable and aud
 the source of truth, not the .pptx. (b) Anything derived from deck-wide state (page numbers, "n of N", a TOC) is
 computed at build time, never typed. (c) The notes template is part of the definition of "done" for a slide; new
 slides added by hand are not finished until they have notes.
+
+## What the hand-finished deck did better (2026-08-31) — nine quality rules
+
+Importing v20 (see the round-trip lesson above) made the qualitative diff against the generator's build readable.
+The generator was *correct* — audited numbers, honest scoping, notes everywhere — but the hand-finished deck was
+better to **present**, in nine specific ways, all now encoded in `scripts/deck/SLIDE_CONTRACT.md` and two new
+helpers (`add_reading_block`, `add_caveat_block`):
+
+1. a setup slide before each result slide (define the object, then show its number — mine had that only in notes);
+2. a "reading the plot" block on every non-obvious figure (what one dot/bar/colour is);
+3. uncertainty as a titled block in the body ("how sure are we? not yet — n=24, the predictors are correlated,
+   no paired test"), not a footnote;
+4. titles that state the claim and name the mechanism, not the object;
+5. splitting dense slides instead of shrinking them (mechanism and result are two slides);
+6. a slide answering the supervisor's own input (the paper he sent);
+7. a TOC as ask → answer → where;
+8. an appendix carrying method honesty (how the ruler was made honest; why every knob is defensible) not just formulas;
+9. a real closing slide that says what the appendix holds.
+
+The transferable point: **an audit pipeline enforces correctness, not communicability.** Word/number budgets, banned
+strings and notes coverage catch overclaims; they do not notice that the audience meets a quantity for the first time
+in the same breath as its value. Design rules for that have to be written down separately — which is what the contract
+section now does.

@@ -41,3 +41,33 @@ Running log of every remark / request the user gives about slides (mandated by C
     r_J=160; faces = data/faces/face1–3.jpg, one person, consent line to be stated by the author; the N=4 DI grid's "8"
     slot collapsed onto the 0 (corr 0.67 with the 0, −0.16 with the 8) → S7 lead says "3 of 4 recovered". NOT ported: the
     Mac's strapline-only-on-S3/S16 choice (this generator keeps one policy: every leakage-number slide).
+
+11. **What the hand-finished v20 changed in QUALITY (2026-08-31, user + local Claude) — analysed from the imported spec.**
+    Nine deltas against the generator's 29-slide build, all of which are now rules (see `scripts/deck/SLIDE_CONTRACT.md`):
+    1. **Setup slide before result slide.** New slides define the object first: "What we perturb, and what we watch"
+       (the N×k nudge experiment behind every part-3 number), "The base gradient: what exactly we compute" (θ₀, W₀,
+       one number per image), "One LoRA step keeps only part of the full gradient" (H vs what the adapter can write).
+       My build had these only in speaker notes — the audience saw the number before the object.
+    2. **A "reading the plot" block on every non-obvious figure.** e.g. slide 15: "each point: the share of private
+       directions that clear the noise floor at ε = 1; blue is the binary task, orange the 10-class"; slide 21: "each
+       dot is one private image: its base gradient (across) against how much the adapter moved for it (up)".
+    3. **Uncertainty as a titled block IN the body, not a footnote.** Slide 21 carries "how sure are we? not yet —
+       n = 24; the two predictors are themselves correlated, so this is not a clean contest; no paired test on the
+       difference." That is stronger than my notes-only caveats and it is what a theorist checks first.
+    4. **Claim-style titles that name the mechanism.** "The asymmetry is not rarity — it follows the image / base
+       gradient"; "Same images — but the adapter keeps far less of each"; "Near-duplicates are nearly invisible;
+       sensitivity rises with distance". Mine were object labels ("What matters is the image itself: class identity").
+    5. **Split dense slides.** Direct inversion → 3 slides; ladder → ladder + "the valley: how far a swap must travel";
+       full-FT-vs-LoRA → mechanism slide + result slide. One idea per slide, enforced by splitting rather than shrinking.
+    6. **Answer the supervisor's own input explicitly.** A dedicated slide on the paper he sent (SimuDy — "same
+       primitive, different question"), placed right after the direct-inversion slides.
+    7. **TOC as ask → answer → where.** "five asks, five answers — and one new instrument", with the slide number
+       each answer lives on.
+    8. **Appendix carries method honesty, not just formulas.** "first, the ruler had to be honest" (the winner's-curse
+       story as a narrative) and "why these knobs" (every knob grid-searched, gate-checked or swept, so no headline
+       rests on one setting).
+    9. **A real closing slide** ("Thank you — let's talk about any of it") that lists what the appendix holds.
+    ACTION TAKEN: rules 1–9 written into the slide contract; `add_reading_block()` and `add_caveat_block()` added to
+    `deck/helpers.py` so the patterns are one call; the notes template now requires a "READING" line for figure slides.
+    ONE THING TO CONFIRM: slide 1's title is now "More Work" (subtitle "LoRA adapters, private images, and what we can
+    measure") and Gal's name was dropped from the byline — intentional, or a working title left in?

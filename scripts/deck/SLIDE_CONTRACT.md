@@ -41,3 +41,25 @@ Rules (non-negotiable):
 Prebuilt figures (C.fig(name)): crux_bars.png · fs_vs_T.png · anchor_two_curve.png · rank_sweep.png · spectrum_r8.png ·
 estimator_honest.png · battery_knobs.png · arm_c.png · g0_scatter.png · ladder_strip.png · h_gate.png · beyond_mlp.png ·
 atlas_2panel.png · gallery.png.   As-is assets (C.ASSET[k]): di_N4, di_N10, faces, vit_face.
+
+## Quality rules adopted from the hand-finished v20 (2026-08-31)
+
+These came from comparing the generator's 29-slide build with the deck as actually finished for the meeting
+(`figures/deck_v20_spec/`). They are requirements, not suggestions:
+
+1. **Define the object before you show its number.** A result slide that introduces a new quantity gets a setup slide
+   in front of it (what is perturbed, what is watched, what exactly is computed). Do not leave that in the notes.
+2. **Every non-obvious figure carries a "reading the plot" block** — what one point/bar/colour is, in the audience's
+   words. `H.add_reading_block(s, x, y, w, "each dot is one private image: ...")`.
+3. **Uncertainty is a titled block in the body**, not a footnote: n, CI, what is confounded, what has NOT been tested.
+   `H.add_caveat_block(s, x, y, w, "how sure are we? not yet", "n = 24; the predictors are correlated; ...")`.
+4. **Titles state the claim and name the mechanism** ("The asymmetry is not rarity — it follows the base gradient"),
+   never a bare object label ("class identity").
+5. **Split rather than shrink.** Two ideas ⇒ two slides. A mechanism and its result are two slides.
+6. **Answer the supervisor's own inputs explicitly** — a paper he sent, a question he asked, gets its own slide.
+7. **The TOC is ask → answer → where** (slide number), not a list of section names.
+8. **The appendix carries method honesty**: how the instrument was made honest, and why every knob is defensible
+   (grid-searched / gate-checked / swept), not only formulas.
+9. **A closing slide** that says what the appendix holds and invites the discussion.
+
+Notes template gains one line for figure slides: `READING: <what one mark on the plot is>`.

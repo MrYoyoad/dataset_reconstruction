@@ -211,3 +211,15 @@ def add_card(slide, x, y, w, h, title, body, *, color=C.BLUE, fill=None, title_s
 def set_notes(slide, text):
     """Speaker notes (plain text). Template: WHAT / WHY THIS FUNCTION / WHY REPRESENTATIVE / GAL-ASK / CAVEATS / PROVENANCE."""
     slide.notes_slide.notes_text_frame.text = text.strip()
+
+
+def add_reading_block(slide, x, y, w, body, *, title="reading the plot", h=Inches(1.0), color=C.BLUE):
+    """The 'what is one mark on this plot' block (slide-contract rule 2)."""
+    add_text(slide, title, x, y, w, Inches(0.26), size=12, bold=True, color=color)
+    return add_text(slide, body, x, y + Inches(0.3), w, h - Inches(0.3), size=12.5, color=C.BLACK)
+
+
+def add_caveat_block(slide, x, y, w, title, body, *, h=Inches(1.0), color=C.AMBER):
+    """Uncertainty as a titled block in the body — n, CI, confounds, what is untested (rule 3)."""
+    add_text(slide, title, x, y, w, Inches(0.26), size=12, bold=True, color=color)
+    return add_text(slide, body, x, y + Inches(0.3), w, h - Inches(0.3), size=12, color=C.GRAY, italic=True)
