@@ -549,10 +549,67 @@ def fig_gallery():
     return save(fig, "gallery.png")
 
 
+# ============================================================================ span leakage (A0=0 first-layer LoRA)
+def fig_span_leak():
+    """Two panels from the harder_id result files: (a) open-world pixel recovery vs N (LP vertex search vs ICA vs
+    baseline; adapter row-space cliff past N=r), (b) what breaks the exact span (optimizer, precision).
+    Sources: results/lp_unmix/lp_unmix.pth (job 365880/366493), results/robustness_fixes/fixes.pth (369125, cliff on the
+    real rank-8 adapter row space), results/robustness_checks/robustness.pth (367834, optimizers),
+    results/precision_sweep/precision.pth (370546), results/membership_selector/selector.pth (357144)."""
+    L = lambda p: torch.load(os.path.join(RES, p), map_location="cpu", weights_only=False)
+    lp = L("lp_unmix/lp_unmix.pth")["summary"]
+    fx = L("robustness_fixes/fixes.pth")
+    rb = L("robustness_checks/robustness.pth")["optimizer"]
+    pr = L("precision_sweep/precision.pth")
+    sel = L("membership_selector/selector.pth")["summary"]
+    try:
+        ica = L("open_world_unmix/unmix.pth")
+        ica_s = {int(k): float(v["ssim"]) for k, v in (ica.get("summary") or {}).items()} if isinstance(ica, dict) else {}
+    except Exception:
+        ica_s = {}
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(12.5, 6.6), gridspec_kw=dict(width_ratios=[1.35, 1], wspace=0.32))
+    Ns = sorted(lp)
+    a1.plot(Ns, [lp[n]["ssim"] for n in Ns], "-o", color=BLUE, lw=2.8, ms=9, label="LP vertex search (box + sparsity), N ≤ r")
+    cN = sorted(fx["cliff"])
+    a1.plot(cN, [fx["cliff"][n][0] for n in cN], "--s", color=BLUE, lw=2.2, ms=8, alpha=0.75, label="same, from the rank-8 adapter row space (N > r)")
+    if ica_s:
+        iN = sorted(ica_s)
+        a1.plot(iN, [ica_s[n] for n in iN], "-^", color=ORANGE, lw=2, ms=7, label="FastICA (generic prior)")
+    a1.plot(Ns, [lp[n]["base"] for n in Ns], ":", color=GRAY, lw=2, label="mean-image baseline")
+    a1.axvline(8, color=GRAY, ls="--", lw=1.2)
+    a1.text(8.15, 0.05, "N = r = 8", color=GRAY, fontsize=12)
+    a1.set_ylim(0, 1.05)
+    a1.set_xlabel("N private images  (LoRA rank r = 8)")
+    a1.set_ylabel("per-image SSIM of the recovered pixels")
+    a1.set_title("open world, no gallery: pixels from A")
+    a1.legend(frameon=False, fontsize=11, loc="lower left")
+    # (b) boundaries
+    names = ["SGD", "SGD+mom", "Adam", "AdamW", "bf16", "int8"]
+    vals = [rb["SGD"]["lp_ssim"], rb["SGD+mom"]["lp_ssim"], rb["Adam"]["lp_ssim"], rb["AdamW"]["lp_ssim"],
+            pr["bfloat16"], pr["int8"]]
+    cols = [GREEN, GREEN, RED, RED, BLUE, BLUE]
+    a2.bar(range(6), vals, color=cols, width=0.65)
+    a2.axhline(lp[4]["base"], color=GRAY, ls=":", lw=2)
+    a2.text(5.4, lp[4]["base"] + 0.02, "baseline", color=GRAY, fontsize=11, ha="right")
+    a2.set_xticks(range(6))
+    a2.set_xticklabels(names, rotation=20)
+    a2.set_ylim(0, 1.05)
+    a2.set_ylabel("SSIM at N = 4")
+    a2.set_title("what breaks the exact span")
+    a2.set_ylim(0, 1.18)
+    a2.text(0.5, 1.10, f"row-space residual: member {sel[4]['member_resid']:.0e}  ·  non-member {sel[4]['nonmember_resid']:.2f}",
+            transform=a2.transAxes, fontsize=11.5, color=GRAY, ha="center", va="top")
+    print(f"[span] LP {[round(lp[n]['ssim'],3) for n in Ns]} cliff {[round(fx['cliff'][n][0],3) for n in cN]} "
+          f"adam {rb['Adam']['lp_ssim']:.2f} bf16 {pr['bfloat16']:.2f} int8 {pr['int8']:.2f}")
+    return save(fig, "span_leak.png")
+
+
+
 FIGS = {
     "crux_bars": fig_crux_bars, "fs_vs_T": fig_fs_vs_T, "anchor": fig_anchor, "rank_sweep": fig_rank_sweep,
     "spectrum": fig_spectrum, "estimator": fig_estimator, "knobs": fig_knobs, "arm_c": fig_arm_c, "g0": fig_g0,
     "ladder": fig_ladder_strip, "h_gate": fig_h_gate, "beyond": fig_beyond, "atlas": fig_atlas, "gallery": fig_gallery,
+    "span_leak": fig_span_leak,
 }
 
 if __name__ == "__main__":

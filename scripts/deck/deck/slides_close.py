@@ -38,7 +38,7 @@ def _card_small_radius(s, x, y, w, h, title, body, *, color, fill, body_size=13)
 def slide_c1_close(prs):
     s = H.new_slide(prs)
     H.add_title(s, "Where we are, and what I need from you")
-    H.add_lead(s, "next: robust adapter-only inversion, with the four controls")
+    H.add_lead(s, "adapter-only pixels reached for A₀=0 first-layer LoRA; next: the δ side (standard init), N > r, deeper layers")
     # ---- left: three-worlds strip -------------------------------------------------------------
     strip_w = Inches(7.9)
     col_gap = Inches(0.18)
@@ -54,7 +54,7 @@ def slide_c1_close(prs):
            C.RED, "not our case so far")
     _world(s, C.MX + col_w + col_gap, y, col_w, col_h, "B", "extraction-limited",
            "the information is present; the decoder cannot yet reach it", C.BLUE, C.LIGHTBLUE_FILL,
-           "full-gradient ceiling works;\ndirect inversion hits the superposition wall\n→ this is where we are",
+           "full-gradient ceiling works; first-layer A₀=0 LoRA:\npixels recovered exactly (N ≤ r);\nstandard init / Adam / N > r → open",
            C.BLUE, "we are here")
     _world(s, C.MX + 2 * (col_w + col_gap), y, col_w, col_h, "C", "prior hallucination",
            "the pixels come from the decoder's prior, not the weights", C.AMBER, C.LIGHTGRAY_FILL,

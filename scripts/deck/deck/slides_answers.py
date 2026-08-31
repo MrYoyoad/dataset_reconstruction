@@ -438,6 +438,53 @@ STATUS.md lines 1632-1640, 1667-1677, 1750-1766; notes/simudy_decision_brief.md;
 # ----------------------------------------------------------------------------------------------
 # 8. more data: the full-gradient ceiling is recognizable
 # ----------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------
+def slide_span_leak(prs):
+    s = _story(prs, "A₀ = 0: the adapter publishes its input span",
+               "first-layer LoRA, A₀=0, SGD-family, N ≤ r, no gallery: near-exact pixels from the released A factor",
+               "your ask: direct inversion → reached")
+    px, py, pw, ph = H.fit_image(s, C.fig("span_leak.png"), C.MX, CONTENT_Y, Inches(8.6), Inches(5.2), align="left")
+    rx = px + pw + Inches(0.3)
+    rw = C.SL_W - C.MX - rx
+    p = render_lines([r"\mathrm{row}(\Delta W)=\mathrm{row}(A_T)=\mathrm{span}\{x_i\}\qquad(N\leq r)",
+                      r"x_i=\mathrm{sparsest\ vertices\ of\ }\{c:\ 0\leq Vc+m\leq 1\}"],
+                     "eq_span_leak", fontsize=26, gap=0.9)
+    H.add_eq(s, p, rx, CONTENT_Y + Inches(0.1), w=rw)
+    _caption(s, "every SGD step of A is a linear combination of the private inputs, so the row space of the released "
+                "adapter IS their span — seed-independently (reseeded distance 0.0000); box + sparsity then pick the "
+                "images out of the span by linear programming", rx, CONTENT_Y + Inches(1.55), rw, h=Inches(1.5))
+    _caption(s, "boundaries measured: Adam / AdamW break the exact span; standard init (B₀ = 0) moves the data to the "
+                "δ side (open, not safe); N > r degrades with the rank-r projection; bf16 still leaks",
+             rx, CONTENT_Y + Inches(3.1), rw, h=Inches(1.4), italic=True)
+    H.add_footer(s)
+    H.set_notes(s, """WHAT WE DID (overnight, jobs 357144 / 365880 / 366493 / 367834 / 369125 / 370546, notes/lora_span_leakage_note.md): a closed-world
+selection attack turned into a mechanism result. For a first-layer LoRA with this repo's init (A0 = 0, B0 random), dL/dA = B^T dL/dW1 and
+dL/dW1 = sum_i delta_i x_i^T, so every row of A_t is a linear combination of the private INPUTS at every SGD step, exactly. Hence
+row(Delta W) = row(A_T) = span{x_i} whenever N <= r, and it is seed-independent: D(S*, reseeded) = 0.0000 in the row space
+(the seed only mixes coefficients through B0).
+WHY THIS FUNCTION: (1) closed-world: membership = residual ||x - P_V x|| / ||x|| (members 6e-15, non-members 0.74; exact-set recovery
+10/10 at N=4 and N=8, |G| up to 10k; 0/10 at N=12 > r). (2) open-world (no gallery): the private images are the SPARSEST VERTICES of the
+box polytope {c : 0 <= Vc + m <= 1} inside the span (MNIST digits have ~600 exact-zero pixels; mixtures have the union of supports and
+are less sparse) -> LP vertex search (random directions + min-intensity), take the N sparsest non-collinear vertices. Per-image
+Hungarian-matched SSIM: 1.000 at N=2/3/4, 0.983 at N=6, 0.961 at N=8; FastICA (generic prior) 0.55 -> 0.37; mean-image baseline ~0.44;
+adapter-derived V (real Delta W, not planted) 0.959 at N=4.
+WHY REPRESENTATIVE / BOUNDARIES: optimizer — SGD and SGD+momentum keep the span exact (residual 5e-15, SSIM 1.0); Adam 0.60, AdamW 0.50
+break it (elementwise m/sqrt(v) is not a linear map of the gradient rows); weight decay <= 1e-2 fine (a wd=0.05 'break' was A collapsing
+to rank ~1, numerically undefined row space). Init — standard HF init (A0 random, B0 = 0) puts the exact structure on the COLUMN / delta
+side (hidden-layer error signals, not pixels); the input-span test fails there (member residual ~0.85 at every T) -> open, not safe.
+N > r — cliff from the real rank-8 adapter row space: 0.949 (N=8) -> 0.857 (9) -> 0.773 (12) -> 0.706 (16); failures at N=12 are the
+higher support-overlap pairs (Jaccard 0.60 vs 0.54). Precision — float32 1.00, bf16 0.91, int8 0.73: noise-free is not load-bearing.
+GAL-ASK: G1 direct weight inversion — this is its cleanest form: the map is not inverted numerically, its exact linear structure is read
+off. Ties to the ruler: exactness ends exactly where the rank-r projection starts losing the span (q_eff / r_J story).
+CAVEATS: MNIST-MLP, binary {0,1}, r=8; first layer only (input = pixels; deeper layers would return activations); A0=0 is this repo's
+convention, not the HF default; this attacker (passive, reads only A; B is irrelevant). Observe-framed: a case study of what an
+adapter can leak in principle, with every boundary measured.
+PROVENANCE: results/membership_selector/selector.pth, results/lp_unmix/lp_unmix.pth, results/robustness_checks/robustness.pth,
+results/robustness_fixes/fixes.pth, results/precision_sweep/precision.pth; figures/harder_id/{membership_selector,lp_unmix}.png;
+notes/lora_span_leakage_note.md. Audited (adversarial) by this session; built by yoado-40.""")
+    return s
+
+
 def slide_more_data(prs):
     s = _story(prs, "More data: the full-gradient ceiling is recognizable",
                "this is the CEILING (true weight change) — not the adapter-only attack", "your ask: more data")
@@ -481,5 +528,4 @@ notes/meeting_prep_2026-08-31.md F-0; thesis_note_v2.md E7 + provenance table.""
     return s
 
 
-SLIDES = [slide_title, slide_changed, slide_crux, slide_fs, slide_anchor, slide_mechanism,
-          slide_direct_inversion, slide_more_data]
+SLIDES = [slide_title, slide_changed, slide_crux, slide_fs, slide_anchor, slide_mechanism, slide_direct_inversion, slide_span_leak, slide_more_data]
