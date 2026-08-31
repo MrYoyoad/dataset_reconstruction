@@ -222,6 +222,25 @@ B2 0.92→0.34 is the honesty discipline working (auditor caught the shared refe
 hardening: A near-duplicate swaps (find the real limit), B2 more inits/activation (tighten the weak 0.34),
 scale beyond MNIST.
 
+## Gallery-recovery Phase 0 (2026-08-31, user "go") — 2/3 gates pass after a diagnosed fix; coherence is the barrier
+Plan notes/gallery_recovery_plan.md (auditor yoado-d4, litreview vs SELECT). Phase-0 = 3 pre-registered
+go/no-go pre-tests before building the exact-subset attack (recover which N gallery images trained an adapter),
+|G|=100, N=4, code phase0_gallery.py (jobs 353063/353869).
+- **BUG DIAGNOSED + FIXED mid-Phase-0:** first run matched atoms on the OUTPUT column-space U (1000-dim) →
+  ALL 3 gates failed (frame rank 38%, resolution ratio 1.0×, D(reseed)=0.95). U is shaped by the random B₀
+  init (P_LoRA), so same-data-different-seed adapters look ~orthogonal there. FIX: match on the ROW/INPUT
+  space V (784-dim, where the data lives). **Clean finding: the LoRA update's ROW space is EXACTLY init-
+  invariant (D(S*,reseed)=0.0000), the OUTPUT space is init-shaped** — the P_LoRA prediction, confirmed.
+- **After the V fix: #1 FRAME PASS** (LoRA-frame median true-member rank = 2.0/100 = 2nd percentile, 14× better
+  than full-gradient's 28.5 — the warm-start works, and the frame/side was the problem, not the score);
+  **#2 RESOLUTION PASS** (one-image swap perfectly resolvable: D(reseed)=0 vs D(one-swap)=0.224 — verify works).
+- **#3 COHERENCE still FAILS (the honest barrier):** dictionary μ=0.572 ≫ OMP's 0.143; greedy MP plant-recover
+  EXACT = 3/10 (up from 0/10), right-digit-wrong-exemplar = 6/10. MNIST same-digit atoms are too coherent →
+  greedy grabs lookalikes (the auditor's predicted dominant failure). By the letter this is NO-GO for NAIVE
+  greedy; but it is exactly the regime the retrain-VERIFY (now reliable, #2) + residual-NUDGE + CoSaMP
+  backtracking are meant to fix — greedy-alone is the LOWER bound. **Next: build the verify-guided nudge and
+  measure whether it lifts 3/10, with exact-recovery-vs-coherence as the headline (not assumed).**
+
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
 ---
