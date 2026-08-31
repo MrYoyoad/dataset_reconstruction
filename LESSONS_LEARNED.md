@@ -1808,3 +1808,34 @@ The transferable point: **an audit pipeline enforces correctness, not communicab
 strings and notes coverage catch overclaims; they do not notice that the audience meets a quantity for the first time
 in the same breath as its value. Design rules for that have to be written down separately — which is what the contract
 section now does.
+
+
+## The round-trip was lossy in ways the obvious check could not see (2026-08-31)
+
+After importing the hand-finished deck (previous lesson), I verified the rebuild with counts: 37 slides, 863 shapes,
+54 pictures, 5695 words, 82,926 chars of notes, zero text/notes mismatches — and shipped it. A code audit (yoado-d9,
+docs/sessions/v21_audit_tooling.md) found the rebuild had silently changed:
+
+- **88 autoshapes flattened to rectangles** (44 rounded-rectangles, 44 ovals). Cause: the importer stored
+  `shape.shape_type`, which is `AUTO_SHAPE (1)` for *every* autoshape; the builder's enum parse then read the "(1)"
+  and produced `MSO_SHAPE(1)` = RECTANGLE. The specific type lives in `shape.auto_shape_type` — a different property.
+- **511 text boxes gained `SHAPE_TO_FIT_TEXT`**, 245 paragraphs became CENTER, 23 frames became MIDDLE — all because
+  `add_textbox`/`add_shape` inject defaults (`<a:spAutoFit/>`, `algn="ctr"`, `anchor="ctr"`) that the original did not
+  have, and "attribute is unset" is not the same as "attribute equals the default". Reproducing an *unset* state means
+  deleting the injected attribute, not leaving it alone.
+- **`--fix-page-numbers` destroyed real data**: its predicate matched any box whose whole text was `digits / digits`,
+  so two job-id pairs on an appendix slide ("392821 / 390026", "229722 / 237301") were rewritten to "36 / 37" in the
+  file I had already shipped. It also renumbered *logical* page numbers (this deck uses "n / 35" across 37 physical
+  slides, continuation slides sharing a number) into physical ones — silently breaking the table of contents, which
+  references the logical numbers.
+- **Latent corruption**: re-inserted raw XML kept its original `cNvPr/@id` (duplicate ids on any deck where id ≠
+  z-order → PowerPoint repair dialog) and carried no relationships (a chart/media/OLE shape would emit a dangling
+  `r:id`). Groups were flattened even though child coordinates are group-relative.
+
+**Lessons.** (1) A count-and-text check verifies *content*, not *appearance*: shape geometry, silhouette, autofit and
+alignment all passed it while being wrong. Diff attributes, not totals. (2) When a library creates an object it also
+creates defaults; faithful reconstruction has to erase them. (3) A "cleanup" that pattern-matches text will eventually
+match data — scope it (here: denominator must equal the deck length) or don't ship it. (4) Prefer refusing to
+degrading: the builder now raises on groups and on relationship-bearing XML rather than emitting a file that opens
+but is wrong. (5) I shipped two degraded files before the audit caught it — for a deliverable that is a *binary*, the
+verification has to be as specific as the thing being claimed.

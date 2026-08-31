@@ -4,8 +4,12 @@
 
 Everything the importer modelled is rebuilt natively (text boxes with run-level formatting, auto-shapes with
 fill/line/adjustments, pictures with crops, tables, backgrounds, speaker notes); connectors are re-inserted
-from their captured XML. --fix-page-numbers rewrites any "<n> / <total>" text box to the true slide index and
-deck length (the hand-edited v20 carried a stale "/35" on a 37-slide deck).
+from their captured XML. --fix-page-numbers rewrites a page-number box to the true slide index and deck length, but ONLY when the
+denominator already equals the deck length and the numerator is <= it. That guard exists because the naive
+version (any "N / M" box) destroyed real content: it overwrote two job-id pairs ("392821 / 390026",
+"229722 / 237301") on an appendix slide. Note also that a deck may use LOGICAL page numbers (continuation
+slides sharing one number, as v20 does with "n / 35" over 37 physical slides) — in that case the guard
+correctly declines to renumber, and it must, because the table of contents references the logical numbers.
 """
 import argparse
 import copy
@@ -48,6 +52,29 @@ def _set_color(color_obj, spec):
     return False
 
 
+_A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+
+
+def _clear_defaults(tf, spec):
+    """python-pptx injects defaults the original may not have: add_textbox adds <a:spAutoFit/>, add_shape sets
+    algn='ctr' and bodyPr anchor='ctr'. Where the spec says the attribute was unset, remove it so the rebuild
+    matches the original's inherit-state instead of silently re-styling (audit F2/F3/F4)."""
+    bodyPr = tf._txBody.find(_A + "bodyPr")
+    if bodyPr is not None:
+        if spec.get("auto_size") is None:
+            for tag in ("spAutoFit", "normAutofit"):
+                el = bodyPr.find(_A + tag)
+                if el is not None:
+                    bodyPr.remove(el)
+        if spec.get("vertical_anchor") is None and "anchor" in bodyPr.attrib:
+            del bodyPr.attrib["anchor"]
+    for i, p in enumerate(spec.get("paragraphs") or []):
+        if p.get("alignment") is None and i < len(tf.paragraphs):
+            pPr = tf.paragraphs[i]._p.find(_A + "pPr")
+            if pPr is not None and "algn" in pPr.attrib:
+                del pPr.attrib["algn"]
+
+
 def _apply_text(tf, spec):
     tf.word_wrap = spec.get("word_wrap")
     va = _enum(MSO_ANCHOR, spec.get("vertical_anchor"))
@@ -82,15 +109,15 @@ def _apply_text(tf, spec):
                 if r.get(k) is not None:
                     setattr(f, k, r[k])
             _set_color(f.color, r.get("color"))
+    _clear_defaults(tf, spec)
 
 
 def _add(slide, sh, media_dir):
     k = sh["kind"]
     L, T, W, H = (Emu(sh[x]) if sh.get(x) is not None else None for x in ("left", "top", "width", "height"))
     if k == "group":
-        for s2 in sh["shapes"]:
-            _add(slide, s2, media_dir)
-        return
+        raise ValueError("GROUP shape: child geometry is in group-relative coordinates (chOff/chExt); flattening "
+                         "would mis-place it. Ungroup in PowerPoint and re-import, or extend the builder.")
     if k == "picture":
         pic = slide.shapes.add_picture(os.path.join(media_dir, sh["media"]), L, T, W, H)
         c = sh.get("crop")
@@ -120,11 +147,22 @@ def _add(slide, sh, media_dir):
                     _set_color(cell.fill.fore_color, fc)
         return
     if k == "unsupported":
-        slide.shapes._spTree.append(etree.fromstring(sh["xml"]))
+        el = etree.fromstring(sh["xml"])
+        xml = sh["xml"]
+        if 'r:embed' in xml or 'r:link' in xml or ('r:id' in xml and 'hlinkClick' not in xml):
+            raise ValueError("shape carries a relationship (r:embed/r:id/r:link) — charts, media and OLE cannot be "
+                             "rebuilt without copying their parts; refusing rather than emitting a broken file")
+        used = {int(e.get("id")) for e in slide.shapes._spTree.iter() if e.tag.endswith("}cNvPr") and e.get("id", "").isdigit()}
+        for e in el.iter():
+            if e.tag.endswith("}cNvPr") and e.get("id", "").isdigit():
+                if int(e.get("id")) in used:
+                    e.set("id", str(max(used) + 1))
+                used.add(int(e.get("id")))
+        slide.shapes._spTree.append(el)
         return
     # textbox / auto-shape
     if k == "shape" and sh.get("autoshape") and "TEXT_BOX" not in sh["autoshape"]:
-        st = _enum(MSO_SHAPE, sh["autoshape"], MSO_SHAPE.RECTANGLE)
+        st = _enum(MSO_SHAPE, sh.get("auto_shape_type") or sh["autoshape"], MSO_SHAPE.RECTANGLE)
         shp = slide.shapes.add_shape(st, L, T, W, H)
         shp.shadow.inherit = False
         fill = sh.get("fill") or {}
@@ -171,7 +209,9 @@ def build(spec_dir, out, fix_page_numbers=False):
             if fix_page_numbers and sh.get("kind") in ("textbox", "shape") and sh.get("text"):
                 paras = sh["text"].get("paragraphs") or []
                 flat = "".join(r.get("text", "") for p in paras for r in (p.get("runs") or []))
-                if re.fullmatch(r"\s*\d+\s*/\s*\d+\s*", flat) and paras and paras[0].get("runs"):
+                mnum = re.fullmatch(r"\s*(\d+)\s*/\s*(\d+)\s*", flat)
+                is_page_number = bool(mnum) and int(mnum.group(2)) == total and int(mnum.group(1)) <= total
+                if is_page_number and paras and paras[0].get("runs"):
                     sh = copy.deepcopy(sh)
                     runs = sh["text"]["paragraphs"][0]["runs"]
                     runs[0]["text"] = f"{idx} / {total}"

@@ -56,6 +56,14 @@ def _line(shape):
         return None
 
 
+def _autoshape_type(sh):
+    """The specific MSO_SHAPE (ROUNDED_RECTANGLE, OVAL, ...). sh.shape_type only ever says AUTO_SHAPE."""
+    try:
+        return str(sh.auto_shape_type)
+    except Exception:
+        return None
+
+
 def _text(tf):
     paras = []
     for p in tf.paragraphs:
@@ -67,6 +75,7 @@ def _text(tf):
                       "space_before": p.space_before.pt if p.space_before else None,
                       "space_after": p.space_after.pt if p.space_after else None})
     return {"paragraphs": paras, "word_wrap": tf.word_wrap,
+            "auto_size": str(tf.auto_size) if tf.auto_size is not None else None,
             "vertical_anchor": str(tf.vertical_anchor) if tf.vertical_anchor else None,
             "margins": [tf.margin_left, tf.margin_right, tf.margin_top, tf.margin_bottom]}
 
@@ -106,7 +115,10 @@ def _shape(sh, media_dir, out):
             return d
         if sh.has_text_frame:
             d.update(kind="shape" if st is not None and "TEXT_BOX" not in str(st) else "textbox",
-                     autoshape=str(st), text=_text(sh.text_frame), fill=_fill(sh), line=_line(sh))
+                     autoshape=str(st), auto_shape_type=_autoshape_type(sh),
+                     text=_text(sh.text_frame), fill=_fill(sh), line=_line(sh))
+            if any(r.hyperlink.address for para in sh.text_frame.paragraphs for r in para.runs):
+                out.setdefault("warnings", []).append(f"shape {sh.shape_id}: hyperlink NOT captured")
             try:
                 d["adjustments"] = [a for a in sh.adjustments]
             except Exception:
@@ -123,6 +135,13 @@ def main(src, spec_dir):
     media = os.path.join(spec_dir, "media")
     os.makedirs(media, exist_ok=True)
     prs = Presentation(src)
+    for si, s_ in enumerate(prs.slides, 1):
+        for sh in s_.shapes:
+            if sh.shape_type == MSO_GROUP:
+                out_warn.append(f"slide {si}: GROUP shape — child coordinates are group-relative; build_from_spec refuses these")
+            if sh.element.find(".//{http://schemas.openxmlformats.org/drawingml/2006/chart}chart") is not None:
+                out_warn.append(f"slide {si}: CHART — relationships are not carried; build_from_spec refuses these")
+    out_warn = []
     out = {"source": os.path.abspath(src), "slide_width": prs.slide_width, "slide_height": prs.slide_height,
            "slides": []}
     for s in prs.slides:
@@ -137,6 +156,7 @@ def main(src, spec_dir):
             "shapes": [_shape(sh, media, out) for sh in s.shapes],
             "notes": s.notes_slide.notes_text_frame.text if s.has_notes_slide else "",
         })
+    out.setdefault("warnings", []).extend(out_warn)
     path = os.path.join(spec_dir, "deck_spec.json")
     with open(path, "w") as f:
         json.dump(out, f, indent=1)
