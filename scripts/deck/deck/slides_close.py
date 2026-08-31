@@ -54,7 +54,7 @@ def slide_c1_close(prs):
            C.RED, "not our case so far")
     _world(s, C.MX + col_w + col_gap, y, col_w, col_h, "B", "extraction-limited",
            "the information is present; the decoder cannot yet reach it", C.BLUE, C.LIGHTBLUE_FILL,
-           "full-gradient ceiling works; first-layer A₀=0 LoRA:\npixels recovered exactly (N ≤ r);\nstandard init / Adam / N > r → open",
+           "full-gradient ceiling works; first-layer A₀=0 LoRA:\npixels recovered near-exactly (N ≤ r);\nstandard init / Adam / N > r → open",
            C.BLUE, "we are here")
     _world(s, C.MX + 2 * (col_w + col_gap), y, col_w, col_h, "C", "prior hallucination",
            "the pixels come from the decoder's prior, not the weights", C.AMBER, C.LIGHTGRAY_FILL,
