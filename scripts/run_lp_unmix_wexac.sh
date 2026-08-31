@@ -1,6 +1,7 @@
 #!/bin/bash
-#BSUB -q short
-#BSUB -R "rusage[mem=8192]"
+#BSUB -q short-gpu
+#BSUB -R "rusage[mem=16384] select[ngpus>0 && hname!='hgn46']"
+#BSUB -gpu "num=1"
 #BSUB -W 0:20
 #BSUB -o scripts/wexac_logs/lp_unmix_%J.out
 #BSUB -e scripts/wexac_logs/lp_unmix_%J.err
