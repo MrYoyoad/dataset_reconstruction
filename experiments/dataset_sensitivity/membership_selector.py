@@ -68,6 +68,27 @@ def main():
     print(f"\n  [row-span theorem: member residual ≈0 to numerical precision for N≤r={RANK}; "
           f"exact recovery degrades past N=r = the superposition regime]")
     print(f"  [SCOPE: first-layer LoRA, A₀=0, N≤r → row space = input span (exact); closed-world; this attacker]")
+    import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4.8), dpi=140)
+    ns = list(summary); er = [summary[n]["exact"] for n in ns]
+    bars = ax[0].bar([str(n) for n in ns], er, color=["#2c7fb8" if n <= RANK else "#d95f0e" for n in ns], edgecolor="k")
+    ax[0].axvline(1.5, ls="--", color="#888"); ax[0].text(1.52, 0.5, "N = r = %d" % RANK, fontsize=9, color="#555")
+    for b, e in zip(bars, er):
+        ax[0].text(b.get_x() + b.get_width() / 2, e + 0.02, f"{e:.0%}", ha="center", fontweight="bold")
+    ax[0].set_ylim(0, 1.1); ax[0].set_ylabel("exact-set recovery rate"); ax[0].set_xlabel("N (private-set size)")
+    ax[0].set_title("Exact recovery: 100% at N≤r, collapses at N>r", fontsize=11, fontweight="bold")
+    mr = [summary[n]["member_resid"] for n in ns]; nr = [summary[n]["nonmember_resid"] for n in ns]
+    ax[1].semilogy(ns, [max(m, 1e-16) for m in mr], "o-", color="#2c7fb8", lw=2, ms=8, label="member residual")
+    ax[1].semilogy(ns, nr, "s--", color="#d95f0e", lw=2, ms=8, label="non-member residual")
+    ax[1].set_xlabel("N"); ax[1].set_ylabel("‖x − P_V x‖ / ‖x‖  (log)"); ax[1].set_xticks(ns)
+    ax[1].set_title("Members lie in the row span to machine precision (N≤r)", fontsize=11, fontweight="bold")
+    ax[1].legend(fontsize=9)
+    fig.suptitle("First-layer LoRA (A₀=0) publishes the exact INPUT SPAN of its private set for N≤r\n"
+                 "closed-world exact-subset recovery via a subspace-membership test · this attacker · DETECTION/RECOVERY not reconstruction",
+                 fontsize=11, fontweight="bold", y=1.06)
+    os.makedirs("figures/harder_id", exist_ok=True)
+    fig.tight_layout(); fig.savefig("figures/harder_id/membership_selector.png", bbox_inches="tight", facecolor="white"); plt.close(fig)
+    print("[saved] figures/harder_id/membership_selector.png")
     if args.save:
         os.makedirs(RESULTS, exist_ok=True)
         torch.save(dict(summary=summary, G=G, rank=RANK, NS=NS), os.path.join(RESULTS, "selector.pth"))
