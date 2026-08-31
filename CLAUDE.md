@@ -298,6 +298,13 @@ python scripts/deck/build_deck_2026_08_31.py --render /tmp/deck_render   # pptx 
 python scripts/deck/preview_module.py deck.slides_measure /tmp/prev       # build + render ONE slides module
 ```
 
+**Round-trip for hand-edited decks** (added 2026-08-31): a deck finished by hand is imported back so it stays
+reproducible — `python scripts/deck/import_pptx.py <deck.pptx> <spec_dir>` → `deck_spec.json` + `media/`, and
+`python scripts/deck/build_from_spec.py <spec_dir> <out.pptx> [--fix-page-numbers]` rebuilds it exactly
+(verified on the 37-slide v20). Use it before editing any deck that was touched outside the generator; the spec,
+not the .pptx, is the source of truth. Current final: `figures/supervisor_meeting_2026_08_31_v21.pptx`
+(v20 + corrected page numbers), spec in `figures/deck_v20_spec/`.
+
 Modules: `deck/config.py` (paths, palette, geometry), `deck/helpers.py` (text/runs/rect/arrow/card/fit_image/add_eq/**set_notes**),
 `deck/eq_render.py` (mathtext → PNG, cached), `deck/slides_{answers,theory,measure,results,close,appendix}.py` (each exposes
 `SLIDES`). Contract for slide modules: `scripts/deck/SLIDE_CONTRACT.md` (≤2 visible numbers per story slide, banned strings,

@@ -1759,3 +1759,29 @@ is False")` — every full-FT cell in jobs 323866/336206 died this way (stderr o
 Full-FT free-c rows must be run WITHOUT `--no_baseline` (job 341742). Related: when a run has both
 `x_recon_full` and `x_recon_lora`, the stored `control_metrics` compare the FULL reconstruction with the
 control image (`recon_for_ctrl` prefers `x_recon_full`) — mirror that when recomputing per-image scores.
+
+## A hand-finished deck must be importable, not just admired (2026-08-31)
+
+**What happened.** The 2026-08-31 supervisor deck was generated here (`scripts/deck/`, 29 slides), then finished by
+hand with a local Claude into `supervisor_meeting_2026_08_31_v20.pptx` (37 slides: a TOC, split direct-inversion
+slides, a SimuDy slide, "what we perturb and what we watch", per-experiment context slides, a thank-you). At that
+point the FILE had the final content and the CODE had a stale version — every later edit would have had to be made
+twice, and the generator's audits (word/number budget, banned strings, notes template) no longer applied to what
+would actually be presented.
+
+**The fix (do this whenever a generated artifact gets edited by hand): round-trip it.**
+`scripts/deck/import_pptx.py <deck.pptx> <spec_dir>` extracts a deck into `deck_spec.json` + `media/`
+(per shape: geometry, z-order, fill/line/adjustments, run-level text formatting, tables, picture bytes, notes;
+connectors are kept as raw XML), and `scripts/deck/build_from_spec.py <spec_dir> <out.pptx> [--fix-page-numbers]`
+rebuilds it. Verified exact on v20: 37 slides, 863 shapes, 54 pictures, 5695 words, 82,926 chars of notes, zero
+text/notes mismatches. Now the hand-edited deck is regenerable, diffable and auditable like any other output.
+
+**Two defects the import surfaced immediately** (invisible while the deck was only a binary):
+1. Page numbers still read "N / 35" on a 37-slide deck — every slide. `--fix-page-numbers` rewrites them from the
+   real index/total, which is also why the builder owns that rule rather than the slide content.
+2. Eight slides carry no speaker notes (11, 13, 21, 23, 26, 27, 29, 37) — all of them the newly hand-added ones.
+
+**Rules going forward.** (a) A generated artifact that gets hand-edited is imported back the same day — the spec is
+the source of truth, not the .pptx. (b) Anything derived from deck-wide state (page numbers, "n of N", a TOC) is
+computed at build time, never typed. (c) The notes template is part of the definition of "done" for a slide; new
+slides added by hand are not finished until they have notes.
