@@ -123,6 +123,26 @@ def main():
 
     print(f"\n  [ceilings: closed-world selector = 1.0 (exact) · mean-image = the baseline shown]")
     print(f"  [SCOPE: A₀=0 first-layer, N≤r, open-world (no gallery), this-attacker; recognizable = SSIM>baseline & margin>0]")
+
+    import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
+    ns = list(summary)
+    fig, ax = plt.subplots(1, 2, figsize=(12.5, 4.8), dpi=140)
+    ax[0].axhline(1.0, ls="--", color="#2ca02c", lw=1.5, label="closed-world selector (exact) = ceiling")
+    ax[0].plot(ns, [summary[n]["ssim"] for n in ns], "o-", color="#2c7fb8", lw=2, ms=8, label="FastICA recon SSIM")
+    ax[0].plot(ns, [summary[n]["base"] for n in ns], "s--", color="#d95f0e", lw=2, ms=7, label="mean-image baseline")
+    ax[0].set_xlabel("N (private-set size)"); ax[0].set_ylabel("SSIM"); ax[0].set_ylim(0, 1.05); ax[0].set_xticks(ns)
+    ax[0].set_title("Open-world unmixing beats baseline but not cleanly;\nmargin collapses toward N=r", fontsize=10.5, fontweight="bold")
+    ax[0].legend(fontsize=8, loc="center right")
+    ax[1].plot(ns, [summary[n]["cos"] for n in ns], "o-", color="#7b3294", lw=2, ms=8, label="ICA direction cosine")
+    ax[1].plot(ns, [summary[n]["frac_recog"] for n in ns], "d--", color="#008080", lw=2, ms=7, label="frac SSIM>baseline")
+    ax[1].axhline(0.5, ls=":", color="#888", lw=1); ax[1].set_xlabel("N"); ax[1].set_ylim(0, 1.05); ax[1].set_xticks(ns)
+    ax[1].set_title("Separation quality degrades with N", fontsize=10.5, fontweight="bold"); ax[1].legend(fontsize=8)
+    fig.suptitle("Open-world reconstruction from the EXACT span (A₀=0, no gallery) — FastICA\n"
+                 "the span is exact (closed-world=1.0); unmixing it to pixels is the hard part · this attacker · N≤r",
+                 fontsize=10.5, fontweight="bold", y=1.07)
+    os.makedirs("figures/harder_id", exist_ok=True)
+    fig.tight_layout(); fig.savefig("figures/harder_id/open_world_unmix.png", bbox_inches="tight", facecolor="white"); plt.close(fig)
+    print("[saved] figures/harder_id/open_world_unmix.png")
     if args.save:
         os.makedirs(RESULTS, exist_ok=True)
         torch.save(dict(summary=summary, NS=NS, rank=RANK), os.path.join(RESULTS, "unmix.pth"))
