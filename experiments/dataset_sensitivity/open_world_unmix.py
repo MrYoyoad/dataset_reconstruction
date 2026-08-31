@@ -94,7 +94,7 @@ def main():
         cos_all, ssim_all, base_all, results = [], [], [], []
         for trial in range(6):
             x, y = priv_images(ds, N, seed=100 * N + trial)
-            x = x.to(dev); x0 = x - ds_mean
+            x = x.to(dev); x0 = x - ds_mean.reshape(-1)
             _, _, _, dWt = train_adapter(frozen, b0, B0_atk, x0, y.to(dev), LR, T, act, RANK)
             svd = torch.linalg.svd(dWt.detach().to("cpu", torch.float64), full_matrices=False)
             keep = int((svd.S > 1e-6 * svd.S[0]).sum())
