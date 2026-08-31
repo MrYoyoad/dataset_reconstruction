@@ -311,6 +311,11 @@ go/no-go pre-tests before building the exact-subset attack (recover which N gall
   robustness_fixes.py. **FROZEN SCOPE for the writeup: "first-layer LoRA (input=pixels), A₀=0 init, SGD-family
   optimizer (Adam/AdamW BREAK the exact span; weight-decay ≤1e-2 fine), N≤r, no gallery, this-attacker; reads
   only the released A factor (B irrelevant)." Adam-breaks-it + the N>r cliff belong on the first figure.**
+- **PRECISION (job 370546) — survives realistic quantization.** Quantize the RELEASED (A,B) and rerun the LP at
+  N=4: float32 SSIM 1.000, **bfloat16 0.911** (the common release precision — still clearly recognizable),
+  int8 0.727 (still ≫ the ~0.44 mean baseline). So "noise-free span" is not a load-bearing assumption — the
+  attack degrades gracefully and realistic fp16/bf16 adapters still leak recognizable pixels. code
+  precision_sweep.py.
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
