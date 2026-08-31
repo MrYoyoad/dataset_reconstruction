@@ -28,6 +28,31 @@ against the source file.
 
 ---
 
+## The row-span theorem: a first-layer LoRA (A₀=0) publishes the exact input span for N≤r (2026-08-31)
+
+**Insight (mechanism, not a bug).** For a FIRST-layer LoRA with this repo's init (A₀=0, B₀ random), every SGD
+step gives ∂L/∂A = Bᵀ ∂L/∂W₁ and ∂L/∂W₁ = Σᵢ δᵢ xᵢᵀ, so every row of A_t is a linear combination of the
+training INPUTS xᵢ at every step, EXACTLY (not linearized). Therefore **row(ΔW) = row(A_T) ⊆ span{x₁..x_N},
+with equality when N ≤ r** — and it is SEED-INDEPENDENT, because B₀ only mixes the coefficients, it never
+leaves that span. Confirmed empirically to machine precision: D(S*, S*-reseeded) on the ROW space = 0.0000,
+member residual ‖x−P_V x‖/‖x‖ = 6e-15 at N=4, and exact subset recovery = 10/10 for N≤r, collapsing to 0/10
+at N>r (job 357144, membership_selector.py).
+
+**Why it mattered / the trap it exposed.** (1) I first matched adapters on the OUTPUT column space U (1000-dim
+neuron space), which IS shaped by the random B₀ init — so same-data-different-seed adapters looked ~orthogonal
+there and all Phase-0 gates failed. The data lives in the ROW/INPUT space (V); switching sides fixed everything.
+Rule: **for A₀=0 first-layer LoRA the private data is in the ROW space, not the column space** — check which
+side carries the init before choosing a subspace metric (standard-init LoRA with A random/B=0 is symmetric: the
+data side is then the COLUMN space). (2) Greedy matching-pursuit got only 3/10 exact because MNIST atoms are
+coherent (μ=0.57) — but for N≤r exact recovery is NOT sparse approximation, it is an exact SUBSPACE-MEMBERSHIP
+test (project onto row(ΔW), members have ~0 residual); coherence is irrelevant there. Rule: **don't reach for
+OMP/greedy when the structure gives you an exact subspace test.** The coherent-dictionary problem only returns
+at N>r, where row(ΔW) is an r-dim projection of the span = the genuine superposition problem (Cocktail-Party/
+SPEAR). SCOPE for any claim: first-layer LoRA, A₀=0, N≤r, closed-world, this-attacker; DETECTION/RECOVERY not
+pixel reconstruction.
+
+---
+
 ## A reference-count asymmetry silently inflates a cross-condition comparison (2026-08-30)
 
 **Bug.** B2 (instance recipe-invariance) reported cross-activation matching = **0.917** and same-activation =

@@ -238,8 +238,23 @@ go/no-go pre-tests before building the exact-subset attack (recover which N gall
   EXACT = 3/10 (up from 0/10), right-digit-wrong-exemplar = 6/10. MNIST same-digit atoms are too coherent →
   greedy grabs lookalikes (the auditor's predicted dominant failure). By the letter this is NO-GO for NAIVE
   greedy; but it is exactly the regime the retrain-VERIFY (now reliable, #2) + residual-NUDGE + CoSaMP
-  backtracking are meant to fix — greedy-alone is the LOWER bound. **Next: build the verify-guided nudge and
-  measure whether it lifts 3/10, with exact-recovery-vs-coherence as the headline (not assumed).**
+  backtracking are meant to fix — greedy-alone is the LOWER bound.
+- **THE ROW-SPAN THEOREM + EXACT RECOVERY (auditor yoado-d4; job 357144) — the headline.** #3's greedy failure
+  was the wrong ALGORITHM, not the problem. For first-layer LoRA with A₀=0/B₀ random: every step ∂L/∂A =
+  Bᵀ∂L/∂W₁ with ∂L/∂W₁ = Σδᵢxᵢᵀ, so every row of A_t is a linear combination of the training INPUTS at every
+  step, EXACTLY ⇒ **row(ΔW) = span{x₁..x_N} when N≤r, seed-independently** (B₀ only mixes coefficients). So
+  exact recovery for N≤r is a SUBSPACE-MEMBERSHIP test, not sparse approximation: rank the gallery by residual
+  ‖x−P_V x‖/‖x‖ onto the adapter row space, take the N smallest. **Result (|G|=100): N=4 EXACT 10/10, N=8 (=r)
+  EXACT 10/10 — member residual at MACHINE PRECISION (6e-15 / 9e-14) vs non-member 0.74/0.65; N=12 (>r) EXACT
+  0/10** (row space becomes an r-dim projection = the superposition regime, Cocktail-Party/SPEAR territory).
+  **⇒ at N≤r a first-layer adapter PUBLISHES the exact linear span of its private inputs, seed-independently;
+  the exact training subset is recoverable from a known gallery with 100% accuracy.** SCOPE (on every number):
+  first-layer LoRA, A₀=0 init, N≤r → row space = input span (exact); closed-world; this-attacker; DETECTION/
+  RECOVERY not pixel reconstruction. The strongest, cleanest attack result of the program. figure
+  figures/harder_id/membership_selector.png, code membership_selector.py. [[LESSONS_LEARNED]] "row-span theorem".
+  **Open next: N>r = the real superposition problem (ICA/SPEAR); deeper/attention layers (layer input is a
+  hidden activation, not pixels); standard-init LoRA (A random/B=0 → data side is the COLUMN space, symmetric);
+  scale beyond MNIST.**
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
