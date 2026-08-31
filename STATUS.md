@@ -1,17 +1,27 @@
 # Project Status
 
-## Free-coefficient LoRA reconstruction at non-trivial T — showcase (2026-08-31, jobs 323866/323867/336206/341742)
+## Free-coefficient LoRA reconstruction at non-trivial T + the N-sweep (2026-08-31, jobs 323866/323867/336206/341742/497350/528750)
 
-User-directed: LoRA reconstruction examples with FREE coefficients (realistic attack) at T>1, vs full fine-tune. MNIST N=2
-leaky-ReLU, T=5: full-FT raw ssim 0.92 / norm 0.97 → LoRA r=32 0.87/0.88 → r=16 0.82/0.85 → r=8 0.79/0.86 (the "0" is
-recovered at 0.87/0.92 by r=8; the "5" is a recognisable superposition); recon-vs-same-class-control 0.64/0.18; all beat the
-mean-image baseline (0.76). T=10 r=8: 0.74/0.85 (margin +0.62, misses the baseline by 0.02). Flowers-102 (32 px) T=5:
-full 0.68 vs LoRA r=8 0.65 / r=32 0.61 (control 0.44), nearly T-independent through T=20; the N=2 mean-image baseline
-(0.65) is nearly an image itself, so flowers cells that miss it by 0.01–0.05 are shown with the failure printed.
-Selection per (dataset, T, rank): baseline gate first, then max ctrl_margin_norm; per-tile ssim/ssim_norm via
+User-directed: LoRA reconstruction examples with FREE coefficients (realistic attack) at T>1, vs full fine-tune.
+**T-sweep, N=2, MNIST leaky-ReLU T=5:** full-FT raw ssim 0.92 / norm 0.97 -> LoRA r=32 0.87/0.88 -> r=16 0.82/0.85 ->
+r=8 0.79/0.86; control 0.64/0.18; all beat the mean-image baseline (0.76). T=10 r=8 0.74/0.85 (margin +0.62, misses the
+baseline by 0.02). Flowers-102 (32px) T=5: full 0.68 vs LoRA r=8 0.65 / r=32 0.61 (control 0.44), nearly T-independent
+through T=20.
+**N-sweep (audited by yoado-23, docs/sessions/v21_audit_nsweep.md — wording below is the audited form):**
+free-coefficient reconstruction FIDELITY degrades with N. Recognizable recovery is an N=2 phenomenon; by N=4 the mean
+per-image reconstruction no longer beats the (N-dependent) mean-image baseline (0.76 -> 0.67 -> 0.61 -> 0.56 at
+N=2/4/6/10), and at N=10 no single image is recovered recognizably. This is ATTACK-limited (World B — the
+identifiability ruler shows the information is present), and the per-image reconstructions carry a superposition
+signature: they collapse onto ~2 dominant (most mean-like) images, and identity matching degrades toward the 1/N chance
+floor (2/4, 2/6, 2/10 correct). Learning-rate under-tuning is ruled out AT N=4 (job 528750: margin flat 0.26-0.32 across
+4 lrs); it is NOT isolated from the other factors that scale with N (free-coefficient count, extraction iterations,
+restarts) at N>4, and there is one seed / one draw per N. The instance-specific CONTROL MARGIN stays weakly positive at
+every N (+0.61 -> +0.30 -> +0.08..0.16 -> +0.11), so "below the mean-image baseline" bounds fidelity, NOT per-image
+leakage. Do not quote the moving mean-image baseline as the leakage bar across N.
+Selection per (dataset, N, T, rank): baseline gate first, then max ctrl_margin_norm; per-tile ssim/ssim_norm via
 experiments.metrics; oracle mode asserted absent. Figures `figures/recon_showcase/freec_*_lora_vs_full.png`, builder
-`scripts/deck/make_recon_showcase.py`, all cells `results/recon_showcase_sweep.csv`; zips v1/v2 delivered to the user.
-Audited: method (yoado-90, docs/sessions/showcase_audit_method.md) + visual (docs/sessions/showcase_audit_visual.md).
+`scripts/deck/make_recon_showcase.py`, all 62+ cells `results/recon_showcase_sweep.csv`; zips v1-v3 delivered.
+Audits: method + visual (yoado-90), N-sweep metric design (yoado-23).
 
 ## Deck: slide 8 added — A₀=0 first-layer LoRA publishes its input span (2026-08-31)
 

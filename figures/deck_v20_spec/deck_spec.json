@@ -6386,7 +6386,7 @@
      ]
     }
    ],
-   "notes": ""
+   "notes": "WHAT WE DID: answer the paper Gal sent (2026-06-29, \"it seems that the following paper already showed an idea that we\ndiscussed\") head-on, in the running order, right after our own direct-inversion slides. SimuDy (Tian et al., ICLR 2025) treats\nfine-tuning as a differentiable map and recovers data by matching the FINAL weights - autograd through the training run. That\nis the same primitive as our direct weight inversion (slide 7).\nWHY THIS FUNCTION: because the primitive is shared, the honest move is to say so first and then state precisely what is NOT\nshared: SimuDy evaluates FULL fine-tuning and full-weight endpoints with a known recipe. Our question is what survives in an\nordinary RELEASED LoRA adapter - a rank-r, gauge-ambiguous, seed-dependent object - plus the identifiability ruler (r_J,\nq_eff, whitened d^2) that says which private directions are recoverable at all, and the boundaries (activation, init,\noptimizer, N vs r).\nWHY REPRESENTATIVE: their result is exactly our known-recipe CEILING, which is what slide 7 shows; it does not bound the\nadapter-only channel, and it contains no identifiability instrument.\nGAL-ASK: this is his own pointer, answered rather than deflected - the direction is re-centred, not abandoned.\nCAVEATS: do not overstate the delta - the primitive really is the same, and their scale is larger than ours. Say \"same\nprimitive, different question\", never \"they did something else\".\nPROVENANCE: notes/simudy_decision_brief.md, notes/related_work_simudy.md; the reframe was sent as a follow-up mail (the repo\ncarries one unresolved note about whether that mail was confirmed - if Gal asks, say it was sent ~2026-08-21 and invite him\nto confirm)."
   },
   {
    "background": {
@@ -8993,7 +8993,7 @@
      "adjustments": []
     }
    ],
-   "notes": ""
+   "notes": "WHAT WE DID: the experiment behind every number in part 3. Take N private images; give each k latent coordinates (here\nN = 10, k = 8, so 80 private directions). Nudge ONE coordinate, fine-tune the LoRA again with the same recipe and the same\nseed, and watch how the released adapter moves. Repeat over all 80 directions and over K seeds to get the noise floor.\nWHY THIS FUNCTION: this makes the private unknown finite and known by construction - we are not estimating the intrinsic\ndimension of MNIST, we are choosing it. The object that comes out is the end-to-end Jacobian J = d(adapter)/d(coordinates),\ncomputed exactly by double backprop through the unrolled fine-tune and checked against finite differences.\nWHY REPRESENTATIVE: every part-3 statement (how many directions are recorded, which images leak, how far a swap must travel)\nis a different read of this same J - so one setup slide licenses the whole part.\nREADING: the diagram is the protocol, not data - N images in, one coordinate nudged, same recipe/seed, adapter out.\nGAL-ASK: this is the measurement-system framing he asked for (is the map locally injective and well-conditioned).\nCAVEATS: k = 8 is a choice; the directions are realistic image perturbations, not arbitrary pixels; the count is a LOWER\nbound (a conservative q_eff on col(J)); seeds S must satisfy S >= 4 * N * k for the noise floor to be estimable.\nPROVENANCE: experiments/jacobian_spectrum.py (q_eff, J_SNR, q_eff_colspace); notes/identifiability_feasibility_revision.tex."
   },
   {
    "background": {
@@ -21762,7 +21762,7 @@
      "adjustments": []
     }
    ],
-   "notes": ""
+   "notes": "WHAT WE DID: put the two candidate explanations of WHICH images leak on the same 24 images and the same sensitivity\nread - the NTK / gradient-recording picture (predictor: g0, the base-model gradient norm of the image) against the\nmax-margin / KKT endpoint picture (predictor: lambda, the dual proxy sigmoid(-margin_T)).\nWHY THIS FUNCTION: the two pictures make different predictions about ranking, so a rank correlation on identical inputs is\nthe cleanest available discriminator; the sensitivity read is the whitened swap detectability, not a reconstruction score.\nWHY REPRESENTATIVE: rho(sens, g0) = +0.78 (n = 24, 95% CI [0.53, 0.91], permutation p = 1e-4) vs rho(sens, lambda) = +0.51 on\nthe same images; at n = 12 the same contrast read +0.857 vs +0.538; the g0 predictor also transfers to full fine-tuning\n(rho = +0.83, n = 6).\nREADING: each dot is one private image - its base gradient across, how much the adapter moved for it up.\nGAL-ASK: this is why the spine was reframed from KKT to NTK / gradient-recording; present it as the trajectory view refining\nthe endpoint view, not defeating it.\nCAVEATS (say them out loud): by the pre-registration this is INDETERMINATE, not a pass - the CI half-width (0.189) exceeds\nthe pre-registered 0.15, and the per-tercile correlations flip (+0.88 low g0, +0.50 mid, -0.12 high g0), so the predictor is\nstrong where the base model still has work to do and saturates where it does not. The two predictors are themselves\ncorrelated, so this is not a clean contest, and no paired test on the difference has been run. n = 24, one dataset.\nPROVENANCE: results/margin_at_scale/summary.json (jobs 260171 n=12, 272504 n=24); full-FT transfer job 695782."
   },
   {
    "background": {
@@ -23090,7 +23090,7 @@
      "adjustments": []
     }
    ],
-   "notes": ""
+   "notes": "WHAT WE DID: turn a detection into a statement about images. Swap the private image x for another image x' at pixel\ndistance ||x' - x|| and read the adapter's sensitivity; sweep the distance. d* is the distance at which the normalized\nsensitivity crosses 0.1 - the smallest change to an image that the adapter reliably notices.\nWHY THIS FUNCTION: detection only asks whether an image can be told apart at all; d* asks how DIFFERENT it must be before it\ncan - i.e. the resolution of the adapter's memory, which is what a privacy claim needs. It is also the object that lets us\ncompare LoRA with full fine-tuning on equal terms (same dial, same noise model).\nWHY REPRESENTATIVE: the identity swap reads exactly 0 with p = 1.000 (the calibration that would have killed the metric had\nit read non-zero); parametric near-duplicates read 0.03-0.07; a different digit reads 8-24. Per-image d* over 6 targets,\nLoRA r = 8 against full fine-tuning.\nREADING: the curve is sensitivity vs swap distance; d* is where it crosses the 0.1 line.\nCAVEATS: 6 targets, exploratory; full vs LoRA is target-dependent (geomean 1.02, median 0.86, narrower on 4 of 6, 2 flip) -\nso NO robust narrower direction, do not quote a single ratio; the B1 dimension-invariance gate passed but the B2 SGD-noise\ncheck diverges, so read the comparison qualitatively; \"d*\" is our name, it has no standard name in the LoRA literature.\nPROVENANCE: results/fullft_valley/valley_headline_dstar.json, similarity ladder (job 268959), valley job 695782."
   },
   {
    "background": {
@@ -24789,7 +24789,7 @@
      "adjustments": []
     }
    ],
-   "notes": ""
+   "notes": "WHAT WE DID: state, before any measurement, what a single LoRA step is able to write into the weights compared with\nwhat full fine-tuning would write. If H is the gradient full fine-tuning would apply and eta the step size, the adapter\ncannot write H: it writes only the part of H that its factors can express - P_LoRA(H) = B B^T H + H A^T A.\nWHY THIS FUNCTION: this is the one-step tangent picture, and it is the mechanism behind both of the questions that follow -\ndoes the adapter keep the same images, and does it keep as much of each? It also explains why the seed shows up in the raw\nfactors: at this repo's init (A0 = 0, B0 random) the first step exposes the data only through the row space of a random B0.\nWHY REPRESENTATIVE: P_LoRA is a self-adjoint PSD operator, NOT a projection (P^2 != P) - say that, because \"LoRA projects\nthe gradient\" is the natural but wrong shorthand. The released adapter is the whole T-step trajectory, not one step, which\nis why the measured object is the end-to-end Jacobian J = dY/da rather than this formula.\nCAVEATS: one-step statement; the T-step object is what we actually measure; the init convention matters (A0 = 0 here, the\nHugging Face default is B0 = 0, which puts the exact structure on the other side).\nPROVENANCE: notes/thesis_note_v2.md (P_LoRA), STATUS.md J1 mechanism entry, notes/lora_span_leakage_note.md."
   },
   {
    "background": {
@@ -25270,7 +25270,7 @@
      "adjustments": []
     }
    ],
-   "notes": ""
+   "notes": "WHAT WE DID: two reads of the same comparison, side by side. Left: the footprint each private image leaves when it is\nREMOVED (leave-one-out) - under full fine-tuning against under a rank-8 adapter. Right: the valley width d*, the smallest\nchange to an image each side reliably notices.\nWHY THIS FUNCTION: the two panels separate MAGNITUDE from RESOLUTION - how much of each image is written, versus how finely\nwhat is written distinguishes images. They are different privacy questions and they answer differently.\nWHY REPRESENTATIVE: the same images imprint most under both regimes (Spearman rho = +0.94, n = 6) - so LoRA is not keeping a\ndifferent set of images; but the absolute footprint is about 5x larger under full fine-tuning (per-target median; range\n3-6x). Meanwhile the valley width is not systematically narrower for either side (geomean 1.02, median 0.86, narrower on 4\nof 6 targets, 2 flip). More signal, not finer memory.\nREADING: left - each dot is one private image, its removal footprint under full fine-tuning (up) against the same under LoRA\n(right); a different set of images would scatter off the diagonal. Right - bars are d* per image, LoRA against full.\nCAVEATS: n = 6, exploratory; removal changes N to N-1, a constant offset shared by all targets, so the RANK statistics are\nthe robust read and the absolute ratio is descriptive; the B2 noise-source check diverges, so the width comparison is\nqualitative; never quote the arithmetic mean of the ratio (Jensen-biased for ratios).\nPROVENANCE: results/fullft_valley/F_summary.json (arm F, P5b rho), valley_headline_dstar.json; job 695782."
   },
   {
    "background": {

@@ -29,3 +29,12 @@ Honesty notes: N=2 makes the dataset-mean baseline nearly an image itself (esp. 
 cells that miss it by 0.01 are shown with the failure printed rather than hidden. All numbers bound this attacker
 (free-coefficient NTK extraction from the released first-layer weight change), not the reconstruction limit.
 Jobs: 323866 / 323867 / 336206 / 341742 (scripts/run_freec_showcase_T*_wexac.sh). Builder: scripts/deck/make_recon_showcase.py.
+
+## N-sweep (audited wording)
+Free-coefficient reconstruction FIDELITY degrades with N: recognizable recovery is an N=2 phenomenon; by N=4 the mean
+per-image reconstruction no longer beats the mean-image baseline, and at N=10 no single image comes back recognizably.
+This is attack-limited (World B), with a superposition signature (recons collapse onto ~2 dominant images; identity
+matching degrades toward the 1/N chance floor). lr under-tuning is excluded at N=4 (job 528750) but not isolated at
+N>4; one seed per N. The within-image control margin stays weakly positive at every N (+0.11 at N=10) — so the
+mean-image baseline bounds FIDELITY, not per-image leakage, and it moves with N (0.76/0.67/0.61/0.56 at N=2/4/6/10):
+do not use it as the leakage bar across N.
