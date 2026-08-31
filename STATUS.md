@@ -264,10 +264,22 @@ go/no-go pre-tests before building the exact-subset attack (recover which N gall
   DEMONSTRATION of the A₀=0 branch; the standard-init input-span null is the DEMONSTRATION of the B₀=0 branch
   (NOT a weakness of the method). B₀=0 is "OPEN" (recover pixels from the δ-side / activation space), NOT
   "safe". SAY WHICH INIT behind every leakage number.
-  **Open next: (1) OPEN-WORLD unmixing of the exact span for A₀=0 (drop the gallery; N images in a known N-dim
-  noise-free subspace = the thesis pixel-reconstruction milestone in its cleanest form — NMF/sparse-ICA/
-  Cocktail-Party, SSIM vs mean-image + vs the closed-world ceiling); (2) standard-init recovery from the column
-  side; (3) N>r superposition; deeper/attention layers; scale beyond MNIST.**
+  **Open next: (1) done below; (2) standard-init recovery from the column/δ side; (3) N>r superposition;
+  deeper/attention layers; scale beyond MNIST.**
+- **OPEN-WORLD UNMIXING of the exact span (job 364217) — a PARTIAL positive; the thesis pixel milestone,
+  cleanest form.** Drop the gallery: recover the N private images from the exact A₀=0 span alone (= noise-free
+  superposition). Method: FastICA (numpy; rec env has no sklearn) on the span basis, sign/scale fixed WITHOUT
+  truth (nonneg + [0,1] fit), Hungarian-matched. **Result: recon SSIM BEATS the mean-image baseline at every N
+  but not cleanly, and the margin COLLAPSES toward N=r — N=2 SSIM 0.55 vs base 0.34 (margin +0.20, 75%
+  recognizable) → N=4 0.41 vs 0.33 (+0.08, 62%) → N=8 0.37 vs 0.36 (+0.02, 52%).** Direction cosine (ICA
+  separation, oracle-free) 0.85→0.56 across N=2→8. So the span is EXACT (closed-world selector=1.0, the
+  ceiling), but converting span→pixels open-world is the hard part: real leakage beyond baseline at low N,
+  fading to ~baseline by N=r. Pre-registered "recognizable = SSIM>baseline & margin>0 on ≥N−1 of N" is met
+  clearly only at N=2; N≥3 is a weak/partial signal. NMF (nonneg+sparsity — the auditor's recommended FIRST
+  method, exploits nonnegativity ICA ignores) is the next method to try and may beat ICA. figure
+  figures/harder_id/open_world_unmix.png, code open_world_unmix.py. SCOPE: A₀=0 first-layer, N≤r, open-world,
+  this-attacker; DETECTION→RECONSTRUCTION (partial). The gap closed-world 1.0 vs open-world 0.4–0.55 quantifies
+  the cost of not having the gallery = the unmixing difficulty.
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
