@@ -23,9 +23,11 @@ experiments.metrics; oracle mode asserted absent. Figures `figures/recon_showcas
 `scripts/deck/make_recon_showcase.py`, all 62+ cells `results/recon_showcase_sweep.csv`; zips v1-v3 delivered.
 Audits: method + visual (yoado-90), N-sweep metric design (yoado-23).
 
-## Deck: slide 8 added — A₀=0 first-layer LoRA publishes its input span (2026-08-31)
+## Deck: A₀=0 span-leakage slide — in the GENERATOR build only, not in the presented deck (2026-08-31)
 
-Folded yoado-40's overnight arc (notes/lora_span_leakage_note.md; audited adversarially by this session — LoRA-frame atoms,
+NOTE (content audit, 2026-08-31): the presented deck is the hand-finished v20 lineage (now v24), which does NOT contain this
+slide; it exists in the generator build (figures/supervisor_meeting_2026_08_31_v1.pptx lineage). Re-add it to the spec if it
+should be presented. Folded yoado-40's overnight arc (notes/lora_span_leakage_note.md; audited adversarially by this session — LoRA-frame atoms,
 the row-span theorem, LP vertex recovery, the Adam/standard-init/N>r boundaries) into the deck as slide 8 + the close
 slide, all numbers read from results/{lp_unmix,robustness_fixes,robustness_checks,precision_sweep,membership_selector}.
 Scope line verbatim on the slide: first-layer LoRA, A₀=0, SGD-family, N ≤ r, no gallery, reads only the released A factor.

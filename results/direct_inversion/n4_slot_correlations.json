@@ -1,0 +1,37 @@
+{
+ "source": "results/direct_inversion_N4_r8_gelu.pth[T=10]",
+ "digits": [
+  5,
+  5,
+  0,
+  8
+ ],
+ "mean_ssim": 0.5796012878417969,
+ "corr_recon_vs_train": [
+  [
+   0.677,
+   -0.47,
+   -0.568,
+   -0.382
+  ],
+  [
+   0.592,
+   -0.164,
+   -0.631,
+   -0.139
+  ],
+  [
+   -0.294,
+   0.11,
+   0.279,
+   0.104
+  ],
+  [
+   -0.559,
+   -0.125,
+   0.67,
+   -0.156
+  ]
+ ],
+ "reading": "rows = recovered slots, cols = private digits [5,5,0,8]; slot 4 correlates 0.67 with the 0 and -0.16 with the 8 -> the 8 was not recovered (3 of 4)"
+}

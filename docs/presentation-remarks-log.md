@@ -71,3 +71,18 @@ Running log of every remark / request the user gives about slides (mandated by C
     `deck/helpers.py` so the patterns are one call; the notes template now requires a "READING" line for figure slides.
     ONE THING TO CONFIRM: slide 1's title is now "More Work" (subtitle "LoRA adapters, private images, and what we can
     measure") and Gal's name was dropped from the byline — intentional, or a working title left in?
+
+12. **Content/honesty audit of the final deck (2026-08-31, sibling audit, docs/sessions/v21_audit_content.md).** Applied to the
+    spec -> `figures/supervisor_meeting_2026_08_31_v24.pptx`: the gallery/ceiling slide now says the reconstructions use ORACLE
+    coefficients (the code path is `compute_known_coefficients`, i.e. c_i from the true images - it was labelled "free c_i",
+    which broke the project's standing oracle-vs-realistic rule); the SimuDy slide no longer claims the reframe was "agreed"
+    (proposed; it is decision 1 on the close slide), says "the optimiser produced recognisable images" rather than "the decoder
+    worked" (SimuDy has no decoder), says "known - or grid-searched - recipe", and attributes the ~22 GB / ~15 h to their
+    120-image CIFAR cell; the direct-inversion title drops "works" and the lead states the known-recipe upper-bound scope plus
+    both bars; the estimator slide says "+44% (the 2-way estimator)" instead of "(retracted)" (it was a bug, not a withdrawn
+    claim); notes: "World A is proven" -> "measured/placed (scoped, local)", the ViT-faces numbers now quote STATUS job 976038
+    (0.60/0.67/0.71) and flag that the figure's printed 0.38/0.26/0.52 use another convention and that its columns say
+    "Person 1/2/3" while the subject is one person, and slide 14 carries the standing caveat that absolute q_eff counts are
+    provisional pending the bias-corrected re-run (quote the differences 23 -> 13 -> 0). The "3 of 4" direct-inversion claim is
+    now traceable: `results/direct_inversion/n4_slot_correlations.json`.
+    STILL OPEN FOR THE USER: (a) slide 1 title "More Work" + byline without Gal; (b) the ViT-faces figure's column titles.

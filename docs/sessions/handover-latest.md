@@ -20,7 +20,8 @@ notes (WHAT / WHY THIS FUNCTION / WHY REPRESENTATIVE / GAL-ASK / CAVEATS / PROVE
 ## Overnight 2026-08-31 (this session, after the deck)
 - Free-c showcase sweep (jobs 323866/323867/336206/341742; hgn29 excluded) → figures/recon_showcase, v1/v2 zips sent; v3 waits
   for the MNIST T=10 full-FT row (job 341742) — then `make_recon_showcase.py --tsweep` (rec env), zip, delta visual check (yoado-90).
-- Deck now 29 slides: slide 8 = A₀=0 span-leakage result (yoado-40's arc, audited here); close updated. Visuals artifact republished.
+- Generator build (29 slides) has slide 8 = A₀=0 span-leakage. The PRESENTED deck is the hand-finished lineage: v20 -> imported to
+  figures/deck_v20_spec/ -> v24 (= v20 + six speaker notes + the content-audit corrections). The span slide is NOT in v24.
 - Sibling audits: docs/sessions/{showcase_audit_method,showcase_audit_visual,gallery_recovery_audit}.md.
 
 ## Next step(s)
