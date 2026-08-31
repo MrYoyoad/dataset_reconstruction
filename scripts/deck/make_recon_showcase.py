@@ -145,7 +145,7 @@ def grid(rows, out, title=None, note=None):
 
 # ------------------------------------------------------------------ sweep scoring
 PAT = re.compile(r"exp_b_T(\d+)(?:_(flowers32|fashion))?_(r\d+|full)_free_s42_a(?:149|10000)"
-                 r"(?:_([a-z_]+?))?(?:_lr([0-9.]+))?\.pth$")
+                 r"(?:_([a-z_]+?))?(?:_npc(\d+))?(?:_lr([0-9.]+))?\.pth$")
 
 
 def scan(min_T=2):
@@ -176,9 +176,10 @@ def scan(min_T=2):
         mode = (d.get("config") or {}).get("mode") if isinstance(d.get("config"), dict) else None
         if mode is not None and "FREE" not in str(mode).upper():
             raise RuntimeError(f"oracle-mode file matched the free-c glob: {b} (mode={mode})")
-        row = {"file": b, "dataset": ds, "T": T, "rank": rk,
-               "activation": mo.group(4) or "(default)", "lr": mo.group(5) or "(default)",
-               "margin_norm": round(margin_norm(d, key), 4)}
+        Nimg = int(d["x_train"].shape[0])
+        row = {"file": b, "dataset": ds, "N": Nimg, "T": T, "rank": rk,
+               "activation": mo.group(4) or "(default)", "lr": mo.group(6) or "(default)",
+               "npc": mo.group(5) or "1", "margin_norm": round(margin_norm(d, key), 4)}
         for k in METRIC_KEYS:
             row[k] = m(d, key).get(k)
             row[f"ctrl_{k}"] = m(d, "control").get(k)
@@ -206,10 +207,10 @@ def tsweep(write_csv=True):
         s, b = row.get("ssim") or -1, row.get("ssim_mean_baseline") or 9
         return (1 if s > b else 0, row["margin_norm"])
     for row, d, key in cells:
-        slot = (row["dataset"], row["T"], row["rank"])
+        slot = (row["dataset"], row["N"], row["T"], row["rank"])
         if slot not in best or _score(row) > _score(best[slot][0]):
             best[slot] = (row, d, key)
-    print("\nbest cell per (dataset, T, rank) by ctrl_margin_norm:")
+    print("\nbest cell per (dataset, N, T, rank) by ctrl_margin_norm:")
     for slot in sorted(best):
         row, d, key = best[slot]
         gate, ok = baseline_note(d, key)
@@ -217,14 +218,15 @@ def tsweep(write_csv=True):
               f"norm {row['ssim_norm']:.3f}  [{gate}]  {row['file']}")
     # one grid per (dataset, T): full + rank ladder
     for ds in sorted({s[0] for s in best}):
-        for T in sorted({s[1] for s in best if s[0] == ds}):
+      for Nset in sorted({s[1] for s in best if s[0] == ds}):
+        for T in sorted({s[2] for s in best if s[0] == ds and s[1] == Nset}):
             order = [("full", "full fine-tune")] + \
                     [(f"r{r}", f"LoRA r = {r}") for r in (32, 16, 8)]
             rows, first, gates = [], None, []
             for rk, lab in order:
-                if (ds, T, rk) not in best:
+                if (ds, Nset, T, rk) not in best:
                     continue
-                row, d, key = best[(ds, T, rk)]
+                row, d, key = best[(ds, Nset, T, rk)]
                 if first is None:
                     first, first_key = d, key
                     rows.append(("private image", d["x_train"], d["ds_mean"], None))
@@ -238,14 +240,14 @@ def tsweep(write_csv=True):
                          ctl_lab, per_tile(first, "control", first_key), "recon↔ "))
             fails = [lab for lab, (g, ok) in gates if not ok]
             sup = ("LoRA rows may blend the N images (the mixing symmetry) — raw SSIM registers that as degradation · "
-                   if any(rk != "full" for rk, _ in order if (ds, T, rk) in best) else "")
+                   if any(rk != "full" for rk, _ in order if (ds, Nset, T, rk) in best) else "")
             note = (sup + "free coefficients (realistic attack) · under each tile: raw ssim / ssim_norm of the reconstruction vs that tile's image · "
                     "row label = mean; margin = ssim_norm(recon) − ssim_norm(control); clip = pixels outside [0,1] before clamping · "
                     + ("all rows beat the dataset-mean baseline" if not fails
                        else "baseline gate FAILED for: " + ", ".join(fails)))
             nice = {"mnist": "MNIST", "flowers32": "Flowers-102 (32 px)", "fashion": "Fashion-MNIST"}.get(ds, ds)
-            has_full = (ds, T, "full") in best
-            acts = [act_name(best[(ds, T, rk)][1]) for rk, _ in order if (ds, T, rk) in best]
+            has_full = (ds, Nset, T, "full") in best
+            acts = [act_name(best[(ds, Nset, T, rk)][1]) for rk, _ in order if (ds, Nset, T, rk) in best]
             main_act = max(set(acts), key=acts.count)
             Nimg = first["x_train"].shape[0]
             ttl = (f"Free-coefficient reconstruction, {nice}, {main_act} net, N={Nimg}, T={T} — LoRA vs full fine-tune" if has_full
@@ -256,9 +258,10 @@ def tsweep(write_csv=True):
                     continue
                 lab_ = r_[0]
                 for rk, lab2 in order:
-                    if lab2 == lab_ and (ds, T, rk) in best and act_name(best[(ds, T, rk)][1]) != main_act:
-                        rows[k_] = (lab_ + f"\n({act_name(best[(ds, T, rk)][1])} net)",) + tuple(r_[1:])
-            grid(rows, f"freec_{ds}_T{T}_lora_vs_full.png", title=ttl, note=note)
+                    if lab2 == lab_ and (ds, Nset, T, rk) in best and act_name(best[(ds, Nset, T, rk)][1]) != main_act:
+                        rows[k_] = (lab_ + f"\n({act_name(best[(ds, Nset, T, rk)][1])} net)",) + tuple(r_[1:])
+            tag = "" if Nset == 2 else f"_N{Nset}"
+            grid(rows, f"freec_{ds}{tag}_T{T}_lora_vs_full.png", title=ttl, note=note)
 
 
 # ------------------------------------------------------------------ T=1 reference panels
