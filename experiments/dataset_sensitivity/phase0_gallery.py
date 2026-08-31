@@ -46,7 +46,8 @@ def full_grad_atom(frozen, b0, x0_i, y_i, act):
 
 
 def topU(dW, k=KSUB):
-    return torch.linalg.svd(dW, full_matrices=False).U[:, :k].contiguous()
+    # CPU SVD: this GPU's float64 cusolver SVD fails to converge and falls back to a slow path, ~140 times.
+    return torch.linalg.svd(dW.detach().to("cpu", torch.float64), full_matrices=False).U[:, :k].contiguous()
 
 
 def align(Ua, Ub):
@@ -56,7 +57,7 @@ def align(Ua, Ub):
 
 def mp_select(dW_target, atom_U, N):
     """Greedy subspace matching pursuit: pick atoms whose col-space best covers the residual target subspace."""
-    U = torch.linalg.svd(dW_target, full_matrices=False).U[:, :2 * KSUB].clone()
+    U = torch.linalg.svd(dW_target.detach().to("cpu", torch.float64), full_matrices=False).U[:, :2 * KSUB].clone()
     sel = []
     for _ in range(N):
         best, bs = -1, -1.0
