@@ -55,6 +55,14 @@ def m(d, key):
     return d.get(f"{key}_metrics", {}) or {}
 
 
+def act_name(d):
+    """Fine-tune activation of the network in this run (config): None -> the harness default nn.ReLU."""
+    c = d.get("config") if isinstance(d.get("config"), dict) else {}
+    a = c.get("finetune_activation") or "relu"
+    return {"leaky_relu": "leaky-ReLU", "relu": "ReLU", "selu": "SELU", "sigmoid": "sigmoid", "softplus": "softplus",
+            "gelu": "GELU", "silu": "SiLU"}.get(a, a)
+
+
 def per_tile(d, key, recon_key=None):
     """Per-image (raw ssim, ssim_norm), mirroring experiments/run_experiment_b.py exactly:
     recon (centered) vs x_train - ds_mean for key in {lora, full}; for key == "control" the
@@ -237,8 +245,19 @@ def tsweep(write_csv=True):
                        else "baseline gate FAILED for: " + ", ".join(fails)))
             nice = {"mnist": "MNIST", "flowers32": "Flowers-102 (32 px)", "fashion": "Fashion-MNIST"}.get(ds, ds)
             has_full = (ds, T, "full") in best
-            ttl = (f"Free-coefficient reconstruction, {nice}, N=2, T={T} — LoRA vs full fine-tune" if has_full
-                   else f"Free-coefficient LoRA reconstruction, {nice}, N=2, T={T}")
+            acts = [act_name(best[(ds, T, rk)][1]) for rk, _ in order if (ds, T, rk) in best]
+            main_act = max(set(acts), key=acts.count)
+            Nimg = first["x_train"].shape[0]
+            ttl = (f"Free-coefficient reconstruction, {nice}, {main_act} net, N={Nimg}, T={T} — LoRA vs full fine-tune" if has_full
+                   else f"Free-coefficient LoRA reconstruction, {nice}, {main_act} net, N={Nimg}, T={T}")
+            # flag rows whose activation differs from the title's
+            for k_, r_ in enumerate(rows):
+                if k_ == 0 or len(r_) < 4:
+                    continue
+                lab_ = r_[0]
+                for rk, lab2 in order:
+                    if lab2 == lab_ and (ds, T, rk) in best and act_name(best[(ds, T, rk)][1]) != main_act:
+                        rows[k_] = (lab_ + f"\n({act_name(best[(ds, T, rk)][1])} net)",) + tuple(r_[1:])
             grid(rows, f"freec_{ds}_T{T}_lora_vs_full.png", title=ttl, note=note)
 
 

@@ -4,6 +4,8 @@ Realistic attack only: **free coefficients** (the attacker does not know the per
 oracle-coefficient runs appear nowhere. Non-trivial training length: T ∈ {5, 10, 20} SGD steps (T=1 panels are
 kept as `freec_T1_*` for reference only and are NOT part of the deliverable).
 
+Activations: every MNIST cell is a leaky-ReLU network (extraction surrogate ModifiedReLU α≈150, L-BFGS) unless a row says otherwise (T=20 r=32 is plain ReLU); Flowers cells are the harness-default ReLU network (extraction ModifiedReLU α=10⁴ ≈ ReLU, SGD). Titles carry the activation.
+N: all grids here are N = 2 (n_per_class = 1); an N-sweep (N = 4, 6, 10; job 497350) is running and will be added as it lands.
 Setup: N = 2 private images, one fine-tuned MLP (Haim-style), seed 42. MNIST: leaky-ReLU fine-tune (the leaking,
 kinked activation), extraction with L-BFGS; LoRA = rank-r adapter on the first layer; "full fine-tune" = all first-layer
 weights. Flowers-102 (32 px, RGB): ReLU-extraction recipe (relu_alpha 10000, SGD). Per (dataset, T, rank) the best
