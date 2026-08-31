@@ -298,13 +298,19 @@ go/no-go pre-tests before building the exact-subset attack (recover which N gall
   **SGD member-resid 5e-15 / LP-SSIM 1.000, SGD+momentum 1.000 — span EXACT; Adam member-resid 0.75 / LP-SSIM
   0.60, AdamW LP-SSIM 0.50 — span BROKEN** (Adam's elementwise m/√v is not a linear map, as predicted). Since
   Adam is the fine-tuning DEFAULT, the honest headline is now "first-layer LoRA, A₀=0, **SGD-family** optimizer,
-  N≤r." (SGD+wd=0.05 also broke it at 0.74 — likely a too-strong-wd/barely-converged numerical artifact contra
-  theory (wd only shrinks A, stays in span); needs a gentler-wd recheck before claiming wd breaks it.) #3 N>r
-  CLIFF: my test was BUGGED (used full-dim PLANTED spans, not the rank-r ADAPTER row space) so it did NOT show
-  the cliff (N=9 read 0.99) — must be redone with adapter-derived rank-8 row spaces for N>r. #1 WHICH-PAIRS:
-  no N=8 failures in this sample → inconclusive (need N>r or harder sets to see the nested-support failures).
-  code robustness_checks.py. **Consequence: the writeup scope line must read "first-layer, A₀=0, SGD-family,
-  N≤r, no gallery, this-attacker" — and Adam-breaks-it belongs on the first figure, not a footnote.**
+  N≤r." (The earlier "SGD+wd=0.05 broke it" was a too-strong-wd artifact — resolved below.) code
+  robustness_checks.py.
+- **ROBUSTNESS FIXES (job 369125) — scope COMPLETE, all three resolved.** (a) WEIGHT DECAY: gentle wd KEEPS the
+  span exact — resid 5e-15/6e-15/1.5e-14 at wd=1e-4/1e-3/1e-2 with healthy ‖A_T‖ (0.94→0.81); only wd=5e-2
+  "breaks" and the diagnosis is confirmed — its top singular values collapse to [0.66, 2.6e-3, 1.3e-4]
+  (A rank-collapses, row space numerically undefined), NOT the span breaking. So wd is FINE up to ~1e-2 (theory
+  holds). (b) CORRECT N>r CLIFF (rank-8 ADAPTER row space): **N=8 SSIM 0.949 → N=9 0.857 → N=12 0.773 → N=16
+  0.706**, row-rank pinned at 8 — the r-dim projection progressively loses the N-dim span past N=r (monotone,
+  ties to q_eff/r_J). (c) WHICH-PAIRS at N=12: failures (SSIM<0.85) have HIGHER support-Jaccard (0.597) than
+  passers (0.536) → N>r failures ARE nested/overlapping-support pairs (auditor's prediction confirmed). code
+  robustness_fixes.py. **FROZEN SCOPE for the writeup: "first-layer LoRA (input=pixels), A₀=0 init, SGD-family
+  optimizer (Adam/AdamW BREAK the exact span; weight-decay ≤1e-2 fine), N≤r, no gallery, this-attacker; reads
+  only the released A factor (B irrelevant)." Adam-breaks-it + the N>r cliff belong on the first figure.**
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
