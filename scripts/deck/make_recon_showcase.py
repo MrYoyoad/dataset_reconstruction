@@ -185,9 +185,13 @@ def tsweep(write_csv=True):
         print(f"[csv] {path}  ({len(cells)} cells)")
     # best per (dataset, T, rank) by ctrl_margin_norm
     best = {}
+    def _score(row):
+        # baseline gate FIRST (raw ssim must beat the dataset-mean image), then the leakage margin
+        s, b = row.get("ssim") or -1, row.get("ssim_mean_baseline") or 9
+        return (1 if s > b else 0, row["margin_norm"])
     for row, d, key in cells:
         slot = (row["dataset"], row["T"], row["rank"])
-        if slot not in best or row["margin_norm"] > best[slot][0]["margin_norm"]:
+        if slot not in best or _score(row) > _score(best[slot][0]):
             best[slot] = (row, d, key)
     print("\nbest cell per (dataset, T, rank) by ctrl_margin_norm:")
     for slot in sorted(best):
