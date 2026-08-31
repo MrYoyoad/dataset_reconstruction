@@ -109,6 +109,7 @@ def grid(rows, out, title=None, note=None):
     for r, row in enumerate(rows):
         lab, imgs, dm, ms = row[:4]
         tiles = row[4] if len(row) > 4 else None
+        tile_prefix = row[5] if len(row) > 5 else ""
         for c in range(n):
             ax = axes[r, c]
             im = to_img(imgs[c], dm)
@@ -119,14 +120,16 @@ def grid(rows, out, title=None, note=None):
             if c == 0:
                 ax.set_ylabel(lab, fontsize=14, rotation=0, ha="right", va="center")
             if tiles:
-                ax.set_xlabel(f"{tiles[c][0]:.2f} / {tiles[c][1]:.2f}", fontsize=11, color="#555")
+                ax.set_xlabel(f"{tile_prefix}{tiles[c][0]:.2f} / {tiles[c][1]:.2f}", fontsize=11, color="#555")
         if ms:
             axes[r, n - 1].text(1.06, 0.5, ms, transform=axes[r, n - 1].transAxes,
                                 va="center", fontsize=11.5, color="#555")
     if title:
         fig.suptitle(title, fontsize=16, fontweight="bold")
     if note:
-        fig.text(0.5, -0.01, note, ha="center", fontsize=11, color="#666", style="italic")
+        import textwrap
+        wrapped = "\n".join(textwrap.wrap(note, width=int(38 * n + 40)))
+        fig.text(0.5, -0.01, wrapped, ha="center", va="top", fontsize=11, color="#666", style="italic")
     fig.savefig(os.path.join(OUT, out), dpi=200, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print("[fig]", os.path.join(OUT, out))
@@ -221,17 +224,22 @@ def tsweep(write_csv=True):
                 gates.append((lab, baseline_note(d, key)))
             if first is None:
                 continue
+            cm = m(first, "control")
+            ctl_lab = (f"recon vs this control:  ssim {cm.get('ssim', float('nan')):.2f} · norm {cm.get('ssim_norm', float('nan')):.2f}")
             rows.append(("same-class control image\n(recon scored against it)", first["x_ctrl"], first["ds_mean"],
-                         row_label(first, "control").replace(f"margin {margin_norm(first,'control'):+.2f}", ""),
-                         per_tile(first, "control", first_key)))
+                         ctl_lab, per_tile(first, "control", first_key), "recon↔ "))
             fails = [lab for lab, (g, ok) in gates if not ok]
-            note = ("free coefficients (realistic attack) · under each tile: raw ssim / ssim_norm of the reconstruction vs that tile's image · "
+            sup = ("LoRA rows may blend the N images (the mixing symmetry) — raw SSIM registers that as degradation · "
+                   if any(rk != "full" for rk, _ in order if (ds, T, rk) in best) else "")
+            note = (sup + "free coefficients (realistic attack) · under each tile: raw ssim / ssim_norm of the reconstruction vs that tile's image · "
                     "row label = mean; margin = ssim_norm(recon) − ssim_norm(control); clip = pixels outside [0,1] before clamping · "
                     + ("all rows beat the dataset-mean baseline" if not fails
                        else "baseline gate FAILED for: " + ", ".join(fails)))
-            grid(rows, f"freec_{ds}_T{T}_lora_vs_full.png",
-                 title=f"Free-coefficient reconstruction, {ds} N=2, T={T} — LoRA vs full fine-tune",
-                 note=note)
+            nice = {"mnist": "MNIST", "flowers32": "Flowers-102 (32 px)", "fashion": "Fashion-MNIST"}.get(ds, ds)
+            has_full = (ds, T, "full") in best
+            ttl = (f"Free-coefficient reconstruction, {nice}, N=2, T={T} — LoRA vs full fine-tune" if has_full
+                   else f"Free-coefficient LoRA reconstruction, {nice}, N=2, T={T}")
+            grid(rows, f"freec_{ds}_T{T}_lora_vs_full.png", title=ttl, note=note)
 
 
 # ------------------------------------------------------------------ T=1 reference panels
