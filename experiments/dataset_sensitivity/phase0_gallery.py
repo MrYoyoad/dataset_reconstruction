@@ -46,7 +46,12 @@ def full_grad_atom(frozen, b0, x0_i, y_i, act):
 
 
 def topU(dW, k=KSUB):
-    return torch.linalg.svd(dW, full_matrices=False).U[:, :k]
+    return torch.linalg.svd(dW, full_matrices=False).U[:, :k].contiguous()
+
+
+def align(Ua, Ub):
+    """Mean principal cosine between two ORTHONORMAL subspaces (precomputed) — cheap k×k SVD, no 1000×784 SVD."""
+    return torch.linalg.svdvals(Ua.transpose(-1, -2) @ Ub).mean().item()
 
 
 def mp_select(dW_target, atom_U, N):
@@ -99,7 +104,8 @@ def main():
     # ===== #1 FRAME =====
     lora_ranks, full_ranks = [], []
     for s, dWt in targets:
-        la = torch.tensor([subspace_cos(atom_dW[i], dWt, KSUB) for i in range(G)])
+        U_t = topU(dWt)
+        la = torch.tensor([align(atom_U[i], U_t) for i in range(G)])
         fa = torch.tensor([abs((atom_full[i] * dWt).sum().item()) / (atom_full[i].norm() * dWt.norm() + 1e-12).item() for i in range(G)])
         lord = torch.argsort(la, descending=True); ford = torch.argsort(fa, descending=True)
         for mi in s:
@@ -114,10 +120,10 @@ def main():
     s_star = targets[0][0]; swap = s_star.copy()
     pool0 = [int(i) for i in c0.tolist() if i not in s_star]; swap[0] = pool0[0]   # one-image swap (same class)
     seeds = [1200 + j for j in range(K_SEEDS)]
-    dW_star = [train_adapter(frozen, b0, draw_B0(sd, out_f, RANK, dev), gx0[torch.tensor(s_star)], glab[torch.tensor(s_star)], LR, T, act, RANK)[3] for sd in seeds]
-    dW_swap = [train_adapter(frozen, b0, draw_B0(sd, out_f, RANK, dev), gx0[torch.tensor(swap)], glab[torch.tensor(swap)], LR, T, act, RANK)[3] for sd in seeds]
-    d_reseed = [1 - subspace_cos(dW_star[a], dW_star[b], KSUB) for a, b in itertools.combinations(range(K_SEEDS), 2)]
-    d_swap = [1 - subspace_cos(dW_star[a], dW_swap[b], KSUB) for a in range(K_SEEDS) for b in range(K_SEEDS)]
+    U_star = [topU(train_adapter(frozen, b0, draw_B0(sd, out_f, RANK, dev), gx0[torch.tensor(s_star)], glab[torch.tensor(s_star)], LR, T, act, RANK)[3]) for sd in seeds]
+    U_swp = [topU(train_adapter(frozen, b0, draw_B0(sd, out_f, RANK, dev), gx0[torch.tensor(swap)], glab[torch.tensor(swap)], LR, T, act, RANK)[3]) for sd in seeds]
+    d_reseed = [1 - align(U_star[a], U_star[b]) for a, b in itertools.combinations(range(K_SEEDS), 2)]
+    d_swap = [1 - align(U_star[a], U_swp[b]) for a in range(K_SEEDS) for b in range(K_SEEDS)]
     reseed_med, swap_med = float(np.median(d_reseed)), float(np.median(d_swap))
     ratio = swap_med / (reseed_med + 1e-12)
     d_reseed_a, d_swap_a = np.array(d_reseed), np.array(d_swap)
@@ -130,7 +136,7 @@ def main():
     coh = 0.0
     for a in range(G):
         for b in range(a + 1, G):
-            coh = max(coh, subspace_cos(atom_dW[a], atom_dW[b], KSUB))
+            coh = max(coh, align(atom_U[a], atom_U[b]))
     exact, rdwe = 0, 0
     for s, dWt in targets:
         picked = mp_select(dWt, atom_U, N); ps = set(picked); ss = set(s)
