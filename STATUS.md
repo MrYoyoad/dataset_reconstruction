@@ -252,17 +252,18 @@ go/no-go pre-tests before building the exact-subset attack (recover which N gall
   first-layer LoRA, A₀=0 init, N≤r → row space = input span (exact); closed-world; this-attacker; DETECTION/
   RECOVERY not pixel reconstruction. The strongest, cleanest attack result of the program. figure
   figures/harder_id/membership_selector.png, code membership_selector.py. [[LESSONS_LEARNED]] "row-span theorem".
-- **REALISM GATE (job 360191) — CRITICAL caveat: the exact result is A₀=0-CONVENTION-SPECIFIC.**
-  (a) SCALE holds: |G|=10k → still EXACT 10/10, member residual 2.9e-14 vs non-member 0.75 (the huge gap means
-  no near-collinear gallery image breaks it). (b) STANDARD INIT BREAKS IT: under the HF PEFT default (A₀ random
-  Kaiming, B₀=0), the input-span membership test FAILS — member residual stays ≈0.84–0.88 across T∈{50..5000},
-  member-vs-non-member gap only ≈0.08 (member never approaches 0). Mechanism (auditor, confirmed): with B₀=0 the
-  data enters the OUTPUT/column side (span{δᵢ}) while row(ΔW) mixes the RANDOM A₀ rows with span{xᵢ}, so the
-  input-span test is contaminated. **⇒ the 100% exact recovery is REAL but holds ONLY for A₀=0 first-layer LoRA
-  (this repo's convention), NOT the standard init.** Under standard init the pixels aren't on the input side at
-  all (the column side carries δ's, not images) — recovery there is an OPEN problem (init-projection / statistical
-  removal of A₀; the attacker typically does NOT know A₀). SAY WHICH INIT everywhere. This is the honesty gate
-  working: the headline needs the A₀=0 qualifier, and "LoRA leaks its training set" is NOT unconditional.
+- **REALISM GATE (job 360191) — the init is a DESIGN LEVER, not a caveat (auditor reframe).** The headline
+  mechanism: **which LoRA factor is zero-initialized decides which side of ΔW exactly carries the private data**
+  — A₀=0 ⇒ row(ΔW)=span{xᵢ} (inputs published exactly, seed-independent); B₀=0 (HF default) ⇒ the exact
+  structure sits on the COLUMN/δ side (col(ΔW)⊆span{δᵢ}, hidden-layer error signals — still an exact,
+  seed-independent statement about the private set, just in ACTIVATION space not pixels) and the input side is
+  masked by the unknown random A₀. One identity explains BOTH regimes; "which factor you zero-init is a privacy
+  choice" is a DEFENSE-relevant result. Evidence: (a) SCALE — |G|=10k → EXACT 10/10, member resid 2.9e-14 vs
+  non-member 0.75. (b) STANDARD INIT — the input-span test does NOT fire (member resid ≈0.84–0.88 across
+  T∈{50..5000}, gap ≈0.08), exactly because the data moved to the column side. So the 100% recovery is the
+  DEMONSTRATION of the A₀=0 branch; the standard-init input-span null is the DEMONSTRATION of the B₀=0 branch
+  (NOT a weakness of the method). B₀=0 is "OPEN" (recover pixels from the δ-side / activation space), NOT
+  "safe". SAY WHICH INIT behind every leakage number.
   **Open next: (1) OPEN-WORLD unmixing of the exact span for A₀=0 (drop the gallery; N images in a known N-dim
   noise-free subspace = the thesis pixel-reconstruction milestone in its cleanest form — NMF/sparse-ICA/
   Cocktail-Party, SSIM vs mean-image + vs the closed-world ceiling); (2) standard-init recovery from the column
