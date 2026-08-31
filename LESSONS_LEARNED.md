@@ -51,6 +51,15 @@ at N>r, where row(ΔW) is an r-dim projection of the span = the genuine superpos
 SPEAR). SCOPE for any claim: first-layer LoRA, A₀=0, N≤r, closed-world, this-attacker; DETECTION/RECOVERY not
 pixel reconstruction.
 
+**CRITICAL init caveat (realism gate, job 360191).** The exactness is A₀=0-CONVENTION-SPECIFIC. Empirically:
+scale holds (|G|=10k → exact 10/10, member resid 3e-14), BUT under the HF PEFT DEFAULT init (A₀ random Kaiming,
+B₀=0) the input-span test FAILS — member residual stays ≈0.85 across T∈{50..5000}, gap only ≈0.08. With B₀=0 the
+data enters the OUTPUT/column side (span{δᵢ}) and row(ΔW) mixes the random A₀ rows with span{xᵢ}. So "a LoRA
+adapter publishes its training set" is NOT unconditional — it is exact for A₀=0 first-layer, and needs a
+different (open) attack for the standard init. RULE: state WHICH init behind every leakage number; ΔW=0 at start
+can come from A₀=0 (data→row/input side) OR B₀=0 (data→column/output side), and which side the private data
+lands on flips the whole attack.
+
 ---
 
 ## A reference-count asymmetry silently inflates a cross-condition comparison (2026-08-30)
