@@ -277,9 +277,22 @@ go/no-go pre-tests before building the exact-subset attack (recover which N gall
   fading to ~baseline by N=r. Pre-registered "recognizable = SSIM>baseline & margin>0 on ≥N−1 of N" is met
   clearly only at N=2; N≥3 is a weak/partial signal. NMF (nonneg+sparsity — the auditor's recommended FIRST
   method, exploits nonnegativity ICA ignores) is the next method to try and may beat ICA. figure
-  figures/harder_id/open_world_unmix.png, code open_world_unmix.py. SCOPE: A₀=0 first-layer, N≤r, open-world,
-  this-attacker; DETECTION→RECONSTRUCTION (partial). The gap closed-world 1.0 vs open-world 0.4–0.55 quantifies
-  the cost of not having the gallery = the unmixing difficulty.
+  figures/harder_id/open_world_unmix.png, code open_world_unmix.py.
+- **OPEN-WORLD PIXEL RECONSTRUCTION — SOLVED for A₀=0/N≤r via LP VERTEX SEARCH (auditor yoado-d4; jobs 365880/
+  366493) — THE MILESTONE.** ICA was the wrong tool; the private images are the SPARSEST VERTICES of the
+  box-constrained polytope P={c: 0≤Vc+m≤1} in the span (an MNIST digit sits on ~600 exact-zero-pixel
+  constraints → a vertex; mixtures have union-of-supports = fewer zeros). Recover by LP: min⟨w,c⟩ s.t. box over
+  many random directions + the min-intensity (sparsest) direction; take the N sparsest non-collinear vertices.
+  The box FIXES the scale ICA can't. **Result (open-world, NO gallery): N=2/3/4 SSIM = 1.000 (100% exact),
+  N=6 = 0.983, N=8(=r) = 0.961 — vs ICA's 0.55/0.41/0.37 and the mean-image baseline ~0.44.** Confirmed on the
+  ACTUAL adapter-derived ΔW row space (not just planted spans): N=4 SSIM 0.959. **⇒ a released A₀=0 first-layer
+  LoRA adapter at N≤r leaks the actual PIXELS of its private set — near-exact reconstruction with NO gallery,
+  from public box+sparsity priors alone.** The thesis's adapter-only pixel-reconstruction milestone, achieved in
+  its cleanest form. Slight N=6/8 dip = the nested-support pairs (auditor's prediction: fails identifiably on
+  e.g. a "1" nested in a "7", not a smooth decay). figure figures/harder_id/lp_unmix.png, code lp_unmix.py.
+  SCOPE: A₀=0 first-layer, N≤r, open-world, this-attacker; DETECTION→full RECONSTRUCTION. The B₀=0 (HF-default)
+  branch remains OPEN (data on the δ/column side). Full arc: closed-world = 100% identification; open-world =
+  near-exact pixel reconstruction — for the A₀=0 init.
 
 Last updated: **2026-08-24** (added Part 6 open hypotheses H1–H5 to the plan; current collinearity results are provisional/basis-dependent — see caveat below. Prior: 2026-08-23 Jacobian J0/J1 + robustness/coord-transform)
 
