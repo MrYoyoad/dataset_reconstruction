@@ -496,19 +496,50 @@ protect the batch.
 | 2.8e-7 | 3.7e-16 | **7** | **9** | 7.8e-9 | 3.8e-2 | 1.2e-3 | 1.9e-9 | no |
 | 0 | 2.0e-16 | **7** | **9** | 1.7e-15 | 3.8e-2 | 1.2e-3 | 1.9e-9 | no |
 
-**Against the pre-registered prediction.** Point 2 is **confirmed**: every failing row has a residual of
-`1e-8`-`1e-9`, far above the reproduction floor, so these are search/conditioning failures and not true
-aliases — the stated falsifier (floor-residual aliases below a cliff) is **not** met. Point 1 is **not
-observed**: there is no continuous ramp toward `featsep/2`. The pair error is flat at `~1e-14` down to a
-separation of 0.35 and then jumps **twelve orders** to `2.8e-2` at 0.206, after which it is roughly
-constant (`3-5e-2`) and independent of separation. Meanwhile `σ_N/σ_1` falls smoothly across the whole
-range. So the conditioning degrades continuously while the *outcome* transitions sharply — at this
-sampling density the reconstruction behaves like a cliff riding on a smooth conditioning curve.
+**Against the pre-registered prediction: it holds, and my first reading of it was wrong twice over.**
 
-Two channels, two different thresholds, worth stating together: the **certificate** breaks only at
-separations below `~3e-5` (where rank `B_T` collapses), while the **simulation** channel breaks four
-orders of magnitude earlier, at a separation of `~0.2`-`0.35`. In this regime the algebraic channel is the
-*more* robust of the two to near-duplication, which is the opposite of what I expected going in.
+*Point 2 — confirmed.* Every failing row has a residual of `1e-8`-`1e-9`, far above the reproduction
+floor: search/conditioning failures, not true aliases. The stated falsifier is not met.
+
+*Point 1 — confirmed once sampled finely enough, and my "cliff" claim is withdrawn.* I first reported a
+twelve-order jump between separations 0.35 and 0.206 and called the transition sharp. That was a
+**sampling artefact**: nothing had been measured in between. Filling it in (job 474132) gives a clean
+continuous ramp.
+
+| feature separation | pair err | others err | residual | recovered |
+|---|---|---|---|---|
+| 0.350 | 1.7e-14 | 3.0e-15 | 8.7e-31 | yes |
+| 0.298 | 1.8e-3 | 9.6e-5 | 9.3e-11 | yes |
+| 0.270 | 6.1e-3 | 2.2e-4 | 6.6e-10 | yes |
+| 0.239 | 2.0e-2 | 8.0e-4 | 6.2e-9 | no |
+| 0.206 | 2.8e-2 | 1.0e-3 | 9.6e-9 | no |
+
+The error rises smoothly through the 1e-2 tolerance; the `recovered` boolean flips on a continuous curve,
+exactly as predicted. There is no phase transition.
+
+*Point 4 — confirmed, and it is the one that matters.* The prediction said the transition separation is
+**solver-set, not fundamental**, and that a longer budget should push it lower. Re-running the first
+failing cell (separation 0.206) with 10× the iterations and 4 restarts:
+
+| separation | budget | pair err | residual | recovered |
+|---|---|---|---|---|
+| 0.206 | 80 iters, 1 restart | 2.8e-2 | 9.6e-9 | **no** |
+| 0.206 | **800 iters, 4 restarts** | **1.8e-14** | **8.9e-31** | **yes** |
+
+Same cell, same data, same release — recovered to machine precision with residual back at the floor. So
+**"how similar is too similar" is a solver floor, not an information boundary.** The only fundamental
+alias in this whole family is exact duplication, where the private span is genuinely smaller. A defender
+cannot buy privacy by perturbing-and-copying a record: it costs the attacker compute, not access.
+
+This also revises the "certificate is the more robust channel" observation from the previous paragraph.
+The comparison was between a *fundamental* certificate threshold (rank collapse at separation `~3e-5`) and
+a *budget-dependent* simulation threshold, which is not a like-for-like comparison. At sufficient budget
+the simulation threshold moves down and the ordering is not established.
+
+Two channels, two thresholds — but **only one of them is fundamental**. The **certificate** breaks at
+separations below `~3e-5`, where rank `B_T` collapses, and that is a property of the release. The
+**simulation** channel's apparent threshold near `0.2` is a *solver floor* that moves with budget (see
+below), so the two are not comparable as stated.
 
 **Gap in the sampling, being filled.** The sweep jumps from the clean control (separation 1.06, full
 recovery) straight to `ε = 0.3` (separation 0.074, pair unresolved). The transition sits in that gap and
