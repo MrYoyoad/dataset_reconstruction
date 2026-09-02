@@ -1,40 +1,71 @@
 # Project Status
 
-## Exact LoRA inversion (framework Rev 10) — testbed built, step-1 validation RUNNING, nothing measured yet (2026-09-02, job 395496)
+## Exact LoRA inversion (framework Rev 10) — MEASURED: 49/49 exact recovery in the (N,k) phase diagram, the certificate's `r−N` boundary does NOT bound the leakage (2026-09-02, jobs 395496 · 396202-07 · 396214-21 · 408565; Adam + initialiser arms 408559-63 RUNNING)
 
-New thread. An external theory bundle (`framework_rev10.pdf` theory · `results_rev9.pdf` finite-difference
+Thread from an external theory bundle (`framework_rev10.pdf` theory · `results_rev9.pdf` finite-difference
 experiments · `audit_rev9.pdf` audit; authored outside this repo, PDFs still on the Mac — see
-[notes/exact_lora_inversion_framework.md](notes/exact_lora_inversion_framework.md)) defines **three primitives on a
-released LoRA adapter** `(A_T, B_T)` with `B₀=0` and an SGD-class recipe:
-1. **Quotient certificate** `C := P_{row(B_T)^⊥} A_T`, with `CH = 0` exactly and `rank C = r − N`; dies under
-   coordinatewise-nonlinear optimizers (Adam/Lion/signSGD) and under a balanced/merged release.
-2. **Manifold pull-back** with a sharp phase boundary: recovery from `C` alone works iff `k < r − N` strictly.
-3. **Exact inversion** — do not assume representer coefficients, *simulate the known recipe as the forward model*
-   and solve `Recipe_T(φ(ψ(wᵢ)), X) = (B_T, A_T U)` for the latents and `X = A₀U`.
+[notes/exact_lora_inversion_framework.md](notes/exact_lora_inversion_framework.md)), which defines three primitives on
+a released LoRA adapter `(A_T, B_T)` with `B₀=0` and an SGD-class recipe: (1) the **quotient certificate**
+`C := P_{row(B_T)^⊥} A_T` with `CH = 0` and `rank C = r − N`; (2) the **manifold pull-back**, recoverable from `C`
+alone iff `k < r − N` strictly; (3) **exact inversion** — do not assume representer coefficients, *simulate the known
+recipe as the forward model* and solve `Recipe_T(φ(ψ(wᵢ)), X) = (B_T, A_T U)` for the latents and `X = A₀U`.
+Testbed: `experiments/exact_inversion/` (FP64 PyTorch, **true backprop through the unrolled training loop**,
+Levenberg–Marquardt with an autograd Jacobian, per-line provenance), runner `scripts/run_exact_inversion_wexac.sh`.
+Full write-up **`experiments/exact_inversion/RESULTS.md`**, disagreements with the bundle in
+**`experiments/exact_inversion/NOTES.md`**. **Every number below is provisional (†).**
 
-**Every number in that bundle is provisional (†) and was produced outside this repo** (numpy finite-difference
-prototypes, on a laptop): recovery to †1e-13…1e-16 at deformation up to †≈1.0, but **only from starts within
-†~10–15% of the truth** (†30% off lands in a local minimum). The named crux is therefore the **BASIN problem, not
-identifiability** — what a learned decoder / population prior must supply is an *initializer*, not a metric.
+**The simulator IS the training map.** `fwd_check` — the relative error with which the span-adapted simulator
+reproduces the *actual* release when fed the true data and the true `X = A₀U` — is †7.4e-16 … †8.5e-16 across the
+validation cells. This operationally confirms the normal-form theorem: the release is a deterministic function of the
+candidate data plus the `rN` numbers in `X`, and nothing else about `A₀`. Every downstream claim rests on this number.
 
-**Built this session** (`experiments/exact_inversion/`): a PyTorch FP64 reimplementation with **true backprop
-through the unrolled training loop** (`lora_exact_inversion.py`, replacing finite-difference Jacobians);
-attacker-available initialisers (span estimator `row(P_{row(B_T)}A_T)` refined onto `ker C`, certificate anchor
-`min ‖C φ(ψ(w))‖²`, span-anchor); a Levenberg–Marquardt solver with an autograd (`torch.func.jacfwd`) Jacobian as
-default plus an LBFGS fallback; provenance on every JSON line (seed, git hash, command line, host); and a
-`verdict` field that separates **"optimisation failure (residual not zero)"** from **"alias (residual zero, wrong
-image → non-identifiability)"**. Job runner `scripts/run_exact_inversion_wexac.sh` with stages step1 (validation vs
-the finite-difference cells + CPU/GPU timing) · step2_near \<noise\> (basin study) · step2_init \<init\>
-(attacker-available initialisers) · step3 (Adam release — no certificate exists, all of `A₀` unknown) · step4 \<N\>
-((N,k) phase diagram with backprop).
+**HEADLINE — the (N,k) phase diagram with backprop: †49/49 cells recovered**, median residual †8.6e-31, **zero cells
+above the reproduction floor** (`N, k ∈ {2,…,14}` at `r=16`, `T=400`, start 10% off;
+`figures/exact_inversion/phase_diagram_exact.png`). The certificate-only diagram from the bundle is **exactly 0 above
+the line `k = r − N`**. Exact inversion recovers on **both sides** of that line: **`r − N` bounds one channel, not the
+leakage.** Any defense argued from "the adapter only exposes `r − N` independent rows" is arguing about one primitive.
+Caveats: **15 of the 49 cells needed 4 restarts** — at `restarts=1` all 15 failed with a *nonzero* residual
+(†3e-5 … †1e-2), i.e. optimisation failures, **never aliases**; failures concentrated at large `N` (4 of 7 at N=12 and
+N=14 vs 1 of 7 at N ≤ 8). One seed per cell, so the grid shows the boundary does not bind — it does **not** measure a
+failure *rate*.
 
-**Run status: step1 validation is RUNNING on WEXAC (job 395496, long-gpu, A40). NO results are in yet — nothing has
-been measured in this repo.** An earlier submission (392479) was killed because a mid-run edit would have silently
-switched the solver for that job's later cells (see LESSONS_LEARNED 2026-09-02).
+**Basin at the fully-trained work point** (`k=12, N=8, T=1500, lr=.03`, deformation 0.96;
+`figures/exact_inversion/basin_curve.png`): recovers at every start distance up to a **†24% median start error**, first
+clean failure at †36%. That is **past the ~10–15% wall the finite-difference prototype reported**. The cost of distance
+is **restarts** (mean restarts used †1.0 → †3.2), not accuracy — it either converges to ~1e-14 or fails outright, never
+lands in between. Seed counts per row are small (1–5) and some arms were still accumulating when this was written.
 
-**Next:** read step1's `fwd_check` first — until the simulator reproduces the release at the truth to ~machine
-precision, no downstream number (basin, Adam, phase diagram) means anything. Then step2 basin + initialisers,
-step3 Adam, step4 phase diagram; write-up into `experiments/exact_inversion/RESULTS.md`.
+**Timing:** †1.4 s per LM iteration at T=400, †5.4 s at T=1500 (A40, FP64), ~20 iterations to machine precision; CPU is
+†1.7 s/iter at T=400 — **this testbed does not need a GPU.**
+
+**Adam arm (408559): RUNNING, no recovery claim either way.** Two things are already settled: (a) under Adam
+`rank B_T = r`, so the certificate is *identically zero* (measured †`‖C‖/‖A_T‖ = 2.8e-15`) and the natural metric
+`eps_inv = ‖CH‖/(‖A_T‖₂‖H‖)` then reads †1.9e-15 — a **perfect-looking certificate that is vacuous**, now flagged as
+`cert_vacuous` rather than reported as a pass; (b) the Adam simulator is **bit-exact** (`fwd_check` = 0.0), deformation
+2.42, so whatever it reports will be about conditioning and basins, not a recipe mismatch.
+
+**Attacker-available initialiser arms** (`random`/`span`/`cert`/`spananchor`, jobs 408560-63): **RUNNING, no claim
+yet.** A first submission was killed and discarded because its restarts re-seeded only the latents, leaving most of the
+unknown vector frozen. Related measurement: the released span estimator `Ĥ = row(P_{row(B_T)}A_T)` sits at
+†**52° mean principal angle** to the private span at N=8 (†59° at N=12) vs ~†78–83° for a random subspace —
+informative, but a **weak** initializer at this work point, and much weaker than the 18–29° the audit reports at
+larger `n`.
+
+**Does not reproduce:** one validation cell (`k=6, N=12, r−N=4`) stalls at residual †5.7e-4 — a genuine local minimum
+(damping climbs 6 orders with no accepted step), not an alias. **Do not quote the bundle's "converges from within
+10–15%" as reproduced**; the prototype staged `X` before going joint and ours is joint from iteration 0. See
+`NOTES.md §2`.
+
+**Testbed defects found by adversarial review and fixed at git `5762045`** (the sweep and near-basin arms were produced
+pre-fix at `38fec3b`; none of the six can turn a failure into a false recovery, but they can and did turn recoveries
+into false failures). The serious one: **the entire Adam Jacobian was NaN** (1925/1925 entries) because `B₀ = 0` makes
+the A-gradient exactly zero at `t=1`, so `v_A = 0` and `d/dv √v` is infinite while the incoming sensitivity is zero →
+`0 × inf = NaN`; NaN then propagates silently through `linalg.solve` and every damping trial is rejected (`nan < x` is
+False), so the run exits without moving and would have reported *"an Adam release is not invertible even from 5% off"* —
+a fabricated negative answer. Post-fix gate: 0/1925 NaN, `fwd_check` still exactly 0.0. (See LESSONS_LEARNED 2026-09-02.)
+
+**Next:** the **initialiser arms are the only ones whose outcome would change the story**, because the framework's
+claim is that what a learned decoder must supply is an *initializer* — not a metric and not a gradient bridge.
 
 ## Free-coefficient LoRA reconstruction at non-trivial T + the N-sweep (2026-08-31, jobs 323866/323867/336206/341742/497350/528750)
 

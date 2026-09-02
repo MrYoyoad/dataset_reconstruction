@@ -4,6 +4,51 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## `0 × inf = NaN` silently kills an unrolled-Adam Jacobian (and reports it as a scientific result) (2026-09-02)
+
+**Bug.** In the exact-inversion testbed (`experiments/exact_inversion/`), the Jacobian of the unrolled **Adam**
+training map was NaN in **every** entry (1925/1925) — while the SGD path was fine.
+
+**How it presented.** Not as a crash. The LM solver ran, spent its iteration budget, and exited reporting the residual
+*at its initialiser* — which reads exactly like "the optimisation did not converge from a 5%-off start". Step 3 would
+have answered one of the framework's four open questions with *"an Adam release is not invertible even from 5% off"*:
+a fabricated negative result, fully consistent-looking, with a job id and a provenance stamp.
+
+**Root cause.** `B₀ = 0` in LoRA makes the A-gradient **exactly** zero at `t=1`, so Adam's `v_A = 0`. The derivative
+`d/dv √v` is infinite at `v=0` while the incoming sensitivity is zero, so autograd evaluates `0 × inf = NaN` on the
+first unrolled step, and the NaN then propagates through the whole unroll. Two things make it silent: `linalg.solve`
+propagates NaN **without raising**, and every damping/line-search trial is rejected because `nan < x` is `False` — so
+the optimiser never moves and never errors.
+
+**Fix / rule.** A denormal floor inside the square root, applied *identically* to the release and to the simulator
+(git `5762045`); post-fix gate 0/1925 NaN with `fwd_check` still exactly 0.0. General rule: **any `sqrt`, `abs`,
+`norm`, or `x/‖x‖` inside a loop you intend to differentiate through needs a floor when its argument can be exactly
+zero — and `B₀ = 0` in LoRA *guarantees* exactly zero on the first step.** Detection rule: **assert the Jacobian is
+finite before trusting any "it did not converge" claim** — a non-convergence result is only a result if the derivatives
+existed.
+
+---
+
+## A vacuous diagnostic scores perfectly on its own metric (2026-09-02)
+
+**Bug.** Under an Adam release, the quotient certificate's natural quality metric
+`eps_inv = ‖CH‖/(‖A_T‖₂‖H‖)` read †1.9e-15 — apparently a *perfect* certificate. There was no certificate at all.
+
+**How it presented.** As a pass. The metric is the same one that reads ~1e-15 in the healthy SGD cells, so the number
+was indistinguishable from the good case by inspection.
+
+**Root cause.** Under Adam `rank B_T = r`, so the projector onto `row(B_T)^⊥` is zero and `C ≡ 0`
+(measured `‖C‖/‖A_T‖ = 2.8e-15`). The metric is then `0/·`: it is not measuring certificate quality, it is measuring
+that the numerator vanished.
+
+**Fix / rule.** The degenerate case is now flagged explicitly (`cert_vacuous`) instead of reported as a pass. Rule:
+**always report the NORM of the object a relative metric divides by (here `cert_norm` beside `eps_inv`), and flag the
+degenerate case in the output rather than leaving it to the reader.** Note this is the **second** time this project has
+hit the same trap from a different direction — the Rev-9 audit hit it with an SVD-based polar factor inflating
+`rank B_T` under Muon. A relative metric whose object can vanish will eventually be read as an excellent score.
+
+---
+
 ## `set -u` in a WEXAC job script silently breaks `conda activate` (2026-09-02)
 
 **Bug.** `scripts/run_exact_inversion_wexac.sh` opened with `set -euo pipefail`. The job died 9 seconds after
