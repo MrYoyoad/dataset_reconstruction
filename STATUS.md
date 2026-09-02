@@ -1,6 +1,6 @@
 # Project Status
 
-## Exact LoRA inversion (framework Rev 10) — MEASURED: 49/49 exact recovery in the (N,k) phase diagram, the certificate's `r−N` boundary does NOT bound the leakage (2026-09-02, jobs 395496 · 396202-07 · 396214-21 · 408565; Adam + initialiser arms 408559-63 RUNNING)
+## Exact LoRA inversion (framework Rev 10) — MEASURED: 49/49 exact recovery in the (N,k) phase diagram **in a single attempt**, the certificate's `r−N` boundary does NOT bound the leakage (2026-09-02; **two claims corrected 2026-09-03**; jobs 395496 · 396202-07 · 396214-21 · 408565 · 456630 · 452904; Adam + initialiser arms 408559-63 RUNNING)
 
 Thread from an external theory bundle (`framework_rev10.pdf` theory · `results_rev9.pdf` finite-difference
 experiments · `audit_rev9.pdf` audit; authored outside this repo, PDFs still on the Mac — see
@@ -19,21 +19,45 @@ reproduces the *actual* release when fed the true data and the true `X = A₀U` 
 validation cells. This operationally confirms the normal-form theorem: the release is a deterministic function of the
 candidate data plus the `rN` numbers in `X`, and nothing else about `A₀`. Every downstream claim rests on this number.
 
+**CORRECTIONS (2026-09-03) — two claims that stood in the 2026-09-02 version of this section are WITHDRAWN.** Both
+trace to **one bug of ours**: the QR sign discontinuity (defect F4 below). A bare `torch.linalg.qr` flips a whole
+basis column when a candidate feature crosses zero, which makes the simulated release **discontinuous** in the
+candidate data, so LM rejects any step that crosses the seam — a systematic **false-failure** generator, exactly the
+"under-reports the basin" failure mode the adversarial review predicted. Both corrections run **in our favour**.
+
+1. ~~"One validation cell does NOT reproduce the bundle's finite-difference result (stalls at residual 5.7e-4); do not
+   quote *converges from within 10–15%* as reproduced."~~ **RETRACTED.** Re-run post-fix at the **same seed, same
+   start noise, same single restart, no staging**, the `(k=6, N=12, r−N=4)` cell recovers to †6.6e-16 in **14 LM
+   iterations** (residual †1.0e-30). Pre-fix (git `12fa60d`) it stalled at †5.7e-4; post-fix (git `276cfb3`) it
+   recovers. **`results_rev9.pdf` §3b DOES reproduce here.** The staged-schedule hypothesis offered at the time as the
+   likely explanation is also **wrong**: staging was tested directly, is **not** needed, and is *slower*
+   (`--stage-x 10` also recovers, in 53 iterations rather than 14). `NOTES.md §2` is now a retraction.
+2. ~~"15 of the 49 phase-diagram cells needed 4 restarts."~~ **WITHDRAWN.** Those 15 failed on **pre-fix** code and
+   were rescued on **post-fix** code *with* 4 restarts — one run changing **two** things at once, so it could not
+   attribute the recovery to either. Re-running the same 15 cells post-fix at **`restarts=1`** recovers **15 of 15**,
+   median residual †8.0e-31, median †17 LM iterations (job 456630). They were **false failures caused by the QR bug**;
+   the restarts were never needed, and the figure no longer marks any cell.
+
+The **headline is unchanged and strengthened** by both: 49/49 recovery and "the `r−N` boundary does not bind exact
+inversion" now stand **without a restart caveat**.
+
 **HEADLINE — the (N,k) phase diagram with backprop: †49/49 cells recovered**, median residual †8.6e-31, **zero cells
 above the reproduction floor** (`N, k ∈ {2,…,14}` at `r=16`, `T=400`, start 10% off;
 `figures/exact_inversion/phase_diagram_exact.png`). The certificate-only diagram from the bundle is **exactly 0 above
 the line `k = r − N`**. Exact inversion recovers on **both sides** of that line: **`r − N` bounds one channel, not the
 leakage.** Any defense argued from "the adapter only exposes `r − N` independent rows" is arguing about one primitive.
-Caveats: **15 of the 49 cells needed 4 restarts** — at `restarts=1` all 15 failed with a *nonzero* residual
-(†3e-5 … †1e-2), i.e. optimisation failures, **never aliases**; failures concentrated at large `N` (4 of 7 at N=12 and
-N=14 vs 1 of 7 at N ≤ 8). One seed per cell, so the grid shows the boundary does not bind — it does **not** measure a
-failure *rate*.
+Every cell recovers **from a 10% start in a single attempt** (`restarts=1`) on post-fix code — the earlier
+"15 of the 49 cells needed 4 restarts" caveat is **withdrawn**, see Correction 2 (job 456630). Remaining caveat: one
+seed per cell, so the grid shows the boundary does not bind — it does **not** measure a failure *rate*.
 
 **Basin at the fully-trained work point** (`k=12, N=8, T=1500, lr=.03`, deformation 0.96;
 `figures/exact_inversion/basin_curve.png`): recovers at every start distance up to a **†24% median start error**, first
 clean failure at †36%. That is **past the ~10–15% wall the finite-difference prototype reported**. The cost of distance
 is **restarts** (mean restarts used †1.0 → †3.2), not accuracy — it either converges to ~1e-14 or fails outright, never
 lands in between. Seed counts per row are small (1–5) and some arms were still accumulating when this was written.
+This arm was produced **pre-fix** (git `38fec3b`); by Correction 2 the pre-fix restart counts are an **upper bound** —
+untested post-fix, so treat "restarts as the currency" as provisional in the same way the withdrawn phase-diagram
+caveat was.
 
 **Timing:** †1.4 s per LM iteration at T=400, †5.4 s at T=1500 (A40, FP64), ~20 iterations to machine precision; CPU is
 †1.7 s/iter at T=400 — **this testbed does not need a GPU.**
@@ -44,17 +68,32 @@ lands in between. Seed counts per row are small (1–5) and some arms were still
 `cert_vacuous` rather than reported as a pass; (b) the Adam simulator is **bit-exact** (`fwd_check` = 0.0), deformation
 2.42, so whatever it reports will be about conditioning and basins, not a recipe mismatch.
 
-**Attacker-available initialiser arms** (`random`/`span`/`cert`/`spananchor`, jobs 408560-63): **RUNNING, no claim
-yet.** A first submission was killed and discarded because its restarts re-seeded only the latents, leaving most of the
-unknown vector frozen. Related measurement: the released span estimator `Ĥ = row(P_{row(B_T)}A_T)` sits at
+**NEW (2026-09-03) — preconditioning does NOT fix the Adam case (job 452904).** The natural hypothesis was a
+**block-scaling mismatch** between the latent and `A₀` unknowns; it is wrong. Baseline unscaled `λI` damping reaches
+residual †7.6e-3 in 400 iterations; Marquardt `λ·diag(JᵀJ)` scaling reaches †2.2e-1 and †9.5e-3 in 200 iterations at two
+start distances (i.e. if anything *worse* than unscaled); Marquardt **plus** solving the `A₀` block alone for the first
+15 iterations leaves it at †1.1e-2. So the Adam difficulty is **not** block scaling, and the right treatment remains
+**open**. A regression arm in the same job confirms the default SGD path still recovers to †2.0e-15, so none of this is
+a refactor artifact.
+
+**Attacker-available initialiser arms** (`random`/`span`/`cert`/`spananchor`, jobs 408560-63): **RUNNING — 13 of 20
+rows and ONE recovery (updated 2026-09-03).** All arms start from a **global, release-only** start, never a perturbed
+truth. The one recovery: the **span-estimator** initialiser on **seed 3** reached a †4.0e-3 image error at residual
+†9.1e-7 — inside the 1e-2 recovery tolerance, but far from the ~1e-15 that perturbed-truth starts reach, so read it as
+*entered the basin and was still converging*, not as a finished recovery. The other 12 rows fail. Separately, the
+**certificate-anchor** arm drove its certificate residual to †5.0e-8 on seed 3 and still landed **0.70 away** in image
+error — a direct demonstration that satisfying the certificate equation carries almost **no** information about the
+image when `k > r − N` (the certificate-consistent set is a manifold of dimension `k − (r − N)` per image). Still no
+overall claim at 13/20 rows. A first submission was killed and discarded because its restarts re-seeded only the
+latents, leaving most of the unknown vector frozen. Related measurement: the released span estimator `Ĥ = row(P_{row(B_T)}A_T)` sits at
 †**52° mean principal angle** to the private span at N=8 (†59° at N=12) vs ~†78–83° for a random subspace —
 informative, but a **weak** initializer at this work point, and much weaker than the 18–29° the audit reports at
 larger `n`.
 
-**Does not reproduce:** one validation cell (`k=6, N=12, r−N=4`) stalls at residual †5.7e-4 — a genuine local minimum
-(damping climbs 6 orders with no accepted step), not an alias. **Do not quote the bundle's "converges from within
-10–15%" as reproduced**; the prototype staged `X` before going joint and ours is joint from iteration 0. See
-`NOTES.md §2`.
+**Reproduces (was: "does not reproduce").** The `(k=6, N=12, r−N=4)` validation cell recovers post-fix to †6.6e-16 in
+14 LM iterations at the same seed, start and single restart, so `results_rev9.pdf` §3b reproduces and the bundle's
+"converges from within 10–15%" is **not** contradicted by us. The staged-`X` explanation is refuted too. See
+Correction 1 above and `NOTES.md §2` (now a retraction).
 
 **Testbed defects found by adversarial review and fixed at git `5762045`** (the sweep and near-basin arms were produced
 pre-fix at `38fec3b`; none of the six can turn a failure into a false recovery, but they can and did turn recoveries

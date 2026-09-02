@@ -4,6 +4,48 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A non-reproduction is a claim about someone else's work — check your own tooling adversarially first (2026-09-03)
+
+**Bug.** One `torch.linalg.qr` call in the exact-inversion simulator (`experiments/exact_inversion/`), used bare. QR is
+only unique up to the signs of its basis columns, and the sign **flips** when a candidate feature crosses zero. That
+makes the *simulated release* discontinuous in the candidate data, so Levenberg–Marquardt rejects every step that
+crosses the seam.
+
+**How it presented — as two published scientific claims, both about other people's work or against our own headline.**
+STATUS.md and `NOTES.md §2` asserted (a) *"one of the bundle's finite-difference validation cells does NOT reproduce;
+do not quote its 'converges from within 10–15%' as reproduced"*, and (b) *"15 of the 49 phase-diagram cells needed 4
+restarts."* Both looked like findings: (a) came with a plausible mechanism (the prototype staged `X`, we went joint
+from iteration 0), a job id and a residual that plateaued while the damping climbed six orders — a textbook local
+minimum; (b) came with a spatial pattern (failures concentrated at large `N`). Neither was real. Post-fix, the
+"non-reproducing" cell recovers to 6.6e-16 in **14** LM iterations at the *same seed, same start, same single restart,
+no staging* (pre-fix git `12fa60d` stalled at 5.7e-4; post-fix `276cfb3` recovers), and the 15 "restart" cells recover
+**15 of 15** at `restarts=1`, median residual 8.0e-31 (job 456630). The staging hypothesis was refuted directly:
+`--stage-x 10` also recovers, in 53 iterations rather than 14, i.e. staging is *slower*, not enabling.
+
+**Root cause of the write-up failure, which is the actual lesson.** The QR seam had *already been flagged* by the
+adversarial review of the testbed, in exactly these words — **"a systematic false-failure that under-reports the
+basin"** — and the two claims were written up anyway, from runs made before the fix. A bug that only ever converts
+recoveries into failures is invisible in every number you keep and fatal to every number you *don't* get.
+
+**Fix / rules.**
+1. **Detection rule.** When your own tooling produces a **failure that contradicts a published result**, suspect the
+   tooling first. A non-reproduction is a claim about someone else's work; it carries a higher evidentiary bar than an
+   internal negative, and it must not be written up before the tooling has been adversarially checked.
+2. **Re-run the disagreeing cell after *any* tooling fix, before letting the claim stand.** Every claim resting on a
+   pre-fix *failure* is void by default — a fix that "can only turn failures into recoveries" is precisely a fix that
+   invalidates your failures, not one you can wave through.
+3. **Never change two things at once in the rescue run.** The 15 cells were rescued by a run that changed the **code
+   version** *and* the **restart count** (1 → 4), so it could not attribute the recovery, and the confound got written
+   up as "these cells need restarts" — a caveat that made our own headline weaker than the truth. The disambiguation
+   run varied exactly one thing (post-fix code at `restarts=1`) and settled it in one job.
+4. Canonicalise the sign: fix the QR basis (e.g. force positive diagonal on `R`) whenever the factor is inside a map
+   you will differentiate or line-search through.
+
+**Cost of not doing this:** a retraction in STATUS.md and `NOTES.md §2`, and a headline (49/49 exact recovery, `r−N`
+does not bind exact inversion) that spent a day carrying a restart caveat it never needed.
+
+---
+
 ## `0 × inf = NaN` silently kills an unrolled-Adam Jacobian (and reports it as a scientific result) (2026-09-02)
 
 **Bug.** In the exact-inversion testbed (`experiments/exact_inversion/`), the Jacobian of the unrolled **Adam**
