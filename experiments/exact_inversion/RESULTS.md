@@ -72,6 +72,21 @@ the Adam arm already demonstrates that a different limit can dominate. Job 46791
 352 at fixed `N = 8` to look for that boundary directly, reading `σ_min(J)` at the truth as it crosses
 `mr`.
 
+**First readings (job 467914, N = 8, `mr = 320`).** `σ_min(J)` at the truth collapses geometrically as
+`Nk` grows, roughly an order of magnitude per `Δ(Nk) ≈ 48`:
+
+| k | Nk | ‖res(truth)‖ | `σ_min` truth | `cond` truth | worst image err | residual |
+|---|---|---|---|---|---|---|
+| 14 | 112 | 1.1e-15 | 1.02e-3 | 1.8e3 | 2.9e-15 | 5.7e-31 |
+| 20 | 160 | 9.2e-16 | 1.03e-4 | 1.6e4 | 8.2e-15 | 5.2e-31 |
+| 26 | 208 | 1.1e-15 | 3.54e-6 | 4.6e5 | 7.1e-13 | 9.2e-31 |
+
+The heuristic is behaving like a real capacity law: recovery still succeeds at all three, but the
+reconstruction error has already degraded two orders of magnitude by `Nk = 208` while the residual stays
+at the floor — the signature of a problem going flat rather than a solver failing. Extrapolating the
+decay, `σ_min` reaches the FP64 noise level near `Nk ≈ mr`. The `k = 32, 38, 44` cells
+(`Nk = 256, 304, 352`) are still running and are the ones that matter.
+
 This is the figure the exercise was for. The certificate-only diagram (`results_rev9.pdf` Fig. 1) is
 **exactly 0 above the line `k = r − N`** — above it the certificate has fewer rows than the manifold has
 dimensions and every run lands on a true alias. Exact inversion recovers **on both sides of that line**,
@@ -160,17 +175,39 @@ a *stuck point*, not the map. Evaluating the Jacobian at the **ground-truth para
 (`--jac-at-truth`), with `‖res(truth)‖` as the gate that the evaluation point really does reproduce the
 release:
 
-| release | J shape | ‖res(truth)‖ | `σ_min` at truth | `cond` at truth | full rank |
-|---|---|---|---|---|---|
-| **adam** (n=32, k=6, N=4) | 832 × 536 | **0.0** (exactly) | 6.95e-3 | **2.08e3** | yes |
-| sgd (n=32, k=6, N=4) | 384 × 88 | 7.8e-16 | 9.67e-3 | 1.23e2 | yes |
-| sgd (n=96, k=12, N=8) | 448 × 224 | 9.6e-16 | 9.16e-4 | 2.05e3 | yes |
+All rows below pass the gate `‖res(truth)‖` at the FP64 floor, i.e. the Jacobian really is evaluated at a
+point that reproduces the release (jobs 466915, 467622). Adam's is exactly `0.0`, as its simulator is
+bit-identical to its release generator.
 
-**At the truth the Adam problem is as well conditioned as the SGD one** — `cond = 2.08e3` against `2.05e3`
-for the main SGD work point — and its Jacobian has full column rank with `σ_min = 6.9e-3`. So by
-Proposition 6 the Adam cell **is** locally identifiable, and the earlier "Adam defends by conditioning"
-reading is **withdrawn**: the map is not ill-conditioned, the *stuck point the solver reaches* is. The
-`10⁵` conditioning gap reported above is a property of the failed search, not of the release.
+| release | shape | J | ‖res(truth)‖ | `σ_min` truth | `cond` truth | full rank |
+|---|---|---|---|---|---|---|
+| adam | n=32, k=6, N=4 (seeds 1/2/3) | 832 × 536 | 0.0 | 6.9e-3, 6.7e-3, 6.0e-3 | 2.1e3, 1.1e3, 3.4e3 | yes |
+| sgd | n=32, k=6, N=4 (seeds 1/2/3) | 384 × 88 | ~8e-16 | 9.7e-3, 9.0e-3, 8.3e-3 | 1.2e2, 1.7e2, 1.6e2 | yes |
+| adam | n=32, k=8, N=4 | — | 0.0 | 4.2e-3 | 1.3e4 | yes |
+| adam | n=32, k=6, N=6 | — | 0.0 | 6.8e-3 | 7.3e3 | yes |
+| adam | n=32, k=6, N=4, T=800 | — | 0.0 | 6.8e-3 | 2.5e3 | yes |
+| **adam, FULL SIZE** | **n=96, k=12, N=8, T=800** | — | **0.0** | **6.9e-4** | **8.0e5** | **yes** |
+| sgd | n=96, k=12, N=8 | 448 × 224 | 9.6e-16 | 9.2e-4 | 2.0e3 | yes |
+
+**The full-size Adam release is locally identifiable at the truth.** That is the cell we could not invert
+and dropped for cost; a single Jacobian evaluation characterises it anyway. Full column rank at a
+release-reproducing point gives Proposition 6 directly.
+
+**Correction to my own first reading of this table.** I initially wrote "at the truth Adam is as well
+conditioned as SGD", comparing Adam at `n=32` (`2.1e3`) against SGD at `n=96` (`2.0e3`). That is a
+comparison across *different shapes* and it is not valid. Like for like:
+
+| shape | sgd `cond` truth | adam `cond` truth | ratio |
+|---|---|---|---|
+| n=32, k=6, N=4 | 1.2e2 – 1.7e2 | 1.1e3 – 3.4e3 | ~10-20× |
+| n=96, k=12, N=8 | 2.0e3 | 8.0e5 | ~400× |
+
+So Adam **is** genuinely worse conditioned at the solution than SGD, stably across seeds, and the gap
+grows with scale. But it is worse by one to three orders of magnitude, **not** by the `10⁵`-`10⁸` the
+stuck-point measurement suggested, and it remains full rank throughout. The "Adam defends by
+conditioning" reading is still withdrawn — a `cond` of `8e5` in FP64 is not what stops an inversion — but
+the honest statement is *"mildly-to-moderately worse conditioned at the solution, and dominated by a much
+smaller basin"*, not *"identical conditioning"*.
 
 That also explains why preconditioning did nothing. Rescaling the damping cannot help when the map at the
 solution is already well conditioned; the obstacle is that Levenberg-Marquardt from a 4% start does not
