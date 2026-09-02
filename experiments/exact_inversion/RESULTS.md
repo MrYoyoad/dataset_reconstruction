@@ -111,8 +111,37 @@ budget**:
 ```
 
 which at `N = 8` predicts `k* = 28`, between the last success (`k = 26`) and the first failure (`k = 32`).
-Job 469120 tests the `N`-dependence directly, straddling `k* = 32, 28, 24` at `N = 4, 8, 12`: if the
-boundary tracks `m + r − N` rather than sitting at a fixed `k`, the law is real.
+
+**CONFIRMED across three values of `N` (job 469120).** The threshold is not a fixed `k`; it moves with `N`
+exactly as `m + r − N` says it should. `figures/exact_inversion/capacity_law.png`.
+
+| N | predicted `k* = m+r−N` | last `k` recovered | first `k` failed | `σ_min` at last ok | `σ_min` at first fail |
+|---|---|---|---|---|---|
+| 4 | **32** | 30 | 34 | 1.2e-6 | 8.8e-19 |
+| 8 | **28** | 26 | 32 | 3.5e-6 | 3.0e-20 |
+| 12 | **24** | 22 | 26 | 5.8e-6 | 2.5e-20 |
+
+Every predicted threshold is bracketed by its own last success and first failure, and the three brackets
+are disjoint — `N = 12` has already collapsed at `k = 26` while `N = 4` is still healthy at `k = 30`. A
+fixed-`k` explanation is ruled out by that crossing. The collapse is 13-14 orders of magnitude in `σ_min`
+across one step of the sweep, so the boundary is sharp rather than gradual.
+
+**What the law says.** The released `B_T = P_T Xᵀ` is `m × r` of rank `N`, so it carries
+`N(m + r − N)` independent numbers, however large `m × r` looks. Divide by the `N` images and each image
+gets a budget of `m + r − N` numbers. An image with more degrees of freedom than that cannot be pinned
+down, and the failure is genuine non-identifiability — residual at the reproduction floor, wrong image.
+So the honest capacity statement for the whole attack is:
+
+| channel | boundary | failure mode past it |
+|---|---|---|
+| certificate (Primitive 1-2) | `k < r − N` | true aliases; `C` is blind |
+| simulation (Primitive 3) | `k < m + r − N` | true aliases; `J` at the truth is rank-deficient |
+
+Simulation buys a factor of `(m + r − N)/(r − N)` in per-image complexity — here `28/8 = 3.5×` at `N = 8`
+— and the released head width `m` is what buys it. That is a much more useful statement than "the `r − N`
+budget does not bound the leakage", because it is a *quantitative* replacement rather than a negation, and
+it makes an immediately falsifiable prediction: widening the head (larger `m`) should widen the attack's
+reach linearly, at fixed rank.
 
 This is the figure the exercise was for. The certificate-only diagram (`results_rev9.pdf` Fig. 1) is
 **exactly 0 above the line `k = r − N`** — above it the certificate has fewer rows than the manifold has

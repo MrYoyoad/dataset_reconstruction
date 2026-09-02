@@ -28,7 +28,7 @@ import argparse, json, math, socket, sys, time
 import torch
 
 from experiments.exact_inversion.lora_exact_inversion import (
-    World, train_release, certificate, invert, qr_canon, git_hash, RECOVER_TOL)
+    World, train_release, certificate, invert, invert_lm, qr_canon, git_hash, RECOVER_TOL)
 
 torch.set_default_dtype(torch.float64)
 
@@ -66,7 +66,8 @@ def run_eps(args, eps, log=print):
         U_init, _ = qr_canon(world.features_from_latents(W_init))
         Xinit = A_T @ U_init
     t0 = time.time()
-    W_hat, aux, res, sec, n_rs, diag = invert(world, A_T, B_T, W0, y, args, W_init, Xinit, log)
+    solver = invert_lm if args.solver == "lm" else invert   # MUST match the main testbed's default (LM);
+    W_hat, aux, res, sec, n_rs, diag = solver(world, A_T, B_T, W0, y, args, W_init, Xinit, log)
     X_hat = world.psi(W_hat)
     err = (torch.linalg.norm(X_hat - X_img, dim=0) / torch.linalg.norm(X_img, dim=0))
 

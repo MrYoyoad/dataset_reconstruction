@@ -157,3 +157,40 @@ if s4:
     cb = fig.colorbar(im, ax=axes, fraction=0.030, pad=0.02); cb.set_label("fraction of runs / images recovered")
     fig.suptitle("The $r-N$ budget bounds one channel, not the leakage   (r = 16, plain SGD, FP64)", fontsize=11.5, y=1.10)
     fig.savefig(os.path.join(FIG, "phase_diagram_comparison.png"), bbox_inches="tight"); print("saved phase_diagram_comparison.png")
+
+# ---- the simulation channel's capacity law:  k < m + r - N  ----
+cap = load("step11_capacity") + load("step13_capacity_law")
+if cap:
+    import collections as _c
+    byN = _c.defaultdict(list)
+    for d in cap: byN[d["N"]].append(d)
+    fig, ax = plt.subplots(figsize=(6.6, 4.4), dpi=150)
+    cols = {4: "#1f4e79", 8: "#2e8b57", 12: "#b8860b"}
+    for N in sorted(byN):
+        rs = sorted(byN[N], key=lambda d: d["k"])
+        ks = [d["k"] for d in rs]; sm = [d.get("jac_sigma_min_truth", float("nan")) for d in rs]
+        m_, r_ = rs[0]["m"], rs[0]["r"]; kstar = m_ + r_ - N
+        c = cols.get(N, "#555")
+        ax.semilogy(ks, sm, "o-", color=c, label=f"N = {N}   (k* = m+r−N = {kstar})")
+        ax.axvline(kstar, color=c, ls="--", lw=1.2, alpha=.75)
+    ax.axhspan(1e-21, 1e-15, color="#bbb", alpha=.35)
+    ax.text(0.99, 0.03, "numerically rank-deficient:\nlocal identifiability fails", transform=ax.transAxes,
+            ha="right", va="bottom", fontsize=7.5, color="#444")
+    ax.set_xlabel("k   (manifold dimension = degrees of freedom per image)")
+    ax.set_ylabel(r"$\sigma_{\min}(J)$ at the truth")
+    ax.set_title("The simulation channel's own capacity boundary\n"
+                 r"$B_T=P_TX^\top$ has rank $N$, carrying $N(m{+}r{-}N)$ independent numbers $\Rightarrow$  $k < m+r-N$",
+                 fontsize=9.5)
+    ax.legend(fontsize=8, frameon=False); ax.grid(alpha=.25, which="both")
+    for s in ["top", "right"]: ax.spines[s].set_visible(False)
+    fig.tight_layout(); fig.savefig(os.path.join(FIG, "capacity_law.png")); print("saved capacity_law.png")
+    print("\n### Capacity law: last success and first failure per N\n")
+    print("| N | k* = m+r−N | last k recovered | first k failed | σ_min last ok | σ_min first fail |")
+    print("|---|---|---|---|---|---|")
+    for N in sorted(byN):
+        rs = sorted(byN[N], key=lambda d: d["k"])
+        ok = [d for d in rs if d.get("jac_sigma_min_truth", 0) > 1e-12]
+        bad = [d for d in rs if d.get("jac_sigma_min_truth", 1) <= 1e-12]
+        if ok and bad:
+            print(f"| {N} | {rs[0]['m']+rs[0]['r']-N} | {ok[-1]['k']} | {bad[0]['k']} | "
+                  f"{ok[-1]['jac_sigma_min_truth']:.1e} | {bad[0]['jac_sigma_min_truth']:.1e} |")
