@@ -333,46 +333,39 @@ The full-size Adam arm (`n=96`, LBFGS) descended to residual ~0.18 in ten outer 
 projected at ~20 h; it was killed in favour of the scaled-down LM cells above, which answer the same
 question far faster.
 
-## Step 2 (attacker-available initialisers) — RUNNING; 2 of 5 seeds per arm, all four fail
+## Step 2b — attacker-available initialisers: COMPLETE, 1 of 20 (the real bound on the attack)
 
-`random` / `span` / `cert` / `spananchor`. A first submission was **killed and discarded** rather than
-reported: its restarts re-seeded only the latents, leaving 57% of the unknown vector frozen at a stale
-value, so "8 restarts failed" would really have meant "one start, jittered 8 times". Since the
-framework's headline is *what a learned decoder must supply is an initializer*, that arm has to be able
-to support the claim it is quoted for.
+All four arms started from **release-only** points, i.e. no access to the truth. `k=12, N=8, T=1500`,
+5 seeds each, 8 restarts, post-fix code. This is the arm that measures what an attacker can actually do.
 
-All four arms start from a **global** (release-only) start, not from a perturbed truth. Two seeds each
-so far, k=12, N=8, T=1500, 8 restarts, cell where `k > r − N` so the certificate is blind by Primitive 2:
+| init | seeds | recovered | typical start err | residuals |
+|---|---|---|---|---|
+| random | 5 | **0** | 0.61-0.94 | 5e-3 … 1e-1 |
+| span (release span estimate, refined onto `ker C`) | 5 | **1** | 0.65-0.84 | 9e-7 … 3e-1 |
+| spananchor (minimise out-of-estimated-span energy) | 5 | **0** | 0.58-1.04 | 6e-3 … 3.7e-1 |
+| cert (minimise `‖Cφ(ψ(w))‖²`, the Primitive-1 anchor) | 5 | **0** | 0.74-1.04 | 3.5e-2 … 3.1e-1 |
 
-| init | seeds | start err | fraction recovered | residual | pre-solve diagnostic |
-|---|---|---|---|---|---|
-| random | 2 | 0.94, 0.86 | 0, 0 | 1.6e-2, 9.8e-2 | — |
-| span | 2 | 0.82, 0.84 | 0, 0 | 2.4e-1, 3.0e-1 | out-of-span energy 0.477, 0.481 |
-| spananchor | 2 | 1.04, 0.58 | 0, 0 | 3.7e-1, 1.3e-1 | out-of-span energy 0.423, 0.438 |
-| cert | 2 | 1.04, 0.74 | 0, 0 | 1.1e-1, 3.1e-1 | **‖Cφ(ψ(w))‖ driven to 1.1e-6** |
+**1 of 20.** The single success is the span estimator on seed 3, reaching a `9.2e-3` image error at
+residual `9.1e-7` — inside the 1e-2 tolerance but nowhere near the `1e-15`/`1e-30` that a perturbed-truth
+start reaches, so it entered the basin and was still converging rather than finishing.
 
-**The `cert` row is the informative one, and it is a clean demonstration of the alias structure rather
-than a solver complaint.** Its pre-solve genuinely succeeded: it drove the certificate residual to 1.1e-6,
-i.e. it found a point that satisfies `Cφ(ψ(w)) = 0` to six digits. That point sits at a **1.04 relative
-image error** from the truth. This is exactly what Primitive 2 predicts at `k = 12 > r − N = 8`: the
-certificate-consistent set is a manifold of dimension `k − (r − N) = 4` per image, so being
-certificate-consistent carries essentially no information about *which* point on it you are at. The
-subsequent exact inversion, started on that manifold, does not descend to the truth either — it ends at
-residual 1.1e-1, nonzero, so a search failure and not an alias of the full release.
+**The certificate anchor is the informative failure, and it is a clean demonstration of Primitive 2.** Its
+pre-solve genuinely succeeds: it drives `‖Cφ(ψ(w))‖` to `1.1e-6` on seed 1 and `5.0e-8` on seed 3, i.e. it
+finds points satisfying the certificate equation to six or eight digits. Those points sit **1.0-1.2 away
+in relative image error**. At `k = 12 > r − N = 8` the certificate-consistent set is a manifold of
+dimension `k − (r − N) = 4` per image, so landing on it says almost nothing about *which* point you are
+at. Satisfying the exact algebraic constraint is not evidence of anything on its own — which is the same
+lesson as "consistency with the release does not certify correctness", now measured on the attacker's
+side.
 
-The span-based arms fail differently: their pre-solve only reaches ~45% out-of-estimated-span feature
-energy, which is the span estimator's own 52° error showing up as a floor on how well any candidate can
-be aligned to it.
+The span arms fail differently: their pre-solve floors at ~42-48% out-of-estimated-span feature energy,
+which is the span estimator's own 52° error appearing as a hard alignment limit.
 
-Preliminary reading, 2 of 5 seeds: **the initialisers an attacker can actually build from the release do
-not reach the basin**, while a perturbed-truth start of up to 24% does. That is the framework's division
-of labour stated as a measurement rather than as a hope, and it is the strongest argument in this session
-for why a learned or population prior is the missing piece. It is not yet a result: 8 of 20 rows.
-
-One measurement already constrains it: the released span estimator `Ĥ = row(P_{row(B_T)}A_T)` sits at
-**52° mean principal angle** to the private span at the N=8 work point (59° at N=12), against ~78–83° for
-a random subspace. Informative, but far from the 18–29° the audit reports at n=256/768 — at this work
-point the span channel is a weak initializer, and `NOTES.md §3` records why the two are consistent.
+**This is the binding constraint on the whole attack, and it is the one number to quote.** Perturbed-truth
+starts recover from a 0.86 start error (Step 2); release-only starts recover 1 time in 20 from ~0.8. The
+basin is therefore strongly **anisotropic** — wide along truth-directions, and the attacker's realisable
+starts sit outside it. That is precisely the framework's claim that a learned or population prior must
+supply the initializer, now measured from both sides rather than assumed.
 
 ## Corrections applied mid-run (an adversarial review of the testbed, git 5762045)
 

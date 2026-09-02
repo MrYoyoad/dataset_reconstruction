@@ -1,6 +1,6 @@
 # Project Status
 
-## Exact LoRA inversion (framework Rev 10) — MEASURED: 49/49 exact recovery in the (N,k) phase diagram (one seed each), **each in a single attempt**, the certificate's `r−N` boundary does NOT bound the leakage (2026-09-02; **two claims corrected 2026-09-03**; jobs 395496 · 396202-07 · 396214-21 · 408565 · 456630 · 452904; Adam + initialiser arms 408559-63 RUNNING)
+## Exact LoRA inversion (framework Rev 10) — **A CAPACITY LAW: the simulation channel inverts iff `k < m + r − N`**, confirmed at N=4/8/12 (2026-09-03; jobs 469120 · 467914 · 466915/467622 · 459111 · 456630 · 452904 · 471272/473055/474132 · 408560-63; thread COMPLETE, all arms landed)
 
 Thread from an external theory bundle (`framework_rev10.pdf` theory · `results_rev9.pdf` finite-difference
 experiments · `audit_rev9.pdf` audit; authored outside this repo, PDFs still on the Mac — see
@@ -11,100 +11,144 @@ alone iff `k < r − N` strictly; (3) **exact inversion** — do not assume repr
 recipe as the forward model* and solve `Recipe_T(φ(ψ(wᵢ)), X) = (B_T, A_T U)` for the latents and `X = A₀U`.
 Testbed: `experiments/exact_inversion/` (FP64 PyTorch, **true backprop through the unrolled training loop**,
 Levenberg–Marquardt with an autograd Jacobian, per-line provenance), runner `scripts/run_exact_inversion_wexac.sh`.
-Full write-up **`experiments/exact_inversion/RESULTS.md`**, disagreements with the bundle in
+Full write-up **`experiments/exact_inversion/RESULTS.md`** (authoritative), disagreements with the bundle in
 **`experiments/exact_inversion/NOTES.md`**. **Every number below is provisional (†).**
 
 **The simulator IS the training map.** `fwd_check` — the relative error with which the span-adapted simulator
 reproduces the *actual* release when fed the true data and the true `X = A₀U` — is †7.4e-16 … †8.5e-16 across the
-validation cells. This operationally confirms the normal-form theorem: the release is a deterministic function of the
-candidate data plus the `rN` numbers in `X`, and nothing else about `A₀`. Every downstream claim rests on this number.
+validation cells (exactly †0.0 under Adam). Every downstream claim rests on this number.
 
-**CORRECTIONS (2026-09-03) — two claims that stood in the 2026-09-02 version of this section are WITHDRAWN.** Both
-trace to **one bug of ours**: the QR sign discontinuity (defect F4 below). A bare `torch.linalg.qr` flips a whole
-basis column when a candidate feature crosses zero, which makes the simulated release **discontinuous** in the
-candidate data, so LM rejects any step that crosses the seam — a systematic **false-failure** generator, exactly the
-"under-reports the basin" failure mode the adversarial review predicted. Both corrections run **in our favour**.
+### HEADLINE — the simulation channel has its own capacity boundary, and it is `k < m + r − N`
 
-1. ~~"One validation cell does NOT reproduce the bundle's finite-difference result (stalls at residual 5.7e-4); do not
-   quote *converges from within 10–15%* as reproduced."~~ **RETRACTED.** Re-run post-fix at the **same seed, same
-   start noise, same single restart, no staging**, the `(k=6, N=12, r−N=4)` cell recovers to †6.6e-16 in **14 LM
-   iterations** (residual †1.0e-30). Pre-fix (git `12fa60d`) it stalled at †5.7e-4; post-fix (git `276cfb3`) it
-   recovers. **`results_rev9.pdf` §3b DOES reproduce here.** The staged-schedule hypothesis offered at the time as the
-   likely explanation is also **wrong**: staging was tested directly, is **not** needed, and is *slower*
-   (`--stage-x 10` also recovers, in 53 iterations rather than 14). `NOTES.md §2` is now a retraction.
-2. ~~"15 of the 49 phase-diagram cells needed 4 restarts."~~ **WITHDRAWN.** Those 15 failed on **pre-fix** code and
-   were rescued on **post-fix** code *with* 4 restarts — one run changing **two** things at once, so it could not
-   attribute the recovery to either. Re-running the same 15 cells post-fix at **`restarts=1`** recovers **15 of 15**,
-   median residual †8.0e-31, median †17 LM iterations (job 456630). They were **false failures caused by the QR bug**;
-   the restarts were never needed, and the figure no longer marks any cell.
+`figures/exact_inversion/capacity_law.png` (job 469120, following the `N=8` scan in 467914).
 
-The **headline is unchanged and strengthened** by both: 49/49 recovery and "the `r−N` boundary does not bind exact
-inversion" now stand **without a restart caveat**.
+**Mechanism.** The released `B_T = P_T Xᵀ` is `m × r` but has **rank `N`**, so it carries only `N(m + r − N)`
+independent numbers however large `m × r` looks. Divide among the `N` images and each image gets a budget of
+`m + r − N`. An image with more degrees of freedom `k` than that cannot be pinned down.
 
-**HEADLINE — the (N,k) phase diagram with backprop: †49/49 cells recovered**, median residual †8.6e-31, **zero cells
-above the reproduction floor** (`N, k ∈ {2,…,14}` at `r=16`, `T=400`, start 10% off;
-`figures/exact_inversion/phase_diagram_exact.png`). The certificate-only diagram from the bundle is **exactly 0 above
-the line `k = r − N`**. Exact inversion recovers on **both sides** of that line: **`r − N` bounds one channel, not the
-leakage.** Any defense argued from "the adapter only exposes `r − N` independent rows" is arguing about one primitive.
-All 49 cells recover **(one seed each)** from a 10% start, **each in a single attempt** (`restarts=1`) on post-fix code — the earlier
-"15 of the 49 cells needed 4 restarts" caveat is **withdrawn**, see Correction 2 (job 456630). Remaining caveat: one
-seed per cell, so the grid shows the boundary does not bind — it does **not** measure a failure *rate*.
+| N | predicted `k* = m+r−N` | last `k` recovered | first `k` failed | `σ_min(J)` at last ok | `σ_min(J)` at first fail |
+|---|---|---|---|---|---|
+| 4 | **32** | 30 | 34 | †1.2e-6 | †8.8e-19 |
+| 8 | **28** | 26 | 32 | †3.5e-6 | †3.0e-20 |
+| 12 | **24** | 22 | 26 | †5.8e-6 | †2.5e-20 |
 
-**Basin at the fully-trained work point** (`k=12, N=8, T=1500, lr=.03`, deformation 0.96;
-`figures/exact_inversion/basin_curve.png`): recovers at every start distance up to a **†24% median start error**, first
-clean failure at †36%. That is **past the ~10–15% wall the finite-difference prototype reported**. The cost of distance
-is **restarts** (mean restarts used †1.0 → †3.2), not accuracy — it either converges to ~1e-14 or fails outright, never
-lands in between. Seed counts per row are small (1–5) and some arms were still accumulating when this was written.
-This arm was produced **pre-fix** (git `38fec3b`); by Correction 2 the pre-fix restart counts are an **upper bound** —
-untested post-fix, so treat "restarts as the currency" as provisional in the same way the withdrawn phase-diagram
-caveat was.
+Every predicted threshold is bracketed by its own last success and first failure, and **the three brackets are
+disjoint** — `N=12` has already collapsed at `k=26` while `N=4` is still healthy at `k=30` — which rules out a
+fixed-`k` explanation. `σ_min(J)` at the truth falls **13–14 orders across one step** of the sweep, so the boundary is
+sharp, not gradual. Past the line the failures are **genuine non-identifiability**: residual at the reproduction floor
+(†~1e-30) with the **wrong** image. These are the **only true aliases found anywhere in this session** (every other
+failure had a residual far above the floor and was a search failure). Note the wrong images sit just *under* the 1e-2
+recovery tolerance, so a naive `frac_recovered` scores them as successes — here the tolerance is the wrong instrument
+and `σ_min` is the right one.
 
-**Timing:** †1.4 s per LM iteration at T=400, †5.4 s at T=1500 (A40, FP64), ~20 iterations to machine precision; CPU is
-†1.7 s/iter at T=400 — **this testbed does not need a GPU.**
+**This supersedes the earlier negative framing.** Instead of "the `r−N` budget does not bound the leakage" the honest
+statement is now a *quantitative replacement*:
 
-**Adam arm (408559): RUNNING, no recovery claim either way.** Two things are already settled: (a) under Adam
-`rank B_T = r`, so the certificate is *identically zero* (measured †`‖C‖/‖A_T‖ = 2.8e-15`) and the natural metric
-`eps_inv = ‖CH‖/(‖A_T‖₂‖H‖)` then reads †1.9e-15 — a **perfect-looking certificate that is vacuous**, now flagged as
-`cert_vacuous` rather than reported as a pass; (b) the Adam simulator is **bit-exact** (`fwd_check` = 0.0), deformation
-2.42, so whatever it reports will be about conditioning and basins, not a recipe mismatch.
+| channel | boundary | failure mode past it |
+|---|---|---|
+| certificate (Primitives 1–2) | `k < r − N` | true aliases; `C` is blind |
+| simulation (Primitive 3) | `k < m + r − N` | true aliases; `J` at the truth is rank-deficient |
 
-**NEW (2026-09-03) — preconditioning does NOT fix the Adam case (job 452904).** The natural hypothesis was a
-**block-scaling mismatch** between the latent and `A₀` unknowns; it is wrong. Baseline unscaled `λI` damping reaches
-residual †7.6e-3 in 400 iterations; Marquardt `λ·diag(JᵀJ)` scaling reaches †2.2e-1 and †9.5e-3 in 200 iterations at two
-start distances (i.e. if anything *worse* than unscaled); Marquardt **plus** solving the `A₀` block alone for the first
-15 iterations leaves it at †1.1e-2. So the Adam difficulty is **not** block scaling, and the right treatment remains
-**open**. A regression arm in the same job confirms the default SGD path still recovers to †2.0e-15, so none of this is
-a refactor artifact.
+Simulation buys a factor `(m + r − N)/(r − N)` in per-image complexity — †3.5× at `N=8` — and **the released head
+width `m` is what buys it**. Immediately **falsifiable prediction, UNTESTED**: widening `m` should widen the attack's
+reach **linearly** at fixed rank.
 
-**Attacker-available initialiser arms** (`random`/`span`/`cert`/`spananchor`, jobs 408560-63): **RUNNING — 13 of 20
-rows and ONE recovery (updated 2026-09-03).** All arms start from a **global, release-only** start, never a perturbed
-truth. The one recovery: the **span-estimator** initialiser on **seed 3** reached a †4.0e-3 image error at residual
-†9.1e-7 — inside the 1e-2 recovery tolerance, but far from the ~1e-15 that perturbed-truth starts reach, so read it as
-*entered the basin and was still converging*, not as a finished recovery. The other 12 rows fail. Separately, the
-**certificate-anchor** arm drove its certificate residual to †5.0e-8 on seed 3 and still landed **0.70 away** in image
-error — a direct demonstration that satisfying the certificate equation carries almost **no** information about the
-image when `k > r − N` (the certificate-consistent set is a manifold of dimension `k − (r − N)` per image). Still no
-overall claim at 13/20 rows. A first submission was killed and discarded because its restarts re-seeded only the
-latents, leaving most of the unknown vector frozen. Related measurement: the released span estimator `Ĥ = row(P_{row(B_T)}A_T)` sits at
-†**52° mean principal angle** to the private span at N=8 (†59° at N=12) vs ~†78–83° for a random subspace —
-informative, but a **weak** initializer at this work point, and much weaker than the 18–29° the audit reports at
-larger `n`.
+**This also explains the 49/49 phase diagram, and scopes it.** The per-image budget here is `k < 36 − N`, so at the
+grid's worst corner (`N=14`) the ceiling is `k < 22` while the grid only reaches `k=14`: **the whole 49-cell grid lies
+strictly inside the capacity region** and could not have found this boundary. The †49/49 result (median residual
+†8.6e-31, one seed per cell, single attempt each, `figures/exact_inversion/phase_diagram_comparison.png`) **stands**,
+but as an existence result **scoped to that regime**, not as evidence that simulation is unbounded.
 
-**Reproduces (was: "does not reproduce").** The `(k=6, N=12, r−N=4)` validation cell recovers post-fix to †6.6e-16 in
-14 LM iterations at the same seed, start and single restart, so `results_rev9.pdf` §3b reproduces and the bundle's
-"converges from within 10–15%" is **not** contradicted by us. The staged-`X` explanation is refuted too. See
-Correction 1 above and `NOTES.md §2` (now a retraction).
+### The initialiser arms are COMPLETE, and they are the binding constraint on the attack
 
-**Testbed defects found by adversarial review and fixed at git `5762045`** (the sweep and near-basin arms were produced
-pre-fix at `38fec3b`; none of the six can turn a failure into a false recovery, but they can and did turn recoveries
-into false failures). The serious one: **the entire Adam Jacobian was NaN** (1925/1925 entries) because `B₀ = 0` makes
-the A-gradient exactly zero at `t=1`, so `v_A = 0` and `d/dv √v` is infinite while the incoming sensitivity is zero →
-`0 × inf = NaN`; NaN then propagates silently through `linalg.solve` and every damping trial is rejected (`nan < x` is
-False), so the run exits without moving and would have reported *"an Adam release is not invertible even from 5% off"* —
-a fabricated negative answer. Post-fix gate: 0/1925 NaN, `fwd_check` still exactly 0.0. (See LESSONS_LEARNED 2026-09-02.)
+All four arms start from **release-only** points — no access to the truth (`k=12, N=8, T=1500`, 5 seeds each,
+8 restarts, post-fix code; jobs 408560-63).
 
-**Next:** the **initialiser arms are the only ones whose outcome would change the story**, because the framework's
-claim is that what a learned decoder must supply is an *initializer* — not a metric and not a gradient bridge.
+| init | seeds | recovered | typical start err |
+|---|---|---|---|
+| random | 5 | **0** | 0.61–0.94 |
+| span (release span estimate refined onto `ker C`) | 5 | **1** | 0.65–0.84 |
+| spananchor | 5 | **0** | 0.58–1.04 |
+| cert (Primitive-1 anchor) | 5 | **0** | 0.74–1.04 |
+
+**†1 of 20.** The single success is the span estimator on seed 3: image error †9.2e-3 at residual †9.1e-7 — inside the
+1e-2 tolerance but nowhere near the †1e-15/†1e-30 a perturbed-truth start reaches, so read it as *entered the basin,
+still converging*, not as a finished recovery.
+
+**The certificate anchor is the informative failure and a clean demonstration of Primitive 2.** Its pre-solve genuinely
+succeeds — it drives `‖Cφ(ψ(w))‖` to †1.1e-6 (seed 1) and †5.0e-8 (seed 3), i.e. the certificate equation is satisfied
+to six or eight digits — and those points still sit **1.0–1.2 away in relative image error**, because at
+`k=12 > r−N=8` the certificate-consistent set is a `k−(r−N) = 4`-dimensional manifold per image. Satisfying the exact
+algebraic constraint carries almost no information on its own.
+
+Set against the perturbed-truth basin below, this says the basin is strongly **ANISOTROPIC** — wide along
+truth-directions, and **not attacker-reachable**. That is measured confirmation, from both sides, of the framework's
+claim that a **learned/population prior must supply the initializer**.
+
+### Basin (perturbed-truth) — 16/17 recover to a 0.86 start error, and the edge was NOT located
+
+Post-fix, `restarts=1`, 3 seeds per level, 80 LM iterations (job 459111; `k=12, N=8, T=1500, lr=.03`, deformation 0.96;
+`figures/exact_inversion/basin_curve.png`). Recovery re-derived objectively from `final_err_max` (every image < 1e-2),
+not from the `verdict` field. †16 of 17 runs recover, out to a worst-case **start error of 0.86**, every one on the
+first attempt. The single non-recovery stopped at the **80-iteration cap still descending**, residual †8.0e-5 — nowhere
+near the reproduction floor, so a **budget limit, not a basin wall**. Do not read the edge as sitting just past the last
+level tested. (The `init-noise` label is a latent perturbation and maps non-linearly to image error; read the achieved
+start error.) The earlier "recovers to 24%, first clean failure at 36%, restarts are the currency of distance" table is
+**withdrawn** — it was pre-fix and an artefact of the QR seam bug.
+
+### Adam: identifiable at every scale tested — two moderate obstacles, not a wall
+
+Evaluating the Jacobian **at the ground-truth parameters** (`--jac-at-truth`, gated on `‖res(truth)‖`; jobs 466915,
+467622) — the earlier `cond ≈ 1e7…3e8` came from the solver's **stuck point**, not the map. The Adam release has
+**full column rank at every scale tested, including the full-size `n=96` release** (`‖res(truth)‖` exactly †0.0, since
+the Adam simulator is bit-exact) — that is Proposition 6 for the cell we could not invert and dropped for cost.
+
+| shape | sgd `cond` at truth | adam `cond` at truth | ratio |
+|---|---|---|---|
+| n=32, k=6, N=4 | †1.2e2 – 1.7e2 | †1.1e3 – 3.4e3 | ~10–20× |
+| n=96, k=12, N=8 | †2.0e3 | †8.0e5 | ~400× |
+
+So Adam's solution conditioning **is** worse than SGD's and **worsens with size** — report it as a trend, not a number
+— but it is one to three orders, not the `1e5`–`1e8` first read, and it stays full rank. **Preconditioning does not
+fix it** (job 452904): Marquardt `λ·diag(JᵀJ)` scaling is if anything *worse* than unscaled `λI` damping, so the
+difficulty is not a latent-vs-`A₀` block-scaling mismatch. Net: at scale Adam buys the defender **two moderate
+obstacles — a conditioning penalty and a much smaller basin — not non-identifiability**. Whether either is erodable by
+better optimisation (trust region, Gauss-Newton with line search, a better start, or not differentiating through the
+moment buffers) is **UNTESTED**. Also: under Adam `rank B_T = r`, so `C ≡ 0` and `eps_inv` reads as a *perfect*
+certificate while being vacuous — always read `cert_norm`/`cert_vacuous` beside it.
+
+### Near-duplication contaminates the certificate; it does not buy privacy from simulation
+
+Jobs 471272 + 473055 + 474132, at `k=12, N=8, T=400`, with example 1 = example 0 + `ε·δ` in latent space, same label.
+
+- **Certificate: a real, non-monotone contamination band with clean endpoints.** `‖CH‖` runs
+  †2e-15 → †5e-15 → †1.9e-13 → **†7.8e-7** → †7.8e-9 → †1.7e-15 as separation shrinks: off, on, peaking exactly where
+  `rank B_T` collapses `8 → 7` (and `rank C` jumps `8 → 9`), then back to †~1e-15 at **exact** duplication, where the
+  private span really is `N−1`-dimensional and the certificate is simply solving a correctly smaller problem. Six
+  orders above clean at the peak.
+- **`σ_N(B_T)/σ_1(B_T)` is the graded detector; `‖CH‖` is fragile.** The ratio falls smoothly and monotonically over
+  fifteen orders (†1.5e-1 → †2.0e-16), tracking separation the whole way. Read degeneracy off `σ_N(B_T)`, never off
+  `‖CH‖`.
+- **The simulation channel's apparent threshold near separation †0.2 is a SOLVER FLOOR, not an information boundary.**
+  The same failing cell recovers to image error †1.8e-14 at residual †8.9e-31 with **10× the budget** (800 iters,
+  4 restarts). The transition is also a smooth ramp, not a cliff (job 474132 filled the sampling gap). So **a defender
+  cannot buy privacy by perturbing-and-copying a record: it costs the attacker compute, not access.** The only
+  fundamental alias in this family is **exact** duplication.
+
+### On the trustworthiness of these numbers
+
+Several of my own claims were **withdrawn during this session after follow-up measurements**: a false non-reproduction
+of the source work (`NOTES.md §2`), a "15 cells needed restarts" caveat, an "Adam defends by conditioning" reading, an
+"only the basin differs" reading, a vacuous "blend" diagnostic, and a "cliff" that was a sampling artefact — each
+traced either to one QR-seam defect in our own code (`torch.linalg.qr` sign flips making the simulated release
+discontinuous, a systematic **false-failure** generator; fixed at git `5762045`) or to reading a diagnostic at the
+wrong point. That pattern is **why these results are trustworthy now, not a reason to distrust them**. The other
+serious testbed defect: the entire Adam Jacobian was NaN (1925/1925) because `B₀=0` ⇒ `v_A=0` ⇒ `0 × inf`, which would
+have fabricated *"an Adam release is not invertible"*. (See LESSONS_LEARNED 2026-09-02.)
+
+**Next:** (1) test the falsifiable prediction that widening `m` widens reach linearly at fixed rank; (2) the Adam
+analogue of the basin sweep plus one trust-region attempt; (3) locate the SGD basin edge at a higher iteration cap;
+(4) the real-data step (frozen DINO/CLIP features + adapter head), scoped by the task spec as a separate task.
 
 ## Free-coefficient LoRA reconstruction at non-trivial T + the N-sweep (2026-08-31, jobs 323866/323867/336206/341742/497350/528750)
 
