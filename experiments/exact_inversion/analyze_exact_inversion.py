@@ -87,8 +87,15 @@ if s3:
                  n_alias=sum("alias" in r["verdict"] for r in rs), n_optfail=sum("optim" in r["verdict"] for r in rs)) for nz, rs in sorted(by.items())]
     table(rows, list(rows[0].keys()), "Step 3 — Adam release (k=12, N=8, T=800, lr=.003), unknowns = latents + full A0")
 
-# ---- step 4: phase diagram ----
-s4 = load("step4_sweep.jsonl")
+# ---- step 4: phase diagram (merged with the step-5 rescue pass, which re-runs the failed cells
+#      with 4 restarts that re-seed the whole unknown vector) ----
+s4 = load("step4_sweep.jsonl"); s5 = load("step5_rescue")
+rescued = {(d["k"], d["N"]) for d in s5 if d["frac_recovered"] == 1.0}
+by_cell = {(d["k"], d["N"]): d for d in s4}
+for d in s5:
+    if d["frac_recovered"] >= by_cell.get((d["k"], d["N"]), d)["frac_recovered"]:
+        by_cell[(d["k"], d["N"])] = d
+s4 = list(by_cell.values()) if s4 else []
 if s4:
     Ns = sorted({r["N"] for r in s4}); ks = sorted({r["k"] for r in s4}); r0 = s4[0]["r"]
     M = np.full((len(ks), len(Ns)), np.nan); V = np.full_like(M, np.nan)
@@ -102,12 +109,48 @@ if s4:
     for a in range(len(ks)):
         for b in range(len(Ns)):
             if not np.isnan(M[a, b]):
-                ax.text(b, a, f"{M[a, b]:.2f}", ha="center", va="center", fontsize=7.5, color="white" if M[a, b] > 0.55 else "#222")
-    ax.set_title(f"Exact inversion (backprop through the recipe), start 10% off   (r = {r0}, SGD T=400, FP64)", fontsize=9)
+                mark = "*" if (ks[a], Ns[b]) in rescued else ""
+                ax.text(b, a, f"{M[a, b]:.2f}{mark}", ha="center", va="center", fontsize=7.5, color="white" if M[a, b] > 0.55 else "#222")
+    ax.set_title(f"Exact inversion (backprop through the recipe), start 10% off   (r = {r0}, SGD T=400, FP64)\n"
+                 f"* = needed 4 restarts; the certificate alone recovers NOTHING above the dashed line", fontsize=8.5)
     cb = fig.colorbar(im, ax=ax, fraction=0.045); cb.set_label("fraction of images recovered (err < 1e-2)")
     for s in ["top", "right"]: ax.spines[s].set_visible(False)
     fig.tight_layout(); fig.savefig(os.path.join(FIG, "phase_diagram_exact.png")); print("saved phase_diagram_exact.png")
     print("\n### Step 4 — frac_recovered over (k rows, N cols)\n"); print("| k \\ N | " + " | ".join(map(str, Ns)) + " |"); print("|---|" + "---|" * len(Ns))
     for a, k in enumerate(ks): print(f"| {k} | " + " | ".join("" if np.isnan(x) else f"{x:.2f}" for x in M[a]) + " |")
     print("\nresidual (median over cells): %.1e; cells with residual>1e-16: %d / %d" % (np.nanmedian(V), int(np.nansum(V > 1e-16)), int(np.sum(~np.isnan(V)))))
+    print(f"\ncells rescued by restarts (failed at restarts=1, recovered at restarts=4): {len(rescued)}")
     table([r for r in s4 if r["frac_recovered"] < 1], ["k", "N", "r_minus_N", "frac_recovered", "final_err_median", "residual", "verdict"], "Step 4 — cells not fully recovered")
+
+# ---- the comparison figure: what the certificate alone can do vs what the recipe-simulating inversion does ----
+# Left panel is TRANSCRIBED from results_rev9.pdf Figure 1 (the bundle's own finite-difference run, provisional,
+# produced outside this repo).  Right panel is this repo's measurement.  Same axes, same r = 16.
+CERT_ONLY = {  # [k][N] with N = 2,4,...,14
+    14: [0.83, 0, 0, 0, 0, 0, 0], 12: [1.00, 0.67, 0, 0, 0, 0, 0], 10: [1.00, 1.00, 0.94, 0, 0, 0, 0],
+    8: [1.00, 1.00, 0.94, 0.88, 0, 0, 0], 6: [1.00, 1.00, 1.00, 1.00, 0.67, 0, 0],
+    4: [1.00, 0.92, 0.94, 1.00, 0.97, 0.67, 0], 2: [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 0.81]}
+
+if s4:
+    Ns_c = [2, 4, 6, 8, 10, 12, 14]; ks_c = [2, 4, 6, 8, 10, 12, 14]
+    Mc = np.array([CERT_ONLY[k] for k in ks_c], dtype=float)
+    fig, axes = plt.subplots(1, 2, figsize=(11.4, 4.9), dpi=150, sharey=True)
+    for ax, (Mx, title, sub) in zip(axes, [
+            (Mc, "Certificate $C$ alone", "$CH=0$ has $r-N$ rows; blind above the line\n(transcribed from the bundle's finite-difference run)"),
+            (M, "Exact inversion: simulate the recipe", "unknowns = latents and $X=A_0U$; $*$ = needed 4 restarts\n(this repo, backprop through the unrolled training)")]):
+        im = ax.imshow(Mx, origin="lower", cmap="Blues", vmin=0, vmax=1, aspect="auto")
+        ax.set_xticks(range(len(Ns_c))); ax.set_xticklabels(Ns_c); ax.set_yticks(range(len(ks_c))); ax.set_yticklabels(ks_c)
+        ax.set_xlabel("N   (private examples)")
+        Nl = np.linspace(2, 14, 100); ax.plot((Nl - 2) / 2, (16 - Nl - 2) / 2, color="#111", lw=1.6, ls="--")
+        ax.set_title(title, fontsize=11, pad=26); ax.text(0.5, 1.012, sub, transform=ax.transAxes, ha="center", va="bottom", fontsize=7.5, color="#444")
+        for a in range(len(ks_c)):
+            for b in range(len(Ns_c)):
+                v = Mx[a, b]
+                if np.isnan(v): continue
+                mark = "*" if (Mx is M and (ks_c[a], Ns_c[b]) in rescued) else ""
+                ax.text(b, a, f"{v:.2f}{mark}", ha="center", va="center", fontsize=7.5, color="white" if v > 0.55 else "#222")
+        for sp in ["top", "right"]: ax.spines[sp].set_visible(False)
+    axes[0].set_ylabel("k   (manifold dimension)")
+    axes[0].text(4.35, 2.35, "k = r − N", fontsize=8.5, rotation=-38, color="#111")
+    cb = fig.colorbar(im, ax=axes, fraction=0.030, pad=0.02); cb.set_label("fraction of runs / images recovered")
+    fig.suptitle("The $r-N$ budget bounds one channel, not the leakage   (r = 16, plain SGD, FP64)", fontsize=11.5, y=1.10)
+    fig.savefig(os.path.join(FIG, "phase_diagram_comparison.png"), bbox_inches="tight"); print("saved phase_diagram_comparison.png")
