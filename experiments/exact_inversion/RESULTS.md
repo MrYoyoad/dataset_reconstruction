@@ -112,6 +112,14 @@ budget**:
 
 which at `N = 8` predicts `k* = 28`, between the last success (`k = 26`) and the first failure (`k = 32`).
 
+**This also closes the Q5 scoping question, and explains the 49/49 grid.** The per-image budget is
+`k < m + r − N = 36 − N` here, which *decreases* with `N` at one degree of freedom per added image — so the
+simulation channel does degrade with `N`, just not in the `Nk ≈ mr` form first guessed. And it is exactly
+why the phase diagram recovered everywhere: at its worst corner `N = 14` the ceiling is `k < 22`, while the
+grid only reaches `k = 14`. **The whole 49-cell grid lies strictly inside the capacity region**, so it
+could not have found this boundary. The two open questions (the equation count, and the grid's regime
+scope) turn out to have been the same missing fact.
+
 **CONFIRMED across three values of `N` (job 469120).** The threshold is not a fixed `k`; it moves with `N`
 exactly as `m + r − N` says it should. `figures/exact_inversion/capacity_law.png`.
 
@@ -467,5 +475,31 @@ protect the batch.
 **Gap in the sampling, being filled.** The sweep jumps from the clean control (separation 1.06, full
 recovery) straight to `ε = 0.3` (separation 0.074, pair unresolved). The transition sits in that gap and
 was never sampled; job 473055 fills it at `ε = 5, 3, 2, 1, 0.5`. Until it reports, "how similar is too
-similar" is unmeasured. The `α` blend coefficients recorded in the tight band are meaningless there (the
+similar" is unmeasured.
+
+### PRE-REGISTERED prediction for job 473055 (recorded before the data was read)
+
+From the derivation check, on request, *before* the gap run reported. **Claim: the transition is smooth in
+the conditioning, not a sharp separation cliff.** Reasoning: for any `featsep > 0` the pair is identifiable
+in principle, because the same-label blend symmetry is exact only at `δ = 0` and is broken at
+`O(featsep)`. So the failure must be conditioning/optimisation, which degrades continuously. Specifically:
+
+1. pair error **rises continuously** with decreasing separation, a ramp from ~1e-15 toward ~`featsep/2`,
+   and the `recovered` boolean flips where that ramp crosses the 1e-2 tolerance. That crossing is a
+   threshold on a smooth curve, **not** a phase transition.
+2. residuals of the un-recovered rows stay **above** the reproduction floor (~1e-8, as in the tight band),
+   confirming search/conditioning.
+3. the other `N−2` degrade **smoothly** too, because a near-degenerate pair inflates `cond(J)` for the
+   whole batch — the same mechanism as the Adam arm.
+4. the transition separation is **solver-set, not fundamental**: this is the `N=2` case of the repo's
+   superposition problem, the un-blend direction's singular value scales like `featsep`, so
+   `cond(J) ~ 1/featsep`. A longer-budget or more-restart run should push the transition lower and recover
+   the `N−2` to machine precision while the pair stays blended.
+
+**Falsifier, stated in advance:** a sharp cliff at a *budget-independent* separation, with
+floor-residual (`~1e-30`) aliases below it, would mean a real information boundary and the prediction is
+wrong. That would be the more defense-favourable finding, so it is the one to watch for.
+
+The `err_to_self ≈ err_to_other ≈ featsep/2` fingerprint already observed (`0.074/2 ≈ 0.037` against the
+measured `3.8e-2`) is the signature of a **midpoint blend**, consistent with (1). The `α` blend coefficients recorded in the tight band are meaningless there (the
 line through the two originals degenerates as they coincide) — use `err_to_other` instead, as above.
