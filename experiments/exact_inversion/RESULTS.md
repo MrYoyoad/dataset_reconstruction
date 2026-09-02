@@ -147,16 +147,22 @@ the attack's favour. Post-fix (job 459111, `--restarts 1`, 3 seeds per level, 80
 | 0.40 | 0.237 | 0.449 | 3/3 | 1.3e-14 | 1, 1, 1 |
 | 0.50 | 0.291 | 0.543 | 3/3 | 1.7e-14 | 1, 1, 1 |
 | 0.70 | 0.447 | 0.653 | 3/3 | 1.6e-14 | 1, 1, 1 |
+| 1.00 | 0.539 | 0.858 | **2/3** | 1.3e-14 (of the two) | 1, 1, 1 |
 
 "Recovered" here is re-derived objectively from `final_err_max`, i.e. **every** image below 1e-2, not from
 the `verdict` field.
 
-**No failure at any tested start distance, up to a worst-case start error of 0.65, every one on the first
-attempt. The basin edge was NOT located** — the sweep ran out of levels before the solver ran out of
-basin. Do not read the edge as sitting just past the last level tested; it was not measured. (Note the
-`init-noise` label is a latent-space perturbation and maps non-linearly to image error: the 0.70 arm
-produced a worst-case start error of 0.65, not 0.70.) The finite-difference prototype reported
-convergence only from within ~10-15% and a local minimum at 30%.
+**Sixteen of seventeen runs recover, to a worst-case start error of 0.86, every one on the first attempt.
+The basin edge is still NOT located.** The single non-recovery (noise 1.00, seed 1) is not a demonstrated
+boundary: it stopped at the 80-iteration cap **still descending**, with a residual of 8.0e-5 that is
+nowhere near the reproduction floor — a budget limit, not a basin wall. The other two seeds at that same
+level converged to 1.2e-14 in 66 and 80 iterations. So the honest statement is that the sweep never found
+the boundary; raising the iteration cap is what would settle it, and I have not done that. Do not read the
+edge as sitting just past the last level tested.
+
+(Note the `init-noise` label is a latent-space perturbation and maps non-linearly to image error: the 1.00
+arm produced start errors of 0.48-0.86, not 1.00. Read the achieved start error, not the label.) The
+finite-difference prototype reported convergence only from within ~10-15% and a local minimum at 30%.
 
 **The basin is anisotropic, and this number must not be lifted out of context.** These starts are
 `truth + noise`, a deliberately favourable direction that an attacker cannot construct. The
