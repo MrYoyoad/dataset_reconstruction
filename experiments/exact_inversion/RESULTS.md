@@ -81,11 +81,38 @@ the Adam arm already demonstrates that a different limit can dominate. Job 46791
 | 20 | 160 | 9.2e-16 | 1.03e-4 | 1.6e4 | 8.2e-15 | 5.2e-31 |
 | 26 | 208 | 1.1e-15 | 3.54e-6 | 4.6e5 | 7.1e-13 | 9.2e-31 |
 
-The heuristic is behaving like a real capacity law: recovery still succeeds at all three, but the
-reconstruction error has already degraded two orders of magnitude by `Nk = 208` while the residual stays
-at the floor — the signature of a problem going flat rather than a solver failing. Extrapolating the
-decay, `σ_min` reaches the FP64 noise level near `Nk ≈ mr`. The `k = 32, 38, 44` cells
-(`Nk = 256, 304, 352`) are still running and are the ones that matter.
+| 32 | 256 | — | **3.03e-20** | 7.6e19 | 5.3e-3 | 9.3e-31 |
+| 38 | 304 | — | **1.06e-20** | 1.3e20 | 7.9e-3 | 8.0e-31 |
+| 44 | 352 | — | **3.45e-19** | 7.2e18 | 9.3e-3 | 7.9e-31 |
+
+**The simulation channel does have its own boundary, and this is the first genuine non-identifiability
+anywhere in the study.** `σ_min(J)` at the truth falls geometrically and then collapses to the FP64 noise
+level between `Nk = 208` and `Nk = 256`: `3.5e-6 → 3.0e-20`, a fall of fourteen orders across one step of
+the sweep, with `cond` correspondingly at `1e20`. Past that point the Jacobian at the truth is numerically
+rank-deficient, so **local identifiability fails** — the solution is no longer isolated.
+
+Read the residual column carefully, because it is the discriminator this project keeps relying on. In the
+failed cells the residual is still at the reproduction floor (`~9e-31`) while the image error is `5e-3` to
+`9e-3`. That is the signature of an **alias**: the release is reproduced exactly by a point that is not
+the truth. Every failure earlier in this study had a non-zero residual and was a search failure; these are
+the first cells where the release genuinely does not determine the data. (Note the errors sit just under
+the 1e-2 recovery tolerance, so a naive `frac_recovered` would score them as successes. They are not
+successes — they are a flat direction that happens to be locally weak. This is a case where the tolerance
+is the wrong instrument and `σ_min` is the right one.)
+
+**The boundary matches the refined count, not the naive one.** `Nk ≈ mr = 320` was the first guess. The
+observed collapse is between 208 and 256, which `mr` does not predict — but the derivation check's
+refinement does: `B_T = P_T Xᵀ` has rank `N`, so it carries only `N(m + r − N)` independent numbers, which
+at `N = 8` is `8 × 28 = 224`. The observed boundary brackets 224. Equivalently the law is a **per-image
+budget**:
+
+```
+        k  <  m + r − N          (per-image degrees of freedom below per-image released information)
+```
+
+which at `N = 8` predicts `k* = 28`, between the last success (`k = 26`) and the first failure (`k = 32`).
+Job 469120 tests the `N`-dependence directly, straddling `k* = 32, 28, 24` at `N = 4, 8, 12`: if the
+boundary tracks `m + r − N` rather than sitting at a fixed `k`, the law is real.
 
 This is the figure the exercise was for. The certificate-only diagram (`results_rev9.pdf` Fig. 1) is
 **exactly 0 above the line `k = r − N`** — above it the certificate has fewer rows than the manifold has
