@@ -39,8 +39,11 @@ import torch
 
 torch.set_default_dtype(torch.float64)
 
+SQRT_FLOOR = 1e-300       # see F1 above: keeps d/dv sqrt(v) finite at v = 0 without changing the FP64 value
 RECOVER_TOL = 1e-2        # relative image error below which an image counts as recovered
-RESID_ZERO = 1e-16        # residual below which the release is reproduced ("consistent" candidate)
+RESID_ZERO = 1e-28        # residual below which the release is reproduced. The residual is a sum of SQUARED
+                          # relative Frobenius errors; genuine recovery sits at 9e-31..2e-30, so 1e-16 (a 1e-8
+                          # relative reproduction error) would let a merely-stalled run be labelled an alias.
 
 
 def git_hash():
@@ -103,19 +106,28 @@ def train_release(H, A0, W0, y, m, T, lr, release, wd=0.0, betas=(0.9, 0.999), e
             mA = b1 * mA + (1 - b1) * gA; vA = b2 * vA + (1 - b2) * gA * gA
             mB = b1 * mB + (1 - b1) * gB; vB = b2 * vB + (1 - b2) * gB * gB
             c1, c2 = 1 - b1 ** t, 1 - b2 ** t
-            A = (1 - lr * wd) * A - lr * (mA / c1) / (torch.sqrt(vA / c2) + eps)
-            B = (1 - lr * wd) * B - lr * (mB / c1) / (torch.sqrt(vB / c2) + eps)
+            A = (1 - lr * wd) * A - lr * (mA / c1) / (torch.sqrt(vA / c2 + SQRT_FLOOR) + eps)
+            B = (1 - lr * wd) * B - lr * (mB / c1) / (torch.sqrt(vB / c2 + SQRT_FLOOR) + eps)
     return A, B
 
 
 # ----------------------------------------------------------------------------------------------------------
 # Differentiable simulators (attacker side)
 # ----------------------------------------------------------------------------------------------------------
+def qr_canon(M):
+    """QR with diag(R) > 0.  LAPACK picks each pivot sign from the pivot entry, so a bare qr() jumps
+       (a whole column flips) when a feature crosses zero; the simulated release would then be
+       discontinuous in the candidate data and LM would reject steps that cross the seam (F4)."""
+    Q, R = torch.linalg.qr(M)
+    sgn = torch.sign(torch.diagonal(R)); sgn = torch.where(sgn == 0, torch.ones_like(sgn), sgn)
+    return Q * sgn, R * sgn[:, None]
+
+
 def simulate_sgd_reduced(Hc, X, W0, y, m, T, lr, wd=0.0):
     """SGD in span-adapted coordinates.  Hc: candidate features (n,N); X: candidate A_0 U (r,N).
        Returns simulated (B_T, Xi_T = A_T U, U).  Exact under the normal form; cost is independent of n."""
     N = Hc.shape[1]; r = X.shape[0]
-    U, _ = torch.linalg.qr(Hc)                       # (n, N) orthonormal basis of the candidate span
+    U, _ = qr_canon(Hc)                              # (n, N) orthonormal basis of the candidate span
     RH = U.T @ Hc                                    # (N, N)  so that Hc = U RH
     Y = torch.eye(m, device=Hc.device)[y].T
     WH = W0 @ Hc
@@ -143,8 +155,8 @@ def simulate_adam_full(Hc, A0c, W0, y, m, T, lr, wd=0.0, betas=(0.9, 0.999), eps
         mA = b1 * mA + (1 - b1) * gA; vA = b2 * vA + (1 - b2) * gA * gA
         mB = b1 * mB + (1 - b1) * gB; vB = b2 * vB + (1 - b2) * gB * gB
         c1, c2 = 1 - b1 ** t, 1 - b2 ** t
-        A = (1 - lr * wd) * A - lr * (mA / c1) / (torch.sqrt(vA / c2) + eps)
-        B = (1 - lr * wd) * B - lr * (mB / c1) / (torch.sqrt(vB / c2) + eps)
+        A = (1 - lr * wd) * A - lr * (mA / c1) / (torch.sqrt(vA / c2 + SQRT_FLOOR) + eps)
+        B = (1 - lr * wd) * B - lr * (mB / c1) / (torch.sqrt(vB / c2 + SQRT_FLOOR) + eps)
     return A, B
 
 
@@ -232,6 +244,22 @@ def make_init(args, world, A_T, B_T, C, W_true, g, dev, log):
 # ----------------------------------------------------------------------------------------------------------
 # Inversion
 # ----------------------------------------------------------------------------------------------------------
+def restart_point(world, A_T, W_init, Xinit, rs, args, g):
+    """Re-seed the WHOLE unknown vector on a restart.  Jittering only the latents leaves the r x N nuisance
+       block X frozen at a value built from the UN-jittered start -- at the r=16, N=8 work point that is 57%
+       of the unknowns never restarted, and the stale X no longer matches the moved candidate span (F5)."""
+    if rs == 0:
+        return W_init.clone(), Xinit.clone()
+    W = W_init + args.restart_noise * torch.randn(W_init.shape, generator=g).to(W_init.device)
+    with torch.no_grad():
+        if args.release == "sgd":
+            U, _ = qr_canon(world.features_from_latents(W))
+            aux = A_T @ U                            # rebuild the crude X estimate for the MOVED span
+        else:
+            aux = A_T + args.restart_noise * torch.randn(A_T.shape, generator=g).to(A_T.device) * A_T.std()
+    return W, aux
+
+
 def invert(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
     """LBFGS on the residual of the simulated release.  Returns best (W, aux, residual, timing)."""
     m = args.m; T = args.T; lr = args.lr
@@ -241,8 +269,8 @@ def invert(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
         Hc = world.features_from_latents(W)
         if args.release == "sgd":
             Bs, Xis, U = simulate_sgd_reduced(Hc, aux, W0, y, m, T, lr, args.wd)
-            target = A_T @ U
-            return (torch.linalg.norm(Bs - B_T) / nB) ** 2 + (torch.linalg.norm(Xis - target) / torch.linalg.norm(target)) ** 2
+            target = A_T @ U                         # normalise by |A_T| (fixed), NOT |A_T U| which U (hence W) moves
+            return (torch.linalg.norm(Bs - B_T) / nB) ** 2 + (torch.linalg.norm(Xis - target) / nA) ** 2
         else:
             As, Bs = simulate_adam_full(Hc, aux, W0, y, m, T, lr, args.wd)
             return (torch.linalg.norm(Bs - B_T) / nB) ** 2 + (torch.linalg.norm(As - A_T) / nA) ** 2
@@ -252,10 +280,7 @@ def invert(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
     outer_times = []; n_restarts_used = 0
     for rs in range(args.restarts):
         n_restarts_used += 1
-        W = W_init.clone()
-        if rs > 0:                                   # multi-start: jitter the initialiser
-            W = W + args.restart_noise * torch.randn(W.shape, generator=g).to(W.device)
-        aux = Xinit.clone()
+        W, aux = restart_point(world, A_T, W_init, Xinit, rs, args, g)
         W.requires_grad_(True); aux.requires_grad_(True)
         opt = torch.optim.LBFGS([W, aux], lr=1.0, max_iter=args.lbfgs_iter, history_size=50,
                                 line_search_fn="strong_wolfe", tolerance_grad=1e-14, tolerance_change=1e-16)
@@ -277,7 +302,7 @@ def invert(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
         if fval < best[2]:
             best = (W.detach().clone(), aux.detach().clone(), fval)
         if fval < 1e-20: break
-    return best + (sum(outer_times) / max(1, len(outer_times)), n_restarts_used)
+    return best + (sum(outer_times) / max(1, len(outer_times)), n_restarts_used, {})
 
 
 def invert_lm(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
@@ -295,18 +320,18 @@ def invert_lm(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
         if args.release == "sgd":
             Bs, Xis, U = simulate_sgd_reduced(Hc, aux, W0, y, m, T, lr, args.wd)
             target = A_T @ U
-            return torch.cat([((Bs - B_T) / nB).reshape(-1), ((Xis - target) / torch.linalg.norm(target)).reshape(-1)])
+            return torch.cat([((Bs - B_T) / nB).reshape(-1), ((Xis - target) / nA).reshape(-1)])
         As, Bs = simulate_adam_full(Hc, aux, W0, y, m, T, lr, args.wd)
         return torch.cat([((Bs - B_T) / nB).reshape(-1), ((As - A_T) / nA).reshape(-1)])
 
     jac = tf.jacfwd(res_vec) if args.jac == "fwd" else tf.jacrev(res_vec)
+    diag = {}
     best = (None, None, float("inf")); g = torch.Generator(device="cpu").manual_seed(args.seed + 1000)
     it_times = []; n_rs = 0
     for rs in range(args.restarts):
         n_rs += 1
-        W = W_init.clone()
-        if rs > 0: W = W + args.restart_noise * torch.randn(W.shape, generator=g).to(W.device)
-        v = torch.cat([W.reshape(-1), Xinit.reshape(-1)]).detach()
+        W, aux0 = restart_point(world, A_T, W_init, Xinit, rs, args, g)
+        v = torch.cat([W.reshape(-1), aux0.reshape(-1)]).detach()
         with torch.no_grad(): F = res_vec(v)
         lam = args.lm_lambda; t0 = time.time(); fval = float(F @ F); stall = 0
         for it in range(args.lm_iters):
@@ -324,18 +349,38 @@ def invert_lm(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
             it_times.append(time.time() - t1)
             log(f"    restart {rs} lm-iter {it:3d}  residual {fval:.3e}  lambda {lam:.1e}  ({time.time()-t0:.0f}s)")
             stall = 0 if accepted else stall + 1
-            if fval < 1e-30 or stall >= 2 or lam > 1e12: break
+            if fval < 1e-30 or stall >= 2 or lam > 1e12:
+                sv = torch.linalg.svdvals(J)
+                diag = dict(lm_iters_used=it + 1, lm_lambda_final=float(lam),
+                            jac_cond=float(sv[0] / sv[-1]) if float(sv[-1]) > 0 else float("inf"),
+                            jac_sigma_min=float(sv[-1]), stop=("converged" if fval < 1e-30 else ("stall" if stall >= 2 else "lambda")))
+                break
         if fval < best[2]:
-            best = (v[:nW].reshape(k, N).clone(), v[nW:].reshape(aux_shape).clone(), fval)
+            best = (v[:nW].reshape(k, N).clone(), v[nW:].reshape(aux_shape).clone(), fval); best_diag = dict(diag)
         if fval < 1e-24: break
-    return best + (sum(it_times) / max(1, len(it_times)), n_rs)
+    return best + (sum(it_times) / max(1, len(it_times)), n_rs, locals().get("best_diag", diag))
 
 
-def verdict(err_med, res):
-    if err_med < RECOVER_TOL:
+def assign_err(D):
+    """Greedy one-to-one assignment of reconstructions to ground-truth columns (scipy is absent in the
+       default env).  Without it, N reconstructions that all collapsed onto ONE training image would each
+       report a tiny 'nearest training image' error and score 1.0 (F6)."""
+    D = D.clone(); n = D.shape[0]; out = torch.empty(n, dtype=D.dtype, device=D.device)
+    for _ in range(n):
+        idx = int(torch.argmin(D)); i, j = idx // D.shape[1], idx % D.shape[1]
+        out[i] = D[i, j]; D[i, :] = float("inf"); D[:, j] = float("inf")
+    return out
+
+
+def verdict(err_max, res, frac):
+    """Keyed off the WORST image, not the median: torch.median returns the lower median, so a cell that
+       recovers exactly half of an even N would otherwise be labelled 'recovered' (F2)."""
+    if err_max < RECOVER_TOL:
         return "recovered"
+    if frac > 0:
+        return f"partial ({frac:.2f} of images recovered)" + ("; residual at the reproduction floor" if res < RESID_ZERO else "")
     if res < RESID_ZERO:
-        return "alias (residual zero, wrong image -> non-identifiability)"
+        return "alias (residual at the reproduction floor, wrong image -> non-identifiability)"
     return "optimisation failure (residual not zero)"
 
 
@@ -354,10 +399,12 @@ def run_cell(args, log=print, save_prefix=None):
     # ---- certificate report ----
     C, rankB, rankC, Us = certificate(A_T, B_T)
     eps_inv = float(torch.linalg.norm(C @ H) / (torch.linalg.norm(A_T, 2) * torch.linalg.norm(H)))
+    cert_norm = float(torch.linalg.norm(C) / torch.linalg.norm(A_T))     # C == 0 (rank B_T = r) makes eps_inv vacuous
+    cert_vacuous = bool(cert_norm < 1e-12)
     deform = float(torch.linalg.norm(A_T - A0) / torch.linalg.norm(A0))
     with torch.no_grad():
         Hhat = span_estimate(A_T, C, Us)
-        U_true, _ = torch.linalg.qr(H)
+        U_true, _ = qr_canon(H)
         span_angles = principal_angles_deg(U_true, Hhat) if Hhat.shape[1] == N else torch.full((N,), float("nan"))
     # ---- forward-model sanity at the truth ----
     with torch.no_grad():
@@ -370,13 +417,13 @@ def run_cell(args, log=print, save_prefix=None):
             fwd_check = float(torch.linalg.norm(Bs - B_T) / torch.linalg.norm(B_T))
             fwd_check_A = float(torch.linalg.norm(As - A_T) / torch.linalg.norm(A_T))
     log(f"  cell k={k} N={N} T={args.T} lr={args.lr} seed={args.seed}: rankB={rankB} rankC={rankC} (r-N={r-N}) eps_inv={eps_inv:.1e} "
-        f"deformation={deform:.3f} fwd_check={fwd_check:.1e} fwd_check_A={fwd_check_A:.1e} span_angle_mean={float(span_angles.mean()):.1f}deg")
+        f"cert_norm={cert_norm:.1e}{' VACUOUS (C=0)' if cert_vacuous else ''} deformation={deform:.3f} fwd_check={fwd_check:.1e} fwd_check_A={fwd_check_A:.1e} span_angle_mean={float(span_angles.mean()):.1f}deg")
     # ---- initialiser ----
     W_init, init_info = make_init(args, world, A_T, B_T, C, W_true, g, dev, log)
     with torch.no_grad():
         H_init = world.features_from_latents(W_init)
         if args.release == "sgd":
-            U_init, _ = torch.linalg.qr(H_init)
+            U_init, _ = qr_canon(H_init)
             Xinit = A_T @ U_init                    # crude: A_T U ~ X (ignores the deformation)
         else:
             Xinit = A_T.clone()                     # crude: A_T ~ A_0
@@ -384,25 +431,28 @@ def run_cell(args, log=print, save_prefix=None):
     # ---- invert ----
     t0 = time.time()
     solver = invert_lm if args.solver == "lm" else invert
-    W_hat, aux_hat, res, sec_outer, n_rs = solver(world, A_T, B_T, W0, y, args, W_init, Xinit, log)
+    W_hat, aux_hat, res, sec_outer, n_rs, solver_diag = solver(world, A_T, B_T, W0, y, args, W_init, Xinit, log)
     X_hat = world.psi(W_hat)
     err = (torch.linalg.norm(X_hat - X_img, dim=0) / torch.linalg.norm(X_img, dim=0))
     # nearest training image (any column) -> detects basin hopping / permutation
     dall = torch.cdist(X_hat.T, X_img.T) / torch.linalg.norm(X_img, dim=0)[None, :]
-    err_any = dall.min(dim=1).values
+    err_any = dall.min(dim=1).values                       # per-reconstruction nearest ground-truth column
+    err_match = assign_err(dall)                           # one-to-one matching: a collapse cannot score well (F6)
     out = dict(release=args.release, k=k, N=N, r=r, r_minus_N=r - N, m=m, n=n, P=args.P, T=args.T, lr=args.lr, wd=args.wd,
                sigma0=args.sigma0, seed=args.seed, git=git_hash(), host=socket.gethostname(), device=args.device,
                cmd=" ".join(sys.argv),
-               rankB=rankB, rankC=rankC, eps_inv=eps_inv, deformation=deform, fwd_check=fwd_check, fwd_check_A=fwd_check_A,
+               rankB=rankB, rankC=(0 if cert_vacuous else rankC), cert_norm=cert_norm, cert_vacuous=cert_vacuous, eps_inv=eps_inv, deformation=deform, fwd_check=fwd_check, fwd_check_A=fwd_check_A,
                span_angle_mean_deg=float(span_angles.mean()), span_angle_max_deg=float(span_angles.max()),
                init=args.init, init_noise=args.init_noise, restarts=args.restarts, restarts_used=n_rs,
-               restart_noise=args.restart_noise, solver=args.solver, outer=args.outer, lbfgs_iter=args.lbfgs_iter, lm_iters=args.lm_iters, **init_info,
+               restart_noise=args.restart_noise, solver=args.solver, **solver_diag, outer=args.outer, lbfgs_iter=args.lbfgs_iter, lm_iters=args.lm_iters, **init_info,
                start_err_median=float(start_err.median()), start_err_max=float(start_err.max()),
                final_err_median=float(err.median()), final_err_max=float(err.max()),
-               final_err_any_median=float(err_any.median()),
+               final_err_any_median=float(err_any.median()), final_err_matched_median=float(err_match.median()),
+               final_err_matched_max=float(err_match.max()),
                frac_recovered=float((err < RECOVER_TOL).double().mean()),
                frac_recovered_any=float((err_any < RECOVER_TOL).double().mean()),
-               residual=res, verdict=verdict(float(err.median()), res),
+               frac_recovered_matched=float((err_match < RECOVER_TOL).double().mean()),
+               residual=res, verdict=verdict(float(err.max()), res, float((err < RECOVER_TOL).double().mean())),
                sec_per_iter=sec_outer, seconds=time.time() - t0)
     log(json.dumps(out))
     if args.out:

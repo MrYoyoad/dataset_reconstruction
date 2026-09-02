@@ -47,11 +47,25 @@ case $STAGE in
         --out $OUT/step2_basin_init_${LSB_JOBID:-local}.jsonl --save-prefix $OUT/step2 --quiet
     ;;
   step3)
+    # Adam: unknowns are the latents PLUS the whole A_0 (r x n = 1536 here), so an LM Jacobian is
+    # infeasible (>5 min per Jacobian, measured); LBFGS needs one backward per closure instead.
+    # The certificate does not exist here (rank B_T = r makes C identically zero) -- read cert_vacuous.
     for noise in 0.05 0.10 0.20 0.30; do
       echo "##### step3 adam init-noise=$noise"
       $PY --release adam --k 12 --N 8 --T 800 --lr 0.003 --init near --init-noise $noise --seeds 1 2 3 \
-          --restarts 4 --restart-noise 0.1 --lm-iters 60 --device cuda \
-          --out $OUT/step3_adam_${LSB_JOBID:-local}.jsonl --save-prefix $OUT/step3 --quiet
+          --solver lbfgs --outer 40 --lbfgs-iter 40 --restarts 2 --restart-noise 0.1 --device cuda \
+          --out $OUT/step3_adam_${LSB_JOBID:-local}.jsonl --save-prefix $OUT/step3
+    done
+    ;;
+  step5_rescue)
+    # The 15 (k,N) cells that failed in step4 at restarts=1, re-run post-fix with 4 restarts that now
+    # re-seed the WHOLE unknown vector.  Separates "basin/schedule artefact" from "hard cell".
+    for cell in "14 2" "12 4" "8 6" "10 8" "2 10" "12 10" "14 10" "2 12" "4 12" "6 12" "10 12" "2 14" "6 14" "8 14" "12 14"; do
+      set -- $cell
+      echo "##### step5 rescue k=$1 N=$2"
+      $PY --release sgd --k $1 --N $2 --T 400 --lr 0.01 --init near --init-noise 0.10 --seed 1 \
+          --restarts 4 --restart-noise 0.15 --lm-iters 60 --device cuda \
+          --out $OUT/step5_rescue_${LSB_JOBID:-local}.jsonl --save-prefix $OUT/step5 --quiet
     done
     ;;
   step4)
