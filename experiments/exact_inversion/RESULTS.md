@@ -79,9 +79,32 @@ whenever it converges it converges to ~1e-14, never to something in between. Res
 better-behaved signal than the binary outcome. Arms at 0.15/0.20/0.30/0.50 were still accumulating seeds
 when this was written — treat the per-row seed counts, not the fractions, as the state of evidence.
 
-## Step 3 — Adam release: RUNNING, and the first thing it settles is a diagnostic trap
+## Step 3 — Adam release: the certificate is gone, and the inversion does not converge (yet)
 
-Not finished at the time of writing; no recovery claim either way. Two facts are already established.
+Scaled-down cell so an LM Jacobian over the `r x n` unknown entries of `A_0` is affordable
+(`n=32, k=6, N=4, T=200, r=16`; at `n=96` one Jacobian takes over five minutes, measured, which is why
+the full-size Adam arm was moved to LBFGS and then dropped in favour of this).
+
+| release | init-noise | seeds | start err | final err (med) | residual | outcome |
+|---|---|---|---|---|---|---|
+| adam | 0.05 | 2 | 0.027-0.039 | 7.2e-2, 8.2e-2 | 2.8e-3, 1.7e-2 | not recovered |
+| adam | 0.10 | 2 | 0.055-0.076 | 1.4e-1, 7.8e-2 | 1.0e-2, 2.6e-2 | not recovered |
+| adam | 0.20 | 2 | 0.113-0.151 | 2.0e-1, 1.2e-1 | 9.0e-2, 1.9e-2 | not recovered |
+| **sgd (control, identical shape)** | 0.10 | 2 | 0.055-0.076 | **6.2e-16, 5.7e-16** | **8.6e-31, 2.9e-31** | **recovered** |
+
+**The control is what makes this readable.** At the same shape, same solver, same budget and the same
+start distance, the SGD release inverts to machine precision and the Adam release does not. So the gap
+is the optimizer, not the problem size.
+
+**But this is not yet "an Adam release is not invertible", and must not be written that way.** Every
+Adam cell ends with a *nonzero* residual (2.8e-3 … 9.0e-2), and the traces were **still descending when
+they hit the 50-iteration cap** — the runs are budget/conditioning-limited, not stalled at a stationary
+point, and none is an alias. The equation count is still overdetermined (`mr + rn` vs `Nk + rn`). A
+long-budget rerun (400 iterations, diagnostics recorded on the exhaustion path) is queued as job 423887;
+until it reports, the honest claim is *"the same inversion that solves the SGD release to 1e-15 has not
+solved the Adam release at 8x fewer iterations than it needs"*.
+
+Two further facts are already established.
 
 1. **The certificate does not merely weaken under Adam, it ceases to exist.** `rank B_T = r`, so the
    projector onto `row(B_T)^⊥` is zero and `C ≡ 0` (measured `‖C‖/‖A_T‖ = 2.8e-15`). The naive
@@ -92,16 +115,22 @@ Not finished at the time of writing; no recovery claim either way. Two facts are
    reports will be about conditioning and basins, not about a recipe mismatch. Deformation there is 2.42,
    far beyond anything in the SGD arms.
 
-The Adam arm runs on LBFGS: a single LM Jacobian over the `r × n = 1536` unknown entries of `A₀` takes
-over five minutes (measured), which makes a 60-iteration LM infeasible.
+The full-size Adam arm (`n=96`, LBFGS) descended to residual ~0.18 in ten outer iterations and was
+projected at ~20 h; it was killed in favour of the scaled-down LM cells above, which answer the same
+question far faster.
 
-## Step 2 (attacker-available initialisers) — RUNNING, no claim yet
+## Step 2 (attacker-available initialisers) — RUNNING, one row so far, no claim yet
 
 `random` / `span` / `cert` / `spananchor`. A first submission was **killed and discarded** rather than
 reported: its restarts re-seeded only the latents, leaving 57% of the unknown vector frozen at a stale
 value, so "8 restarts failed" would really have meant "one start, jittered 8 times". Since the
 framework's headline is *what a learned decoder must supply is an initializer*, that arm has to be able
 to support the claim it is quoted for.
+
+First row in (`cert`, seed 1): the certificate anchor left the start at a **1.04 relative image error**
+— i.e. it did not pull a global start anywhere near the truth — and the inversion then failed with a
+nonzero residual (1.1e-1). One row of twenty; it is consistent with the framework's claim that an
+initializer is the missing ingredient, and it is not yet evidence for it.
 
 One measurement already constrains it: the released span estimator `Ĥ = row(P_{row(B_T)}A_T)` sits at
 **52° mean principal angle** to the private span at the N=8 work point (59° at N=12), against ~78–83° for

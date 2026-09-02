@@ -333,7 +333,7 @@ def invert_lm(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
         W, aux0 = restart_point(world, A_T, W_init, Xinit, rs, args, g)
         v = torch.cat([W.reshape(-1), aux0.reshape(-1)]).detach()
         with torch.no_grad(): F = res_vec(v)
-        lam = args.lm_lambda; t0 = time.time(); fval = float(F @ F); stall = 0
+        lam = args.lm_lambda; t0 = time.time(); fval = float(F @ F); stall = 0; diag = {}
         for it in range(args.lm_iters):
             t1 = time.time()
             J = jac(v).detach()                                        # (R, P)
@@ -355,6 +355,11 @@ def invert_lm(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
                             jac_cond=float(sv[0] / sv[-1]) if float(sv[-1]) > 0 else float("inf"),
                             jac_sigma_min=float(sv[-1]), stop=("converged" if fval < 1e-30 else ("stall" if stall >= 2 else "lambda")))
                 break
+        if not diag:                                  # loop ran to the iteration cap without breaking
+            sv = torch.linalg.svdvals(J)
+            diag = dict(lm_iters_used=args.lm_iters, lm_lambda_final=float(lam),
+                        jac_cond=float(sv[0] / sv[-1]) if float(sv[-1]) > 0 else float("inf"),
+                        jac_sigma_min=float(sv[-1]), stop="iteration cap (still descending)")
         if fval < best[2]:
             best = (v[:nW].reshape(k, N).clone(), v[nW:].reshape(aux_shape).clone(), fval); best_diag = dict(diag)
         if fval < 1e-24: break
