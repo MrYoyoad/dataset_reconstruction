@@ -332,11 +332,20 @@ discontinuity that made the simulated release jump when a feature crossed zero, 
    the story. That is the right place for a learned/population prior, which is what the framework says.
 4. **Report `cert_norm` beside `eps_inv` forever.** A zero certificate scores perfectly on the natural
    metric.
-5. **Adam does not defend by non-identifiability, and not by conditioning either.** It removes the
-   algebraic channel outright (`C ≡ 0`), but at the truth the simulator Jacobian is full rank with
-   `cond = 2.1e3`, indistinguishable from the SGD work point (`2.0e3`). The earlier "defends by
-   conditioning" claim was measured at the solver's stuck point and is withdrawn. What Adam actually
-   buys the defender is a **much tighter basin**: the same solver that tolerates a 65% start error on
-   an SGD release does not reach the solution from 4% on an Adam one. So the whole study reduces to one
-   axis — the basin. Whether Adam's small basin is solver-fixable or intrinsic is **untested**, and until
-   it is, "better search erodes it" is a hypothesis, not a finding.
+5. **Adam does not defend by non-identifiability. It buys two moderate defenses, and only at scale.**
+   This claim has been wrong twice, so the arc is worth stating in full:
+   - *"Adam defends by conditioning, `1e7`–`3e8`"* — **wrong**: that was the solver's stuck point, not
+     the map.
+   - *"Adam is well conditioned at the truth like SGD, so only the basin differs"* — **also wrong**, and
+     it was an artefact of comparing a toy-scale Adam cell against a full-scale SGD one.
+   - **Current, like-for-like:** at the truth the Adam release is **identifiable at every scale tested**
+     (full column rank, gate `‖res(truth)‖` at the FP64 floor), but its solution conditioning is
+     **worse than SGD's and worsens with problem size** — roughly 10-20× at `n=32` (536 unknowns) and
+     ~400× at the real work point `n=96` (1632 unknowns: `8.0e5` against SGD's `2.0e3`). Report it as a
+     **trend**, not a single number; extrapolating past `n=96` would be worse still.
+   So at scale the defender gets *two* moderate obstacles — a real but FP64-tractable conditioning
+   penalty (`cond 8e5` costs about 6 of 16 digits, a headwind for Levenberg-Marquardt rather than a wall,
+   which is consistent with the observed stalls) and a much smaller basin. Neither is non-identifiability,
+   and neither is the `1e8` the first reading implied. Whether either is erodable by better optimisation
+   or preconditioning is **untested**. *(Both corrections owed to independent audits; the second was
+   caught in parallel here and by a sibling session.)*
