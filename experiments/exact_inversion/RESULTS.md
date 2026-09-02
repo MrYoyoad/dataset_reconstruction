@@ -459,9 +459,17 @@ way. `‖CH‖` is non-monotone, and its peak is only of order the rank toleranc
 **But the hoped-for clean headline is NOT supported.** "Near-duplication defends the algebraic channel and
 leaves the simulation channel intact" is false as stated. What actually happens:
 
-- The failure is **confined to the duplicated pair** at every separation tested below 0.074, and the two
-  reconstructions are **equidistant from both originals** (`err_to_self` 3.78e-2 vs `err_to_other` 3.82e-2)
-  — blends of the pair, not swaps of it.
+- The failure is **confined to the duplicated pair** at every separation below the transition, and the
+  other `N−2` stay under tolerance.
+- **CORRECTION to my own first reading of this row (2026-09-03).** I originally called the two
+  reconstructions "blends of the pair, not swaps", from `err_to_self ≈ err_to_other`. That inference is
+  **vacuous in the tight band**: when the two originals are nearly the same point, *every* point is
+  equidistant from both, so the diagnostic carries no information there. The full sweep shows the
+  reconstruction is not a blend at all — at separation 0.0028 the pair error is 3.8e-2, **28× larger than
+  half the separation**, and at exact duplication the ratio diverges. The reconstruction sits far from
+  *both* originals, roughly an order of magnitude further away than the two originals are from each other.
+  The `err/(featsep/2) ≈ 1` coincidence that suggested a midpoint blend holds only near separations
+  0.07-0.12 and is an artefact of that range.
 - The other `N−2` images stay under the recovery tolerance but **degrade by eleven orders**, from `2e-15`
   in the clean control to `2e-4`-`1e-3`. They still leak, but not to machine precision.
 - Residuals are `1e-8`-`1e-9`, **not** at the reproduction floor, so these are not clean aliases; a longer
@@ -471,6 +479,36 @@ So the honest statement is the softened one the derivation check anticipated: **
 contaminates the algebraic channel and mutually aliases the duplicated pair, while the remaining `N−2`
 records still leak (at reduced fidelity)**. It changes which records are protected, and it does not
 protect the batch.
+
+### The full curve (jobs 471272 + 473055 merged)
+
+| feature separation | `σ_N/σ_1` | rank `B_T` | rank `C` | `‖CH‖` | pair err | others err | residual | recovered |
+|---|---|---|---|---|---|---|---|---|
+| 1.063 | 1.5e-1 | 8 | 8 | 2.0e-15 | 2.8e-15 | 2.7e-15 | 5.3e-31 | yes |
+| 0.572 | 1.2e-3 | 8 | 8 | 1.5e-15 | 8.9e-15 | 3.5e-15 | 9.1e-31 | yes |
+| 0.447 | 8.4e-4 | 8 | 8 | 1.6e-15 | 8.1e-15 | 3.6e-15 | 8.8e-31 | yes |
+| 0.350 | 5.4e-4 | 8 | 8 | 2.5e-15 | 1.7e-14 | 3.0e-15 | 8.7e-31 | yes |
+| **0.206** | 1.9e-4 | 8 | 8 | 1.7e-15 | **2.8e-2** | 1.0e-3 | 9.6e-9 | **no** |
+| 0.115 | 5.9e-5 | 8 | 8 | 4.2e-15 | 5.4e-2 | 1.8e-3 | 2.5e-8 | no |
+| 0.074 | 2.3e-5 | 8 | 8 | 5.1e-15 | 4.9e-2 | 1.3e-3 | 1.1e-8 | no |
+| 0.0028 | 3.1e-8 | 8 | 8 | 1.9e-13 | 3.8e-2 | 1.2e-3 | 1.9e-9 | no |
+| 2.8e-5 | 3.1e-12 | **7** | **9** | **7.8e-7** | 3.8e-2 | 1.2e-3 | 1.9e-9 | no |
+| 2.8e-7 | 3.7e-16 | **7** | **9** | 7.8e-9 | 3.8e-2 | 1.2e-3 | 1.9e-9 | no |
+| 0 | 2.0e-16 | **7** | **9** | 1.7e-15 | 3.8e-2 | 1.2e-3 | 1.9e-9 | no |
+
+**Against the pre-registered prediction.** Point 2 is **confirmed**: every failing row has a residual of
+`1e-8`-`1e-9`, far above the reproduction floor, so these are search/conditioning failures and not true
+aliases — the stated falsifier (floor-residual aliases below a cliff) is **not** met. Point 1 is **not
+observed**: there is no continuous ramp toward `featsep/2`. The pair error is flat at `~1e-14` down to a
+separation of 0.35 and then jumps **twelve orders** to `2.8e-2` at 0.206, after which it is roughly
+constant (`3-5e-2`) and independent of separation. Meanwhile `σ_N/σ_1` falls smoothly across the whole
+range. So the conditioning degrades continuously while the *outcome* transitions sharply — at this
+sampling density the reconstruction behaves like a cliff riding on a smooth conditioning curve.
+
+Two channels, two different thresholds, worth stating together: the **certificate** breaks only at
+separations below `~3e-5` (where rank `B_T` collapses), while the **simulation** channel breaks four
+orders of magnitude earlier, at a separation of `~0.2`-`0.35`. In this regime the algebraic channel is the
+*more* robust of the two to near-duplication, which is the opposite of what I expected going in.
 
 **Gap in the sampling, being filled.** The sweep jumps from the clean control (separation 1.06, full
 recovery) straight to `ε = 0.3` (separation 0.074, pair unresolved). The transition sits in that gap and
