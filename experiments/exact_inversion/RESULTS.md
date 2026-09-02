@@ -96,13 +96,25 @@ the full-size Adam arm was moved to LBFGS and then dropped in favour of this).
 start distance, the SGD release inverts to machine precision and the Adam release does not. So the gap
 is the optimizer, not the problem size.
 
-**But this is not yet "an Adam release is not invertible", and must not be written that way.** Every
-Adam cell ends with a *nonzero* residual (2.8e-3 … 9.0e-2), and the traces were **still descending when
-they hit the 50-iteration cap** — the runs are budget/conditioning-limited, not stalled at a stationary
-point, and none is an alias. The equation count is still overdetermined (`mr + rn` vs `Nk + rn`). A
-long-budget rerun (400 iterations, diagnostics recorded on the exhaustion path) is queued as job 423887;
-until it reports, the honest claim is *"the same inversion that solves the SGD release to 1e-15 has not
-solved the Adam release at 8x fewer iterations than it needs"*.
+**It is NOT "an Adam release is not invertible", and the Jacobian says why.** With the diagnostics now
+recorded, the two cases separate cleanly on conditioning while agreeing on rank:
+
+| release | eqs | unknowns | `σ_min(J)` | `cond(J)` | LM iterations | outcome |
+|---|---|---|---|---|---|---|
+| sgd (n=32, k=6, N=4) | 384 | 88 | 9.0e-3, 9.7e-3 | **1.2e2, 1.7e2** | 12, 13 | converged |
+| sgd (n=96, 15 rescue cells) | 352-544 | 60-392 | 6.5e-4 … 1.9e-2 | **1.5e2 … 2.9e3** | 12-45 | converged |
+| adam (n=32, k=6, N=4) | 832 | 536 | 6.3e-3, 6.9e-3, 7.2e-3 | **1.4e7 … 3.7e8** | 23, 28, 400 | not converged |
+
+`σ_min(J) ≈ 7e-3` for Adam sits **inside the range the successful SGD cells show**, so the simulator
+Jacobian has full column rank there: by Proposition 6 the Adam cell is **locally identifiable**. What
+differs is `cond(J)`, by four to six orders of magnitude, driven by `σ_max` rather than by any small
+singular value — which is what a coordinatewise `1/(√v̂+ε)` rescaling does to sensitivities. At 400 LM
+iterations (8x the original budget, job 423887) the run was still descending, residual 7.6e-3.
+
+So the correct statement is: *the Adam release is locally identifiable from the simulator, and plain
+Levenberg-Marquardt does not solve it because the problem is ~10⁵ times worse conditioned than the SGD
+one.* The indicated fix is preconditioning, not more iterations: Marquardt's `diag(JᵀJ)` scaling instead
+of the unscaled `λI` damping used here, and rescaling the `A₀` block against the latent block. Untested.
 
 Two further facts are already established.
 
@@ -165,3 +177,7 @@ discontinuity that made the simulated release jump when a feature crossed zero, 
    the story. That is the right place for a learned/population prior, which is what the framework says.
 4. **Report `cert_norm` beside `eps_inv` forever.** A zero certificate scores perfectly on the natural
    metric.
+5. **Adam defends by conditioning, not by hiding the data.** It removes the algebraic channel outright
+   (`C ≡ 0`) and leaves a system that is still locally identifiable but ~10⁵ times worse conditioned.
+   That is a much weaker kind of defense than non-identifiability, and it is the kind that better
+   optimisation erodes. Any claim that "Adam is safe" has to be argued against a preconditioned solver.
