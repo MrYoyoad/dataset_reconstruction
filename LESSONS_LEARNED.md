@@ -4,6 +4,57 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## The residual separates an information limit from a compute limit — foreground it above any success metric (2026-09-03)
+
+**The insight.** In any reconstruction that fits a forward model, the fitting residual classifies the
+failure and the success metric does not:
+
+| residual | reconstruction | meaning |
+|---|---|---|
+| at the numerical floor | correct | genuine recovery |
+| **at the floor** | **wrong** | **true alias — an information limit, the data does not determine the answer** |
+| above the floor | wrong | search/conditioning failure — a compute limit, more budget may fix it |
+
+**Why it earns a lesson.** Across a whole session of exact-inversion experiments, every failure but one
+family had a *nonzero* residual, i.e. was a compute limit that a longer budget or a better start could
+erode. Exactly one family — beyond the capacity boundary `k < m + r − N` — had residuals at the
+reproduction floor with the wrong image, and that is the only genuine non-identifiability found. Without
+the residual column those two would have been indistinguishable in the results table, and a capacity
+*theorem* would have been reported as a solver complaint (or worse, the reverse).
+
+**Two concrete traps it caught.** (a) A recovery-tolerance pass/fail scored cells as successes when the
+error sat just under the threshold while `σ_min` had collapsed twenty orders — the tolerance was the wrong
+instrument and the residual plus `σ_min` were the right ones. (b) A near-duplicate threshold that looked
+like a hard privacy boundary was shown to be a solver floor because its residuals were `1e-8`, not
+`1e-30`; re-running at 10× budget recovered the cell to machine precision.
+
+**Rule.** Report the residual next to every reconstruction metric, and set the "this is at the floor"
+constant from the *demonstrated* floor of the pipeline (here `~1e-30`), never from a round number. Never
+call a failure "non-identifiability" without a floor residual, and never call one "just needs more
+compute" without checking the residual is above the floor.
+
+---
+
+## Pre-register the prediction and its falsifier before reading the data (2026-09-03)
+
+**The practice.** Before a run that will settle a contested reading, write the expected outcome *and* the
+observation that would refute it into the repo, and commit it before looking at the results.
+
+**Why it paid.** Two calls in one session were made decidable rather than arguable by this: whether a
+near-duplicate transition was a sharp information cliff or a smooth conditioning ramp, and whether it was
+a fundamental boundary or a solver floor. The prediction (smooth ramp, residuals above the floor,
+transition moves with budget) was committed at `b7957f4`; the falsifier was stated as "a sharp cliff at a
+budget-independent separation with floor-residual aliases below it". The data then confirmed the
+prediction, and — more usefully — showed that my *first* reading of the same data had been wrong twice
+(I called a cliff that was an artefact of not sampling the interval, and a "blend" that was a vacuous
+inference in the degenerate limit). With the prediction already on record, those were corrections rather
+than a renegotiation of what had been claimed.
+
+**Rule.** Any run whose result will be quoted gets a committed prediction with a named falsifier first.
+It costs one commit and it converts "what does this show?" into a yes/no.
+
+---
+
 ## A non-reproduction is a claim about someone else's work — check your own tooling adversarially first (2026-09-03)
 
 **Bug.** One `torch.linalg.qr` call in the exact-inversion simulator (`experiments/exact_inversion/`), used bare. QR is
