@@ -103,7 +103,7 @@ recorded, the two cases separate cleanly on conditioning while agreeing on rank:
 |---|---|---|---|---|---|---|
 | sgd (n=32, k=6, N=4) | 384 | 88 | 9.0e-3, 9.7e-3 | **1.2e2, 1.7e2** | 12, 13 | converged |
 | sgd (n=96, 15 rescue cells) | 352-544 | 60-392 | 6.5e-4 … 1.9e-2 | **1.5e2 … 2.9e3** | 12-45 | converged |
-| adam (n=32, k=6, N=4) | 832 | 536 | 6.3e-3, 6.9e-3, 7.2e-3 | **1.4e7 … 3.7e8** | 23, 28, 400 | not converged |
+| adam (n=32, k=6, N=4) | 832 | 536 | 6.3e-3 … 7.3e-3 | **1.4e7 … 3.7e8** | 23, 28, 54, 400 | not converged |
 
 `σ_min(J) ≈ 7e-3` for Adam sits **inside the range the successful SGD cells show**, so the simulator
 Jacobian has full column rank there: by Proposition 6 the Adam cell is **locally identifiable**. What
@@ -131,7 +131,7 @@ The full-size Adam arm (`n=96`, LBFGS) descended to residual ~0.18 in ten outer 
 projected at ~20 h; it was killed in favour of the scaled-down LM cells above, which answer the same
 question far faster.
 
-## Step 2 (attacker-available initialisers) — RUNNING, one row so far, no claim yet
+## Step 2 (attacker-available initialisers) — RUNNING; 2 of 5 seeds per arm, all four fail
 
 `random` / `span` / `cert` / `spananchor`. A first submission was **killed and discarded** rather than
 reported: its restarts re-seeded only the latents, leaving 57% of the unknown vector frozen at a stale
@@ -139,10 +139,33 @@ value, so "8 restarts failed" would really have meant "one start, jittered 8 tim
 framework's headline is *what a learned decoder must supply is an initializer*, that arm has to be able
 to support the claim it is quoted for.
 
-First row in (`cert`, seed 1): the certificate anchor left the start at a **1.04 relative image error**
-— i.e. it did not pull a global start anywhere near the truth — and the inversion then failed with a
-nonzero residual (1.1e-1). One row of twenty; it is consistent with the framework's claim that an
-initializer is the missing ingredient, and it is not yet evidence for it.
+All four arms start from a **global** (release-only) start, not from a perturbed truth. Two seeds each
+so far, k=12, N=8, T=1500, 8 restarts, cell where `k > r − N` so the certificate is blind by Primitive 2:
+
+| init | seeds | start err | fraction recovered | residual | pre-solve diagnostic |
+|---|---|---|---|---|---|
+| random | 2 | 0.94, 0.86 | 0, 0 | 1.6e-2, 9.8e-2 | — |
+| span | 2 | 0.82, 0.84 | 0, 0 | 2.4e-1, 3.0e-1 | out-of-span energy 0.477, 0.481 |
+| spananchor | 2 | 1.04, 0.58 | 0, 0 | 3.7e-1, 1.3e-1 | out-of-span energy 0.423, 0.438 |
+| cert | 2 | 1.04, 0.74 | 0, 0 | 1.1e-1, 3.1e-1 | **‖Cφ(ψ(w))‖ driven to 1.1e-6** |
+
+**The `cert` row is the informative one, and it is a clean demonstration of the alias structure rather
+than a solver complaint.** Its pre-solve genuinely succeeded: it drove the certificate residual to 1.1e-6,
+i.e. it found a point that satisfies `Cφ(ψ(w)) = 0` to six digits. That point sits at a **1.04 relative
+image error** from the truth. This is exactly what Primitive 2 predicts at `k = 12 > r − N = 8`: the
+certificate-consistent set is a manifold of dimension `k − (r − N) = 4` per image, so being
+certificate-consistent carries essentially no information about *which* point on it you are at. The
+subsequent exact inversion, started on that manifold, does not descend to the truth either — it ends at
+residual 1.1e-1, nonzero, so a search failure and not an alias of the full release.
+
+The span-based arms fail differently: their pre-solve only reaches ~45% out-of-estimated-span feature
+energy, which is the span estimator's own 52° error showing up as a floor on how well any candidate can
+be aligned to it.
+
+Preliminary reading, 2 of 5 seeds: **the initialisers an attacker can actually build from the release do
+not reach the basin**, while a perturbed-truth start of up to 24% does. That is the framework's division
+of labour stated as a measurement rather than as a hope, and it is the strongest argument in this session
+for why a learned or population prior is the missing piece. It is not yet a result: 8 of 20 rows.
 
 One measurement already constrains it: the released span estimator `Ĥ = row(P_{row(B_T)}A_T)` sits at
 **52° mean principal angle** to the private span at the N=8 work point (59° at N=12), against ~78–83° for
