@@ -1,67 +1,67 @@
-# Handover — 2026-09-02 21:53
+# Handover — 2026-09-03 00:23
 
 ## State
-Branch `step1-activation-rescore-retrieval`. New thread opened today from an external theory bundle
-(`framework_rev10.pdf` / `results_rev9.pdf` / `audit_rev9.pdf`, still Mac-only, not yet in `papers/`):
-**exact inversion of the LoRA training map** — simulate the known recipe as the forward model and solve
-`Recipe_T(φ(ψ(wᵢ)), X) = (B_T, A_T U)` for the latents and `X = A₀U`. Testbed built, validated, and the
-headline measured; two arms still running on WEXAC. Commits: 38fec3b (testbed) → 5762045 (six review
-fixes) → 204ec67 (results + figures) → 2763053 (docs/memory).
+Branch `step1-activation-rescore-retrieval`. Exact-inversion thread (external bundle `framework_rev10.pdf`
+/ `results_rev9.pdf` / `audit_rev9.pdf`, still Mac-only, not yet in `papers/`): testbed built, validated,
+headline measured, and **two of my own earlier claims withdrawn** after an adversarial review found the
+bug that caused them. Full write-up `experiments/exact_inversion/RESULTS.md`; retraction in `NOTES.md §2`.
+Commits 38fec3b → 5762045 → 204ec67 → 2763053 → daa4163 → 276cfb3 → 3adb1b3 → 9536898.
 
-## Done this session
-- `experiments/exact_inversion/lora_exact_inversion.py` — FP64, **true backprop through the unrolled
-  training loop**, LM solver with an autograd (`torch.func.jacfwd`) Jacobian (LBFGS fallback), SGD
-  (span-adapted, unknowns = latents + X) and Adam (unknowns = latents + full A₀) simulators, attacker-
-  available initialisers (span / cert / spananchor) beside near/random, per-line provenance, and a
-  `verdict` separating optimisation failure from alias. Runner `scripts/run_exact_inversion_wexac.sh`
-  (step1 · step2_near · step2_init · step3 · step4 · step5_rescue). Analyzer + 3 figures.
-- **fwd_check = 7.4e-16 … 8.5e-16**: the span-adapted simulator reproduces the actual release at the
-  truth — the normal form confirmed operationally. Everything downstream rests on this.
-- **HEADLINE: the (N,k) phase diagram is 49/49 recovered** (median residual 8.6e-31, N,k ∈ 2..14, r=16,
-  T=400, start 10% off). The certificate-only diagram is exactly 0 above `k = r − N`; exact inversion
-  recovers on BOTH sides. Figure: `figures/exact_inversion/phase_diagram_comparison.png`.
-  Caveat: 15 of 49 failed at restarts=1, every one with a NONZERO residual (never an alias), and all 15
-  recovered at restarts=4. One seed per cell.
-- Basin at a fully trained adapter (deformation 0.96): recovers to a **24% median start error**, first
-  clean failure at 36% — past the ~10–15% the finite-difference prototype reported. Cost of distance is
-  restarts (1.0 → 3.2 mean), not accuracy.
-- An adversarial review found six defects, all fixed and gated. The serious one: `B₀ = 0` makes the
-  A-gradient exactly 0 at t=1, so `d/dv √v` is infinite with zero incoming sensitivity → `0 × inf` →
-  **the entire Adam Jacobian was NaN (1925/1925)**, which would have reported a fabricated "an Adam
-  release is not invertible". Post-fix gate: 0/1925 NaN, fwd_check still exactly 0.0.
-- Docs: STATUS.md top section, two LESSONS_LEARNED entries (the NaN; a vacuous diagnostic scoring
-  perfectly), CLAUDE.md section, next_experiment_plan.md item, `notes/exact_lora_inversion_framework.md`,
-  memory files, `experiments/exact_inversion/{RESULTS.md,NOTES.md}`.
+## Settled results
+- **fwd_check = 7.4e-16 … 8.5e-16.** The span-adapted simulator reproduces the real release at the truth,
+  so the normal form holds operationally: the release is a function of the candidate data and of
+  `X = A₀U` (rN numbers) alone.
+- **HEADLINE: 49/49 phase-diagram cells recovered, one attempt each, median residual 8.6e-31**
+  (N,k ∈ 2..14, r=16, T=400, start 10% off). The certificate-only diagram is exactly 0 above `k = r − N`;
+  exact inversion recovers on both sides. `figures/exact_inversion/phase_diagram_comparison.png`.
+  One seed per cell, so the grid shows the boundary does not bind but does not measure a failure rate.
+- **Adam: locally identifiable, but ~10⁵ worse conditioned.** `σ_min(J)` = 6.3e-3 … 7.3e-3 sits inside
+  the range of the SGD cells that converge; `cond(J)` = 1.4e7 … 3.7e8 vs 1.2e2 … 2.9e3 for SGD. The
+  certificate does not weaken under Adam, it ceases to exist (`rank B_T = r` ⇒ `C ≡ 0`, so `eps_inv`
+  reads as a perfect certificate while being vacuous — always read `cert_norm`/`cert_vacuous`).
+- **Preconditioning does NOT fix Adam** (job 452904): unscaled `λI` reaches residual 7.6e-3 in 400 iters;
+  Marquardt `λ·diag(JᵀJ)` reaches 2.2e-1 and 9.5e-3 in 200; Marquardt + staging the `A₀` block leaves
+  1.1e-2. Not a block-scaling mismatch. Next candidates: trust region, or reformulating so the Adam
+  moment buffers are not differentiated through.
+
+## Withdrawn — do not resurrect
+1. *"A validation cell does not reproduce the bundle"* — RETRACTED. Post-fix, same seed/start/single
+   restart/no staging, it recovers to 6.6e-16 in 14 iterations. `results_rev9.pdf` §3b **does** reproduce.
+   The staged-schedule explanation is also wrong: `--stage-x 10` recovers too, in 53 iterations (slower).
+2. *"15 of 49 cells needed 4 restarts"* — WITHDRAWN. Those failed pre-fix and were rescued by a run that
+   changed **two** things (code version and restart count). Varying one: post-fix at `restarts=1` they
+   recover 15/15, median residual 8.0e-31, median 17 iterations (job 456630). False failures from the QR
+   sign discontinuity, exactly the "systematic false-failure that under-reports the basin" the review
+   predicted.
 
 ## Next step(s)
-1. **Collect the initialiser arms** (jobs 408560 random / 408561 span / 408562 cert / 408563 spananchor,
-   k=12 N=8 T=1500, 5 seeds × 8 restarts). This is the only arm whose outcome changes the story, because
-   the framework's claim is that what a learned decoder must supply is an *initializer*. Then
-   `python experiments/exact_inversion/analyze_exact_inversion.py` and fill the placeholder section in
-   RESULTS.md. Related measurement already in hand: the released span estimator sits at 52° mean
-   principal angle to the private span at N=8 (59° at N=12) vs ~78–83° for a random subspace.
-2. **Adam**: job 408559 (LBFGS, n=96) is descending very slowly (residual ~0.18 after 10 outer iters,
-   ~20 h to finish) — consider killing it in favour of job **413794** (`ei2_adam_small`, n=32, k=6, N=4,
-   T=200, LM affordable at r·n=512 unknowns, with an SGD control at the same shape). 413794 was
-   **preempted back to PEND** and will restart from scratch.
-3. Test the staged schedule (X-only first, then joint) that the bundle prototype used — see
-   `NOTES.md §2`; it is the untested explanation for the one validation cell that does not reproduce.
-4. rsync the three bundle PDFs from the Mac into `papers/`.
+1. **Job 459111 (`ei6_basin_postfix`) is the open one.** The basin arm was measured PRE-FIX, so its edge
+   (recovers to 24% start error, fails at 36%) is a **lower bound** — the same bug narrowed it. This job
+   re-measures post-fix at `restarts=1`, noise ∈ {0.1,0.2,0.3,0.4,0.5,0.7,1.0}, 3 seeds. When it lands,
+   update the basin table in RESULTS.md and the basin figure, and correct STATUS.
+2. **Initialiser arms** (jobs 408560 random / 408561 span / 408562 cert / 408563 spananchor), 13 of 20
+   rows: **one recovery so far**, span estimator seed 3, image error 4.0e-3 at residual 9.1e-7 — inside
+   the 1e-2 tolerance but far from the ~1e-15 a perturbed-truth start reaches, so it entered the basin and
+   was still converging. The other 12 fail. NOTE these also ran post-fix, so they are clean.
+   The certificate-anchor arm is the mechanism demonstration: it drove `‖Cφ(ψ(w))‖` to 5.0e-8 and still
+   landed 0.70 away in image error, because at `k=12 > r−N=8` the certificate-consistent set is a
+   4-dimensional manifold per image.
+3. rsync the three bundle PDFs from the Mac into `papers/`.
 
 ## Open threads / gotchas
-- Running: 396204/396206/396207 (basin 0.15/0.30/0.50 seeds), 408559–408563, 413794 (PEND).
-- **`set +u` is required** before `conda activate` in any job script here, or the job dies in 9 s with a
-  near-empty stdout (`ADDR2LINE: unbound variable` in the env's activate.d hook).
-- **Never edit the script while a multi-cell job runs** — the runner re-launches python per cell, so
-  later cells silently pick up the new recipe. One run was killed and resubmitted for this.
+- **`set +u` before `conda activate`** in any job script here, or the job dies in 9 s with a near-empty
+  stdout (`ADDR2LINE: unbound variable`).
+- **Never edit the script under a running multi-cell job** — the runner re-launches python per cell.
 - The session scratchpad is **not visible from compute nodes**; submit inline scripts via `bsub` stdin.
-- Under Adam `rank B_T = r`, so `C ≡ 0` and `eps_inv` reads 1.9e-15 — a *perfect-looking* certificate
-  that is vacuous. Always read `cert_norm` / `cert_vacuous` beside it.
-- Pre-existing uncommitted `figures/recon_showcase/*.png` + `results/recon_showcase_sweep.csv` were in
-  the tree before today and were left untouched.
+- **A pre-fix failure is not a result.** Anything measured at 12fa60d / 38fec3b that FAILED is void; the
+  successes are still fine (none of the six fixes can turn a failure into a false recovery).
+- Pre-existing uncommitted `figures/recon_showcase/*.png` + `results/recon_showcase_sweep.csv` predate
+  this thread and were left untouched.
 
 ## Pointers
-- Write-up: `experiments/exact_inversion/RESULTS.md`; disagreements with the bundle: `NOTES.md`.
-- Theory: `notes/exact_lora_inversion_framework.md`.
+- Write-up `experiments/exact_inversion/RESULTS.md`; retraction `NOTES.md`; theory
+  `notes/exact_lora_inversion_framework.md`.
+- Analyze: `python experiments/exact_inversion/analyze_exact_inversion.py` (CPU, globs all
+  `results/exact_inversion/*.jsonl`).
 - Submit: `bsub -q long-gpu -gpu "num=1" -R "rusage[mem=8192] select[ngpus>0]" -J ei_x -o scripts/wexac_logs/ei_x_%J.out -e scripts/wexac_logs/ei_x_%J.err bash scripts/run_exact_inversion_wexac.sh <stage> [arg]`
-- Analyze: `python experiments/exact_inversion/analyze_exact_inversion.py` (CPU, reads all `results/exact_inversion/*.jsonl`).
+- New solver flags: `--lm-scale {identity,marquardt}`, `--stage-x N`, `--solver {lm,lbfgs}`.
