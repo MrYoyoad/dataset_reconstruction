@@ -435,6 +435,36 @@ def run_cell(args, log=print, save_prefix=None):
             fwd_check_A = float(torch.linalg.norm(As - A_T) / torch.linalg.norm(A_T))
     log(f"  cell k={k} N={N} T={args.T} lr={args.lr} seed={args.seed}: rankB={rankB} rankC={rankC} (r-N={r-N}) eps_inv={eps_inv:.1e} "
         f"cert_norm={cert_norm:.1e}{' VACUOUS (C=0)' if cert_vacuous else ''} deformation={deform:.3f} fwd_check={fwd_check:.1e} fwd_check_A={fwd_check_A:.1e} span_angle_mean={float(span_angles.mean()):.1f}deg")
+    # ---- local identifiability at the TRUTH (Prop. 6): rank/conditioning of the simulator Jacobian
+    #      evaluated at the ground-truth parameters, not at wherever the solver stopped ----
+    if args.jac_at_truth:
+        import torch.func as tf
+        nB_ = torch.linalg.norm(B_T); nA_ = torch.linalg.norm(A_T)
+        aux_true = (A0 @ U_true) if args.release == "sgd" else A0
+        nW_ = k * N
+
+        def res_truth(v):
+            Wc = v[:nW_].reshape(k, N); aux = v[nW_:].reshape(aux_true.shape)
+            Hc = world.features_from_latents(Wc)
+            if args.release == "sgd":
+                Bs, Xis, Uc = simulate_sgd_reduced(Hc, aux, W0, y, m, args.T, args.lr, args.wd)
+                return torch.cat([((Bs - B_T) / nB_).reshape(-1), ((Xis - A_T @ Uc) / nA_).reshape(-1)])
+            As_, Bs = simulate_adam_full(Hc, aux, W0, y, m, args.T, args.lr, args.wd)
+            return torch.cat([((Bs - B_T) / nB_).reshape(-1), ((As_ - A_T) / nA_).reshape(-1)])
+
+        v_true = torch.cat([W_true.reshape(-1), aux_true.reshape(-1)]).detach()
+        Jt = tf.jacfwd(res_truth)(v_true).detach()
+        svt = torch.linalg.svdvals(Jt)
+        truth_diag = dict(jac_sigma_min_truth=float(svt[-1]), jac_sigma_max_truth=float(svt[0]),
+                          jac_cond_truth=float(svt[0] / svt[-1]) if float(svt[-1]) > 0 else float("inf"),
+                          jac_rows=int(Jt.shape[0]), jac_cols=int(Jt.shape[1]),
+                          jac_full_rank_truth=bool(float(svt[-1]) > 1e-12 * float(svt[0])),
+                          res_at_truth=float(torch.linalg.norm(res_truth(v_true))))
+        log(f"  Jacobian AT THE TRUTH: {Jt.shape[0]}x{Jt.shape[1]} sigma_min={float(svt[-1]):.3e} "
+            f"sigma_max={float(svt[0]):.3e} cond={truth_diag['jac_cond_truth']:.3e} "
+            f"full_rank={truth_diag['jac_full_rank_truth']} |res(truth)|={truth_diag['res_at_truth']:.1e}")
+    else:
+        truth_diag = {}
     # ---- initialiser ----
     W_init, init_info = make_init(args, world, A_T, B_T, C, W_true, g, dev, log)
     with torch.no_grad():
@@ -458,7 +488,7 @@ def run_cell(args, log=print, save_prefix=None):
     out = dict(release=args.release, k=k, N=N, r=r, r_minus_N=r - N, m=m, n=n, P=args.P, T=args.T, lr=args.lr, wd=args.wd,
                sigma0=args.sigma0, seed=args.seed, git=git_hash(), host=socket.gethostname(), device=args.device,
                cmd=" ".join(sys.argv),
-               rankB=rankB, rankC=(0 if cert_vacuous else rankC), cert_norm=cert_norm, cert_vacuous=cert_vacuous, eps_inv=eps_inv, deformation=deform, fwd_check=fwd_check, fwd_check_A=fwd_check_A,
+               **truth_diag, rankB=rankB, rankC=(0 if cert_vacuous else rankC), cert_norm=cert_norm, cert_vacuous=cert_vacuous, eps_inv=eps_inv, deformation=deform, fwd_check=fwd_check, fwd_check_A=fwd_check_A,
                span_angle_mean_deg=float(span_angles.mean()), span_angle_max_deg=float(span_angles.max()),
                init=args.init, init_noise=args.init_noise, restarts=args.restarts, restarts_used=n_rs,
                restart_noise=args.restart_noise, solver=args.solver, lm_scale=args.lm_scale, stage_x=args.stage_x, **solver_diag, outer=args.outer, lbfgs_iter=args.lbfgs_iter, lm_iters=args.lm_iters, **init_info,
@@ -507,6 +537,8 @@ def main():
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", default=None, help="JSONL results file (append)")
     ap.add_argument("--save-prefix", default=None, help="save tensors to <prefix>_<cell>.pth")
+    ap.add_argument("--jac-at-truth", action="store_true",
+                    help="also report rank/conditioning of the simulator Jacobian AT THE GROUND TRUTH (Prop. 6)")
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--sweep", action="store_true", help="(N,k) grid in the current release mode -> --sweep-out")
     ap.add_argument("--sweep-out", default="sweep.json")

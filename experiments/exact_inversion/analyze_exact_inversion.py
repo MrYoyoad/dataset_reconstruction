@@ -37,7 +37,8 @@ table(s1, ["k", "N", "r_minus_N", "T", "lr", "seed", "rankC", "eps_inv", "fwd_ch
 table(load("step1_timing_cpu.jsonl"), ["k", "N", "T", "device", "sec_per_iter", "final_err_median", "residual"], "Step 1 — CPU timing")
 
 # ---- step 2: basin ----
-near = load("step2_basin_near.jsonl"); init = load("step2_basin_init.jsonl")
+near = load("step8_basin_postfix")   # post-fix; the pre-fix step2_basin_near arm is WITHDRAWN
+init = load("step2_basin_init.jsonl")
 if near:
     by = defaultdict(list)
     for r in near: by[r["init_noise"]].append(r)
@@ -50,13 +51,13 @@ if near:
                          residual_median=float(np.median([r["residual"] for r in rs])),
                          n_alias=sum("alias" in r["verdict"] for r in rs), n_optfail=sum("optim" in r["verdict"] for r in rs),
                          restarts_used_mean=float(np.mean([r.get("restarts_used", 1) for r in rs]))))
-    table(rows, list(rows[0].keys()), "Step 2 — basin study, init=near (k=12, N=8, T=1500, lr=.03), 5 seeds x up to 8 restarts")
+    table(rows, list(rows[0].keys()), "Step 2 — basin study POST-FIX (k=12, N=8, T=1500, lr=.03), 3 seeds, restarts=1")
     fig, ax = plt.subplots(figsize=(5.2, 3.6), dpi=150)
     xs = [r["start_err_median"] for r in rows]; ys = [r["frac_recovered"] for r in rows]
     ax.plot(xs, ys, "o-", color="#1f4e79")
     for r in rows: ax.annotate(f"noise {r['init_noise']}", (r["start_err_median"], r["frac_recovered"]), fontsize=7, xytext=(3, 3), textcoords="offset points")
     ax.set_xlabel("median start error (relative image error)"); ax.set_ylabel("fraction of images recovered (err < 1e-2)")
-    ax.set_ylim(-0.05, 1.05); ax.set_title("Exact inversion: basin of attraction (k=12, N=8, T=1500, lr=.03)", fontsize=9)
+    ax.set_ylim(-0.05, 1.05); ax.set_title("Exact inversion: basin of attraction, post-fix, ONE attempt per seed\n(k=12, N=8, T=1500, lr=.03, deformation 0.96)", fontsize=9)
     for s in ["top", "right"]: ax.spines[s].set_visible(False)
     fig.tight_layout(); fig.savefig(os.path.join(FIG, "basin_curve.png")); print("saved basin_curve.png")
 if init:

@@ -4,10 +4,19 @@ Synthetic FP64 testbed, WEXAC L40S/A40, 2026-09-02. Theory: `notes/exact_lora_in
 (from `framework_rev10.pdf`); finite-difference baseline: `results_rev9.pdf` §3b.
 Script `lora_exact_inversion.py`, runner `scripts/run_exact_inversion_wexac.sh`, raw rows
 `results/exact_inversion/*.jsonl` (each line carries seed, git hash, command line, host).
-**Every number is provisional (†).** Post-fix numbers are at git `5762045`; the phase-diagram sweep and
-the near-basin arm were produced at `38fec3b`, before six defects were fixed (see "Corrections" below) —
-none of those six can turn a failure into a false recovery, but they can and did turn recoveries into
-false failures, so pre-fix *failures* are the ones to distrust.
+**Every number is provisional (†).** Post-fix numbers are at git `5762045` and later; the phase-diagram
+sweep was produced at `38fec3b`, before six defects were fixed (see "Corrections" below).
+
+**Why the pre-fix grid rows are still usable.** An earlier version of this file argued "none of the six
+defects can turn a failure into a false recovery". That argument is **wrong**: defect 2 (the `verdict`
+field keyed off the lower median) and defect 6 (the collapse-blind nearest-image metric) are both
+false-*recovery* mechanisms. The correct justification is empirical and does not rely on the buggy fields
+at all: recovery was **re-derived from `final_err_max` (every image below 1e-2) together with the
+residual**, neither of which those defects touch. On that objective criterion the pre-fix grid gives
+34/49 recovered — exactly equal to the count the buggy `verdict` field gave, so the two false-recovery
+mechanisms fire **zero** times here — and the 15 objective failures are exactly the 15 cells re-run
+post-fix. Quote the objective re-derivation, not the "only false failures" argument.
+*(This correction is owed to an independent audit by a sibling session.)*
 
 World: `k`-dim tanh generator → 64-dim image → tanh encoder → `n=96` features → softmax head `m=20`,
 LoRA `r=16`, `B₀=0`, Gaussian `A₀`, plain SGD. Attacker gets `(A_T, B_T)`, `W₀`, φ, ψ, the labels and the
@@ -65,23 +74,36 @@ Two honest qualifications:
   post-fix solver recovers every cell of the grid from a 10% start in a single attempt.
 - One seed per cell. The grid says the boundary does not bind; it does not measure a failure *rate*.
 
-## Step 2 — the basin (k=12, N=8, T=1500, lr=.03, deformation 0.96, up to 8 restarts)
+## Step 2 — the basin (k=12, N=8, T=1500, lr=.03, deformation 0.96)
 
-| latent init-noise | median start err | seeds | fraction of seeds fully recovered | mean restarts used |
-|---|---|---|---|---|
-| 0.05 | 0.031 | 5 | 1.00 | 1.0 |
-| 0.10 | 0.063 | 5 | 1.00 | 1.0 |
-| 0.15 | 0.100 | 4 | 1.00 | 2.5 |
-| 0.20 | 0.123 | 5 | 0.80 | 2.8 |
-| 0.30 | 0.183 | 4 | 1.00 | 3.2 |
-| 0.50 | 0.359 | 1 (running) | 0.00 | 8.0 |
+**REWRITTEN 2026-09-03.** The first version of this section was measured on the pre-fix code and is
+withdrawn: it reported a basin to a 24% start error, a "first clean failure at 36%", and restarts as the
+currency of distance. All three were artefacts of the QR seam bug, and the correction runs strongly in
+the attack's favour. Post-fix (job 459111, `--restarts 1`, 3 seeds per level, 80 LM iterations):
 
-`figures/exact_inversion/basin_curve.png`. At a **fully trained** adapter (deformation 0.96) the basin
-extends to at least a 24% start error, past the ~10–15% the finite-difference prototype reported, and
-the first clean failure appears at a 36% start error. The cost of distance is restarts, not accuracy:
-whenever it converges it converges to ~1e-14, never to something in between. Restarts-used is the
-better-behaved signal than the binary outcome. Arms at 0.15/0.20/0.30/0.50 were still accumulating seeds
-when this was written — treat the per-row seed counts, not the fractions, as the state of evidence.
+| latent init-noise | median start err | worst start err | seeds recovered | worst final err | restarts used |
+|---|---|---|---|---|---|
+| 0.10 | 0.069 | 0.117 | 3/3 | 1.9e-14 | 1, 1, 1 |
+| 0.20 | 0.130 | 0.233 | 3/3 | 1.5e-14 | 1, 1, 1 |
+| 0.30 | 0.183 | 0.345 | 3/3 | 1.4e-14 | 1, 1, 1 |
+| 0.40 | 0.237 | 0.449 | 3/3 | 1.3e-14 | 1, 1, 1 |
+| 0.50 | 0.291 | 0.543 | 3/3 | 1.7e-14 | 1, 1, 1 |
+| 0.70 | 0.447 | 0.653 | 3/3 | 1.6e-14 | 1, 1, 1 |
+
+"Recovered" here is re-derived objectively from `final_err_max`, i.e. **every** image below 1e-2, not from
+the `verdict` field.
+
+**No failure anywhere, up to a worst-case start error of 0.65, every one on the first attempt.** The
+finite-difference prototype reported convergence only from within ~10-15% and a local minimum at 30%.
+With exact backprop and a continuous simulator the basin is at least four times wider than that, and the
+"cost of distance is restarts" story is simply wrong: post-fix, one attempt suffices at every level
+tested. The edge has still not been located; the sweep ran out of levels before the solver ran out of
+basin (a 1.00 arm was queued and is the next thing to read).
+
+This matters for the plan more than the phase diagram does. The framework's whole division of labour is
+"the theorem tells you what a learned decoder must supply: a starting point inside the basin". A basin
+this wide makes that requirement much weaker than assumed, and correspondingly raises the bar for what
+counts as a defense.
 
 ## Step 3 — Adam release: the certificate is gone, and the inversion does not converge (yet)
 
@@ -110,7 +132,16 @@ recorded, the two cases separate cleanly on conditioning while agreeing on rank:
 | adam (n=32, k=6, N=4) | 832 | 536 | 6.3e-3 … 7.3e-3 | **1.4e7 … 3.7e8** | 23, 28, 54, 400 | not converged |
 
 `σ_min(J) ≈ 7e-3` for Adam sits **inside the range the successful SGD cells show**, so the simulator
-Jacobian has full column rank there: by Proposition 6 the Adam cell is **locally identifiable**. What
+Jacobian has full column rank at the point where it was evaluated.
+
+**Two scope corrections (independent audit, 2026-09-03).** First, this is the **scaled-down** cell
+(`n=32, k=6, N=4`), not the full-size `n=96` release, so the claim is about that cell and not about "the
+Adam release" in general. Second, and more serious: these `σ_min` values are computed from the Jacobian
+**at the solver's last iterate**, which coincides with the truth only when the run converged. The SGD
+cells converged, so theirs are at the truth; **the Adam runs never converged, so theirs are at a stuck
+point**, which is not what Proposition 6 asks about. A dedicated `--jac-at-truth` measurement (job 466915)
+evaluates the Jacobian at the ground-truth parameters for the Adam cell and two SGD controls; until it
+lands, *"the Adam cell is locally identifiable"* is **not supported** and should not be quoted. What
 differs is `cond(J)`, by four to six orders of magnitude, driven by `σ_max` rather than by any small
 singular value — which is what a coordinatewise `1/(√v̂+ε)` rescaling does to sensitivities. At 400 LM
 iterations (8x the original budget, job 423887) the run was still descending, residual 7.6e-3.

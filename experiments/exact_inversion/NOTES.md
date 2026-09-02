@@ -19,7 +19,9 @@ to `6.6e-16` in 14 LM iterations, residual `1.0e-30`. The pre-fix run (git 12fa6
 `5.7e-4`. So `results_rev9.pdf` §3b reproduces here, and the two hypotheses entertained below are both
 wrong: it was neither a seed-level basin difference nor the prototype's staged schedule.
 
-The cause was almost certainly the QR sign discontinuity (F4): a bare `torch.linalg.qr` flips a whole
+The rerun bundled **two** fixes (the QR canonicalisation and the residual normaliser, both in git
+5762045), so the cause is not isolated; a QR-fix-only rerun would settle it. The QR sign discontinuity
+(F4) is the likely one: a bare `torch.linalg.qr` flips a whole
 basis column when a candidate feature crosses zero, which makes the simulated release discontinuous in
 the candidate data and causes LM to reject any step crossing the seam. The reviewer who found it
 predicted exactly this failure mode — *"a systematic false-failure that under-reports the basin"* — and
