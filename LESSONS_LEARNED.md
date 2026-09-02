@@ -4,6 +4,47 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## `set -u` in a WEXAC job script silently breaks `conda activate` (2026-09-02)
+
+**Bug.** `scripts/run_exact_inversion_wexac.sh` opened with `set -euo pipefail`. The job died 9 seconds after
+dispatch, before a single python call.
+
+**How it presented.** The stdout log looked *empty* — nothing but the LSF resource summary (job "completed", exit
+code non-zero, ~9 s CPU time), so it read as a scheduler/queue problem. The real cause was one line in the `.err`
+file: `.conda/envs/rec/etc/conda/activate.d/activate-binutils_linux-64.sh: line 65: ADDR2LINE: unbound variable`.
+
+**Root cause.** The repo's `rec` env ships conda activation hooks (binutils) that read environment variables which
+may be unset. Under `set -u` the first unset variable aborts the shell, and the abort happens *inside*
+`conda activate`, i.e. before any of the experiment's own output exists.
+
+**Fix / rule.** Put `set +u` (or simply no `-u`) before `conda activate` in every WEXAC job script — the runner now
+does. Corollary for triage: **a WEXAC job that dies in <15 s with an empty-looking stdout is almost always an
+environment/activation failure, so read the `.err` file first**, not the `.out`.
+
+---
+
+## Editing a job script while a multi-cell job is running silently changes the recipe mid-run (2026-09-02)
+
+**Bug.** Exact-inversion job 392479 was running the step1 validation cells. Mid-run, the script and the experiment
+module were edited (the default solver moved to Levenberg–Marquardt with an autograd Jacobian). The already-finished
+cells had run under the old recipe; every later cell would have run under the new one — in the *same* JSONL file,
+under the same job id.
+
+**How it presented.** Nothing would have looked wrong: one results file, one job id, one provenance stamp, and rows
+that quietly disagree about which solver produced them. It was only noticed by reasoning about the runner, not from
+any output.
+
+**Root cause.** The job runner loops over cells and **re-launches `python` per cell**, so it reads the script and
+the module from disk *each time*. The submitted job is therefore not a frozen snapshot of the code — it is a live
+reference to the working tree.
+
+**Fix / rule.** The run was killed and resubmitted (job 395496) so the whole stage runs under one recipe. Rule:
+**never edit a script or module under a running multi-cell job** — either freeze the tree until it finishes, or
+kill and resubmit. (Mitigation now in place: every JSONL line records the git hash, so a mixed run is at least
+*detectable* after the fact; the git hash is not a substitute for not doing it.)
+
+---
+
 ## A figure spec that mixes two metric columns survives every downstream audit (2026-08-30)
 
 **Bug.** The designed note's E3 panel A plotted "feature stability at T=50" with kinked activations at ~0.67

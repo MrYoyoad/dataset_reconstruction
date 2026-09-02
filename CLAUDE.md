@@ -192,6 +192,46 @@ stdout until job end, so unbuffered is required to monitor a run live.
   read full-cosine vs projected-cosine**: the output layer is near-analytic (weak), the hidden layer
   (ceiling ≈ √(r/out)) is the real milestone. Submit: `bsub < scripts/run_gb_phase1_wexac.sh`.
 
+### Exact LoRA inversion (framework Rev 10) — `experiments/exact_inversion/` (added 2026-09-02)
+
+Synthetic FP64 testbed for "the recipe is the forward model": the released LoRA factors `(A_T, B_T)` are a
+deterministic function of the private data and of `X = A₀U`, so the attack simulates the *known public recipe* on
+candidate data and backprops through the unrolled training loop to solve for `({wᵢ}, X)`. Theory summary:
+[notes/exact_lora_inversion_framework.md](notes/exact_lora_inversion_framework.md).
+
+- **Script:** `experiments/exact_inversion/lora_exact_inversion.py` (see its docstring). Modes `--release sgd`
+  (unknowns: latents `W` and `X`) / `--release adam` (unknowns: latents and the full `A₀` — no certificate exists).
+  Initialisers `--init near|random|span|cert|spananchor`; `near` is the basin study and is **NOT
+  attacker-available**. Solver `--solver lm` (Levenberg–Marquardt, autograd `torch.func.jacfwd` Jacobian, default)
+  with `--solver lbfgs` as fallback.
+- **Job runner:** `bash scripts/run_exact_inversion_wexac.sh <stage> [arg]`, stages
+  `step1` (validation vs the finite-difference cells + CPU/GPU timing) ·
+  `step2_near <noise>` (basin study, `init=near`) ·
+  `step2_init <init>` (attacker-available initialisers: `random|span|cert|spananchor`) ·
+  `step3` (Adam release) · `step4 <N>` ((N,k) phase diagram with backprop, one N column).
+  Submit with `bsub -q long-gpu -gpu "num=1" ... bash scripts/run_exact_inversion_wexac.sh step1`.
+- **Analysis:** `python experiments/exact_inversion/analyze_exact_inversion.py` (CPU) → markdown tables to stdout
+  + `figures/exact_inversion/{basin_curve.png, phase_diagram_exact.png}`.
+- **Paths:** results `results/exact_inversion/*_<jobid>.jsonl` (one JSON line per cell/seed, with seed, git hash,
+  command line and host) + `.pth` tensors; figures `figures/exact_inversion/`; write-ups
+  `experiments/exact_inversion/{RESULTS.md,NOTES.md}`.
+
+**Ground rules for this track:**
+1. **FP64 everywhere** (`torch.set_default_dtype(torch.float64)`); never silently downcast.
+2. **Never change the recipe silently.** The simulator and the release must change *identically*, and the run must
+   be relabelled. Do not edit the script or module under a running multi-cell job — the runner re-launches `python`
+   per cell (see LESSONS_LEARNED 2026-09-02); freeze the tree or kill and resubmit.
+3. **Provisional numbers carry a dagger (†).** Every number from the external bundle (`framework_rev10.pdf`,
+   `results_rev9.pdf`, `audit_rev9.pdf`) is †provisional until reproduced by the committed script with a recorded
+   seed. Nothing in this track has been measured in this repo yet.
+4. **Verdict semantics.** Report failures as failures, and read the `verdict` field literally:
+   `recovered` (median image error < 1e-2) · `optimisation failure (residual not zero)` — a **basin/solver**
+   problem · `alias (residual zero, wrong image → non-identifiability)` — an **information** problem. Never merge
+   the last two into "it didn't work".
+5. **Read `fwd_check` first.** It is the simulator reproducing the release at the ground truth; until it is at
+   machine precision, no downstream number (basin size, Adam, phase diagram) is meaningful.
+6. **Do not edit the theory documents.** Disagreements go to `experiments/exact_inversion/NOTES.md` with evidence.
+
 ## Architecture
 
 ### Pipeline Flow
@@ -273,6 +313,7 @@ rsync -avz papers/ wexac:~/papers/
 - [notes/thesis_update_briefing.md](notes/thesis_update_briefing.md) — canonical post-meeting briefing (2026-05-14): direct weight inversion, the three additions, honesty conventions
 - [notes/unified_direction_analysis.md](notes/unified_direction_analysis.md) — direction reconciliation + "Direct Weight Inversion — New Primary Axis" section
 - [notes/reconstruction_approaches.tex](notes/reconstruction_approaches.tex) — catalog of reconstruction approaches and next steps (March 2026); Approach G is the precursor to direct weight inversion
+- [notes/exact_lora_inversion_framework.md](notes/exact_lora_inversion_framework.md) — exact LoRA inversion framework (Rev 10, 2026-09-02): the quotient certificate `C`, the manifold pull-back phase boundary `k < r−N`, and exact inversion by simulating the recipe. All bundle numbers are †provisional; code in `experiments/exact_inversion/`
 - [notes/GRADIENT_BRIDGE_PLAN.md](notes/GRADIENT_BRIDGE_PLAN.md) — Gradient Bridge reading syllabus + decoder roadmap (GB-Phase 0 → 1 → 2). Background only; actionable to-do now lives in experiment_plan.md
 - [STYLE_GUIDE.md](STYLE_GUIDE.md) — formatting rules for Word docs, PPTX, LaTeX, and plots
 

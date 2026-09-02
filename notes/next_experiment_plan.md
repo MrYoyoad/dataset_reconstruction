@@ -49,6 +49,7 @@ Compute in L40S GPU-hours (MLP LoRA config ≈ 5 min; GB decoder arm ≈ 1–2 h
 | LoRA leakage (gate B1) | weak **yes** | Retrieval ~2.0–2.3× chance, pooled z=4.3, **p≈8.5e-6** (N=4..32×3 seeds); control margins +0.13–0.18. ⚠ **prose-only, no saved table.** |
 | Direct inversion (DI) | ✅ but does not scale | SSIM 0.57 (N=4) → 0.27 (N=10) → 0.14–0.18 (N=20). Superposition wall. SimuDy published the full-FT version. |
 | Metric audit | ✅ | Raw SSIM: 65/76 recons sit below `ds_mean`; the fix is the conventions above. |
+| Exact LoRA inversion (STEP 0) | ⏳ NEW (2026-09-02) — running | Testbed built (FP64 backprop, LM/autograd Jacobian, attacker-available inits); step 1 validation RUNNING (job 395496). **Nothing measured in this repo yet**; all bundle numbers †provisional/off-repo. |
 | **Addition 2 (Gal's TOP ask)** | **⚠ OPEN** | Job 857271 died at 96 h RUNLIMIT; **21 configs on disk, never analyzed**; kinked controls + softplus-β knob + T-variation never ran; all `ntk_passed:False`. |
 | Addition 1 (harder data) | ⚠ partial | MNIST breadth done (N-sweep). Fashion-MNIST/CIFAR/faces **not started**. |
 | B2 gate (linearized vs unroll) | ❌ never run | Decision brief calls **B1+B2 "the whole bet."** Only a cheap MNIST proxy exists (DI-T1 0.57 ≈ anchor-NTK 0.50). |
@@ -82,6 +83,44 @@ The mechanistic chain the experiment is built to demonstrate:
 smoothness, linearization, reconstruction, and gradient-recoverability all move together. The
 co-movement is the result; the single winning activation is the headline. If any axis diverges, report
 it — the mechanism is falsifiable, which is the point.
+
+---
+
+## STEP 0 — exact LoRA inversion, framework Rev 10 **[EXP + THEORY — NEW thread 2026-09-02, step 1 RUNNING job 395496]**
+
+Added after this plan was written; runs **in parallel** with the crux (it is a separate, synthetic FP64 testbed,
+not a competitor for the same tensors). Theory summary: [exact_lora_inversion_framework.md](exact_lora_inversion_framework.md);
+code `experiments/exact_inversion/`, runner `scripts/run_exact_inversion_wexac.sh`, ground rules in CLAUDE.md.
+**Framing:** the external bundle's crux is the **basin problem, not identifiability** — so a learned decoder /
+population prior is needed as an *initializer*, not as a metric or a gradient bridge. That directly re-aims
+STEP 3 if it holds up.
+
+**⚠ Dependency (gates everything below):** step 1 reports `fwd_check` — the simulator reproducing the released
+`(B_T, A_T U)` at the ground truth. **Until `fwd_check` is at ~machine precision, no downstream number (basin
+size, Adam, phase diagram) is meaningful.** Read it before reading anything else.
+
+**⚠ Provenance:** every bundle number is **†provisional** — produced outside this repo with numpy
+finite-difference Jacobians on a laptop (†1e-13…1e-16 recovery at deformation up to †≈1.0, but only from starts
+within †~10–15% of the truth; †30% off → local minimum). **Nothing has been measured in this repo yet.**
+
+1. **Validate vs the finite-difference cells [EXP — RUNNING, job 395496].** `step1`: 5 cells of results_rev9 §3b
+   under true backprop + LM/autograd Jacobian, plus CPU/GPU timing. **Success:** tiny `fwd_check`, and
+   `final_err`/`residual` at least as good as the †finite-difference table. **Risk:** a large `fwd_check` means
+   the simulator ≠ the release — a bug, not a result.
+2. **Basin study [EXP].** `step2_near <noise>` (init-noise ladder, 5 seeds × 8 restarts) then `step2_init <init>`
+   for the **attacker-available** initialisers (`random` / `span` / `cert` / `spananchor`). **Success:** a basin
+   curve (fraction recovered vs start error) and whether any attacker-available start lands inside it — the
+   central open question. **Note:** `near` is an oracle start; it bounds, it does not attack.
+3. **Adam release [EXP].** `step3`: no certificate exists and all of `A₀` is unknown, count still overdetermined.
+   **Success:** a yes/no on whether the exact inversion survives the optimizer that kills the algebraic channel
+   (LESSONS_LEARNED 2026-08-31: Adam breaks the row-span exactness). This is the realism gate for the whole track.
+4. **(N,k) phase diagram [EXP].** `step4 <N>` per N column. **Success:** exact-inversion recovery mapped against
+   the C-only boundary `k = r − N`; the bundle predicts recovery on **both** sides of it. Read `verdict`, not just
+   the error: `alias` (residual zero, wrong image) = non-identifiability; `optimisation failure` = basin/solver.
+5. **Write-up [DOC].** `analyze_exact_inversion.py` → tables + `figures/exact_inversion/`, then
+   `experiments/exact_inversion/RESULTS.md`; disagreements with the theory documents go to `NOTES.md` with
+   evidence (do not edit the PDFs' claims). Sync `framework_rev10.pdf` / `results_rev9.pdf` / `audit_rev9.pdf`
+   from the Mac into `papers/`. Re-state every † number that has now been reproduced — or has not.
 
 ---
 
@@ -273,6 +312,8 @@ even if every scale experiment stalls.
 ---
 
 ## Top 3 to do first — and why
+0. **STEP 0 step-1 `fwd_check`** (already on the cluster, job 395496) — costs nothing to read and gates the whole
+   exact-inversion thread; if the simulator does not reproduce the release at the truth, stop and debug.
 1. **QW1 — rescore 857271.** Unblocks the crux: gives the first-pass activation ranking and decides
    whether Step 2a's GPU re-run is needed. ~free. Highest value/effort in the plan.
 2. **QW2 — complete + persist the retrieval story.** STATUS's own #1 open item; converts gate B1 (the

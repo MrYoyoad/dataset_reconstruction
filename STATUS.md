@@ -1,5 +1,41 @@
 # Project Status
 
+## Exact LoRA inversion (framework Rev 10) — testbed built, step-1 validation RUNNING, nothing measured yet (2026-09-02, job 395496)
+
+New thread. An external theory bundle (`framework_rev10.pdf` theory · `results_rev9.pdf` finite-difference
+experiments · `audit_rev9.pdf` audit; authored outside this repo, PDFs still on the Mac — see
+[notes/exact_lora_inversion_framework.md](notes/exact_lora_inversion_framework.md)) defines **three primitives on a
+released LoRA adapter** `(A_T, B_T)` with `B₀=0` and an SGD-class recipe:
+1. **Quotient certificate** `C := P_{row(B_T)^⊥} A_T`, with `CH = 0` exactly and `rank C = r − N`; dies under
+   coordinatewise-nonlinear optimizers (Adam/Lion/signSGD) and under a balanced/merged release.
+2. **Manifold pull-back** with a sharp phase boundary: recovery from `C` alone works iff `k < r − N` strictly.
+3. **Exact inversion** — do not assume representer coefficients, *simulate the known recipe as the forward model*
+   and solve `Recipe_T(φ(ψ(wᵢ)), X) = (B_T, A_T U)` for the latents and `X = A₀U`.
+
+**Every number in that bundle is provisional (†) and was produced outside this repo** (numpy finite-difference
+prototypes, on a laptop): recovery to †1e-13…1e-16 at deformation up to †≈1.0, but **only from starts within
+†~10–15% of the truth** (†30% off lands in a local minimum). The named crux is therefore the **BASIN problem, not
+identifiability** — what a learned decoder / population prior must supply is an *initializer*, not a metric.
+
+**Built this session** (`experiments/exact_inversion/`): a PyTorch FP64 reimplementation with **true backprop
+through the unrolled training loop** (`lora_exact_inversion.py`, replacing finite-difference Jacobians);
+attacker-available initialisers (span estimator `row(P_{row(B_T)}A_T)` refined onto `ker C`, certificate anchor
+`min ‖C φ(ψ(w))‖²`, span-anchor); a Levenberg–Marquardt solver with an autograd (`torch.func.jacfwd`) Jacobian as
+default plus an LBFGS fallback; provenance on every JSON line (seed, git hash, command line, host); and a
+`verdict` field that separates **"optimisation failure (residual not zero)"** from **"alias (residual zero, wrong
+image → non-identifiability)"**. Job runner `scripts/run_exact_inversion_wexac.sh` with stages step1 (validation vs
+the finite-difference cells + CPU/GPU timing) · step2_near \<noise\> (basin study) · step2_init \<init\>
+(attacker-available initialisers) · step3 (Adam release — no certificate exists, all of `A₀` unknown) · step4 \<N\>
+((N,k) phase diagram with backprop).
+
+**Run status: step1 validation is RUNNING on WEXAC (job 395496, long-gpu, A40). NO results are in yet — nothing has
+been measured in this repo.** An earlier submission (392479) was killed because a mid-run edit would have silently
+switched the solver for that job's later cells (see LESSONS_LEARNED 2026-09-02).
+
+**Next:** read step1's `fwd_check` first — until the simulator reproduces the release at the truth to ~machine
+precision, no downstream number (basin, Adam, phase diagram) means anything. Then step2 basin + initialisers,
+step3 Adam, step4 phase diagram; write-up into `experiments/exact_inversion/RESULTS.md`.
+
 ## Free-coefficient LoRA reconstruction at non-trivial T + the N-sweep (2026-08-31, jobs 323866/323867/336206/341742/497350/528750)
 
 User-directed: LoRA reconstruction examples with FREE coefficients (realistic attack) at T>1, vs full fine-tune.
