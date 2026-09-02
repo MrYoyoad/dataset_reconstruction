@@ -54,7 +54,14 @@ in 53 iterations rather than 14, i.e. slower). `results_rev9.pdf` §3b **does** 
 `figures/exact_inversion/phase_diagram_comparison.png` (the side-by-side against the certificate-only
 diagram; `phase_diagram_exact.png` is the single panel). 49 cells, `N, k ∈ {2,…,14}`, T=400, start 10% off.
 
-**49 / 49 recovered**, median residual 8.6e-31, zero cells with a residual above the reproduction floor.
+**49 / 49 recovered** (one seed each), median residual 8.6e-31, zero cells with a residual above the
+reproduction floor.
+
+**What this study measures, and what it does not.** The grid is an **existence** result across `(N, k)`:
+*is the `k = r − N` boundary crossable at all?* One recovered cell above the line would answer yes; 49 of
+49 is overwhelming. It is **not** a reliability or success-rate measurement, because there is one seed per
+cell. Reliability is what the basin study below measures, on a different axis: *how far from the truth can
+a start be and still land?* Keep the two labelled separately and neither is over-claimed.
 
 This is the figure the exercise was for. The certificate-only diagram (`results_rev9.pdf` Fig. 1) is
 **exactly 0 above the line `k = r − N`** — above it the certificate has fewer rows than the manifold has

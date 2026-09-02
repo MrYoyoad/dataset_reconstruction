@@ -1,6 +1,6 @@
 # Project Status
 
-## Exact LoRA inversion (framework Rev 10) — MEASURED: 49/49 exact recovery in the (N,k) phase diagram **in a single attempt**, the certificate's `r−N` boundary does NOT bound the leakage (2026-09-02; **two claims corrected 2026-09-03**; jobs 395496 · 396202-07 · 396214-21 · 408565 · 456630 · 452904; Adam + initialiser arms 408559-63 RUNNING)
+## Exact LoRA inversion (framework Rev 10) — MEASURED: 49/49 exact recovery in the (N,k) phase diagram (one seed each), **each in a single attempt**, the certificate's `r−N` boundary does NOT bound the leakage (2026-09-02; **two claims corrected 2026-09-03**; jobs 395496 · 396202-07 · 396214-21 · 408565 · 456630 · 452904; Adam + initialiser arms 408559-63 RUNNING)
 
 Thread from an external theory bundle (`framework_rev10.pdf` theory · `results_rev9.pdf` finite-difference
 experiments · `audit_rev9.pdf` audit; authored outside this repo, PDFs still on the Mac — see
@@ -46,7 +46,7 @@ above the reproduction floor** (`N, k ∈ {2,…,14}` at `r=16`, `T=400`, start 
 `figures/exact_inversion/phase_diagram_exact.png`). The certificate-only diagram from the bundle is **exactly 0 above
 the line `k = r − N`**. Exact inversion recovers on **both sides** of that line: **`r − N` bounds one channel, not the
 leakage.** Any defense argued from "the adapter only exposes `r − N` independent rows" is arguing about one primitive.
-Every cell recovers **from a 10% start in a single attempt** (`restarts=1`) on post-fix code — the earlier
+All 49 cells recover **(one seed each)** from a 10% start, **each in a single attempt** (`restarts=1`) on post-fix code — the earlier
 "15 of the 49 cells needed 4 restarts" caveat is **withdrawn**, see Correction 2 (job 456630). Remaining caveat: one
 seed per cell, so the grid shows the boundary does not bind — it does **not** measure a failure *rate*.
 
