@@ -11,7 +11,26 @@ validation cells†, so the reduced span-adapted simulator of Theorem 1 *is* the
 release really is a function of the candidate data and of `X = A_0 U` alone. `rank C = r − N` and
 `eps_inv ~ 1e-15` reproduced in every cell seen so far†. No statement in the framework is contradicted.
 
-## 2. A validation cell does NOT reproduce the finite-difference result — basin, not identifiability
+## 2. WITHDRAWN (2026-09-02, later the same day) — the non-reproduction was OUR bug, not a basin difference
+
+**Retraction.** The cell below was re-run after the QR canonicalisation and residual-normaliser fixes
+(git 276cfb3), with the **same seed, same start noise, same single restart, and no staging**: it recovers
+to `6.6e-16` in 14 LM iterations, residual `1.0e-30`. The pre-fix run (git 12fa60d) stalled at residual
+`5.7e-4`. So `results_rev9.pdf` §3b reproduces here, and the two hypotheses entertained below are both
+wrong: it was neither a seed-level basin difference nor the prototype's staged schedule.
+
+The cause was almost certainly the QR sign discontinuity (F4): a bare `torch.linalg.qr` flips a whole
+basis column when a candidate feature crosses zero, which makes the simulated release discontinuous in
+the candidate data and causes LM to reject any step crossing the seam. The reviewer who found it
+predicted exactly this failure mode — *"a systematic false-failure that under-reports the basin"* — and
+this cell is a confirmed instance. Staging was also tested directly and is **not** needed: `--stage-x 10`
+recovers too (53 iterations), i.e. slower than not staging.
+
+**Lesson recorded**: a non-reproduction is a claim about someone else's work, and it should not be
+written up before your own tooling has been adversarially checked. The original text is kept below for
+the record.
+
+### (superseded) A validation cell does NOT reproduce the finite-difference result — basin, not identifiability
 
 `results_rev9.pdf` §3b reports `(k, N, r−N) = (6, 12, 4)`, `T = 400`, `η = .01`, start error 0.24 →
 final error 5e-16, residual 6e-16. Our backprop rerun of that cell from start error 0.166 (init-noise

@@ -89,8 +89,10 @@ if s3:
 
 # ---- step 4: phase diagram (merged with the step-5 rescue pass, which re-runs the failed cells
 #      with 4 restarts that re-seed the whole unknown vector) ----
-s4 = load("step4_sweep.jsonl"); s5 = load("step5_rescue")
-rescued = {(d["k"], d["N"]) for d in s5 if d["frac_recovered"] == 1.0}
+s4 = load("step4_sweep.jsonl"); s5 = load("step5_rescue") + load("step7_disambig")
+# step7 re-ran the 15 pre-fix failures POST-FIX at restarts=1 and recovered all 15, so those cells were
+# false failures from the QR seam bug, not cells that "needed restarts".  Mark nothing.
+rescued = set()
 by_cell = {(d["k"], d["N"]): d for d in s4}
 for d in s5:
     if d["frac_recovered"] >= by_cell.get((d["k"], d["N"]), d)["frac_recovered"]:
@@ -112,7 +114,7 @@ if s4:
                 mark = "*" if (ks[a], Ns[b]) in rescued else ""
                 ax.text(b, a, f"{M[a, b]:.2f}{mark}", ha="center", va="center", fontsize=7.5, color="white" if M[a, b] > 0.55 else "#222")
     ax.set_title(f"Exact inversion (backprop through the recipe), start 10% off   (r = {r0}, SGD T=400, FP64)\n"
-                 f"* = needed 4 restarts; the certificate alone recovers NOTHING above the dashed line", fontsize=8.5)
+                 f"post-fix, single attempt per cell; the certificate alone recovers NOTHING above the dashed line", fontsize=8.5)
     cb = fig.colorbar(im, ax=ax, fraction=0.045); cb.set_label("fraction of images recovered (err < 1e-2)")
     for s in ["top", "right"]: ax.spines[s].set_visible(False)
     fig.tight_layout(); fig.savefig(os.path.join(FIG, "phase_diagram_exact.png")); print("saved phase_diagram_exact.png")
@@ -136,7 +138,7 @@ if s4:
     fig, axes = plt.subplots(1, 2, figsize=(11.4, 4.9), dpi=150, sharey=True)
     for ax, (Mx, title, sub) in zip(axes, [
             (Mc, "Certificate $C$ alone", "$CH=0$ has $r-N$ rows; blind above the line\n(transcribed from the bundle's finite-difference run)"),
-            (M, "Exact inversion: simulate the recipe", "unknowns = latents and $X=A_0U$; $*$ = needed 4 restarts\n(this repo, backprop through the unrolled training)")]):
+            (M, "Exact inversion: simulate the recipe", "unknowns = latents and $X=A_0U$; one attempt per cell\n(this repo, backprop through the unrolled training)")]):
         im = ax.imshow(Mx, origin="lower", cmap="Blues", vmin=0, vmax=1, aspect="auto")
         ax.set_xticks(range(len(Ns_c))); ax.set_xticklabels(Ns_c); ax.set_yticks(range(len(ks_c))); ax.set_yticklabels(ks_c)
         ax.set_xlabel("N   (private examples)")

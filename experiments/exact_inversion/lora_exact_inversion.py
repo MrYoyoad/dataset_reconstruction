@@ -338,9 +338,20 @@ def invert_lm(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
             t1 = time.time()
             J = jac(v).detach()                                        # (R, P)
             JtJ = J.T @ J; JtF = J.T @ F
+            # Staged schedule: solve for the nuisance block X alone first, with the data held fixed.
+            # X enters the recipe close to linearly, so this is the cheap half of the problem; the
+            # bundle prototype did exactly this (iters_x=10) and reported a larger basin (NOTES.md 2).
+            free = slice(nW, JtJ.shape[0]) if it < args.stage_x else slice(0, JtJ.shape[0])
+            JtJb = JtJ[free, free]; JtFb = JtF[free]
+            # Marquardt scaling: damp with diag(JtJ) instead of I.  The latent block and the A_0 / X
+            # block differ in natural scale, so unscaled lam*I preferentially freezes one of them --
+            # which is what an ill-conditioned Adam Jacobian (cond ~ 1e8) needs fixed.
+            Dmp = torch.diag(torch.diagonal(JtJb).clamp_min(1e-30)) if args.lm_scale == "marquardt" \
+                  else torch.eye(JtJb.shape[0], device=v.device)
             accepted = False
             for _ in range(12):
-                step = torch.linalg.solve(JtJ + lam * torch.eye(JtJ.shape[0], device=v.device), JtF)
+                step_b = torch.linalg.solve(JtJb + lam * Dmp, JtFb)
+                step = torch.zeros_like(v); step[free] = step_b
                 vn = v - step
                 with torch.no_grad(): Fn = res_vec(vn)
                 if float(Fn @ Fn) < fval:
@@ -350,6 +361,7 @@ def invert_lm(world, A_T, B_T, W0, y, args, W_init, Xinit, log=print):
             log(f"    restart {rs} lm-iter {it:3d}  residual {fval:.3e}  lambda {lam:.1e}  ({time.time()-t0:.0f}s)")
             stall = 0 if accepted else stall + 1
             if fval < 1e-30 or stall >= 2 or lam > 1e12:
+                if it < args.stage_x: continue                          # never stop during the staged phase
                 sv = torch.linalg.svdvals(J)
                 diag = dict(lm_iters_used=it + 1, lm_lambda_final=float(lam),
                             jac_cond=float(sv[0] / sv[-1]) if float(sv[-1]) > 0 else float("inf"),
@@ -449,7 +461,7 @@ def run_cell(args, log=print, save_prefix=None):
                rankB=rankB, rankC=(0 if cert_vacuous else rankC), cert_norm=cert_norm, cert_vacuous=cert_vacuous, eps_inv=eps_inv, deformation=deform, fwd_check=fwd_check, fwd_check_A=fwd_check_A,
                span_angle_mean_deg=float(span_angles.mean()), span_angle_max_deg=float(span_angles.max()),
                init=args.init, init_noise=args.init_noise, restarts=args.restarts, restarts_used=n_rs,
-               restart_noise=args.restart_noise, solver=args.solver, **solver_diag, outer=args.outer, lbfgs_iter=args.lbfgs_iter, lm_iters=args.lm_iters, **init_info,
+               restart_noise=args.restart_noise, solver=args.solver, lm_scale=args.lm_scale, stage_x=args.stage_x, **solver_diag, outer=args.outer, lbfgs_iter=args.lbfgs_iter, lm_iters=args.lm_iters, **init_info,
                start_err_median=float(start_err.median()), start_err_max=float(start_err.max()),
                final_err_median=float(err.median()), final_err_max=float(err.max()),
                final_err_any_median=float(err_any.median()), final_err_matched_median=float(err_match.median()),
@@ -487,6 +499,10 @@ def main():
     ap.add_argument("--solver", choices=["lm", "lbfgs"], default="lm", help="lm = Levenberg-Marquardt with autograd Jacobian (default)")
     ap.add_argument("--jac", choices=["fwd", "rev"], default="fwd", help="autograd mode for the LM Jacobian")
     ap.add_argument("--lm-iters", type=int, default=60); ap.add_argument("--lm-lambda", type=float, default=1e-2)
+    ap.add_argument("--lm-scale", choices=["identity", "marquardt"], default="identity",
+                    help="damping matrix: lam*I (as run so far) or lam*diag(JtJ) (Marquardt scaling)")
+    ap.add_argument("--stage-x", type=int, default=0,
+                    help="solve for the nuisance block (X or A0) alone for this many LM iterations first")
     ap.add_argument("--outer", type=int, default=30); ap.add_argument("--lbfgs-iter", type=int, default=20)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", default=None, help="JSONL results file (append)")

@@ -18,7 +18,7 @@ recipe; never `A₀`, `H`, or the trajectory. "Recovered" = relative image error
 | k | N | r−N | T | lr | deformation | start err | fwd_check | final err (med) | residual | verdict |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 12 | 8 | 8 | 400 | .01 | 0.39 | 0.085 | 7.8e-16 | 2.2e-15 | 8.9e-31 | recovered |
-| 6 | 12 | 4 | 400 | .01 | 0.26 | 0.166 | 8.5e-16 | 6.2e-02 | 5.7e-04 | optimisation failure |
+| 6 | 12 | 4 | 400 | .01 | 0.26 | 0.166 | 8.5e-16 | 6.6e-16 (post-fix) | 1.0e-30 | recovered |
 | 8 | 10 | 6 | 400 | .01 | 0.36 | 0.023 | 7.4e-16 | 9.2e-16 | 9.2e-31 | recovered |
 | 12 | 8 | 8 | 1500 | .03 | 0.96 | 0.034 | 8.5e-16 | 9.3e-15 | 9.9e-31 | recovered |
 | 12 | 8 | 8 | 1500 | .03 | 0.96 | 0.085 | 8.5e-16 | 9.1e-15 | 8.8e-31 | recovered |
@@ -34,10 +34,11 @@ precision. CPU is 1.7 s/iter at T=400 — **the GPU advantage is small here**; t
 latency-bound, so this testbed does not need a GPU. The 4/5 recovered cells reach 1e-15 image error with
 residual ~1e-30, i.e. the release is reproduced to the FP64 floor.
 
-The one non-reproduction is written up in `NOTES.md §2`: it is a genuine local minimum (residual plateaus
-while LM damping climbs 6 orders with no accepted step), and the finite-difference prototype it is
-compared against used a *staged* schedule (X first, then joint) that this run does not. Do not quote the
-bundle's "converges from within 10–15%" as reproduced.
+**The one non-reproduction has been withdrawn** (`NOTES.md §2`). The `(k,N) = (6,12)` cell was re-run
+post-fix at the same seed, same start, same single restart, no staging: it recovers to `6.6e-16` in 14 LM
+iterations. The pre-fix stall at residual 5.7e-4 was our QR seam bug, not a basin difference and not the
+prototype's staged schedule. Staging was tested directly and is not needed (`--stage-x 10` also recovers,
+in 53 iterations rather than 14, i.e. slower). `results_rev9.pdf` §3b **does** reproduce here.
 
 ## Step 4 + 5 — the phase diagram: the certificate's boundary does not bind the exact inversion
 
@@ -54,11 +55,14 @@ directions). The `r − N` budget is a boundary for *one channel*, not a bound o
 
 Two honest qualifications:
 
-- **15 of the 49 cells needed restarts** (marked `*` in the figure). At `restarts=1` they failed, all 15
-  with a *nonzero* residual (3e-5 … 1e-2) — optimisation failures, never aliases. Re-run with 4 restarts
-  that re-seed the whole unknown vector, all 15 recovered to ~1e-15. So the pre-fix failure pattern was a
-  property of the search, not of the release. Failures concentrated at large `N` (4 of 7 at N=12 and
-  N=14, 1 of 7 at N ≤ 8), which is the honest statement of where the search gets harder.
+- **CORRECTED (later the same day).** An earlier version of this file said "15 of the 49 cells needed
+  restarts". That was wrong, and the correction runs the other way. Those 15 cells failed on the
+  **pre-fix** code (git 12fa60d / 38fec3b) and were rescued on the **post-fix** code *with* 4 restarts,
+  confounding the two changes. Re-running the same 15 cells post-fix at **`restarts=1`** recovers
+  **15 of 15**, median residual 8.0e-31, median 17 LM iterations (job 456630). So the restarts were
+  never needed: all 15 were **false failures caused by the QR sign discontinuity** (F4), exactly the
+  systematic under-reporting of the basin that the review predicted. The clean statement is that the
+  post-fix solver recovers every cell of the grid from a 10% start in a single attempt.
 - One seed per cell. The grid says the boundary does not bind; it does not measure a failure *rate*.
 
 ## Step 2 — the basin (k=12, N=8, T=1500, lr=.03, deformation 0.96, up to 8 restarts)
@@ -113,8 +117,23 @@ iterations (8x the original budget, job 423887) the run was still descending, re
 
 So the correct statement is: *the Adam release is locally identifiable from the simulator, and plain
 Levenberg-Marquardt does not solve it because the problem is ~10⁵ times worse conditioned than the SGD
-one.* The indicated fix is preconditioning, not more iterations: Marquardt's `diag(JᵀJ)` scaling instead
-of the unscaled `λI` damping used here, and rescaling the `A₀` block against the latent block. Untested.
+one.*
+
+**Preconditioning was the obvious fix and it does NOT work** (job 452904). Three variants at the same
+cell, all failing:
+
+| variant | iterations | final residual | final image error |
+|---|---|---|---|
+| unscaled `λI` damping (baseline) | 400 | 7.6e-3 | 7.9e-2 |
+| Marquardt `λ·diag(JᵀJ)` scaling | 200 | 2.2e-1 / 9.5e-3 | 6.3e-2 / 7.0e-2 |
+| Marquardt + solve the `A₀` block alone first (15 iters) | 200 | 1.1e-2 | 7.6e-2 |
+
+Marquardt scaling is if anything *worse* than unscaled damping on the residual. So the Adam difficulty is
+not a block-scaling mismatch between the latent and `A₀` unknowns, which was the natural hypothesis given
+`σ₀` differs from the latent scale. It remains open what the right treatment is; a trust-region or
+Gauss-Newton-with-line-search variant, or reformulating so the Adam moment buffers are not differentiated
+through, are the next things to try. The regression arm in the same job confirms the default SGD path
+still recovers to 2.0e-15, so none of this is a refactor artifact.
 
 Two further facts are already established.
 
