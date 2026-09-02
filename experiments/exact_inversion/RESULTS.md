@@ -141,14 +141,31 @@ recorded, the two cases separate cleanly on conditioning while agreeing on rank:
 `σ_min(J) ≈ 7e-3` for Adam sits **inside the range the successful SGD cells show**, so the simulator
 Jacobian has full column rank at the point where it was evaluated.
 
-**Two scope corrections (independent audit, 2026-09-03).** First, this is the **scaled-down** cell
-(`n=32, k=6, N=4`), not the full-size `n=96` release, so the claim is about that cell and not about "the
-Adam release" in general. Second, and more serious: these `σ_min` values are computed from the Jacobian
-**at the solver's last iterate**, which coincides with the truth only when the run converged. The SGD
-cells converged, so theirs are at the truth; **the Adam runs never converged, so theirs are at a stuck
-point**, which is not what Proposition 6 asks about. A dedicated `--jac-at-truth` measurement (job 466915)
-evaluates the Jacobian at the ground-truth parameters for the Adam cell and two SGD controls; until it
-lands, *"the Adam cell is locally identifiable"* is **not supported** and should not be quoted. What
+**RESOLVED, and it overturns the conditioning story (job 466915).** An independent audit asked where
+`σ_min` was evaluated. It comes from the Jacobian at the **solver's last iterate** — the truth only when
+the run converged. The SGD cells converged; the Adam runs never did, so their `cond ≈ 1e7…3.7e8` describes
+a *stuck point*, not the map. Evaluating the Jacobian at the **ground-truth parameters** instead
+(`--jac-at-truth`), with `‖res(truth)‖` as the gate that the evaluation point really does reproduce the
+release:
+
+| release | J shape | ‖res(truth)‖ | `σ_min` at truth | `cond` at truth | full rank |
+|---|---|---|---|---|---|
+| **adam** (n=32, k=6, N=4) | 832 × 536 | **0.0** (exactly) | 6.95e-3 | **2.08e3** | yes |
+| sgd (n=32, k=6, N=4) | 384 × 88 | 7.8e-16 | 9.67e-3 | 1.23e2 | yes |
+| sgd (n=96, k=12, N=8) | 448 × 224 | 9.6e-16 | 9.16e-4 | 2.05e3 | yes |
+
+**At the truth the Adam problem is as well conditioned as the SGD one** — `cond = 2.08e3` against `2.05e3`
+for the main SGD work point — and its Jacobian has full column rank with `σ_min = 6.9e-3`. So by
+Proposition 6 the Adam cell **is** locally identifiable, and the earlier "Adam defends by conditioning"
+reading is **withdrawn**: the map is not ill-conditioned, the *stuck point the solver reaches* is. The
+`10⁵` conditioning gap reported above is a property of the failed search, not of the release.
+
+That also explains why preconditioning did nothing. Rescaling the damping cannot help when the map at the
+solution is already well conditioned; the obstacle is that Levenberg-Marquardt from a 4% start does not
+reach the solution. In other words the Adam difficulty is the **same** obstacle as everywhere else in this
+study — the basin — only far tighter than the SGD basin, which post-fix extends past a 65% start error.
+
+(Everything below this box is superseded by the paragraph above and is kept for the record.) What
 differs is `cond(J)`, by four to six orders of magnitude, driven by `σ_max` rather than by any small
 singular value — which is what a coordinatewise `1/(√v̂+ε)` rescaling does to sensitivities. At 400 LM
 iterations (8x the original budget, job 423887) the run was still descending, residual 7.6e-3.
@@ -257,7 +274,10 @@ discontinuity that made the simulated release jump when a feature crossed zero, 
    the story. That is the right place for a learned/population prior, which is what the framework says.
 4. **Report `cert_norm` beside `eps_inv` forever.** A zero certificate scores perfectly on the natural
    metric.
-5. **Adam defends by conditioning, not by hiding the data.** It removes the algebraic channel outright
-   (`C ≡ 0`) and leaves a system that is still locally identifiable but ~10⁵ times worse conditioned.
-   That is a much weaker kind of defense than non-identifiability, and it is the kind that better
-   optimisation erodes. Any claim that "Adam is safe" has to be argued against a preconditioned solver.
+5. **Adam does not defend by non-identifiability, and not by conditioning either.** It removes the
+   algebraic channel outright (`C ≡ 0`), but at the truth the simulator Jacobian is full rank with
+   `cond = 2.1e3`, indistinguishable from the SGD work point (`2.0e3`). The earlier "defends by
+   conditioning" claim was measured at the solver's stuck point and is withdrawn. What Adam actually
+   buys the defender is a **much tighter basin**: the same solver that tolerates a 65% start error on
+   an SGD release does not reach the solution from 4% on an Adam one. So the whole study reduces to one
+   axis — the basin — and "Adam is safe" is a claim about search, which better search erodes.
