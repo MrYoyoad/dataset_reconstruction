@@ -411,3 +411,61 @@ discontinuity that made the simulated release jump when a feature crossed zero, 
    and neither is the `1e8` the first reading implied. Whether either is erodable by better optimisation
    or preconditioning is **untested**. *(Both corrections owed to independent audits; the second was
    caught in parallel here and by a sibling session.)*
+
+
+## Step 6 — near-duplicate degeneracy: which channel does it break? (job 471272)
+
+Motivation from the derivation check: the certificate claim carries an unstated hypothesis `rank P_T = N`,
+which fails when two examples give the same residual trajectory. The prediction, sharpened by that
+session's own reduced-algebra check, was that both *endpoints* are clean — a well-separated pair, and an
+**exact** duplicate (where the private span is genuinely `N−1` dimensional and the certificate is simply
+correct on it) — and that the damage lives in the **near**-duplicate band, where the span is truly
+`N`-dimensional but its `N`th direction sits under the numerical rank tolerance, so the attacker's
+certificate silently misses a real private direction.
+
+Setup: standard work point (`k=12, N=8, T=400`), example 1 set to example 0 plus `ε·δ` in **latent** space
+(the realistic defender action: copy a record and jitter it) with the **same label**. `feat sep` is the
+resulting feature-space separation, which is the honest x-axis since `ψ, φ` are `tanh` and the map
+saturates.
+
+| ε | feat sep | `σ_N/σ_1(B_T)` | rank `B_T` | rank `C` (exp 8) | `‖CH‖` | pair err | others err | equidistant? |
+|---|---|---|---|---|---|---|---|---|
+| clean | 1.06 | 1.5e-1 | 8 | 8 | 2.0e-15 | 2.8e-15 | 2.7e-15 | — |
+| 0.3 | 7.4e-2 | 2.4e-5 | 8 | 8 | 5.1e-15 | 4.9e-2 | 1.3e-3 | yes |
+| 0.01 | 2.8e-3 | 3.1e-8 | 8 | 8 | 1.9e-13 | 3.8e-2 | 1.2e-3 | yes |
+| 1e-4 | 2.8e-5 | 3.1e-12 | **7** | **9** | **7.8e-7** | 3.8e-2 | 1.2e-3 | yes |
+| 1e-6 | 2.8e-7 | 3.7e-16 | **7** | **9** | 7.8e-9 | 3.8e-2 | 1.2e-3 | yes |
+| 0 | 0 | 2.0e-16 | **7** | **9** | 1.7e-15 | 3.8e-2 | 1.2e-3 | yes |
+
+**The predicted band is confirmed exactly.** `‖CH‖` runs `2e-15 → 5e-15 → 1.9e-13 → **7.8e-7** → 7.8e-9 →
+1.7e-15`: off, on, **peaking at the rank collapse**, decaying with `ε`, and off again at exact
+duplication. Rank `C` jumps from `r−N = 8` to 9 precisely where rank `B_T` drops to 7. So a
+numerically-degenerate-but-genuinely-distinct pair **contaminates** the certificate, while an exact
+duplicate does not — the certificate is then simply solving a correctly smaller problem.
+
+**`σ_N(B_T)/σ_1(B_T)` is the usable detector, `‖CH‖` is not.** The singular-value ratio falls smoothly and
+monotonically across fifteen orders of magnitude (`1.5e-1 → 2.0e-16`), tracking the separation the whole
+way. `‖CH‖` is non-monotone, and its peak is only of order the rank tolerance. Read degeneracy off
+`σ_N(B_T)`, never off `‖CH‖`.
+
+**But the hoped-for clean headline is NOT supported.** "Near-duplication defends the algebraic channel and
+leaves the simulation channel intact" is false as stated. What actually happens:
+
+- The failure is **confined to the duplicated pair** at every separation tested below 0.074, and the two
+  reconstructions are **equidistant from both originals** (`err_to_self` 3.78e-2 vs `err_to_other` 3.82e-2)
+  — blends of the pair, not swaps of it.
+- The other `N−2` images stay under the recovery tolerance but **degrade by eleven orders**, from `2e-15`
+  in the clean control to `2e-4`-`1e-3`. They still leak, but not to machine precision.
+- Residuals are `1e-8`-`1e-9`, **not** at the reproduction floor, so these are not clean aliases; a longer
+  budget might sharpen them and that is untested.
+
+So the honest statement is the softened one the derivation check anticipated: **near-duplication
+contaminates the algebraic channel and mutually aliases the duplicated pair, while the remaining `N−2`
+records still leak (at reduced fidelity)**. It changes which records are protected, and it does not
+protect the batch.
+
+**Gap in the sampling, being filled.** The sweep jumps from the clean control (separation 1.06, full
+recovery) straight to `ε = 0.3` (separation 0.074, pair unresolved). The transition sits in that gap and
+was never sampled; job 473055 fills it at `ε = 5, 3, 2, 1, 0.5`. Until it reports, "how similar is too
+similar" is unmeasured. The `α` blend coefficients recorded in the tight band are meaningless there (the
+line through the two originals degenerates as they coincide) — use `err_to_other` instead, as above.
