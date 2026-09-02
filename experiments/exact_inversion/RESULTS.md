@@ -63,6 +63,15 @@ reproduction floor.
 cell. Reliability is what the basin study below measures, on a different axis: *how far from the truth can
 a start be and still land?* Keep the two labelled separately and neither is over-claimed.
 
+**Regime scope (independent derivation check, 2026-09-03).** The simulation channel has a capacity
+boundary of its own, at roughly `Nk ≈ mr` plus a conditioning limit — and **this grid never reaches it**.
+Its largest cell is `Nk = 14 × 14 = 196`, comfortably under `mr = 20 × 16 = 320`. So the precise claim is:
+*the `r − N` budget does not bound the simulation channel **in the tested regime** (`Nk ≤ 196 < mr = 320`)*.
+"The certificate boundary is irrelevant to simulation" is shown; "simulation is unbounded" is **not**, and
+the Adam arm already demonstrates that a different limit can dominate. Job 467914 pushes `Nk` from 112 to
+352 at fixed `N = 8` to look for that boundary directly, reading `σ_min(J)` at the truth as it crosses
+`mr`.
+
 This is the figure the exercise was for. The certificate-only diagram (`results_rev9.pdf` Fig. 1) is
 **exactly 0 above the line `k = r − N`** — above it the certificate has fewer rows than the manifold has
 dimensions and every run lands on a true alias. Exact inversion recovers **on both sides of that line**,
@@ -100,17 +109,20 @@ the attack's favour. Post-fix (job 459111, `--restarts 1`, 3 seeds per level, 80
 "Recovered" here is re-derived objectively from `final_err_max`, i.e. **every** image below 1e-2, not from
 the `verdict` field.
 
-**No failure anywhere, up to a worst-case start error of 0.65, every one on the first attempt.** The
-finite-difference prototype reported convergence only from within ~10-15% and a local minimum at 30%.
-With exact backprop and a continuous simulator the basin is at least four times wider than that, and the
-"cost of distance is restarts" story is simply wrong: post-fix, one attempt suffices at every level
-tested. The edge has still not been located; the sweep ran out of levels before the solver ran out of
-basin (a 1.00 arm was queued and is the next thing to read).
+**No failure at any tested start distance, up to a worst-case start error of 0.65, every one on the first
+attempt. The basin edge was NOT located** — the sweep ran out of levels before the solver ran out of
+basin. Do not read the edge as sitting just past the last level tested; it was not measured. (Note the
+`init-noise` label is a latent-space perturbation and maps non-linearly to image error: the 0.70 arm
+produced a worst-case start error of 0.65, not 0.70.) The finite-difference prototype reported
+convergence only from within ~10-15% and a local minimum at 30%.
 
-This matters for the plan more than the phase diagram does. The framework's whole division of labour is
-"the theorem tells you what a learned decoder must supply: a starting point inside the basin". A basin
-this wide makes that requirement much weaker than assumed, and correspondingly raises the bar for what
-counts as a defense.
+**The basin is anisotropic, and this number must not be lifted out of context.** These starts are
+`truth + noise`, a deliberately favourable direction that an attacker cannot construct. The
+release-only initialisers an attacker *can* build start ~80-100% away and **fail** (next section). So the
+two arms together say: along truth-directions the basin is not the binding constraint for SGD, and the
+binding constraint is the **attacker-reachable initializer**. "Recovers from 65% off" is not "the attack
+works from anywhere". That is precisely the framework's division of labour, now measured from both sides.
+*(Framing owed to an independent audit.)*
 
 ## Step 3 — Adam release: the certificate is gone, and the inversion does not converge (yet)
 
@@ -162,8 +174,17 @@ reading is **withdrawn**: the map is not ill-conditioned, the *stuck point the s
 
 That also explains why preconditioning did nothing. Rescaling the damping cannot help when the map at the
 solution is already well conditioned; the obstacle is that Levenberg-Marquardt from a 4% start does not
-reach the solution. In other words the Adam difficulty is the **same** obstacle as everywhere else in this
-study — the basin — only far tighter than the SGD basin, which post-fix extends past a 65% start error.
+reach the solution.
+
+**Do not collapse this into "a better solver cracks it" — that is the next unearned headline.** A small
+basin is a property *of the map*, not a solver artifact, so "landscape rather than map" over-dichotomises.
+What `cond(J_truth) = 2.1e3` rules out is exactly one thing: local ill-conditioning **of the solution**. It
+does not rule out the Adam training map being genuinely hard to invert from a generic start. The measured
+contrast is real and large — the same solver tolerates a 65% start error on SGD and fails from ~4-10% on
+Adam — so the defensible statement is: **Adam defends by a much smaller basin, not by conditioning, and
+whether that basin is solver-fixable (trust region, Gauss-Newton with line search, a better start) or
+intrinsic is UNTESTED.** Settling it needs the Adam analogue of the SGD basin sweep plus at least one
+trust-region attempt. *(Framing owed to an independent audit.)*
 
 (Everything below this box is superseded by the paragraph above and is kept for the record.) What
 differs is `cond(J)`, by four to six orders of magnitude, driven by `σ_max` rather than by any small
@@ -280,4 +301,5 @@ discontinuity that made the simulated release jump when a feature crossed zero, 
    conditioning" claim was measured at the solver's stuck point and is withdrawn. What Adam actually
    buys the defender is a **much tighter basin**: the same solver that tolerates a 65% start error on
    an SGD release does not reach the solution from 4% on an Adam one. So the whole study reduces to one
-   axis — the basin — and "Adam is safe" is a claim about search, which better search erodes.
+   axis — the basin. Whether Adam's small basin is solver-fixable or intrinsic is **untested**, and until
+   it is, "better search erodes it" is a hypothesis, not a finding.

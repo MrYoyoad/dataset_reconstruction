@@ -18,6 +18,29 @@ conditioning (labels/captions); never `A₀`, `H`, or the trajectory. Standing a
 training (no LoRA dropout / augmentation / trainable upstream), `B₀=0`, an SGD-class update rule, `rank P_T = N`,
 `r ≥ N+1`.
 
+## The four hypotheses the whole construction rests on
+
+Verified by an independent derivation check (sibling session, 2026-09-03), which reproduced Claims 1-3 to
+1e-15 and sharpened the assumption list. These should be stated wherever the primitives are quoted:
+
+1. **Step-invariant `H` is THE load-bearing hypothesis**, not a technicality. Its violation is a
+   *structural collapse*, not graceful degradation: with a step-varying `H_t` (augmentation, a trainable
+   upstream block, LoRA dropout) the invariant subspace grows from the single `N`-dimensional `col(X)` to
+   the **union** of the per-step feature spans, so `row(B_T) ≠ col(X)`, `CH ≠ 0`, `rank C → 0`, and the
+   off-span block is no longer the untouched `c_T Y` because `Y` leaks in as the span rotates.
+2. **`B₀ = 0`** is load-bearing too: it is the base case `P₀ = 0` of the induction. A nonzero `B₀` does
+   not close.
+3. **`rank P_T = N`** is a *hypothesis* of the certificate claim, not a corollary. It needs `m ≥ N` and
+   `N` linearly independent accumulated residual trajectories, and it **fails** for duplicated examples
+   (identical feature and label give identical residual columns), for an example already fit at
+   initialisation (a zero residual column), and for degenerate/single-class labels. When it fails, `C`
+   retains an `X`-component, so the certificate is **contaminated (`CH ≠ 0`), not merely weaker** — a
+   qualitatively different and testable failure mode. `rank B_T = N` is a valid attacker-side confirmation,
+   since `rank B_T = min(rank P_T, rank X)` and `rank X = N` almost surely.
+4. **The induction is loss-agnostic.** It uses only the bilinear gradient shape and treats the error `D_t`
+   as an arbitrary `m × N` matrix, so the softmax/cross-entropy head never enters. The closure is more
+   general than the setting it was derived in.
+
 ## The organizing statement (Rev 10 Theorem 1, span-adapted normal form)
 
 With `U, V` orthonormal bases of `H = col H` and its complement and `X := A₀U`, `Y := A₀V`:
