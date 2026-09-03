@@ -1209,12 +1209,39 @@ This makes the rank a leakage dial in two independent ways, which is the
 sentence to carry: raising $r$ raises the admissible $k$, so the attacker may
 use a richer chart and recover a sharper image; and at any fixed $k$ it
 enlarges the basin, so the recovery is more likely to be found at all. Both
-move the same way, and $r$ is raised for utility. The synthesis the remaining
-ladder cells test is the uncomfortable one --- at $r=64$ a chart of $k=32$ is
-both admissible and far below the line, and $k=32$ is where instance-level
-identification reaches $0.94$ --- so large-$r$ adapters are predicted to
-expose instance-identifying images, recoverable from random starts, with no
-recipe. That cell has not run.
+move the same way, and $r$ is raised for utility. The synthesis is no longer a prediction.
+
+\paragraph{The three ingredients combine.} Budget, basin and fidelity were
+measured separately; the cell that puts them together is $r=64$ with
+$k=32$, where the chart is admissible ($N'=8$, line $56$), sits twenty-four
+units below the line, and is the dimension at which a projection identifies
+its own source among $10^4$ candidates $94\%$ of the time. Measured$^\dagger$
+(job 728592, confident batch, chart-projected, $500$ random public-scale
+starts of $300$ iterations, no recipe, no labels, no $N$): $65.6\%$ of starts
+land on a recorded image, \emph{all eight} are found, and the
+$\operatorname{argmin}$ over starts lands on a private digit at
+$2.2\times10^{-14}$. No start is degenerate and no floor-reaching start is
+spurious. The cell reproduces independently inside the ladder job ($0.660$,
+eight of eight, $\operatorname{argmin}$ correct). At this $k$ the base model
+reads all eight projections as their own digit and the representation error
+is $0.400$.
+
+So on a $98\%$ MNIST model, from a released rank-$64$ adapter and nothing
+else --- no recipe, no labels, no batch size, no starting point near the
+answer --- an attacker recovers every recorded private example, and at that
+chart dimension the recovered object identifies its source rather than merely
+its class. That is the claim the whole construction was built to test, and it
+is the one to put in front of a supervisor.
+
+Two supports keep it from resting on a single cell. The per-image basin does
+not decay with $k$ once the slack is held: at $r=64$ it runs $13.8\%$,
+$28.6\%$, $11.9\%$, $8.3\%$ at $k=8,16,24,32$, and at $r=32$ it runs $10.6\%$,
+$15.8\%$, $12.4\%$ at $k=8,12,16$, with every recorded image found and the
+$\operatorname{argmin}$ correct in every row. And the head-width cap has an
+operational face: twenty private digits on the padded $26$-logit head give
+$88.6\%$ of starts on a private digit with $18$ of the $20$ found, while the
+\emph{identical} cell on the ten-class head finds nothing at all --- the same
+data, the same rank, the same chart, separated only by whether $N'\le m-1$.
 
 The third regime completes the picture. A control batch sitting exactly
 \emph{at} its line ($r=16$, $k=8$, all eight recorded, line $8$) reaches the
@@ -1927,12 +1954,16 @@ rate.
   initialiser and not the information. The \emph{certificate route} needs
   nothing but the release, the public model and a chart --- no recipe, no
   labels, no $N$ --- and pays for it with the narrow line, $k<r-N'$. Below
-  that line it works from nothing: $2000$ random starts, $51\%$ of them
-  reaching the floor, every one of those on a private image, all seven
-  recorded images recovered, at $0.2$\,s a start (job 706721, on-chart at
-  $k=6$). That is the tool, and its price is legible: the attacker chooses
-  between a wide chart that needs the recipe and a narrow one that needs
-  almost nothing. The hypothesis under test is that this
+  that line it works from nothing, and at rank $64$ it works well: from $500$
+  random starts with no recipe, no labels and no $N$, $65.6\%$ land on a
+  recorded image, all eight are recovered, and the chart dimension it can
+  afford ($k=32$) is one at which a projection identifies its own source among
+  $10^4$ candidates $94\%$ of the time (job 728592). The rank is a leakage
+  dial twice over: it raises the admissible $k$, and at fixed $k$ it enlarges
+  the basin --- $16.6\%\to74.4\%\to96.4\%$ as the slack goes from one unit to
+  forty-nine. Both are raised for utility. And the head width caps it
+  independently at $N'\le m-1$: twenty digits recover on a $26$-logit head and
+  none at all on a $10$-logit one, same data, same rank, same chart. The hypothesis under test is that this
   obstruction scales with the number of \emph{recorded} examples rather than
   with $N$, which would make it the model's choice: on a strong model the
   release is often dominated by one example, and one example is a far smaller
