@@ -58,7 +58,7 @@ in, not about the images.
 \label{sec:objects}
 
 \begin{definition}[the layer, the data, the adapter]\label{def:setup}
-Fix integers $m,n,r,N$ with $N\le\min(r,n)$. A frozen weight
+Fix integers $m,n,r,N$ with $N\le r\le n$. A frozen weight
 $W_0\in\mathbb R^{m\times n}$ receives the representations
 $H=[h_1,\dots,h_N]\in\mathbb R^{n\times N}$ of the $N$ private examples;
 $E\in\{0,1\}^{m\times N}$ holds their one-hot labels. A LoRA adapter is a
@@ -87,7 +87,8 @@ $dL=\langle D,dZ\rangle=\langle D,\;s\,dB\,AH+s\,B\,dA\,H\rangle
 \item[(A1)] \emph{Fixed inputs.} The same $H$ enters the adapter at every
   step: no augmentation, no dropout, no trainable block upstream.
 \item[(A2)] \emph{Initialisation.} $B_0=0$; $A_0$ is drawn from a law with a
-  density on $\mathbb R^{r\times n}$ (so $\operatorname{rank}A_0=r$ a.s.).
+  density on $\mathbb R^{r\times n}$ (so, with $r\le n$,
+  $\operatorname{rank}A_0=r$ a.s.).
 \item[(A3)] \emph{Recipe.} Plain gradient descent with step $\eta$ for $T$
   steps,
   \[
@@ -323,24 +324,31 @@ everywhere.}
 \end{remark}
 
 \begin{theorem}[generic local identifiability below the line]\label{thm:suff}
-Assume (A1)--(A3), (A6) and $k\le(m-1)+r-N$. On the open set
-$\mathcal D:=\{(w,X):\operatorname{rank}H(w)=N\}$ exactly one of the
+Assume (A1)--(A3), (A6) and $k\le(m-1)+r-N$. Let
+$\mathcal D:=\{(w,X):\operatorname{rank}H(w)=N\}$, an open set, and let
+$\mathcal D_0$ be any of its connected components. Exactly one of the
 following holds: $D\rho$ has full column rank $Nk+rN$ at almost every point
-of $\mathcal D$, or at no point of $\mathcal D$. In the first case the true
-$(w^\star,X^\star)$ is an isolated zero of $\rho$ for almost every seed and
-almost every private data set.
+of $\mathcal D_0$, or at no point of $\mathcal D_0$. In the first case every
+true $(w^\star,X^\star)\in\mathcal D_0$ outside a null set is an isolated
+zero of $\rho$; so one point of full column rank in $\mathcal D_0$ gives
+isolation for almost every seed and almost every private data set in
+$\mathcal D_0$.
 \end{theorem}
 \begin{proof}
-The $(Nk+rN)$-minors of $D\rho$ are real-analytic on $\mathcal D$, which is
-connected (the complement of a proper analytic subset of a connected
-real-analytic manifold). Their common zero set is an analytic subvariety of
-$\mathcal D$, hence either all of $\mathcal D$ or of measure zero (identity
-theorem). At a point of full column rank the inverse-function theorem makes
-the zero isolated (Rev~9 Prop~8).
+The $(Nk+rN)$-minors of $D\rho$ are real-analytic on the connected
+real-analytic manifold $\mathcal D_0$; their common zero set is an analytic
+subvariety of $\mathcal D_0$, hence either all of $\mathcal D_0$ or of
+measure zero (identity theorem). At a point of full column rank the
+inverse-function theorem makes the zero isolated (Rev~9 Prop~8).
 \end{proof}
 
-The theorem reduces genericity to one witness of full column rank, and at
-$T=1$ the map is explicit enough to exhibit one.
+The statement is per component because a real-analytic subvariety of
+codimension one can disconnect: $\mathcal D$ is connected — and one witness
+then serves globally — exactly when the rank-deficiency locus
+$\{w:\operatorname{rank}H(w)<N\}$ has real codimension at least two, which is
+the generic situation for $n\ge N+1$ but is not verified here. The theorem
+reduces genericity to one witness of full column rank in the truth's
+component, and at $T=1$ the map is explicit enough to exhibit one.
 
 \begin{example}[$T=1$, closed form]\label{ex:T1}
 From \eqref{eq:rec}, $P_1=-\eta s\,D_0$ and $M_1=0$, with
@@ -744,7 +752,7 @@ level & content & status\\ \midrule
 2$'$. Seed & $(B_T,A_TU)$ depend on $A_0$ only through $X$; $Y$ released verbatim (Cor.~\ref{cor:seed}) & Theorem under (A1)--(A3)\\
 3$'$. Capacity & $k<m+r-N$, strict, from $\dim\mathcal B$ (Thm~\ref{thm:cap}, Prop.~\ref{prop:simplex}) & Theorem; sharp$^\dagger$ at $N=8,14$ synthetic and at $r=8,16,32$ on MNIST; exact identifiability of the chart coordinates\\
 3$'''$. Chart & boundary chart-independent; fidelity chart-dependent ($0.51$ vs $5.7\times10^{-14}$ at $k=17$); a chart containing the digits recovers them at $k=N$ & Verified$^\dagger$ (job 574169); not a leakage bound\\
-3$''$. Sufficiency & $D\rho$ full column rank a.e.\ below the line (Thm~\ref{thm:suff}) & Theorem given one witness; witness$^\dagger$ at $T=1$\\
+3$''$. Sufficiency & $D\rho$ full column rank a.e.\ below the line, per connected component (Thm~\ref{thm:suff}) & Theorem given a witness in the component; witness measured$^\dagger$ at $T=1$; $T>1$ rests on measured $T$-independence, not on a proof\\
 5$'$. Past the line & a walkable manifold of exact reproductions, $\le3.8\%$ image error on paths measured & Verified$^\dagger$; extent and global uniqueness open\\
 7$'$. Adam & identifiable; seed $rn$; $\kappa\uparrow$; basin$\downarrow$; simplex constraint broken & Verified$^\dagger$; one-unit-higher line predicted, untested\\
 8$'$. Recipe & wrong recipe never at the floor; $\eta$ fitted jointly; $\eta T$ split identifiable; labels identifiable; schedule leaks $T$ & Verified$^\dagger$ (jobs 484255, 485912, 487290, 488314); family selection open\\ \bottomrule
