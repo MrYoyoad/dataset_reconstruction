@@ -192,7 +192,7 @@ def main():
                     if a.out:
                         with open(a.out, "a") as f: f.write(json.dumps(r) + "\n")
                     if a.save_dir:
-                        p = os.path.join(a.save_dir, f"{bname}_{init}_{cname}_k{k}_{cell}.pth")
+                        p = os.path.join(a.save_dir, f"{bname}_{init.replace('/', '-')}_{cname}_k{k}_{cell}.pth")   # init "n/a" made a sub-directory (job 656205)
                         torch.save(dict(x_real=X_real.cpu(), x_chart=X_on_c.cpu(), x_hat=X_hat.cpu(), meta=r), p); saved.append(p)
     if a.fig and saved: grid(saved, a.fig)
 
