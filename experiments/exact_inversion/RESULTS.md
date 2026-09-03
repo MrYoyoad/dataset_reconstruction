@@ -1726,3 +1726,27 @@ with the weakest recorded ones; overlap 0–4 of N′) differs by **1.0 in all s
 weakest member swapped for the strongest invisible one differs by 1.1e-11, 6.2e-10, 1.0, 5.7e-8, 1.3e-8, 1.4e-6 —
 i.e. by the swapped member's own imprint, which is what the imprint law says it should. **`N` is not in the
 release; `N′` is.**
+
+### Step 22, Part B below the line — first rows (job 706721; bracket pending)
+
+`confident` batch on-chart, `k = 6`, `N′ = 7`, certificate line `r − N′ = 9` (below). **2,000 random public-scale
+starts, 300 iterations each, no recipe, no labels, no start near the truth: 51.0% land exactly on a private
+image** (error 5.5e-15 to its chart projection); **all seven** recorded images are found; the fraction of starts
+at the floor equals the fraction on a private image (0.510 = 0.510 — no spurious zero, as the kernel count
+requires below the line); zero degenerate starts; the attacker's argmin pick is a private image at 5.5e-15;
+0.2 s per start. Figure `figures/exact_inversion/certificate_recovery_k6_706721.png`.
+
+This is the first recovery in the study that begins from nothing, and it is exact. Its scope: (i) *on-chart* —
+the fine-tuning images lie on the `k = 6` chart, so what is recovered is those chart images, which at six PCA
+components are blurs (the figure shows it); off-chart the certificate has no zero. (ii) The certificate budget is
+`k < r − N′`, so at `r = 16` with seven recorded it is tiny; **the budget scales with the LoRA rank** — a
+higher-rank adapter opens a proportionally richer recipe-free channel (untested; the natural next cell).
+(iii) Which recorded image a start lands on is chosen by the start, not the attacker. Bracket rows (`k = 8`
+below, `k = 10` above; `hard1_diff`) follow.
+
+### Step 18 — the random-encoder ladder at fixed architecture is complete (job 624573)
+
+Global chart, repeated draw, random encoder (Gaussian weights at the trained layers' norms): `σ_min(J)` at the
+truth 2.1e-5 (k=6), 3.8e-5 (10), 1.6e-5 (14), 5.0e-7 (17), **2.5e-19 (18)** — full rank to 17, collapse at 18,
+every below-line cell at the floor within 60–272 iterations. The line holds on the random encoder exactly as on
+the trained ones; only the conditioning differs (this is the zero point of the quality ladder).
