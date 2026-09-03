@@ -73,7 +73,13 @@ def main():
         P = {"imprint": [float(imp[i]) for i in rec], "neg_margin": [-float(mar[i]) for i in rec],
              "A_T_phi_norm": [float(torch.linalg.norm(A_T @ bb.phi(X_on[:, i:i + 1]))) for i in rec],
              "x_on_norm": [float(torch.linalg.norm(X_on[:, i])) for i in rec]}
+        with torch.no_grad():                                          # does the k-projection still read as its own digit?
+            pred_on = bb.logits(X_on).argmax(0); pred_raw = bb.logits(X_real).argmax(0)
+        proj_acc = float((pred_on == y).double().mean()); proj_acc_rec = float(sum(int(pred_on[i]) == int(y[i]) for i in rec) / len(rec))
         row = dict(file=f, set=sname, r=r, k=k, N=N, n_prime=len(rec), starts=len(d["runs"]), landings={str(i): land[i] for i in rec},
+                   chart_proj_class_acc=proj_acc, chart_proj_class_acc_recorded=proj_acc_rec, raw_class_acc=float((pred_raw == y).double().mean()),
+                   proj_pred_labels={str(i): int(pred_on[i]) for i in range(N)}, true_labels={str(i): int(y[i]) for i in range(N)},
+                   chart_repr_err_median=float((torch.linalg.norm(X_on - X_real, dim=0) / torch.linalg.norm(X_real, dim=0)).median()),
                    landings_min=min(L), landings_max=max(L), poisson_rel_err_at_min=(1 / math.sqrt(max(1, min(L)))),
                    predictors={n: {str(i): v for i, v in zip(rec, vals)} for n, vals in P.items()})
         for n, vals in P.items():

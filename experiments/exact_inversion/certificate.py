@@ -194,6 +194,8 @@ def main():
                                 argmin_err_vs_nearest_recorded=best["err_vs_nearest_recorded"],
                                 truth_on_chart=(setting == "on"), feat_norm_ref_public=feat_ref,
                                 chart_repr_err_median=float(repr_err.median()), chart_repr_err_max=float(repr_err.max()),
+                                chart_proj_class_acc=float((bb.logits(X_on).argmax(0) == y).double().mean()),
+                                proj_pred_labels=[int(v) for v in bb.logits(X_on).argmax(0)],
                                 starts_run=len(runs), extended=bool(len(runs) > a.random_starts),
                                 landings_per_recorded_image={str(i): sum(1 for d in runs if d["landed_on_recorded"] and d["nearest_recorded"] == i) for i in recorded},
                                 landings_poisson_err={str(i): math.sqrt(max(1, sum(1 for d in runs if d["landed_on_recorded"] and d["nearest_recorded"] == i))) for i in recorded},
@@ -206,7 +208,12 @@ def main():
                     if a.out:
                         with open(a.out, "a") as f: f.write(json.dumps(rowB) + "\n")
                     if a.save_dir:
-                        torch.save(dict(x_real=X_real.cpu(), x_chart=X_on.cpu(), x_hat=chart.psi(best["w"].to(dev).reshape(k, 1)).cpu(), top=top, meta=rowB),
+                        first = {}                                    # one recovered panel per recorded image (first landing)
+                        for d_ in runs:
+                            if d_["landed_on_recorded"] and d_["nearest_recorded"] not in first:
+                                first[d_["nearest_recorded"]] = chart.psi(d_["w"].to(dev).reshape(k, 1))[:, 0].cpu()
+                        torch.save(dict(x_real=X_real.cpu(), x_chart=X_on.cpu(), x_hat=chart.psi(best["w"].to(dev).reshape(k, 1)).cpu(), top=top,
+                                        x_hat_per_recorded={int(i): v for i, v in first.items()}, meta=rowB),
                                    os.path.join(a.save_dir, f"cert_{sname}_{setting}_k{k}.pth"))
 
 
