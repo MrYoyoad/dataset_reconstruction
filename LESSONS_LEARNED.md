@@ -2286,3 +2286,33 @@ match data — scope it (here: denominator must equal the deck length) or don't 
 degrading: the builder now raises on groups and on relationship-bearing XML rather than emitting a file that opens
 but is wrong. (5) I shipped two degraded files before the audit caught it — for a deliverable that is a *binary*, the
 verification has to be as specific as the thing being claimed.
+
+## The denominator decides what can win — third and fourth instances (2026-09-03, certificate Part B + subset test)
+
+The 2026-08-27 lesson ("whitened/normalizer artifacts hide in the DENOMINATOR") recurred twice in one day
+on the exact-inversion track, in two different disguises. Recording both because the family is clearly
+general and the disguises are not obviously related.
+
+1. **A normalised objective with a CONSTANT denominator is not scale-invariant.** Part B minimised
+   `‖Cφ(ψ(w))‖² / ‖A_T‖²`. The denominator does not depend on the candidate, so the objective is minimised
+   by anything that drives `φ` to zero — and a blank image does exactly that through the GELUs. The
+   "solutions" at 1e-32 with image error ≈ 1 (k = 15, 16) were that artefact, not recoveries. Fix:
+   `‖Cφ‖/‖A_Tφ‖`, the sine of the angle, whose numerator and denominator scale together. **The fix has its
+   own residual form at 0/0**, so the run must also log `‖A_Tφ‖` and reject near-degenerate iterates —
+   otherwise the same blank image returns as numerical noise in a ratio of two vanishing quantities.
+   TEST: before trusting an argmin, ask what the trivial input scores. If the objective is a ratio, ask
+   whether BOTH ends move with the candidate.
+2. **The batch size is part of the recipe.** An implementation that minimises the mean divides the gradient
+   by the number of images it is given, so simulating a subset of `N'` of the `N` private images at the
+   original `lr` is a *different recipe* (effective rate `lr/N'` against the release's `lr/N`). Job 634238's
+   subset rows sat at 1.7e-2 / 1.7e-3 at the recorded images' own truth against predicted floors of
+   1e-16 / 1e-31, and solves then beat the truth with wrong images. Fix: simulate at `lr·N'/N`. This is the
+   study's own (R1) result — a wrong recipe does not reach the floor — applied to the analyst rather than to
+   the attacker. GENERAL RULE: **check the residual at the ground truth before reading a single solve.** If
+   the truth does not reach the floor, the forward model is wrong and every number downstream is void.
+
+Consequence worth keeping (now (R5) in the Rev 10 note, derived not measured): since `η`, the adapter scale
+and `N` enter every recurrence only through `ηs/N`, **the batch size is not identifiable from the release**
+— only `N'`, the number recorded, is, via `rank B_T`. A batch of eight with two invisible members is
+indistinguishable from a batch of six at a proportionally smaller step. Unless weight decay is nonzero and
+published, in which case the two identifiable combinations `ηs/N` and `η·wd` give `N` away.

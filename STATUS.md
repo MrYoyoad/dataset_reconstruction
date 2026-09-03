@@ -7,6 +7,25 @@ Rev 9 number used) + three figures in `figures/rev10/` (generators `scripts/rev1
 `results/exact_inversion/*.jsonl` and `spectrum_*.pth`). Written with an adversarial sibling review (yoado-6c,
 yoado-d0); four errors caught and fixed before shipping are logged in LESSONS_LEARNED.md (same date).
 
+**Latest additions (2026-09-03, late).** Two structural results and two voided arms:
+- **(R5) The batch size is not identifiable [DERIVED, not measured].** `η`, the adapter scale and `N` enter
+  every recurrence only through `ηs/N`, so the release cannot reveal `N` — only `N'`, the number recorded,
+  via `rank B_T`. A batch of eight with two invisible members is indistinguishable from a batch of six at a
+  proportionally smaller step. Exception: nonzero *published* weight decay gives the second combination
+  `η·wd` and hence `N`. This is also why a subset simulation must run at `lr·N'/N` (job 634238 VOID, rerun
+  706597).
+- **The certificate line comes from the KERNEL, not from `C`'s rank.** `ker C = span{recorded h_i} ⊕ ker A_0`
+  has dimension `N' + (n−r)`, i.e. codimension `r−N'` in feature space; a `k`-dim chart meets it in
+  `k−(r−N')` dims. Below the line the recorded examples are isolated solutions and generically the only
+  ones. Measured (704286, guarded): fraction of starts reaching the objective floor is **0.00 below the
+  line** and 0.19–0.81 at and above it. With several examples recorded a random start reaches *one* of them
+  with no way to steer, so `N'=1` is where recovering a solution and recovering *the* example coincide.
+- **The basin problem survives the recipe-free route.** 2/16 starts landed on a recorded image at the
+  boundary cell and the argmin pick did not — spurious and genuine floor-reachers are indistinguishable at
+  or above the line, so more starts cannot help there. Below the line there are no spurious zeros, so
+  reaching the floor is itself the witness and cheap starts buy attempts: job 706721 (k ∈ {6,8,10}, 2000
+  starts) is the decisive run. Part B of 701679 VOID (constant denominator ⇒ a blank image won the argmin).
+
 What the section establishes, in order — every label as in the .tex:
 - **Thm G (reduction) [THEOREM]:** under (A1)–(A4),(A6) the release depends on the seed only through `X = A₀U`
   (`rN` numbers); (A5) `r ≥ N+1` is the *quotient's* hypothesis, not the reduction's — `N ≥ r` is permitted,

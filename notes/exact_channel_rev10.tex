@@ -1354,6 +1354,29 @@ $0.1$--$0.7\%$. Labels: the true assignment reaches the floor
 ($7.2\times10^{-31}$); swapping two examples ($2.5\times10^{-3}$) or shifting
 all of them ($7.5\times10^{-6}$) does not.
 
+\emph{(R5) The batch size is absorbed into the step, and is not
+identifiable.} This one is a corollary of \eqref{eq:rec} rather than a
+measurement. If the recipe minimises the \emph{mean} rather than the sum, as
+implementations normally do, then Lemma~\ref{lem:grad} carries a factor $1/N$
+and every recurrence in \eqref{eq:rec} depends on $(\eta,s,N)$ only through
+the single scalar $\eta s/N$. Three consequences follow. First, a simulation
+handed a subset of $N'$ examples reproduces the release only at step $\eta
+N'/N$: at the original step it is a different recipe, and its residual at the
+truth will not reach the floor, which is (R1) turned on the analyst. The
+subset simulation is legitimate because the omitted examples contribute no
+gradient --- that is what invisibility means in \eqref{eq:imprint} --- but the
+normalisation must be corrected for the ones that remain. Second, the attacker
+never needs $N$: they fit one scalar, which is precisely the fit (R2) measures
+succeeding to $5.2\times10^{-16}$. Third, and this is the defender-side
+reading, $N$ cannot be recovered from the release at all. Only $N'$, the
+number of examples recorded, can be, and $\operatorname{rank}B_T$ returns it;
+a batch of eight of which two are invisible is indistinguishable from a batch
+of six at a proportionally smaller step. The exception is instructive. Under
+decoupled weight decay the step contributes $-\eta\,\mathrm{wd}\,B_t$ as well,
+so the release determines the two combinations $\eta s/N$ and
+$\eta\,\mathrm{wd}$; a defender whose weight decay is nonzero \emph{and}
+published thereby publishes their batch size.
+
 \emph{(R4) With continued-training access, a decaying schedule leaks the
 step count that a constant one hides.} This result assumes an access model
 the others do not: the attacker submits a batch of their own choosing,
