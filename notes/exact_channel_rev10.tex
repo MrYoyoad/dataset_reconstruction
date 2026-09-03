@@ -771,7 +771,9 @@ $8.7\times10^{-3}$. \emph{Right:} the same imprints against the base model's
 margin on that example. The margin governs only through the error it
 implies, so this relation is a tendency and not a law — the accumulated
 error over $T$ steps is not exactly $\mathrm e^{-M}$ at $W_0$ — but it shows
-where the release goes numerically empty. No point is clipped: the axes
+where an example stops being recorded at all — the shaded band is
+$\|C_i\|<10^{-23}$, and when \emph{every} example of a batch falls in it the
+release as a whole is numerically empty. No point is clipped: the axes
 reach the smallest measured values, and the recovery of $C_i$ from the
 release is gated at $\|\sum_iC_i-B_T\|/\|B_T\|<4\times10^{-12}$.}\label{fig:imprint}
 \end{figure}
