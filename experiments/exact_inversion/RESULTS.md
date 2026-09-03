@@ -2503,10 +2503,14 @@ and 32, release trained in fp64 (gate: residual at the truth ~1e-16, recovery ex
 always FP64. Measured: residual at the truth (= the arithmetic-mismatch floor: predicted ≈ the release's relative
 deviation, 4e-7 / 0.12 / 0.03), σ_min of the Jacobian at the truth, the LM endpoint's residual and its per-image
 chart error. **Pre-registration:** the residual cannot reach zero from a mismatched release (floor = rel. dev.);
-the question is where the LM endpoint sits. Two outcomes, both recorded: (a) endpoint chart error below the chart's
-own representation error (.32 / .24) for every letter → the class is recovered approximately from the
-half-precision-trained adapter → "not protection" *demonstrated*; (b) endpoint error O(1) (the 12% inconsistency
-amplified through σ_min ~1e-6 … 1e-5 into the weak directions) → an extraction gap for both channels we have —
-still not protection, since the release provably encodes the class (learned margins, rank 8, O(1) imprints), but
-the honest sentence becomes "recorded, recoverable by neither route we have". fp32-trained (rel. dev. 4e-7) is
-the control expected to recover to ~1e-6.
+the question is where the LM endpoint sits. *Recovery number (yoado-6e's fix): the endpoint's error against the ON-CHART truth `X_on` (`err_vs_chart`), read
+against the same 1e-2 bar the certificate route uses so the two attackers compare like for like; `err_vs_REAL`
+is reported but floors at the chart's own representation error (.32 / .24) and cannot go below it.* This is an
+identifiability probe — best-case start plus the full recipe — i.e. the upper bound on recoverability, not
+from-scratch reachability, as in every earlier "cell a". Two outcomes, both recorded: (a) `err_vs_chart` small
+(≲ 1e-2, then `err_vs_REAL` ≈ the chart floor, reached) for every letter → the class is recovered from the
+half-precision-trained adapter as well as the chart allows → "not protection" *demonstrated*; (b) `err_vs_chart`
+O(1) (the 12% inconsistency amplified through σ_min ~1e-6 … 1e-5 into the weak directions) → an extraction gap for
+both routes we have — **still not protection**: the release provably encodes the class (learned margins, rank 8,
+O(1) imprints) and a matched-arithmetic attacker (simulating in bf16, non-differentiable, not run) is strictly
+stronger and untested. fp32-trained (rel. dev. 4e-7) is the control expected to recover to ~1e-6.
