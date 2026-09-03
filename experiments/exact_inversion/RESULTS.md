@@ -1945,7 +1945,16 @@ information content — is 20 (FP64), 17 (FP32, noise 2e-8 swamps σ₁₈…σ�
 FP16 / bfloat16 for this batch (nothing annihilated below 1e-3 at any tolerance: with twenty comparable
 imprints the residual of even the strongest is set by the noise). For the eight-image cells the wall by
 separability is: repeated 6 / 6 / 5 / 2 / 5 and confident 3 / 3 / 3 / 1 / 3 over FP64 / FP32 / TF32 / FP16 / bf16 —
-higher than the single-tolerance counts of the precision table, which should be read as lower bounds; bfloat16
-keeps most of what has a two-order gap to the invisible band, FP16 (the smallest mantissa here) keeps least. *Survey across
+higher than the single-tolerance counts of the precision table, which should be read as lower bounds. *(An
+earlier version of this sentence called FP16 "the smallest mantissa" — wrong: FP16 carries ten mantissa bits to
+bfloat16's seven; what FP16 lacks is exponent range, five bits against eight, so its normals stop near 6e-5.)*
+**Dynamic range decides, not precision:** the imprint spectrum spans many orders, FP16 *underflows* the small
+imprints to zero, bfloat16 keeps them coarsely — so bfloat16, the format deployment actually uses because it
+keeps FP32's exponent range, is the *most* revealing of the low-precision formats and FP16 the least. "Quantise for
+privacy" is not a slogan the measurement supports; what closes the channel structurally is the *many comparably
+recorded examples* case (the twenty-image cell dies below FP32 because rounding noise sets even the strongest
+residual), and low precision barely dents the common confident-model case where a few strong imprints dominate.
+The sharper statement, from the twentieth image: what decides individual recoverability is the size of the
+**independent direction** an example contributes, not the size of its imprint — and the two can differ by orders. *Survey across
 `k` (job 722950):* `rank B_T = 9` and `rank C = 55` at every `k ∈ {8, 12, 16, 20, 24, 32, 40}`, all twenty imprints
 present, certificate residual 0.3–0.5 throughout — the cap is `m − 1` exactly and independent of the chart.

@@ -328,6 +328,11 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   projected candidates with certainty at every k, robust to coordinate noise of 3% at k ≥ 8 (0.3% at k = 2) —
   the six-coordinate chart that cannot draw a digit answers "was this record in the training set". Subset test
   (706597, corrected): predicted floor = residual at the recorded truth (1.1e-16 both), solve reaches it.
+- **Precision, corrected reading:** dynamic range decides, not mantissa — FP16 underflows the small imprints,
+  bfloat16 (deployment's format) keeps them coarsely and is the MOST revealing low-precision format; the channel
+  closes structurally only when many examples are comparably recorded (twenty-image cell dies below FP32); the
+  common confident-model case (few strong imprints) is barely dented. Individual recoverability is set by the
+  independent direction an example contributes, not its imprint (the twentieth image: imprint 3e-7, σ 6e-14).
 - **Precision is a privacy parameter (722663):** quantising the release erases every direction of `B_T` below the
   rounding noise — certificate-recoverable images 6 → 3 → 0 → 0 → 0 across FP64 → FP32 → TF32 → FP16 → bf16 on the
   repeated draw (spectrum 1, 2e-4, 1e-5, 9e-9 …); a bfloat16 adapter keeps one direction. Tolerance rule 10×eps.
