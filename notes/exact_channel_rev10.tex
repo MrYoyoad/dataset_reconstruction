@@ -791,32 +791,52 @@ margins and lifts one column to $0.41$, while the rank stays at $3$, because
 what the confident examples then carry is one hard example's residual spread
 collinearly across their columns rather than information of their own.
 
-\emph{Overlapping features, not a shared label, is the coupling.} The
-natural guess is that a hard example lifts its same-class batch-mates. The
-opposite happens: a misclassified $1$ placed beside the seven
-largest-margin $1$s leaves them at the floor
+\emph{A shared label is the wrong proxy, and it is settled by the
+features.} The natural guess is that a hard example lifts its same-class
+batch-mates. The opposite happens: a misclassified $1$ placed beside the
+seven largest-margin $1$s leaves them at the floor
 ($10^{-15}$--$10^{-12}$, $\operatorname{rank}B_T=1$), while the same hard $1$
 beside confident digits of seven \emph{other} classes lifts every column
-above $5\times10^{-3}$ on-chart, with rank $4$. The reason is visible once
-stated: an example is misclassified precisely because its features are
-atypical of its label, so its Gram overlap with confident members of its own
-class is small. Same label is the wrong proxy for feature overlap.\footnote{Two
-caveats on this pair. The on-chart different-class batch contains two further
-low-margin images (margins $4.1$ and $15.6$) whose residuals also couple in,
-so the comparison is not perfectly matched; and columns at
-$10^{-14}$--$10^{-16}$ beside one of order $5$ are at the floor of the $P_T$
-recovery, not small measurements. The feature-Gram correlation that would
-make this a measurement rather than a reading is running (job 627574).}
+above $5\times10^{-3}$ on-chart, with rank $4$. The reason is measurable in
+the penultimate features$^\dagger$ (job 627574): under the strong model that
+misclassified $1$ has cosine $0.22$--$0.30$ with the seven confident $1$s,
+where the \emph{same digits} have cosine $0.63$--$0.72$ under the weak model
+and $0.43$--$0.96$ under the random encoder. A $98\%$ model has moved its
+misclassified $1$ out of the $1$-cluster — for a linear head that is what
+misclassification \emph{is} — so it has nothing to lend its
+classmates.\footnote{Two caveats on this pair: the on-chart different-class
+batch contains two further low-margin images (margins $4.1$ and $15.6$)
+whose residuals also couple in, so it is not perfectly matched; and columns
+at $10^{-14}$--$10^{-16}$ beside one of order $5$ are at the floor of the
+$P_T$ recovery, not small measurements.}
 
-So the statement is: an example is recorded at roughly the scale of the
-model's residual on it, plus a coupling term from batch-mates whose
-\emph{features} overlap; a batch the model already fits leaves no
-fingerprint; and a hard example lends its residual collinearly, raising
+\emph{What the coupling is, however, is open, and feature overlap is not
+it.} Cosine-to-the-hard-example does not order the lifted columns: Kendall
+concordance across the ten strong-model batches is $17,13,10,16,6,14,14,11,13,6$
+of $21$ — above chance on average, decisive nowhere. In the lifted batch the
+columns are instead ordered by each image's \emph{own} step-$0$ residual
+($20$ of $21$ pairs) at magnitudes twenty orders above it (a margin-$71$
+digit with residual ${\sim}10^{-31}$ carries a column of $5\times10^{-3}$).
+Order preserved with magnitudes lifted uniformly is the signature of a
+roughly uniform margin shift during training: the adapter is shared, one
+residual-$O(1)$ example drives $O(1)$ updates for $400$ steps, and every
+image's margin moves. If that is right the governing quantity is not the
+step-$0$ residual but the residual accumulated along the trajectory — which
+is what $P_T$ is linear in — and the ``coupling'' is simply that a hard
+example's updates move everyone's margin. Pre-registered and running (job
+628731), with the falsifier stated: column norms should order with the
+accumulated residual at $21$ of $21$ pairs, and confident images beside a
+hard example should show a margin drop of tens of units where an
+all-confident batch shows none.
+
+So what is established is the first half: an example is recorded at roughly
+the scale of the model's error on it, a batch the model already fits leaves
+no fingerprint, and a hard example lends its residual collinearly — raising
 column norms without raising rank. For the attacker, the capacity $m+r-N$ is
 an upper bound that a confident model does not spend. For the defender, the
-per-example residual at $W_0$ and the batch's feature Gram — both computable
-before any fine-tuning and without running any attack — predict what the
-adapter will carry.\footnote{The relation is not a proportionality: over
+per-example residual is computable before any fine-tuning and without running
+any attack; whether the right version of it is the step-$0$ value or the one
+accumulated during their own fine-tuning is what job 628731 decides.\footnote{The relation is not a proportionality: over
 $T=400$ steps the trajectory accumulates as the adapter moves, so
 $\|P_Te_i\|$ exceeds the initial residual by many orders. What is measured is
 the ordering, the dynamic range and the coupling, not a functional form.}
