@@ -1498,7 +1498,17 @@ the certificate residuals at the truths rise to $10^{-4}$--$3\times10^{-3}$,
 because four hundred steps of accumulated rounding act on a \emph{moving}
 adapter --- the opposite regime from the confident cell, where a frozen
 adapter made FP32 exact. At a noise-matched tolerance that recovers six of
-eight; the tight-tolerance search is running.
+eight --- but the tolerance was hiding them, not the release. At the tight
+tolerance$^\dagger$ (job 764976, $N'=11$, line $53$) the same FP32-trained
+release gives $32.8\%$ of $500$ starts landing on a letter and \emph{all
+eight found}, at residuals of $3\times10^{-7}$ to $1.3\times10^{-5}$, with the
+two previously missing letters at $5\times10^{-6}$ and $6\times10^{-6}$ and
+the $\operatorname{argmin}$ on a letter at image error $1.1\times10^{-6}$.
+The qualification is therefore withdrawn: \emph{from an adapter trained in
+FP32 on a class the base model does not have, every private example is
+recoverable from random starts with no recipe, no labels and no knowledge of
+the batch, at a chart dimension where the recovered object identifies its
+source.}
 
 At $k=16$ the qualification is already gone$^\dagger$. On the same letters,
 with the release both \emph{trained and stored} in FP32 --- ordinary
@@ -1530,7 +1540,30 @@ still \emph{records} all eight --- full rank, order-one imprints, a class the
 model demonstrably learned --- so the correct statement is which attacker was
 run, not that the data is safe. A route that uses more of the release than the
 row space alone is not excluded by any of this, and the recipe route against
-these same half-precision releases is the cell that would say so.
+these same half-precision releases was run to say so$^\dagger$ (job 771329).
+
+Against the FP32-trained release it succeeds outright: the recipe route ends
+$2\times10^{-6}$ from the on-chart truth for every letter, so half of the
+statement is settled --- FP32 training protects against neither route.
+Against the bfloat16-trained release it fails, and it fails in the more
+interesting of the two ways. Not a search failure but an \emph{alias}: the
+solver reaches residual $5.8\times10^{-4}$, two hundred and forty times
+\emph{below} the $0.138$ that the true images themselves achieve, at per-letter
+errors of $0.09$ to $0.77$. An FP64 simulator explains a bfloat16-trained
+release better with the wrong images than with the right ones. That is the
+standing rule --- consistency with the release is not evidence of correctness
+--- arriving through arithmetic mismatch rather than through
+non-identifiability, and it is the first place in this work where an
+attacker's own objective actively prefers a wrong answer. The per-letter
+errors do track how far each letter's row space moved, but not cleanly: two
+letters perturbed by $0.08$ and $0.055$ still end at $0.50$ and $0.44$.
+
+So the half-precision statement is: the release records all eight, and neither
+of the two routes we ran reads it --- one because it needs directions the
+arithmetic destroyed, the other because its forward model is the wrong
+arithmetic. An attacker who simulates in the same precision as the defender
+trained has not been run, and until it has, this is an open and not a
+defence.
 
 Two supports keep it from resting on a single cell. The per-image basin does
 not decay with $k$ once the slack is held: at $r=64$ it runs $13.8\%$,
