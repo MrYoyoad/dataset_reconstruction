@@ -32,10 +32,12 @@ lands at the residual floor at a point that is not the truth — but that point 
 image error, and in 8 of 11 past-line cells inside the study's own 1e-2 recovery tolerance. A 0.3% error is
 a visually identical image. So `k < m+r−N` is a boundary of **exact identifiability, not (on this evidence)
 of leakage**. A fibre continuation (job 482338) walks the release-consistent set to 1.43% (past the line, 25 steps, pausing in
-the 1.0–1.4% band) and 3.5% still rising (at the line, 16 steps, job running), residual at the floor at every step — along
+the 1.0–1.4% band) and 3.8% still rising at the end (at the line, 25 steps), residual at the floor at every step — along
 ONE null direction each, so lower bounds on the extent, not diameters: non-isolation is established, the
 alternatives are still recognisable on the paths measured, and whether the fibre reaches unrecognisable
-points is NOT established (below-line control pending). Do not generalise a plateau seen on one path. The lesson: the alias quadrant's y-axis was honest all along;
+points is NOT established. The below-line control passed, but not as designed: `on_fibre` stayed True there too —
+the retraction simply returns to the truth every step (image moves 6.6e-14), because the fibre is a point. Read the
+image error, not the on-fibre flag. Do not generalise a plateau seen on one path. The lesson: the alias quadrant's y-axis was honest all along;
 the *labels* were not. Quote the error magnitude wherever the word "alias" appears. And do not read image
 error against arc length in joint `(w,X)` space — the `rN` nuisance coordinates advance the arc without
 moving the image; quote the maximum image error attained at the floor.

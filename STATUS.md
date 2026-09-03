@@ -21,7 +21,7 @@ What the section establishes, in order — every label as in the .tex:
   residual †9.5e-31, err †2.8e-12) / alias@22. The T-dependence conjecture is refuted (capacity T-independent).
 - **Corrected framing — exact identifiability, NOT leakage:** past-line solutions sit at †0.2–1.2% image error
   (8/11 cells inside the study's own 1e-2 tolerance); a fibre continuation (job 482338) reaches †1.43% (past the line,
-  25/25 steps at the floor) and †3.5% still rising (at the line, 16 steps, job running) — one null direction each, hence LOWER
+  25/25 steps at the floor) and †3.84% still rising at the end (at the line, 25 steps, final) — one null direction each, hence LOWER
   bounds on the extent. Non-isolation established; alternatives still recognisable on the paths measured; whether
   the fibre reaches unrecognisable points is not established.
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
@@ -31,8 +31,10 @@ What the section establishes, in order — every label as in the .tex:
   hypothesis stopped at residual †7.2e-8 (not the floor) because the arms were built on L-BFGS rather than the LM
   solver used everywhere else; the readout is uninformative about recipes. Rerun on LM queued after 480679 ends.
   The .tex keeps the recipe claims [EMPIRICAL — pending] and says why.
-- **Still pending:** the at-line traverse's final extent (†3.5% at 17 steps, rising) and the below-line control
-  (job 482338) — the control is the traverse paragraph's stated kill condition.
+- **Traverse control PASSED (job 482338):** below the line (8,26) the identical continuation moves the image by
+  †6.6e-14 (machine precision — the fibre is a point; on_fibre stays True, so read the image error, not the flag)
+  against †1.43e-2 past the line (8,32, 25 steps) and †3.84e-2 at the line (14,22, 25 steps, final). Same procedure,
+  only the side of the boundary changes, twelve orders apart: the direct experimental form of the capacity law.
 
 ## Exact LoRA inversion (framework Rev 10) — **A CAPACITY LAW: the simulation channel inverts iff `k < m + r − N`**, confirmed at N=4/8/12 (2026-09-03; jobs 469120 · 467914 · 466915/467622 · 459111 · 456630 · 452904 · 471272/473055/474132 · 408560-63; thread COMPLETE, all arms landed)
 

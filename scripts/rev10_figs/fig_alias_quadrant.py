@@ -45,13 +45,17 @@ for c,(col,mk,lab) in {
 purple,brown="#9467bd","#8c564b"
 for (N,k,line),rows in sorted(trav_cells.items()):
     rows=sorted(rows,key=lambda r:r["step"]); onf=[r for r in rows if r.get("on_fibre")]; off=[r for r in rows if not r.get("on_fibre")]
-    where = "past the line" if k>line else ("AT the line" if k==line else "BELOW the line (control)")
-    col = purple if k>line else (brown if k==line else blue)
+    where = "past the line" if k>line else ("AT the line" if k==line else "BELOW the line")
+    col = purple if k>line else (brown if k==line else "#17becf")
     if onf:
         xs=[max(r["residual"],1e-33) for r in onf]; ys=[max(r["img_err_max"],1e-17) for r in onf]
+        mx=max(r["img_err_max"] for r in onf)
         ax.plot(xs,ys,color=col,lw=1.4,alpha=0.9,zorder=3)
-        ax.scatter(xs,ys,s=26,color=col,marker="^",edgecolor="k",lw=0.3,zorder=5,
-                   label=f"FIBRE TRAVERSE (N,k)=({N},{k}) {where}: {len(onf)} steps at the floor, 1 of {onf[0]['n_null']} null dirs, max err {max(r['img_err_max'] for r in onf):.1e}")
+        if k<line:   # control: the fibre is a point — the retraction returns to the truth every step
+            lab=f"CONTROL (N,k)=({N},{k}) {where}: the SAME traverse, going nowhere — {len(onf)} steps at the floor, max err {mx:.1e}"
+        else:
+            lab=f"FIBRE TRAVERSE (N,k)=({N},{k}) {where}: {len(onf)} steps at the floor, 1 of {onf[0]['n_null']} null dirs, max err {mx:.1e}"
+        ax.scatter(xs,ys,s=(60 if k<line else 26),color=col,marker=("D" if k<line else "^"),edgecolor="k",lw=0.4,zorder=6,label=lab)
     if off:
         ax.scatter([max(r["residual"],1e-33) for r in off],[max(r["img_err_max"],1e-17) for r in off],s=40,color=col,marker="v",edgecolor="k",lw=0.4,zorder=5,
                    label=f"traverse OBSTRUCTED (N,k)=({N},{k}) {where}: {len(off)} steps off the fibre")

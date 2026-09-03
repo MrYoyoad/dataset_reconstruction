@@ -278,21 +278,27 @@ ever be measured directly:
   rises (locally non-monotone) to a maximum of $1.43\times10^{-2}$ at the
   floor — past the study's own $10^{-2}$ recovery tolerance — and sits in the
   $1.0$--$1.4\times10^{-2}$ band over the last five steps of that path. At the
-  line itself ($N=14$, $k=22$, $14$ null directions) sixteen steps reach
-  $3.5\times10^{-2}$ and are \emph{still rising} as this is written (job
-  482338 running; final extent to follow). In
-  neither cell is the extent bounded by the run. \emph{The caveat belongs next
+  line itself ($N=14$, $k=22$, $14$ null directions) $25$ steps reach
+  $3.8\times10^{-2}$ and are still rising at the end of the run. In neither
+  cell is the extent bounded by the run. \emph{The caveat belongs next
   to the numbers:} each walks one null direction out of forty (resp.\
   fourteen) — the continuation follows the least-constrained singular
   direction, re-aiming as the fibre curves, but it is a single path through
   the set — so these bound the fibres' extent from \emph{below}; the pause of
   the $k=32$ path in the $1.0$--$1.4\%$ band is a property of that path, not
-  of the fibre, and the at-line path shows none. (Quote the maximum image error at the floor, not a distance along the
+  of the fibre, and the at-line path shows none. \emph{The control:} below
+  the line ($N=8$, $k=26$) the same continuation, run identically — same
+  procedure, same solver, same budget, only the side of the boundary changed
+  — moves the image by $6.6\times10^{-14}$: machine precision, i.e.\ not at
+  all. The retraction returns to the truth at every step because the fibre
+  there is a single point. Twelve orders of magnitude separate the two sides.
+  This is the direct experimental statement of the capacity law: the
+  release-consistent set is positive-dimensional and traversable past the
+  line and zero-dimensional below it, measured by one procedure. (The control
+  ran $7$ steps against $25$ when this was written; job 482338.) (Quote the maximum image error at the floor, not a distance along the
   path: arc length lives in the joint $(w,X)$ space, where the $rN$ nuisance
-  coordinates advance it without moving the image.) The below-the-line control
-  ($N=8$, $k=26$), where the traversal must be \emph{obstructed}, is
-  \textnormal{[EMPIRICAL — pending, same job]}; if the continuation walks as
-  freely below the line, this paragraph is withdrawn.
+  coordinates advance it without moving the image.) (The paragraph's stated kill condition — the continuation walking as
+  freely below the line — was tested and did not occur.)
 \item[Generically sufficient (Theorem~\ref{thm:H}).] If $k<m+r-N$ then $DF$
   has full column rank at almost every $(w,X)$, so the truth is locally
   isolated. \textnormal{[THEOREM, given one witness]}.
@@ -415,11 +421,12 @@ capacity law is a boundary of \emph{exact identifiability} and, on this
 evidence, \emph{not a boundary of leakage}: past it the attack still returns
 every image to sub-percent accuracy. The fibre is, however, traversable: the
 continuation of \S\ref{sec:counting} moves the image along it to $1.4\%$
-(past the line) and $3.5\%$ (at the line) error with the residual at the
+(past the line) and $3.8\%$ (at the line) error with the residual at the
 floor throughout, along one null direction of forty and of fourteen
-respectively, in neither case bounded by the run. The extent is
+respectively, in neither case bounded by the run — while below the line the
+identical continuation moves the image by $6\times10^{-14}$. The extent is
 cell-dependent — the two cells differ by more than a factor of two — and
-$3.5\%$ is a visible degradation, not a rounding difference. On the paths
+$3.8\%$ is a visible degradation, not a rounding difference. On the paths
 measured the alternative solutions are still recognisable reconstructions,
 not near-perfect ones; whether the fibre reaches unrecognisable points is not
 established, and one cell is still rising at the end of its run. The capacity boundary marks where \emph{exact}
@@ -456,7 +463,9 @@ the region between the clusters is empty: the residual is a regime detector.
 The triangles are the fibre traverse of \S\ref{sec:counting} (job 482338):
 continuation at the floor from the truth up through the alias band — the
 release-consistent set drawn as a line, past the line and at it, one null
-direction each, extent bounded from below only.}\label{fig:quadrant}
+direction each, extent bounded from below only; and the below-line control
+(diamonds), the same traverse pinned at machine precision — the fibre there
+is a point.}\label{fig:quadrant}
 \end{figure}
 
 %----------------------------------------------------------------------------
@@ -601,10 +610,11 @@ open item — all four are mathematics.
   reproduced at the floor by a point that is not the truth. Say in the same
   breath what that point is: within $0.2$--$1.2\%$ of the true images where
   the solver lands, and a continuation along the release-consistent set
-  reaches $1.4$--$3.5\%$ along a single null direction — a lower bound on the
-  extent, cell-dependent, one cell still rising. Non-isolation is
+  reaches $1.4$--$3.8\%$ along a single null direction — a lower bound on the
+  extent, cell-dependent, one cell still rising — while below the line the
+  same continuation moves the image by $6\times10^{-14}$. Non-isolation is
   established; on the paths measured the alternative solutions are still
-  recognisable reconstructions (not near-perfect: $3.5\%$ is visible);
+  recognisable reconstructions (not near-perfect: $3.8\%$ is visible);
   whether the fibre reaches unrecognisable points is not established. The
   line marks where exact recovery stops — that much is a theorem — and what
   it means for recognisable recovery is open. This is a boundary
