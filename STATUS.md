@@ -27,6 +27,13 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
+- **THE LINE HOLDS ON A TRAINED MODEL (jobs 607896, 610020; in the .tex as "The line on a trained model"):** trained
+  784→1000→1000→10 GELU MNIST MLP (78.45% test acc), LoRA r=16 on the head, N=8 unseen TEST digits, public PCA chart —
+  full rank at k=17 (σ_min †1.2e-9), collapsed at k=18 (†2.4e-19): line unmoved. Conditioning vs the random-encoder
+  run at matched k: 7× (k=6), 100× (k=10), 420× (k=14), 1100× (k=17) smaller σ_min; at the 80-iteration budget only
+  k=6 reaches the floor, k=10/14 stall at 1e-12/1e-14 and go to the floor with 300 iterations (31 / 282 used) —
+  search failures at one budget, recoveries at another; only k=18 is an alias. err-vs-real digit ≥ 0.725 because the
+  PCA chart's own representation error at k=17 is 0.42 — the chart, not the attack. Backbone learned but weak.
 - **Trained-backbone programme IN FLIGHT (executor jobs 607896, 610020; queued: all-layer LoRA, chart comparison):** LoRA
   on the head of the repo's trained 784→1000→1000→10 GELU MLP (78% test acc; forward verified 3.7e-14), 8 test-split
   digits, PCA chart from the train split — k=6 recovered to †1.3e-13 at the floor; k=10 full rank (σ_min †2.1e-6, two
