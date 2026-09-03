@@ -15,8 +15,8 @@ A. FIND SOME OF THE SAMPLES.  The release carries only the examples the model ha
 
 B. A DIFFERENT DISTRIBUTION.  Fine-tune on digits unlike the training set: rendered from system fonts (rotated)
    and the UCI optdigits scans (8x8, other writers, upscaled).  The mechanism predicts LOW margins -> strongly
-   recorded; the attacker's MNIST chart predicts they are poorly drawable.  Per image: margin, residual, P_T
-   column; rank B_T; then cells (a) on-chart and (b) off-chart with the MNIST PCA chart, against the chart's
+   recorded; the attacker's MNIST chart predicts they are poorly drawable.  Per image: margin, residual, imprint
+   ||C_i|| (B_T = sum_i C_i, basis-free); rank B_T; then cells (a) on-chart and (b) off-chart with the MNIST PCA chart, against the chart's
    own best.  A RANDOM MNIST draw runs through the same pipeline as the in-distribution control (the Part-A
    batches are margin-picked and must not serve as that).  Margins are reported FIRST: an OOD set whose margins
    are not below the MNIST control's is a failed manipulation, not a result.  The single number is rank B_T at
@@ -25,7 +25,7 @@ B. A DIFFERENT DISTRIBUTION.  Fine-tune on digits unlike the training set: rende
   python -m experiments.exact_inversion.subset_and_ood --part A B
 """
 import argparse, glob, itertools, json, math, os, socket, sys, time
-import numpy as np, torch
+import numpy as np, torch, torch.func as tf
 from PIL import Image, ImageDraw, ImageFont
 
 from experiments.exact_inversion.lora_exact_inversion import train_release, simulate_sgd_reduced, qr_canon, invert_lm, git_hash
@@ -62,7 +62,7 @@ def pick_batch(mode, ref, Xte_t, yte_t, N, perm):
     raise ValueError(mode)
 
 
-def release_and_columns(bb, X_train, y, A0, a):
+def release_and_imprints(bb, X_train, y, A0, a):
     """Returns the release and the per-image IMPRINT norms ||C_i|| (B_T = sum_i C_i; basis-independent)."""
     H = bb.phi(X_train)
     A_T, B_T = train_release(H, A0, bb.W0, y, bb.m, a.T, a.lr, "sgd")
@@ -72,10 +72,28 @@ def release_and_columns(bb, X_train, y, A0, a):
     return A_T, B_T, torch.linalg.norm(C.reshape(C.shape[0], -1), dim=1), sB, C
 
 
-def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda s: None):
-    """Invert the FULL release for a SUBSET of images (N' columns).  Unknowns: k x N' latents + r x N' seed block."""
-    k = a.k; Np = len(y_sub)
+def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda s: None, A0=None):
+    """Invert the FULL release for a SUBSET of images (N' columns).  Unknowns: k x N' latents + r x N' seed block.
+       With A0 given, also the Jacobian of the SUBSET residual at the subset truth (W_true, A0 U_sub): sigma_min
+       there separates "identifiable subset" from "the near-truth start did not move"; the residual there is the
+       floor the omitted images impose (not zero), reported per block."""
+    k = a.k; Np = len(y_sub); nW = k * Np
     W_true = chart.coords_of(X_sub_true)
+    nB = torch.linalg.norm(B_T); nA = torch.linalg.norm(A_T)
+
+    def res_vec(v):
+        Wc = v[:nW].reshape(k, Np); aux = v[nW:].reshape(a.r, Np)
+        Bs, Xis, Uc = simulate_sgd_reduced(bb.phi(chart.psi(Wc)), aux, bb.W0, y_sub, bb.m, a.T, a.lr, 0.0)
+        return torch.cat([((Bs - B_T) / nB).reshape(-1), ((Xis - A_T @ Uc) / nA).reshape(-1)])
+
+    truth = {}
+    if A0 is not None:
+        U_sub, _ = qr_canon(bb.phi(X_sub_true)); v0 = torch.cat([W_true.reshape(-1), (A0 @ U_sub).reshape(-1)]).detach()
+        sv = torch.linalg.svdvals(tf.jacfwd(res_vec)(v0).detach()); rv = res_vec(v0)
+        truth = dict(jac_sigma_min_truth=float(sv[-1]), jac_sigma_max_truth=float(sv[0]), jac_cond_truth=float(sv[0] / sv[-1]),
+                     jac_rank_truth=int((sv > 1e-12 * sv[0]).sum()), jac_cols=int(sv.numel()),
+                     res_at_truth=float(rv.norm() ** 2), res_at_truth_B=float(rv[:bb.m * a.r].norm() ** 2),
+                     res_at_truth_A=float(rv[bb.m * a.r:].norm() ** 2))
     W_init = W_true + a.init_noise * torch.randn(k, Np, generator=g).to(dev) * W_true.std()
     with torch.no_grad():
         Uc, _ = qr_canon(bb.phi(chart.psi(W_init))); Xinit = A_T @ Uc
@@ -97,7 +115,7 @@ def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda 
     e = torch.linalg.norm(X_hat - X_sub_true, dim=0) / torch.linalg.norm(X_sub_true, dim=0)
     return dict(residual=float(resid), residual_B=res_B, residual_A=res_A, err_max=float(e.max()), err_median=float(e.median()),
                 err_per_image=[float(v) for v in e], start_err_median=float(e0.median()), start_err_max=float(e0.max()),
-                init_noise=a.init_noise, identifiability_test=True,
+                init_noise=a.init_noise, identifiability_test=True, **truth,
                 seconds=time.time() - t0, lm_iters_used=diag.get("lm_iters_used")), X_hat
 
 
@@ -128,7 +146,7 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
         W_all = chart.coords_of(X_real); X_on = chart.psi(W_all)
         X_train = X_on if setting == "on" else X_real
         A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g)).to(dev)
-        A_T, B_T, imp, sB, C = release_and_columns(bb, X_train, y, A0, a)
+        A_T, B_T, imp, sB, C = release_and_imprints(bb, X_train, y, A0, a)
         mar, res0 = margins_of(bb, X_train, y)
         spectrum = [float(v / sB[0]) for v in sB]
         order = torch.argsort(imp, descending=True).tolist()         # evaluation only: who IS recorded (by imprint)
@@ -158,7 +176,7 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
                                label_correct=bool(found == y_sub.tolist()), labels_oracle=False)
                 else:
                     y_run = y_sub; row.update(labels_oracle=True); row["oracle"] = row["oracle"] + ["labels"]
-                r_sub, X_hat = invert_subset(chart, bb, A_T, B_T, X_sub_true, y_run, a, dev, torch.Generator().manual_seed(a.seed + 11))
+                r_sub, X_hat = invert_subset(chart, bb, A_T, B_T, X_sub_true, y_run, a, dev, torch.Generator().manual_seed(a.seed + 11), A0=A0)
                 row.update(**r_sub, err_vs_chart_max=r_sub["err_max"],
                            residual_over_floor=(r_sub["residual_B"] / fl if fl > 0 else None))
                 print(json.dumps(row), flush=True); rows.append(row)
@@ -166,7 +184,7 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
                     torch.save(dict(x_real=X_real[:, sub_t].cpu(), x_chart=X_sub_true.cpu(), x_hat=X_hat.cpu(), meta=row),
                                os.path.join(save_dir, f"A_{mode}_{setting}_N{Np}_{sname}.pth"))
         # control: "find all" on the same release (floor 0)
-        r_all, X_hat_all = invert_subset(chart, bb, A_T, B_T, X_on, y, a, dev, torch.Generator().manual_seed(a.seed + 11))
+        r_all, X_hat_all = invert_subset(chart, bb, A_T, B_T, X_on, y, a, dev, torch.Generator().manual_seed(a.seed + 11), A0=A0)
         rec = order[:n12]
         row_all = dict(base, subset="all (control)", subset_idx=list(range(a.N)), n_prime=a.N, residual_floor_pred=0.0,
                        oracle=["near_init", "labels"], labels_oracle=True, subset_identity="n/a (all N)", **r_all)
@@ -251,12 +269,12 @@ def part_B(a, backbones, chart, dev, out, save_dir, perm):
             A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g)).to(dev)
             for setting, X_train in [("raw", X_ood), ("on", X_on)]:
                 mar, res0 = margins_of(bb, X_train, y)
-                A_T, B_T, colP, sB, _ = release_and_columns(bb, X_train, y, A0, a)
+                A_T, B_T, imp, sB, _ = release_and_imprints(bb, X_train, y, A0, a)
                 row = dict(part="B", ood_set=sname, encoder=ename, backbone_test_acc=acc, setting=setting, y=labels,
                            ood_pred_at_W0=pred.tolist(), ood_acc_at_W0=float((pred == y).double().mean()),
                            margins=[float(v) for v in mar], margin_median=float(mar.median()),
                            residual_W0=[float(v) for v in res0],
-                           imprint_norms=[float(v) for v in colP], rank_B_T=int((sB > 1e-12 * sB[0]).sum()),
+                           imprint_norms=[float(v) for v in imp], rank_B_T=int((sB > 1e-12 * sB[0]).sum()),
                            rank_B_T_1e8=int((sB > 1e-8 * sB[0]).sum()), B_T_spectrum_rel=[float(v / sB[0]) for v in sB],
                            B_T_sigma_ratio=float(sB[a.N - 1] / sB[0]),
                            chart_repr_err_median=float(repr_err.median()), chart_repr_err_max=float(repr_err.max()),
