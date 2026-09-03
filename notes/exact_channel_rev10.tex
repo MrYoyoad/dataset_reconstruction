@@ -704,6 +704,76 @@ cells reaching the residual floor at $80$ iterations, and those needing
 $300$).}\label{fig:cond}
 \end{figure}
 
+\paragraph{Encoder quality, and where the law stops applying.} Holding the
+architecture fixed ($784\to1000\to1000\to10$ GELU) and varying only how well
+it was trained — random weights at the trained layer norms ($8.7\%$ test
+accuracy), then checkpoints at $78.5\%$, $95.1\%$ and $97.9\%$ — with three
+$A_0$ draws per cell, at $k=16$, two units below the line$^\dagger$ (job
+625113; geometric means over the draws):
+\begin{center}\small
+\begin{tabular}{@{}lccccc@{}}\toprule
+encoder & accuracy & $\sigma_{\min}$ at the truth & $\operatorname{cond}$ & $\operatorname{rank}B_T$ ($N=8$) & $\operatorname{rank}D\rho$ / cols\\ \midrule
+random & $0.087$ & $1.7\times10^{-5}$ & $3.8\times10^{5}$ & 8 & 256/256\\
+weak   & $0.785$ & $1.4\times10^{-7}$ & $5.4\times10^{7}$ & 8 & 256/256\\
+mid    & $0.951$ & $7.1\times10^{-9}$ & $9.3\times10^{8}$ & 8 & 256/256\\
+\textbf{strong} & $0.979$ & $2.0\times10^{-15}$ & $6.1\times10^{15}$ & \textbf{6} & \textbf{210/256}\\ \bottomrule
+\end{tabular}
+\end{center}
+Two readings, and the second is a limitation of the theorems rather than a
+measurement of them. \emph{Conditioning degrades monotonically with encoder
+quality} — ten orders of $\sigma_{\min}$ from random weights to $97.9\%$, at
+a fixed architecture, a fixed chart and a fixed $k$ inside the capacity
+region. And \emph{on the strongest encoder the law stops applying at all}:
+$\operatorname{rank}X=8$ in every row while $\operatorname{rank}B_T$ is $6$
+(and $5$ on the local chart), so $\operatorname{rank}P_T<N$ and
+hypothesis~(A4) fails. $D\rho$ is rank-deficient at $k=16$, \emph{below} the
+line — the first loss of identifiability in this study that is not caused by
+the count.
+
+\paragraph{Why: the adapter records what the model got wrong.} Column $i$ of
+$P_T$ is the accumulated error trajectory of example $i$, and $B_0=0$ starts
+that trajectory at $W_0$. A well-trained model classifies an easy private
+example with a large margin, its error there is exponentially small, and the
+example is written into the release at that scale or not at all. Measured
+per image$^\dagger$ (job 626051), the base margin at $W_0$ against
+$\|P_Te_i\|$:
+\begin{center}\small
+\begin{tabular}{@{}lccc@{}}\toprule
+encoder & margin range at $W_0$ & $\|P_Te_i\|$ range & spread across the eight examples\\ \midrule
+random & $-0.7$ to $0.2$ & $0.39$ to $8.9$ & $23\times$\\
+weak   & $-2.2$ to $14.5$ & $5.1\times10^{-2}$ to $5.7$ & $110\times$\\
+mid    & $-2.9$ to $13.5$ & $1.6\times10^{-3}$ to $3.9$ & $2.5\times10^{3}$\\
+strong & $-3.6$ to $63.7$ & $4.4\times10^{-11}$ to $3.8$ & $8.8\times10^{10}$\\ \bottomrule
+\end{tabular}
+\end{center}
+Every column below $10^{-6}$ belongs to an example of margin $\ge16$, and on
+the raw digits (off-chart) all eight columns fall below $10^{-6}$. That is
+why $P_T$ loses rank: those examples are not written into the adapter in any
+numerically meaningful way.
+
+\emph{But an example's own margin does not by itself decide what is recorded
+about it.} The $A$-dynamics couple the examples through the feature Gram
+$H^{\!\top}H$, so a hard example re-records the confident examples whose
+features overlap with it: on the strong model a correctly classified $3$ of
+margin $22$ (residual $4\times10^{-10}$) is nonetheless recorded at $1.6$,
+because a \emph{misclassified} $3$ of margin $-3.6$ shares the batch. Rank
+correlation between margin and $\|P_Te_i\|$ is $20$--$24$ concordant pairs
+of $28$, not $28$. The same coupling produces the rank loss: two same-label
+columns both carry the hard example's residual and become collinear. So the
+honest form of the mechanism is that a confident example is invisible in the
+release \emph{unless} a hard example with overlapping features shares the
+batch.
+
+Two consequences. For the attacker, the capacity $m+r-N$ is an upper bound
+that a confident model does not spend. For the defender, the per-example
+residual at $W_0$ predicts what the adapter will carry — computable before
+any fine-tuning and without running any attack — subject to that coupling,
+which makes it a property of the batch and not only of the
+example.\footnote{The relation is not a proportionality: over $T=400$ steps
+the trajectory accumulates as the adapter moves, so $\|P_Te_i\|$ exceeds the
+initial residual by many orders. What is measured is the ordering, the
+dynamic range and the coupling, not a functional form.}
+
 \paragraph{A free convergence certificate in image space.} The identity above
 is not only a result; it is an instrument. On an on-chart cell a converged
 inversion \emph{must} land on the chart's own best point, so
@@ -721,7 +791,13 @@ never reached the floor at all. And it flags the least converged member of a
 comparison independently of the residual: among the four charts of
 \S\ref{sec:opens} it singles out the ReLU-decoder VAE ($1.6\times10^{-3}$
 against $10^{-13}$--$10^{-6}$ for the rest), the same cell whose
-solved $\sigma_{\min}$ is three times its value at the truth. That verdict
+solved $\sigma_{\min}$ is three times its value at the truth. Separately,
+the VAE charts' conditioning penalty is largely their decoder's own geometry
+rather than anything about the encoder: the VAE decoder's Jacobian has
+$\sigma_{\min}=0.008$ against $\sigma_{\max}=6.7$ (condition number
+${\sim}830$) where a PCA chart's is exactly $1$, of the right order to
+account for most of the ${\sim}2000\times$ gap in $\sigma_{\min}(D\rho)$
+between them$^\dagger$ (job 626565). That verdict
 carries the same caveat as the comparison itself: for a VAE chart the
 reference $c_i$ comes from the inner solve, so the flag conflates outer
 shortfall with inner slack and is unresolved in the same way.\footnote{An asymmetry to record while using it: for a PCA chart the
@@ -729,12 +805,15 @@ projection onto the chart is exact (orthonormal basis, closed form), while
 for a VAE chart it is a $300$-step Adam solve with no convergence criterion
 (vae\_chart.py:85). Between families this biases conservatively for the
 richness ordering — an under-converged inner projection overstates a VAE's
-error and so understates its richness. \emph{Within} the VAE family it does
+error and so understates its richness. \emph{Within} the VAE family it need
 not, because that same inner solve returns $W_{\mathrm{true}}$, which is both
-the point the adapter is trained on and the point at which
-$\sigma_{\min}$ is evaluated; the decoder is non-linear, so $\sigma_{\min}$
-varies with position in latent space and inner-solve slack moves the richness
-and conditioning axes together with no determined sign. The GELU/ReLU pair
+the point the adapter is trained on and the point at which $\sigma_{\min}$ is
+evaluated. Measured$^\dagger$ (job 626565), the concern does not bite for the
+GELU decoder: at $300$, $1000$ and $3000$ inner iterations the inner loss is
+$90.5$ to four digits and $\sigma_{\min}$ at the truth is
+$1.13\times10^{-11}$ at every level and at three perturbations of the truth,
+so the truth does not move with the inner budget there. Untested for the
+ReLU decoder and the $\beta$ arms. The GELU/ReLU pair
 therefore compares two separately fitted models differing in encoder,
 decoder and inner starting point at once, not one activation swap, and its
 $1.04\times$ in richness against $1.15\times$ in $\sigma_{\min}$ is
