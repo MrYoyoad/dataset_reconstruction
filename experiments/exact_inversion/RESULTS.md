@@ -592,7 +592,9 @@ floor: search/conditioning failures, not true aliases. The stated falsifier is n
 clearly non-zero. Near the capacity boundary that stops being true: `(N, k) = (14, 21)`, the last cell
 below the line and one of the two cells the strictness claim rests on, sits at residual `5.0e-18` with a
 `5.0e-4` image error — neither at the floor nor a stall, and classed a search failure while being
-recovered for any practical purpose. The residual floor itself degrades near the boundary, so the bins
+recovered for any practical purpose. **It reaches the floor on the FIRST restart once the iteration cap is
+raised to 300** (`lm_iters_used = 137`, `restarts_used = 1`, residual 9.5e-31, error 2.84e-12, job 481079),
+so the fix was the iteration budget and *not* the restarts — an earlier version of this file said restarts. The residual floor itself degrades near the boundary, so the bins
 stop being crisp exactly where they are being read.
 
 *Point 1 — confirmed once sampled finely enough, and my "cliff" claim is withdrawn.* I first reported a
@@ -700,12 +702,16 @@ rank-deficient Jacobian.
    release-consistent points everywhere and this entire section says nothing about the boundary. That is
    the kill condition, and it is still open.
 
-**The reading, hedged to what is measured.** The capacity boundary marks where **exact** recovery stops,
-not where **recognisable** recovery stops: on the paths measured the alternative solutions are still
-recognisable reconstructions at 1.4%-3.5% relative error. Whether the fibre reaches unrecognisable points
-is **not established**, and one cell was still rising when its run ended — at 3.5% the degradation is
-visible rather than a rounding difference, so this should not be read as "the alternatives are always
-near-perfect".
+**The reading, hedged to what is measured — and "recognisable" is WITHDRAWN.** The capacity boundary marks
+where **exact** recovery stops. An earlier version added "not where *recognisable* recovery stops", on the
+strength of the 1.4%-3.5% errors along these two walks. That does not survive: recognisability was **never
+assessed** here (no human judgement, no classifier, no perceptual metric), the walked errors were still
+rising when a budget ended, and the wider evidence runs against it — past-line error **grows with distance
+past the line** (synthetic `N=8`: 2.6e-3 at the line to 9.3e-3 at `+16`; MNIST `r=8`: 3.5% to 10.0%), and
+**no** past-line MNIST cell has every image inside the 1e-2 tolerance. So the defensible statement is only
+the negative one: `k < m+r−N` is not a boundary of *reproduction* — past it the release is still reproduced
+exactly, by points whose distance from the truth grows with how far past the line one is. What those points
+look like is unmeasured. *(Withdrawal owed to an independent claims audit.)*
 
 ## Step 8 — recipe robustness: DESIGNED, RUN, CONTROL FAILED, BEING RERUN
 
@@ -732,9 +738,14 @@ valid. Cell `k=12, N=8, T=400, η=0.01`:
 | **wrong optimizer** (invert an SGD release as Adam) | family | **4.90** | no | 0.255 |
 
 The true recipe is the unique floor-reacher, and it is separated from the nearest wrong hypothesis — a
-step count off by **one step in four hundred** — by **twenty-three orders of magnitude**. The ordering is
-monotone in the size of the recipe error, so the residual is not merely a detector but a graded objective
-one could minimise over candidate recipes.
+step count off by **one step in four hundred** — by **twenty-three orders of magnitude**.
+
+**WITHDRAWN (independent audit, 2026-09-03): the residual is NOT monotone in the size of the recipe error,
+so it is not a "graded objective".** An earlier version of this paragraph said it was. The data refute it:
+`η×2` (a 100% error) gives residual 1.59e-3, *below* both `T−25%` (2.87e-3) and `η/2` (3.35e-2), and
+`T+25%` (1.55e-4) sits below `T−25%` (2.87e-3) at the same 25% magnitude. What survives — and it is all the
+selection rule needs — is that the true recipe is the **unique** hypothesis reaching the floor, by more
+than twenty orders. Ranking *among wrong* hypotheses by residual is not supported.
 
 **Why this is usable by an attacker, which is the whole point.** The image-error column is *not observable*
 to an attacker — they do not have the private images, and every reconstruction number in this file is a
@@ -873,8 +884,14 @@ The line must **move with `r`**, and it does — sharp to one unit of `k` at eve
 
 At `r = 16`: `σ_min` at the truth runs 2.6e-4 (k=6), 2.0e-4 (k=10), 6.4e-5 (k=14), 1.3e-6 (k=17), then
 **8.4e-18 at k=18** — the same collapse to the FP64 floor as in the synthetic testbed. Below the line real
-digits are reconstructed to ~1e-14. Past it the residual returns to the floor while images sit at 2.7-6.8%
-error, i.e. the same "identifiability boundary, not leakage boundary" pattern, now on real digits. The
+digits are reconstructed to ~1e-14. Past it the residual returns to the floor while the images degrade —
+and here the real-data picture is **worse for the attacker than the synthetic one**, which an earlier
+version of this section understated by quoting the `r=16` range only. Across all three ranks the past-line
+errors are 2.26e-2, 2.70e-2, 3.53e-2, 5.33e-2, 5.38e-2, 6.79e-2, 8.37e-2, 9.96e-2 — i.e. **2.3% to 10.0%,
+and 0 of 8 past-line MNIST cells have every image inside the 1e-2 tolerance** (against 9 of 13 synthetically).
+The error also **grows with distance past the line**: at `r=8` it runs 3.5% → 8.4% → 10.0% at `k = 10, 12, 16`.
+So the boundary is still one of exact identifiability rather than of reproduction, but past it the
+reconstruction degrades steadily rather than sitting at a harmless offset. The
 `k = 17` cell degrades and comes off the residual floor, mirroring the marginal-cell behaviour near the
 boundary seen at `(N,k) = (14,21)` synthetically.
 
