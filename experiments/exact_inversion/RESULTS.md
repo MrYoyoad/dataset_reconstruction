@@ -2217,3 +2217,42 @@ control k = 32 cells (and confident k = 8); predicted ‖B_T‖: confident k = 3
 k = 32 → ~8e-6 in fp32, 0 in bf16/fp16; confident k = 8 → ~0.47 in all three with the images above the margin
 threshold dropping out. **If confirmed, the headline is an FP64-training statement**: the leakage of a confidently
 classified batch exists only when the training arithmetic can represent residuals of 1e-18.
+
+**Correction to the training-precision prediction above, before any row is read.** The residual vector is
+`R = softmax(z) − e_y`; its *off-class* entries are `p_j = exp(z_j − z_y)/Z`, and a format keeps those down to its
+smallest subnormal, not its unit roundoff: fp32/tf32/bf16 (fp32 exponent range) represent `exp(−margin)` to
+margins of ~100, fp16 (subnormal floor 6e-8) only to ~16.6. What unit roundoff `ε` removes is the *own-class* entry
+`R_y = p_y − 1 = −Σ_j p_j`, which rounds to 0 once `Σ_j p_j < ε` — one row of an image's imprint, not its direction.
+And the release never feeds back: `B_T A_T h ≈ 1e-18` against logits of ~40 is below the ulp of the logits *even in
+FP64* (2 orders below), so `z` is constant through training, `A_T = A_0` to working precision in every format, and
+`B_T = −(lr·T/N) Σ_i R_i (A_0 h_i)ᵀ` in closed form — the certificate is exact on `span{A_0 h_i}`. **Revised
+predictions for the training-precision cell:** confident k = 32 → ‖B_T‖ ≈ 7.6e-18 (own-class rows lost, ~√2 lower)
+under fp32 and bf16 (bf16 to ~3 digits), **0 exactly under fp16** (exp(−42) underflows); control k = 32 (margins
+13.6–25) → ≈ 7.9e-6 under fp32/bf16, and under fp16 only the images with margin < 16.6 survive (rank falls);
+confident k = 8 (margins 0.02–11) → ≈ 0.47 in all three, rank unchanged. **So the headline is not an FP64-training
+artefact: it survives fp32 and bf16 training arithmetic and is erased only by fp16's range.** The earlier
+sentence ("under fp32 training the release is exactly zero") is withdrawn; the STATUS caveat is corrected.
+
+**Audit refinements adopted (yoado-6e).** (a) The spectrum is the *primary* predictor, mechanistically: the
+certificate lives on row(B_T) = the top singular directions, quantisation noise at σ₁·ε buries every direction
+with σ_i < σ₁·ε, so the count of σ_i above the floor *is* N′ at that precision and sets the line and the ceiling on
+found; the imprint ‖C_i‖ says how much image i contributed, not whether its direction survived (they diverge under
+collinearity — the wide-head 6e-14 vs 3e-7 case). Where they disagree, the σ call stands. (b) fp16 is *range*-
+limited here, not mantissa-limited: with ‖B_T‖ = 7.6e-18 the entire file is below fp16's subnormal floor — read
+fp16 as narrow-range storage, and tf32 + bf16 (fp32 range) as the clean mantissa test; a measured fp16 < bf16 is
+the range signature, not a band-rule violation. (c) A null is keyed off the **certificate residual at the truth**:
+O(1) → the direction left the noisy row space (destroyed); ~0 with no landing → sampling (the 500→5,000 extension
+covers it). (d) At tolerance 1e-12 on a quantised release N′ → m = 10 is a *noise rank*; its line (54) is not
+physical and is reported only to show the tolerance must be noise-matched; the physical line is the
+noise-matched N′'s.
+
+**Job 753886 relabelled; the trade hypothesis withdrawn (yoado-ed).** On-chart the truth *is* a point of the
+training chart: a release trained at k = 32 has its private images exactly on the 32-dimensional chart, and
+searching a nested 58-dimensional chart represents the same image at `(w*, 0)` — identical fidelity, 26 extra
+unknowns, a smaller basin; retraining at k = 58 changes the private data. So "quantisation widens the line and
+lets the survivors be recovered through a richer chart" cannot be tested on-chart, and off-chart the certificate
+has no zero — the trade question is a limit of the certificate route (an *open*, not a cell). 753886 now answers
+only: *is a bf16 release attackable at all in the regime where the chart is faithful and the model records
+little*, with the FP64 control at the same k expected at or above its own line; the FP64 control is read by
+err-vs-truth (spurious = low objective, err > 1e-2), not by landing count, and nothing is carried across from
+k = 32.
