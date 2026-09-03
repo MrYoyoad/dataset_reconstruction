@@ -75,6 +75,12 @@ bracket. Next step 1 below is DONE; continue from step 2.
   pre-registrations; the letters' projected margins at t=1 are read from the fp64 row first.
 - `train_precision.py` is new (no shared module edited — 753371/753886 are multi-invocation jobs holding
   certificate.py; do not edit certificate.py / lora_exact_inversion.py / subset_and_ood.py until they finish).
+- **Step 24 results so far (753371):** fp64 8/8 (reproduces the headline); fp32 and tf32 at a TIGHT tolerance 5/8
+  (the three weakest directions destroyed, residual 0.9 at their truths); the "noise-matched" tolerance loses images
+  (use the noise rank); fp16 file underflows to exactly zero, 0/8; bf16 pending. Lesson: the quantised spectrum's floor
+  is ~3 orders below the unit roundoff — predict from the measured spectrum. k=10 bracket (706721) closed: floor and
+  recorded fractions separate 6x AT the line. Flowers corrected design (656205): identifiable near the truth,
+  search failure from random starts; mixed batches rerunning (762253, save-path bug fixed a18893a).
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
