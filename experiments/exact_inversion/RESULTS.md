@@ -1707,6 +1707,10 @@ to 5e-16, so the "N known" flag has been dropped from the subset rows; (iii) **`
 release at all, only `N′` through `rank B_T`** — a batch of eight with two invisible members gives the same release
 as its six recorded members at a proportionally smaller step, up to the omitted imprints. Exception: decoupled
 weight decay contributes `−η·wd·B_t`, so the release then determines two combinations, `η/N` and `η·wd`, and a
-published nonzero weight decay publishes the batch size. Derived, not yet measured; `batch_scale_check.py`
-compares the full-batch release with the recorded subset at the scaled step (prediction: agreement at the omitted
-imprints' scale), against the same subset at the unscaled step and a random subset at the scaled step (both O(1)).
+published nonzero weight decay publishes the batch size. **Measured (job 709507, `batch_scale_check.py`), six of
+six cells:** the recorded members alone at `lr·N′/N` reproduce the full-batch release to exactly the omitted
+imprints' relative scale — `‖ΔB_T‖/‖B_T‖` = 1.8e-15 vs omitted 1.9e-15 (repeated raw, N′ = 6), 4.9e-16 vs 4.0e-16
+(repeated on), 1.3e-15 vs 1.5e-15 (hard1_diff raw, N′ = 1), 7.5e-17 vs 3.8e-17 (hard1_diff on, N′ = 4), 4.6e-14 vs
+4.6e-14 (confident raw, N′ = 3), 6.8e-16 vs 6.7e-16 (confident on) — while the same subset at the *unscaled* step
+differs by 3e-2 … 1.7 (the 634238 error) and a random N′-subset at the scaled step by 6e-10 … 1.0 in four cells
+(in the other two the seeded random draw coincided with the recorded set). **`N` is not in the release; `N′` is.**
