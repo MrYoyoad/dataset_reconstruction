@@ -26,6 +26,9 @@ def main():
     ap.add_argument("--models", nargs="*", default=["strong=models/exact_inversion/mnist_mlp_strong.pth", "mid=models/exact_inversion/mnist_mlp_mid.pth",
                                                     "weak=dataset_reconstruction/models/weights-mnist10_gelu.pth"])
     ap.add_argument("--n-eval", type=int, default=2000); ap.add_argument("--n-fit", type=int, default=50000)
+    ap.add_argument("--noise", nargs="*", type=float, default=[0, 1e-12, 1e-9, 1e-6, 1e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1],
+                    help="membership-noise curve: perturb the recovered chart coordinates by eps * coordinate std and re-run "
+                         "retrieval among the 10k PROJECTED candidates (coordinate space); accuracy vs eps per k")
     ap.add_argument("--data-root", default="dataset_reconstruction/data")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu"); ap.add_argument("--out", default=None)
     a = ap.parse_args(); dev = torch.device(a.device)
@@ -47,7 +50,16 @@ def main():
                 top1 = float((top[:, 0] == self_idx).double().mean()); top5 = float((top == self_idx[:, None]).any(1).double().mean())
                 same_class_other = float(((top[:, 0] != self_idx) & (ypool[top[:, 0]] == yev)).double().mean())
                 ident[name] = dict(self_top1=top1, self_top5=top5, other_of_same_class_top1=same_class_other)
+            # membership under noise: an attacker with a candidate pool compares COORDINATES, never renders; how exact must
+            # the recovered w be for the source to still be the nearest of 10k candidates?
+            Wev = chart.coords_of(Xev); Wpool = chart.coords_of(Xpool); cstd = Wpool.std(dim=1, keepdim=True)
+            gn = torch.Generator(device="cpu").manual_seed(123); member = {}
+            for eps in a.noise:
+                Wn = Wev + eps * cstd * torch.randn(Wev.shape, generator=gn).to(dev)
+                Dm = torch.cdist(Wn.T, Wpool.T); nn1 = Dm.argmin(1)
+                member[str(eps)] = float((nn1 == torch.arange(a.n_eval, device=dev)).double().mean())
             row = dict(part="chart_fidelity", k=k, n_eval=a.n_eval, pool=int(Xpool.shape[1]), chart="mnist_pca_train50k",
+                       membership_acc_vs_noise=member,
                        chart_repr_err_median=float(err.median()), chart_repr_err_p90=float(err.kthvalue(int(0.9 * a.n_eval)).values),
                        raw_acc=raw_acc, proj_acc={n: float((m.logits(Xon).argmax(0) == yev).double().mean()) for n, m in models.items()},
                        instance_identification=ident, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
