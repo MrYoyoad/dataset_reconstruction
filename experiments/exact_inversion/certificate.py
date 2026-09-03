@@ -221,7 +221,8 @@ def main():
                             if d_["landed_on_recorded"] and d_["nearest_recorded"] not in first:
                                 first[d_["nearest_recorded"]] = chart.psi(d_["w"].to(dev).reshape(k, 1))[:, 0].cpu()
                         torch.save(dict(x_real=X_real.cpu(), x_chart=X_on.cpu(), x_hat=chart.psi(best["w"].to(dev).reshape(k, 1)).cpu(), top=top,
-                                        x_hat_per_recorded={int(i): v for i, v in first.items()}, meta=rowB),
+                                        x_hat_per_recorded={int(i): v for i, v in first.items()}, meta=rowB,
+                                        A_T=A_T.cpu(), B_T=B_T.cpu(), imprint_abs=imp.cpu(), imprint_C=Cimp.cpu()),
                                    os.path.join(a.save_dir, f"cert_{sname}_{setting}_k{k}.pth"))
 
 
