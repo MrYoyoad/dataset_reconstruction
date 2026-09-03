@@ -2703,8 +2703,12 @@ are running against this gate.
 image error 3.0% (max 6.9%) against the on-chart letters, raw error exactly at the chart's floor — the letters
 recovered as well as the chart allows, to within 3%; against the FP64 simulator's alias on the same release
 (median .44) and the certificate's nothing. The verdict key holds: residual at the floor (0.014 against the
-truth's 0.023 — 1.6×, not 240×), image error small, Z error moderate (0.13, absorbing part of the mismatch but not
-the images). Not a joint alias. (ii) The floor is the A₀ reconstruction, as pre-registered in mechanism though
+truth's 0.023 — 1.6×, not 240×), image error small and *uniform* across the eight letters (2.2–6.9%; a partial alias
+would be non-uniform or O(1)), Z error 0.13 — a red herring (yoado-6e): Z is a soft, under-determined parameter
+whose 13% wander moves A₀ by 2% and the images by 3%; the right pair is `err_vs_chart` with `A0_recon_rel`, and
+both sit at the floor. Not a joint alias. The honest qualifier: the matched attacker recovers the class *to the
+chart floor at a fidelity set by its A₀ reconstruction* (2% → 3% here), not the certificate route's 1e-2 or
+FP64's 1e-6 — cost, not an information bound. (ii) The floor is the A₀ reconstruction, as pre-registered in mechanism though
 not in magnitude: 2.3e-2, set by the 2% of A₀ that the bf16-rounded updates leave outside the feature span
 (one ulp on A₀ gave 1e-2; the accumulated rounding is twice that). The image error is ~1.3–3× the residual —
 the same order as the certificate's 4–5× law. (iii) **So half-precision training is not protection —
