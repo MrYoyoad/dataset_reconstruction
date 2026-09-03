@@ -505,6 +505,8 @@ truth plus $10\%$ latent noise, which an attacker cannot build (the starts an
 attacker can build are the last item of \S\ref{sec:opens}). The residual and
 $\sigma_{\min}$ are attacker-computable; the image-error column is not.
 
+\subsubsection*{The capacity line}
+
 \paragraph{The map reproduces the release.} Fed the true $(w,X)$, the
 simulator of \eqref{eq:rho} reproduces the released factors to relative error
 $5.3\times10^{-16}$--$1.8\times10^{-15}$\textsuperscript{$\dagger$} ($B$ and $A$ factors over
@@ -704,26 +706,7 @@ cells reaching the residual floor at $80$ iterations, and those needing
 $300$).}\label{fig:cond}
 \end{figure}
 
-\paragraph{A richer chart is not harder to invert.} Since the count caps the
-chart's dimension and not its quality, the natural worry is that a chart
-which draws better is harder to invert — that expressiveness is paid for in
-conditioning. It is not, within a family. Varying only the $\beta$ of a VAE
-at fixed latent dimension, architecture and training data$^\dagger$ (job
-626565, weak encoder): $\beta=0.25$ represents the private digits markedly
-better than $\beta=1$ (error $0.222$ against $0.339$) at the same
-conditioning ($\sigma_{\min}$ at the truth $1.15\times10^{-11}$ against
-$1.13\times10^{-11}$; three $A_0$ draws span $0.99$--$1.28\times10^{-11}$).
-Across \emph{families} the differences are large — a VAE chart is
-${\sim}2000\times$ worse conditioned than a PCA chart on this encoder — but
-that is accounted for by the decoder's own Jacobian (condition number
-${\sim}830$ against exactly $1$ for a linear chart), not by what the chart
-can draw. An ordering across four charts that appeared monotone in richness
-was withdrawn on this evidence: it does not survive a within-family sweep,
-and the linear pair inverts on two of the four encoders. The practical
-reading is favourable to the attacker and to the defender's
-threat model alike: \emph{spend the $k$ coordinates on the best chart
-available}, because richness is free in conditioning terms provided the
-decoder itself is well conditioned.
+\subsubsection*{What the release records, and when it records nothing}
 
 \paragraph{Encoder quality, and where the law stops applying.} Holding the
 architecture fixed ($784\to1000\to1000\to10$ GELU) and varying only how well
@@ -875,6 +858,8 @@ say — would plausibly reverse the chart half, and the fonts already show the
 other failure mode, three bold glyphs being classified with margins
 $31$--$47$ and leaving imprints of $10^{-11}$ or less.
 
+\subsubsection*{What an attacker gets from it}
+
 \paragraph{A free convergence certificate in image space.} The identity above
 is not only a result; it is an instrument. On an on-chart cell a converged
 inversion \emph{must} land on the chart's own best point, so
@@ -978,6 +963,27 @@ exactly in its own coordinates; only the oracle-built chart, constructed
 from the digits, returns the digits.}\label{fig:chart}
 \end{figure}
 
+\paragraph{A richer chart is not harder to invert.} Since the count caps the
+chart's dimension and not its quality, the natural worry is that a chart
+which draws better is harder to invert — that expressiveness is paid for in
+conditioning. It is not, within a family. Varying only the $\beta$ of a VAE
+at fixed latent dimension, architecture and training data$^\dagger$ (job
+626565, weak encoder): $\beta=0.25$ represents the private digits markedly
+better than $\beta=1$ (error $0.222$ against $0.339$) at the same
+conditioning ($\sigma_{\min}$ at the truth $1.15\times10^{-11}$ against
+$1.13\times10^{-11}$; three $A_0$ draws span $0.99$--$1.28\times10^{-11}$).
+Across \emph{families} the differences are large — a VAE chart is
+${\sim}2000\times$ worse conditioned than a PCA chart on this encoder — but
+that is accounted for by the decoder's own Jacobian (condition number
+${\sim}830$ against exactly $1$ for a linear chart), not by what the chart
+can draw. An ordering across four charts that appeared monotone in richness
+was withdrawn on this evidence: it does not survive a within-family sweep,
+and the linear pair inverts on two of the four encoders. The practical
+reading is favourable to the attacker and to the defender's
+threat model alike: \emph{spend the $k$ coordinates on the best chart
+available}, because richness is free in conditioning terms provided the
+decoder itself is well conditioned.
+
 \paragraph{Past the line: what the alternative point is.} On the synthetic
 test-bed — whose chart $\psi$ is the generator that produced the images, so
 it contains the truth exactly, the most favourable case of the previous
@@ -1065,6 +1071,8 @@ $N(m+r-N)$ under Adam, and $rN$ or $rn$ — which is Theorem~\ref{thm:cap}
 read block by block. The Adam spectrum is $\sim\!400\times$ wider at equal
 shape: worse conditioning, not lost identifiability.}\label{fig:spectrum}
 \end{figure}
+
+\subsubsection*{The recipe}
 
 \paragraph{How much of the recipe the release itself gives up.}
 Definition~\ref{def:rho} takes $(\eta,s,T)$ and the labels as known. Under a
