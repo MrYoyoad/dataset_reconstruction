@@ -252,8 +252,10 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   leaves an O(1) imprint, `rank B_T = 8/8` — against rank 6 and one dominant image for an in-distribution MNIST
   draw on the same model (median margin 24). Font-rendered digits are half-foreign (three bold glyphs at margins
   31–47 invisible, five at 6–9 recorded). And the MNIST PCA chart draws both foreign sets BETTER than MNIST
-  itself (0.32 / 0.38 vs 0.52) — smoother images — so "drawn worse" failed; both effects favour the attacker on
-  this data. Inversions + image grids in flight (644064).
+  itself (0.32 / 0.38 vs 0.52) — **but the blur control (667729) shows that is RESOLUTION, not provenance: the same
+  MNIST digits at optdigits' 8-px pipeline sit at 0.320 on the same chart.** The chart half of the prediction was
+  untested; "both effects favour the attacker" withdrawn; the record/no-record half stands. Inversions + grids in
+  flight (644064).
 - **The margin-order rule (631392, verified 9/9): in every rank-deficient batch the sub-floor examples are exactly
   the highest-margin ones — recording is decided by margin relative to batch-mates, nothing else.** Consequences
   stamped in RESULTS: the "repeated labels are a first-order factor" reading is CONFOUNDED (different draws, different

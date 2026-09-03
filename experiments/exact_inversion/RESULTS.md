@@ -1513,6 +1513,14 @@ release); optdigits: 2e-4, 1e-3, 4e-5, 1, 0.7, 0.1, 0.8, 0.6 (five within one de
   Rank 6 at 1e-12 but 4 at 1e-8 — a case where the threshold is the reader's choice. Clean rendered digits are
   *easier* for the model than handwriting for some classes, as the design audit anticipated; the set is reported,
   not used as "the" OOD result.
+- *[CORRECTED by the blur control, job 667729, `blur_control.py`: the effect below is RESOLUTION, not provenance.
+  The same eight MNIST control digits put through optdigits' own pipeline (area-downsample to 8 px, bilinear back to
+  20 px, centred) sit at **0.320** on the same PCA basis — identical to optdigits' 0.317 — and at 0.354 / 0.343 /
+  0.268 for 14 / 10 / 6 px; Gaussian blur σ = 0.5 / 1 / 1.5 / 2 gives 0.456 / 0.290 / 0.240 / 0.217; the 2,000-digit
+  test reference moves 0.521 → 0.336 at 8 px. A 16-component linear chart draws smooth images better whatever it was
+  fitted on. So the chart half of the two-sided prediction was NOT tested by provenance: at matched resolution
+  MNIST and optdigits are equally drawable, and the fonts' 0.383 sits where blurred MNIST sits. What stands from
+  this bullet is only the record/no-record half; "both effects favour the attacker" is withdrawn.]*
 - **The second half of the prediction failed: these sets are drawn BETTER, not worse, by the MNIST chart.** The
   chart's own best is 0.317 (optdigits) and 0.383 (fonts) against 0.518 for the MNIST draw — upscaled 8×8 scans
   and rendered glyphs are smoother than handwriting and a 16-component PCA captures them more fully. So for
