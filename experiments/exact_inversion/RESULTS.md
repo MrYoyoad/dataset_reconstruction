@@ -2520,3 +2520,49 @@ the Part A rows (bf16 0.04 … 0.23, fp16 0.014 … 0.17); it is read beside tha
 boundary quantitative and reusable; recovery of all regardless would expose the certificate's 1e-3 direction
 requirement as that route's own fragility rather than a property of the release. Outcome (b) is written as an
 *open* (two routes in one afternoon), not as a boundary.
+
+### Step 25 closed (764976): the tight tolerance recovers ALL EIGHT letters from the fp32-trained release at k = 32
+
+Certificate search from the releases trained in fp32 / bf16, tolerance 1e-12 (the noise rank), 500 random starts:
+
+| cell (k = 32) | trained in | N′ (line) | on a recorded image | found | residuals at the found truths | argmin |
+|---|---|---|---|---|---|---|
+| **letters 'a'** | **fp32** | 11 (53) | **32.8%** | **8 of 8** (landings 94, 4, 8, 6, 6, 6, 4, 36) | 3e-7 … 1.3e-5 | on a letter, error 1.1e-6 |
+| letters 'a' | bf16 | 11 (53) | 0 | 0 | 0.04 … 0.23 | off (0.12) |
+| confident | fp32 | 10 (54) | 49.8% | 5 of 8 (1, 2, 5, 6, 7) | 9e-7 … 4e-6 | on, 4.9e-6 |
+| confident | bf16 | 10 (54) | 0 | 0 | 0.06 … 0.94 | off (0.17) |
+| control | fp32 | 10 (54) | 33.4% | 6 of 7 (image 5 destroyed, 0.79) | 6e-7 … 4e-5 | on, 1.4e-6 |
+
+**The sentence for the supervisor now holds without qualification at the instance-identifying chart:** *from an
+adapter trained in fp32 on the canonical fine-tuning task — a class the base model does not have — every private
+example is recoverable from random starts with no recipe, no labels and no knowledge of the batch, at k = 32
+(instance survival .94 on digits; chart error .24 on the letters).* The two letters the noise-matched tolerance
+missed (residuals 2.7e-3, 3.3e-3 there) are found at the tight tolerance with residuals 5e-6 and 6e-6 — the
+tolerance, not the release, had hidden them; "noise-matched" is withdrawn as a recommendation for training-
+precision releases as it was for storage. bf16-trained releases: 0 found at every cell, as the residuals said.
+
+### Step 26 first rows (771329, letters k = 16): the recipe route against half-precision-trained releases
+
+| trained in | rel. dev. of B_T | residual at the truth (mismatch floor) | σ_min / σ_max at the truth | LM endpoint residual | endpoint error vs the on-chart truth, per letter | median / max | vs raw (floor .32) |
+|---|---|---|---|---|---|---|---|
+| fp64 (gate) | 5e-16 | 9e-16 | 2.7e-4 / 4.1 | 4e-31 | 1e-15 … 4e-15 | 2e-15 / 4e-15 | .316 / .79 |
+| fp32 | 4.4e-7 | 4.5e-7 | 2.7e-4 / 4.1 | **4.5e-14** | 5e-7 … 3.5e-6 | 1.5e-6 / 3.5e-6 | .316 / .79 |
+| bf16 | 0.12 | 0.138 | 2.8e-4 / 4.6 | **5.8e-4** | .21 .50 .09 .50 .77 .18 .44 .69 | **.44 / .77** | .57 / .80 |
+| fp16 | 0.026 | pending | | | | | |
+
+**Reads.** (i) The gate passes (exact recovery, residual 4e-31); the letters' Jacobian at the truth is well
+conditioned (σ_min 2.7e-4 against 1e-6 … 1e-5 for the flowers). (ii) **fp32-trained: outcome (a)** — the FP64
+simulator's LM ends 2e-6 from the on-chart truth for every letter (raw error at the chart floor .316), i.e. the
+class recovered as well as the chart allows. Note the endpoint residual 4.5e-14 sits *seven orders below* the
+residual at the truth (4.5e-7): the mismatch is absorbed by a 2e-6 displacement — an alias of the arithmetic, at
+the scale of the arithmetic. (iii) **bf16-trained: outcome (b), in the alias form** — the LM ends at residual
+5.8e-4, 240× *below* the truth's mismatch floor 0.138, i.e. the FP64 recipe explains the bf16-trained release
+better with *different* images: endpoint errors .09 … .77 against the on-chart truths (median .44), raw errors
+.57 (floor .32). Residual well below the truth's, wrong images: the arithmetic mismatch has created a genuine
+non-identifiability for the FP64-simulating attacker, not a search failure. Per letter, the least-moved row-space
+directions recover best (letter 2: perturbation .045 → error .087; letter 5: .054 → .18) and the most-moved worst
+(letter 4: .20 → .77; letter 7: .22 → .69), but not monotonically (letters 1 and 6: perturbation .08/.055 → errors
+.50/.44) — the boundary is not a clean per-letter threshold. So at bf16 training: recorded (norm, rank, learned
+margins, O(1) imprints), recoverable by neither route we ran; **an open, not a boundary** — the matched-arithmetic
+attacker, who simulates in bf16 and has no mismatch floor, is strictly stronger and was not run (autograd through
+a rounded loop is not meaningful with our solver). fp16 and the k = 32 rows pending.
