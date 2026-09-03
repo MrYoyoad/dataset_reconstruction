@@ -70,6 +70,15 @@ What the section establishes, in order — every label as in the .tex:
   digits through the random/weak/mid encoders give rank 8 with columns of order 1 — so it is the model, not the
   digits. On-chart (projection lowers margins) one column rises to 0.41 but rank stays 3: what confident images then
   carry is a hard image's residual spread collinearly, so RANK, not column size, is the witness.
+- **MECHANISM, FINAL FORM (job 631392) — the release is a sum of per-example imprints.** ∇_B L = s Σ_i D[:,i](A h_i)ᵀ,
+  so B_T = Σ_i C_i with C_i = −ηs Σ_t D_t[:,i](A_t h_i)ᵀ and ‖C_i‖ bounded by example i's OWN accumulated softmax
+  residual — no cross term. Measured over 40 batches × 4 encoders (gate ‖Σ C_i − B_T‖/‖B_T‖ < 4e-12): Kendall(‖C_i‖,
+  Σ_t‖res_t,i‖) = †971/1120 pairs, †28/28 in every strong-encoder batch, ratio within a decade inside each batch; the
+  only chance-level rows are the random encoder, where all eight residuals lie in 0.93–0.97 so there is nothing to
+  order. rank B_T = the number of examples above the floor in ALL 40 batches. An example the model fits with margin M
+  enters at scale e^−M. A batch the model already fits leaves EVERY imprint below †1.5e-24 in ABSOLUTE terms — say
+  "numerically empty", not "rank 3" (a relative threshold against a 1e-24 maximum is meaningless). Defender meter:
+  the per-example accumulated residual during their own fine-tuning. Nothing about labels, features or batch-mates.
 - **RETRACTED (job 628731): the per-example column reading and everything built on it.** Column i of P_T is NOT
   "what the adapter recorded about image i": expanding the release, P_T = −ηs(Σ_t D_t) R_Hᵀ, so column i mixes the
   accumulated errors of every image j ≥ i IN BATCH ORDER weighted by R_H[i,j] — basis- and order-dependent, and a
