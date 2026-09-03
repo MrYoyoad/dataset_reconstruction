@@ -86,6 +86,12 @@ bracket. Next step 1 below is DONE; continue from step 2.
   764976 pending — if 8/8 the sentence for Gal is unqualified); bf16/fp16 TRAINING keep the norm, degrade directions
   2–25%, certificate finds 0. Headline cell: fp32 exact, mismatch 6e-32 (signal). Landing error ≈ 5× residual at truth.
   Figure: figures/exact_inversion/letters_recovery_k32_760909.png.
+- **Step 26 (771329, pre-registered):** recipe route (FP64 simulator, near start) vs the bf16/fp16-trained letter
+  releases — decides whether "recorded but not certificate-recoverable" is an extraction gap or a demonstrated
+  non-protection. 764976 (tight-tolerance certificate search from fp32/bf16-trained releases) still running; 763805
+  (random head row) done: reproduces the zero row. Script freeze: certificate.py / lora_exact_inversion.py /
+  subset_and_ood.py / vae_chart.py until 753886 and 749362 finish (multi-invocation); train_precision.py is safe to edit
+  between its jobs (single invocation each).
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
