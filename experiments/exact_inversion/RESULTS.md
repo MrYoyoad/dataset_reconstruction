@@ -2573,3 +2573,26 @@ information present, matched-arithmetic attacker unrun; "not protection" is prin
 margins, O(1) imprints), recoverable by neither route we ran; **an open, not a boundary** — the matched-arithmetic
 attacker, who simulates in bf16 and has no mismatch floor, is strictly stronger and was not run (autograd through
 a rounded loop is not meaningful with our solver). fp16 and the k = 32 rows pending.
+
+### Step 26 addendum (pre-registered; job 779207): is the matched-arithmetic attacker's landscape navigable?
+
+yoado-ed: leave the matched-arithmetic attacker as an open and a reader hears "bf16 training is a defence".
+Before building a matched solver, two facts decide whether one can exist: (i) the attacker cannot reproduce the
+training's roundings bit for bit — A₀ is unknown (only the bf16 A_T is released, and A₀ = A_T − ΔA carries ΔA's own
+rounding), and the reduced simulator (span-adapted coordinates, the recipe route's only tractable form) rounds a
+*different* sequence of operations from the full training loop — so even a matched-arithmetic simulator has a
+mismatch floor, set by how the low-precision map responds to one-ulp perturbations of its inputs; (ii) a
+low-precision loop is piecewise constant at the scale of its roundings, so the matched residual landscape may
+be a noise floor everywhere except at the exact truth. Measured (letters k = 16 and 32; fp32, bf16, fp16 releases):
+the response `‖B(W + δ) − B(W)‖/‖B‖` of the format's map to relative perturbations δ = 1e-6, 1e-4, 1e-2 of the
+latents and to a one-ulp perturbation of A₀, against the FP64 map's response; and the residual along the segment
+from the 0.1-noise near start to the truth, in matched arithmetic against the format's release and in FP64
+against the same release. **Pre-registration:** the FP64 map responds linearly (≈ σ·δ, ~4e-6 at δ = 1e-6); the bf16
+map's response to δ = 1e-6 and to one ulp of A₀ is predicted at 1e-2 … 1e-1 (a rounding cascade over 400 steps —
+the same 12% seen as the release's deviation), i.e. the matched landscape is a ~0.1 noise floor with a single
+needle at the exact truth: then no matched *differentiable* solver exists, matched arithmetic is a verification
+oracle only, and "bf16 training: recorded, not extractable by any simulator we can build" is the honest sentence —
+an extraction cost, not an information bound (the certificate still sees the class's directions to 5–25%).
+Falsifier: a bf16 response ∝ δ down to 1e-4 (a smooth map at the attacker's scale) — then a matched LM (FP64
+Jacobian, bf16 residual) is feasible and is run next. fp32 is expected in between (response ~1e-6 at δ = 1e-6
+from its own rounding, then linear).
