@@ -70,6 +70,17 @@ What the section establishes, in order — every label as in the .tex:
   digits through the random/weak/mid encoders give rank 8 with columns of order 1 — so it is the model, not the
   digits. On-chart (projection lowers margins) one column rises to 0.41 but rank stays 3: what confident images then
   carry is a hard image's residual spread collinearly, so RANK, not column size, is the witness.
+- **OUT-OF-DISTRIBUTION PRIVATE DATA IS MORE EXPOSED ON BOTH AXES (job 644062, strong 98% backbone, raw).**
+  Control = random distinct-label MNIST test draw through the identical pipeline. UCI optdigits scans: base accuracy
+  †4/8, median margin †−2.0, every imprint O(1) with five within a decade of the largest, rank B_T †8/8 — where the
+  MNIST control has rank †6 and is dominated by ONE example (relative imprints 1, then ≤2e-5). So the imprint law
+  holds on data of a kind the model has never seen, and foreign data is recorded in FULL. BUT the second half of the
+  two-sided prediction FAILED: the MNIST PCA chart draws both foreign sets BETTER than MNIST (†0.317 optdigits,
+  †0.383 fonts vs †0.518 control) — upscaled scans and rendered glyphs are smoother than handwriting, so a
+  16-component subspace captures more of them. Both factors favour the attacker on these sets. Scoped: that is
+  about THESE sets, not foreignness in general (a rougher set, e.g. photographs, could reverse the chart half), and
+  the fonts already show the other failure mode — three bold glyphs classified at margins 31–47 leave imprints
+  ≤1e-11, so fonts are a partly failed OOD manipulation. Weak and mid: rank 8/8 on every set.
 - **MECHANISM, FINAL FORM (job 631392) — the release is a sum of per-example imprints.** ∇_B L = s Σ_i D[:,i](A h_i)ᵀ,
   so B_T = Σ_i C_i with C_i = −ηs Σ_t D_t[:,i](A_t h_i)ᵀ and ‖C_i‖ bounded by example i's OWN accumulated softmax
   residual — no cross term. Measured over 40 batches × 4 encoders (gate ‖Σ C_i − B_T‖/‖B_T‖ < 4e-12): Kendall(‖C_i‖,
