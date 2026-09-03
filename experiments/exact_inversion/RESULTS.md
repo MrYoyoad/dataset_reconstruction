@@ -1590,6 +1590,13 @@ angles) are different causes of a poor `σ_min(J)`, and this is the field that s
    imprint norms, imprint-Gram `σ_N/σ_1`, `rank B_T`, `σ_min(J)` at the truth — to be filled from 658575's `old_ext`
    and `new` rows.
 
+*CIFAR matched control (job 656205, `cifar10_ext`: eight CIFAR-10 test images on the same 11-row head):* the 53%
+model is wrong about five of eight, so they are recorded too (imprints 0.3–1 but one at 5e-4, rank 8) — yet
+**orthogonal** (mean cosine 0.01 raw, 0.002 on-chart) where the flowers were aligned (0.50–0.58); on-chart floor in
+32 iterations with `σ_min` 1.8e-5, i.e. as solvable as the flowers (2.4e-6). Alignment is the shared-new-class
+signature; on a weak encoder it costs little conditioning. Off-chart 0.57 (chart's best 0.26). The imprint-Gram
+`σ_N/σ_1` conflates size and angle (one tiny control imprint drags it to 4e-4); the pairwise cosine is the angle.
+
 **The side-by-side (item 4), job 658575, strong 98% model, same extended head (`m = 11`, zero row), raw images:**
 
 | batch | margins (median) | imprints (relative) | `rank B_T` | imprint cosine (mean off-diagonal) | reading |
