@@ -281,7 +281,7 @@ def part_B(a, backbones, chart, dev, out, save_dir, perm):
                            k=a.k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed)
                 print(json.dumps(row), flush=True); rows.append(row)
             # the attack with the MNIST chart, on-chart (a) and off-chart (b)
-            for cell in ("a", "b"):
+            for cell in (() if a.skip_invert else ("a", "b")):
                 r, X_hat, X_on_c = invert_cell(chart, bb, X_ood, y, a, cell, dev, g, lambda s: None)
                 r.update(part="B", ood_set=sname, encoder=ename, backbone_test_acc=acc, chart="mnist_pca", y=labels,
                          oracle=["near_init", "labels"], init_noise=a.init_noise, identifiability_test=True,
@@ -313,6 +313,7 @@ def grid(save_dir, fig_path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--part", nargs="*", default=["A", "B"])
+    ap.add_argument("--skip-invert", action="store_true", help="Part B: margins / residuals / imprints / rank only (no solves)")
     ap.add_argument("--strong", default="models/exact_inversion/mnist_mlp_strong.pth")
     ap.add_argument("--weak", default="dataset_reconstruction/models/weights-mnist10_gelu.pth")
     ap.add_argument("--mid", default="models/exact_inversion/mnist_mlp_mid.pth")
