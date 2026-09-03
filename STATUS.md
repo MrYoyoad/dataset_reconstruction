@@ -20,9 +20,10 @@ What the section establishes, in order — every label as in the .tex:
 - **Measured sharp on the outcome:** N=8 recovered@27 / alias@28; N=14 recovered@21 (6 restarts, job 481079,
   residual †9.5e-31, err †2.8e-12) / alias@22. The T-dependence conjecture is refuted (capacity T-independent).
 - **Corrected framing — exact identifiability, NOT leakage:** past-line solutions sit at †0.2–1.2% image error
-  (8/11 cells inside the study's own 1e-2 tolerance); a fibre continuation (job 482338) reaches a max †1.43% at the
-  floor over 25/25 steps and flattens in the 1.0–1.4% band — one of 40 null directions, hence a LOWER bound on the
-  extent. Non-isolation established; the line marks where exact recovery stops, not recognisable recovery.
+  (8/11 cells inside the study's own 1e-2 tolerance); a fibre continuation (job 482338) reaches †1.43% (past the line,
+  25/25 steps at the floor) and †3.5% still rising (at the line, 16 steps, job running) — one null direction each, hence LOWER
+  bounds on the extent. Non-isolation established; alternatives still recognisable on the paths measured; whether
+  the fibre reaches unrecognisable points is not established.
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.

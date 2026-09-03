@@ -274,18 +274,20 @@ ever be measured directly:
   \textnormal{[VERIFIED†, extent pending]} (job 482338; $N=8$, $k=32$, $40$
   numerically null directions): stepping along the $\sigma_{\min}$ singular
   direction and retracting onto the fibre by a few LM steps keeps the residual
-  at $\sim\!10^{-30}$ at every one of $25$ continuation steps, while the image
-  error rises over the first $\sim\!20$ steps (locally non-monotone) and then
-  flattens in the $1.0$--$1.4\times10^{-2}$ band; maximum image error at the
-  floor $1.43\times10^{-2}$, past the study's own $10^{-2}$ recovery tolerance,
-  with the release reproduced exactly throughout. At the line itself
-  ($N=14$, $k=22$, $14$ null directions) the first five steps reach
-  $9.4\times10^{-3}$. \emph{The caveat belongs next to the number:} this walks
-  one direction out of forty — the continuation follows the least-constrained
-  singular direction, re-aiming as the fibre curves, but it is a single path
-  through a $40$-dimensional set — so $1.43\times10^{-2}$ bounds the fibre's
-  extent from \emph{below} and ``flattens'' describes this path, not the
-  fibre. (Quote the maximum image error at the floor, not a distance along the
+  at $\sim\!10^{-30}$ at every one of $25$ continuation steps; the image error
+  rises (locally non-monotone) to a maximum of $1.43\times10^{-2}$ at the
+  floor — past the study's own $10^{-2}$ recovery tolerance — and sits in the
+  $1.0$--$1.4\times10^{-2}$ band over the last five steps of that path. At the
+  line itself ($N=14$, $k=22$, $14$ null directions) sixteen steps reach
+  $3.5\times10^{-2}$ and are \emph{still rising} as this is written (job
+  482338 running; final extent to follow). In
+  neither cell is the extent bounded by the run. \emph{The caveat belongs next
+  to the numbers:} each walks one null direction out of forty (resp.\
+  fourteen) — the continuation follows the least-constrained singular
+  direction, re-aiming as the fibre curves, but it is a single path through
+  the set — so these bound the fibres' extent from \emph{below}; the pause of
+  the $k=32$ path in the $1.0$--$1.4\%$ band is a property of that path, not
+  of the fibre, and the at-line path shows none. (Quote the maximum image error at the floor, not a distance along the
   path: arc length lives in the joint $(w,X)$ space, where the $rN$ nuisance
   coordinates advance it without moving the image.) The below-the-line control
   ($N=8$, $k=26$), where the traversal must be \emph{obstructed}, is
@@ -412,13 +414,16 @@ tolerance, and a $0.3\%$ relative error is a visually identical image. So the
 capacity law is a boundary of \emph{exact identifiability} and, on this
 evidence, \emph{not a boundary of leakage}: past it the attack still returns
 every image to sub-percent accuracy. The fibre is, however, traversable: the
-continuation of \S\ref{sec:counting} moves the image along it to a $1.4\%$
-error and then flattens, with the residual at the floor throughout — along
-one of forty null directions, so this bounds the extent from below. The
-capacity boundary therefore marks where \emph{exact} recovery stops, not
-where recognisable recovery stops; whether some other direction through the
-fibre goes further is the open question that decides whether the line has
-any privacy meaning at all. The $49$-cell grid
+continuation of \S\ref{sec:counting} moves the image along it to $1.4\%$
+(past the line) and $3.5\%$ (at the line) error with the residual at the
+floor throughout, along one null direction of forty and of fourteen
+respectively, in neither case bounded by the run. On the paths measured the
+alternative solutions are still recognisable reconstructions; whether the
+fibre reaches unrecognisable points is not established, and one cell is still
+rising at the end of its run. The capacity boundary marks where \emph{exact}
+recovery stops; whether it marks anything about recognisable recovery is the
+open question that decides whether the line has any privacy meaning at all.
+The $49$-cell grid
 $N,k\in\{2,\dots,14\}$ (jobs 396214--21, 456630) lies entirely inside the
 capacity region and recovers in every cell, crossing the quotient line
 $k=r-N$ throughout (Figure~\ref{fig:plane}).
@@ -445,7 +450,11 @@ the attacker-start and Adam arms, and the single-restart run of the $(14,21)$
 cell, which recovers at six restarts (job 481079: residual $9.5\times10^{-31}$,
 error $2.8\times10^{-12}$). No alias was observed below the line in the cells
 tested — the below-line region is sampled at a handful of $k$ per $N$ — and
-the region between the clusters is empty: the residual is a regime detector.}\label{fig:quadrant}
+the region between the clusters is empty: the residual is a regime detector.
+The triangles are the fibre traverse of \S\ref{sec:counting} (job 482338):
+continuation at the floor from the truth up through the alias band — the
+release-consistent set drawn as a line, past the line and at it, one null
+direction each, extent bounded from below only.}\label{fig:quadrant}
 \end{figure}
 
 %----------------------------------------------------------------------------
@@ -583,10 +592,12 @@ open item — all four are mathematics.
   reproduced at the floor by a point that is not the truth. Say in the same
   breath what that point is: within $0.2$--$1.2\%$ of the true images where
   the solver lands, and a continuation along the release-consistent set
-  reaches $1.4\%$ and flattens — along one direction of forty, so a lower
-  bound on the extent. Non-isolation is established; every point on the
-  walked path is a sub-$1.5\%$ reconstruction; the line marks where exact
-  recovery stops, not where recognisable recovery stops. This is a boundary
+  reaches $1.4$--$3.5\%$ along a single null direction — a lower bound on the
+  extent, one cell still rising. Non-isolation is established; on the paths
+  measured the alternative solutions are still recognisable reconstructions;
+  whether the fibre reaches unrecognisable points is not established. The
+  line marks where exact recovery stops — that much is a theorem — and what
+  it means for recognisable recovery is open. This is a boundary
   of exact identifiability and, on this evidence, not a boundary of leakage —
   the more interesting statement, and the honest one.
   ``$r-N$'' bounds the quotient, not the leakage.
