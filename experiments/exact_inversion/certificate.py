@@ -21,7 +21,7 @@ import torch, torch.func as tf
 
 from experiments.exact_inversion.lora_exact_inversion import git_hash
 from experiments.exact_inversion.trained_backbone import TrainedBackbone, PCAChart, read_idx
-from experiments.exact_inversion.subset_and_ood import pick_batch, release_and_imprints, margins_of
+from experiments.exact_inversion.subset_and_ood import pick_batch, release_and_imprints, margins_of, optdigits
 
 torch.set_default_dtype(torch.float64)
 
@@ -55,6 +55,7 @@ def main():
     ap.add_argument("--part", nargs="*", default=["A", "B"])
     ap.add_argument("--model", default="models/exact_inversion/mnist_mlp_strong.pth")
     ap.add_argument("--sets", nargs="*", default=["mnist_control", "hard1_diff", "confident"])
+    ap.add_argument("--optdigits-path", default="data/ood_digits/optdigits.tes")
     ap.add_argument("--ks", nargs="*", type=int, default=[12, 14, 15, 16]); ap.add_argument("--N", type=int, default=8)
     ap.add_argument("--r", type=int, default=16)
     ap.add_argument("--T", type=int, default=400); ap.add_argument("--lr", type=float, default=0.01)
@@ -79,6 +80,8 @@ def main():
     print(f"# certificate  model={a.model}  sets={a.sets}  ks={a.ks}  git={git_hash()}", flush=True)
 
     def batch(sname):
+        if sname == "optdigits":                                  # many RECORDED images in one cell (Step 19: 8/8 recorded on the strong model)
+            return None
         if sname == "mnist_control":
             idx, seen = [], set()
             for i in perm.tolist():
@@ -88,7 +91,11 @@ def main():
         return pick_batch(sname, bb, Xte_t, yte_t, a.N, perm)
 
     for sname in a.sets:
-        idx = torch.tensor(batch(sname), device=dev); X_real = Xte_t[idx].T.contiguous(); y = yte_t[idx]
+        if sname == "optdigits":
+            labels = [i % 10 for i in range(a.N)]
+            X_real = optdigits(labels, a.optdigits_path, a.seed).to(dev); y = torch.tensor(labels, device=dev)
+        else:
+            idx = torch.tensor(batch(sname), device=dev); X_real = Xte_t[idx].T.contiguous(); y = yte_t[idx]
         for k in a.ks:
             a.k = k; chart = PCAChart(Xtr_t, k, dev)
             coord_std = chart.coords_of(Xtr_t[:10000].T).std(dim=1, keepdim=True)
