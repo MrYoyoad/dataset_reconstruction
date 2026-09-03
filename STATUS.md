@@ -219,6 +219,13 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
 - **Multi-layer LoRA (job 626564, after the grad fix): optimisation failure in BOTH arms** — seeds known (112
   unknowns) residual 2.2e-8, 3/8 images; seeds unknown (22,384) 7.7e-7, 1/8. Gate 0.0. The three-layer unroll is
   the obstruction at this budget, not the seeds. Empirical, outside the theorems; no identifiability statement.
+- **Different-distribution private data is recorded IN FULL (job 644062, RESULTS Step 19).** UCI optdigits
+  scans fine-tuned into the 98% model: it gets half of them wrong (median margin −2), every one of the eight
+  leaves an O(1) imprint, `rank B_T = 8/8` — against rank 6 and one dominant image for an in-distribution MNIST
+  draw on the same model (median margin 24). Font-rendered digits are half-foreign (three bold glyphs at margins
+  31–47 invisible, five at 6–9 recorded). And the MNIST PCA chart draws both foreign sets BETTER than MNIST
+  itself (0.32 / 0.38 vs 0.52) — smoother images — so "drawn worse" failed; both effects favour the attacker on
+  this data. Inversions + image grids in flight (644064).
 - **RESOLVED (job 631392): the per-image imprint `‖C_i‖` is proportional to the accumulated residual — Kendall
   28/28 in every strong-model batch (971/1120 over all 40), ratio within one decade, and `rank B_T` = number of
   images with non-negligible imprint in all 40 batches.** Final form: the release records each example as a

@@ -1452,3 +1452,40 @@ model already fits it — and `rank B_T` counts the examples recorded above the 
 fits leaves no fingerprint; what leaks is what the model had to learn. The defender's leakage meter is the
 per-example accumulated residual during their own fine-tuning, which they compute anyway. Nothing about labels,
 feature overlap, or batch-mates enters.
+
+## Step 19 — private data from a DIFFERENT distribution: it is recorded in full (job 644062; inversions in 644064)
+
+`subset_and_ood.py --part B --skip-invert`. Private sets of `N = 8` digits with labels `[0,3,5,1,9,6,7,4]`:
+`mnist_control` = the distinct-label random draw from the MNIST test split (in-distribution; NOT a margin-picked
+batch); `font` = digits rendered from DejaVu Sans/Mono (bold and regular), rotated ±12°, centred like MNIST;
+`optdigits` = UCI optdigits scans (8×8, other writers and scanner, bilinear-upscaled to a 20-px box, centred).
+Fine-tuned into the weak (78%), mid (95%) and strong (98%) backbones; `r = 16`, `T = 400`, `lr = 0.01`, `k = 16`;
+raw digits and their MNIST-PCA projections. Margins are read first — a set whose margins are not below the
+control's is a failed manipulation, not a result.
+
+| private set | accuracy at `W₀` (weak / mid / strong) | median margin, strong (raw) | `rank B_T` at 1e-12 / 1e-8, strong (raw) | chart's best (MNIST PCA, k=16) |
+|---|---|---|---|---|
+| MNIST control | 1.00 / 1.00 / 1.00 | **23.8** (10 … 64) | **6 / 6** | 0.518 |
+| font-rendered | 0.50 / 0.88 / 1.00 | 8.9 (three at 31–47, five at 6–9) | 6 / 4 | 0.383 |
+| **optdigits** | 0.25 / 0.38 / **0.50** | **−2.0** (−4 … 11) | **8 / 8** | **0.317** |
+
+Weak and mid backbones: `rank B_T = 8/8` on every set. Strong backbone per-image imprints (relative to the
+largest), raw digits — MNIST control: 1, 6e-24, 1e-5, 1e-7, 7e-7, 1e-14, 2e-7, 2e-5 (one digit carries the
+release); optdigits: 2e-4, 1e-3, 4e-5, 1, 0.7, 0.1, 0.8, 0.6 (five within one decade of the largest).
+
+- **Foreign data is recorded in full.** The 98% model classifies half of the optdigits wrong (margins down to
+  −4), so every one of the eight leaves an O(1) imprint: `rank B_T = 8` where the same model on in-distribution
+  digits leaves rank 6 and one dominant image. The mechanism's prediction — *what the model gets wrong is what
+  it records* — holds on data it has never seen the like of.
+- **Fonts are half-foreign, and the margins say so.** The strong model gets all eight right; three (a 0, a 3, a
+  5 in bold sans) at margins 31–47 are invisible (imprints 1e-11 … 1e-18), five at margins 6–9 are recorded.
+  Rank 6 at 1e-12 but 4 at 1e-8 — a case where the threshold is the reader's choice. Clean rendered digits are
+  *easier* for the model than handwriting for some classes, as the design audit anticipated; the set is reported,
+  not used as "the" OOD result.
+- **The second half of the prediction failed: these sets are drawn BETTER, not worse, by the MNIST chart.** The
+  chart's own best is 0.317 (optdigits) and 0.383 (fonts) against 0.518 for the MNIST draw — upscaled 8×8 scans
+  and rendered glyphs are smoother than handwriting and a 16-component PCA captures them more fully. So for
+  these two sets both effects point the same way: recorded more, and drawable at least as well. Whether the
+  recovered images look like the foreign digits is job 644064 (cells (a)/(b), image grids saved).
+- Scope: this is the record/no-record axis (`rank B_T`, basis-free) beside the chart-fidelity axis
+  (`chart_repr_err`); they are not merged. Starts for the inversions are near-truth as everywhere here.
