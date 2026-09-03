@@ -98,10 +98,20 @@ def main():
             U, _ = qr_canon(H); Xs = A0 @ U                                   # r x N
             P_T = B_T @ Xs @ torch.linalg.inv(Xs.T @ Xs)
             colP = torch.linalg.norm(P_T, dim=0); sB = torch.linalg.svdvals(B_T)
+            # the coupling is through the feature Gram H^T H: record each image's feature cosine to the image
+            # with the LARGEST residual at W0 (the "hard" one) and to its own-label mates; P_T columns are
+            # reported relative to the largest column, with the FP64 floor of the recovery (1e-16 x max) so a
+            # column at the floor is not read as "lifted to 1e-14"
+            Hn = H / torch.linalg.norm(H, dim=0, keepdim=True); G = Hn.T @ Hn
+            hard = int(torch.argmax(res0)); cmax = float(colP.max())
             for i in range(a.N):
                 row = dict(encoder=label, labels=lmode, pick=a.pick, image=i, y=int(y[i]), margin_W0=float(margin[i]),
                            residual_W0=float(res0[i]), P_T_col_norm=float(colP[i]),
                            P_T_over_res0=float(colP[i] / res0[i]) if float(res0[i]) > 0 else None,
+                           P_T_col_rel=float(colP[i] / cmax), P_T_floor_rel=1e-16, hard_image=hard,
+                           feat_cos_to_hard=float(G[i, hard]),
+                           feat_cos_max_other=float(max(G[i, j] for j in range(a.N) if j != i)),
+                           feat_cos_same_label_max=float(max([G[i, j] for j in range(a.N) if j != i and int(y[j]) == int(y[i])] or [float("nan")])),
                            rank_B_T=int((sB > 1e-12 * sB[0]).sum()), B_T_sigma_ratio=float(sB[a.N - 1] / sB[0]),
                            on_chart=a.on_chart, k=a.k, N=a.N, r=a.r, m=bb.m, n=bb.n, T=a.T, lr=a.lr, seed=a.seed, a0_seed=a.a0_seed,
                            git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))

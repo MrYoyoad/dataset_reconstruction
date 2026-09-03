@@ -1327,3 +1327,47 @@ budgets, three `A₀` seeds at the last one, three perturbations of `1e-3·std`:
   statement.** What survives: on this encoder the VAE family sits ~2000× below PCA in `σ_min`, and the decoder's
   own conditioning (σ_max/σ_min ≈ 400–830 vs exactly 1) is the right size for most of that — consistent with
   decoder geometry, not evidence about the encoder. β = 4, 16, ReLU and cVAE follow when their artefacts land.
+
+### Step 18, batch composition (job 627166) — an all-confident batch leaves nothing; the coupling follows features, not labels
+
+`margin_check.py --pick`, batches chosen by margin under the **strong** model and then run through all four
+encoders (so random/weak/mid are the control that the effect is the model's, not the digits'). `k = 16`, raw
+digits and on-chart. `confident` = the largest-margin digit of each of the 8 highest-margin classes (margins
+56–95 under the strong model); `hard1_same` = the most-misclassified test digit (a 1, margin −35) + the seven
+largest-margin 1s (54–56); `hard1_diff` = the same hard 1 + the largest-margin digit of seven other classes (73–95).
+
+| batch | setting | strong: rank B_T | strong: columns < 1e-6 | strong: column range | control (random / weak / mid): rank, spread |
+|---|---|---|---|---|---|
+| confident | raw | **3** | **8 / 8** | 5e-26 … 1e-23 | 8, 2× / 8, 28× / 8, 19× |
+| confident | on-chart | **3** | 1 / 8 | 3e-16 … 0.41 (one image at margin 4.1 dominates) | 8, 2× / 8, 6× / 8, 25× |
+| hard1_same | raw | **1** | 7 / 8 | hard 8.7; the seven 1s 2e-15 … 1e-14 | 8, 30× / 8, 180× / 8, 2000× |
+| hard1_same | on-chart | **1** | 7 / 8 | hard 5.0; the seven 1s 5e-15 … 1e-12 | 8, 92× / 8, 150× / 8, 810× |
+| hard1_diff | raw | **1** | 7 / 8 | hard 8.7; the rest 9e-16 … 9e-15 | 8, 1.6× / 8, 5e4× / 8, 4e3× |
+| hard1_diff | on-chart | **4** | **0 / 8** | hard 5.0; the rest 5e-3 … 0.35 | 8, 2× / 8, 15× / 8, 24× |
+
+(Columns at 1e-14–1e-16 next to a column of 5–9 are the FP64 floor of the `P_T` recovery, not a measured lift.)
+
+**Prediction 1 — confirmed outright.** Fine-tune the 98% model on eight digits it already classifies with margin
+≥ 56 and the release records them at 1e-24 with `rank B_T = 3`: **the adapter carries nothing of that batch.**
+The same eight digits through the random, weak and mid encoders give full rank and O(1)…O(1e-2) columns. On-chart
+(the PCA projection lowers the margins to 4–71) one image at margin 4.1 dominates, the others sit at 1e-2 —
+and the rank is *still* 3: what is recorded of the confident images is a **mixture of the hard image's
+residual**, collinear across columns, not independent information about them. Rank, not column size, is the
+witness.
+
+**Prediction 2 — refuted in its naive form, and that is informative.** The same-class batch is *not* lifted:
+seven confident 1s next to a misclassified 1 stay at the floor (raw and on-chart, `rank B_T = 1`). The
+different-class batch *is* lifted on-chart (every column ≥ 5e-3, `rank B_T = 4`) — the opposite sign. A
+misclassified 1 is misclassified *because its features do not look like a 1's*, so its feature-Gram overlap with
+confident 1s is small; on-chart, the different-class batch contains two further low-margin images (a 3 at 4.1, a
+5 at 15.6) whose residuals couple into the rest. So the coupling is through **feature overlap in the encoder's
+penultimate space**, and *same label* is the wrong proxy for it. Job 628xxx (`step55_gram`) records each image's
+feature cosine to the hardest image and to its own-label mates next to the column norms, to make that a
+measurement rather than a reading.
+
+**Standing statement (replaces the Step-18 refinement).** A private example is recorded in the release at
+roughly the scale of the model's residual on it, plus a coupling term from the residuals of batch-mates whose
+*features* overlap with it; a batch of examples the model already fits leaves no fingerprint, and a hard example
+lends its residual to the batch in a way that is collinear across columns — it raises column norms without
+restoring rank. For the defender: the per-example residual at `W₀` and the feature Gram of the batch, both
+computable before release, predict what the adapter will carry.

@@ -194,10 +194,15 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
 - **Multi-layer LoRA (job 626564, after the grad fix): optimisation failure in BOTH arms** — seeds known (112
   unknowns) residual 2.2e-8, 3/8 images; seeds unknown (22,384) 7.7e-7, 1/8. Gate 0.0. The three-layer unroll is
   the obstruction at this budget, not the seeds. Empirical, outside the theorems; no identifiability statement.
-- **In flight:** batch-composition test of the coupling (job 627166: all-confident batch → predicted rank loss
-  outright; one hard + seven confident, same class vs different classes → separates "overlapping features" from
-  "same label"); chart budget reruns (624463); β = 4, 16 (624465); random-encoder ladder (624573); strong sweep
-  (614344) — where the alias form (wrong confident digits at the residual floor) would show.
+- **Batch composition (job 627166) — an all-confident batch leaves NOTHING:** the 98% model fine-tuned on eight
+  digits it classifies at margin ≥ 56 releases columns at 1e-24 with `rank B_T = 3` (same digits through the
+  random/weak/mid encoders: full rank, O(1)…O(1e-2)). A hard example lends its residual to the batch
+  *collinearly* — column norms rise, rank does not (hard + 7 confident: `rank B_T = 1`). The "same label lifts"
+  prediction came out with the opposite sign (same-class 1s not lifted; different-class on-chart batch lifted):
+  the coupling follows **feature overlap**, not label — Gram measurement in flight (`step55_gram`).
+- **In flight:** feature-Gram measurement; chart budget reruns (624463); β = 4, 16 (624465); random-encoder
+  ladder (624573); strong sweep (614344) — where the alias form (wrong confident digits at the residual floor)
+  would show.
 - **Q-parametrisation: exact (gate 1.4e-15), 132 unknowns instead of 224, and it does NOT widen the basin**
   (1/3 vs 0/3 at 1.5×, 0/3 both beyond). The seed was never the obstruction. Closed.
 - **Genuineness audit (read-only sibling, code + rows): nothing self-confirming.** Ground truth never reaches the
