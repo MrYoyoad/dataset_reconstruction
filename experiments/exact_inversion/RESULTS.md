@@ -1638,6 +1638,18 @@ starts that landed on any, and whether the argmin pick did; `oracle = []`, `reci
 `labels_used = False`. Appending the certificate block to the full LM residual is queued for after that, and will
 be reported with and without, same starts — it cannot add information, so any gain is a landscape effect.
 
+*Why the certificate line is `k < r − N′` (yoado-ed):* `Cφ = 0` means `φ ∈ ker C = span(recorded features) ⊕ ker A₀`,
+and `ker A₀` is `(n − r)`-dimensional, so `ker C` has dimension `N′ + n − r` — codimension `r − N′` in feature
+space. A `k`-dimensional chart image meets it in generically `k − (r − N′)` dimensions: below the line the recorded
+images are isolated solutions and generically the only ones; at the line a one-dimensional family; above it
+spurious zeros everywhere (seen: fraction of starts at the floor 0 → 0.5 → 0.7 → 0.9 → 1.0 as `k` crosses the line
+in the raw rows). The count comes from `ker A₀`, not from C's rank alone. *Claim shape at `N′ > 1`:* every recorded
+image is an equally valid isolated solution, so the certificate recovers **one of the recorded examples, chosen by
+the start** — not the dominant one; at `N′ = 1` the two coincide. *0/0 guard:* the ratio is undefined as `φ → 0`;
+rows now carry `‖A_Tφ‖` against a public reference scale per start, and starts below 5% of it are excluded from
+the argmin and counted (`n_degenerate_starts`). The chart is affine (`ψ = μ + Vw`), so `φ∘ψ` is not homogeneous
+in `w` and the scale is pinned by `μ`.
+
 ## Step 18, distinct-label solve cells (job 624573, 3000 iterations, `random_encoder_control.py`)
 
 | encoder | labels | chart | `σ_min(J)` at truth | residual | iterations | outcome |

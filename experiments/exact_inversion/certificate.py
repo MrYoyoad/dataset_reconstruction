@@ -115,6 +115,12 @@ def main():
                     def fun(w):
                         f = bb.phi(chart.psi(w.reshape(k, 1)))
                         return (C @ f).reshape(-1) / torch.linalg.norm(A_T @ f)
+                    # 0/0 guard (yoado-ed): the ratio is scale-invariant but undefined as phi -> 0; record ||A_T phi|| against a
+                    # PUBLIC reference scale (median over train digits) and exclude near-degenerate starts from the argmin
+                    with torch.no_grad():
+                        feat_ref = float(torch.linalg.norm(A_T @ bb.phi(Xtr_t[:256].T), dim=0).median())
+                    def feat_ratio(w):
+                        with torch.no_grad(): return float(torch.linalg.norm(A_T @ bb.phi(chart.psi(w.reshape(k, 1)))) / feat_ref)
                     gs = torch.Generator().manual_seed(a.seed + 31); t0 = time.time(); runs = []
                     for s in range(a.random_starts):
                         w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
@@ -123,8 +129,10 @@ def main():
                         e_on = float(torch.linalg.norm(x_hat[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
                         e_raw = float(torch.linalg.norm(x_hat[:, 0] - X_real[:, top]) / torch.linalg.norm(X_real[:, top]))
                         e_all = [float(torch.linalg.norm(x_hat[:, 0] - X_on[:, j]) / torch.linalg.norm(X_on[:, j])) for j in range(a.N)]
+                        fr = feat_ratio(w)
                         runs.append(dict(start=s, objective=obj, iters=it, err_vs_top_chart=e_on, err_vs_top_raw=e_raw,
-                                         nearest=int(min(range(a.N), key=lambda j: e_all[j])), w=w.detach().cpu()))
+                                         nearest=int(min(range(a.N), key=lambda j: e_all[j])), feat_norm_ratio=fr,
+                                         degenerate=bool(fr < 0.05), w=w.detach().cpu()))
                     # gates: the objective at every image's chart coordinates (recorded ones must be ~0 ON-CHART; raw truths
                     # are not on the chart and the certificate then has no zero there -- Part B is only meaningful on-chart)
                     recorded = [i for i in range(a.N) if imp[i] / imp.max() > 1e-12]
@@ -135,8 +143,9 @@ def main():
                         e_rec = {i: float(torch.linalg.norm(x_hat[:, 0] - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in recorded}
                         d["nearest_recorded"], d["err_vs_nearest_recorded"] = min(e_rec.items(), key=lambda kv: kv[1])
                         d["landed_on_recorded"] = bool(d["err_vs_nearest_recorded"] < 1e-2)
-                    best = min(runs, key=lambda d: d["objective"])
-                    at_floor = [d for d in runs if d["objective"] <= 1e-20]
+                    valid = [d for d in runs if not d["degenerate"]] or runs
+                    best = min(valid, key=lambda d: d["objective"])
+                    at_floor = [d for d in valid if d["objective"] <= 1e-20]
                     rowB = dict(part="B", set=sname, setting=setting, k=k, cert_line=a.r - Np, below_cert_line=bool(k < a.r - Np),
                                 N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed, top_image_eval=top, top_label_eval=int(y[top]),
                                 oracle=[], recipe_used=False, labels_used=False, random_starts=a.random_starts, iters=a.iters,
@@ -150,7 +159,9 @@ def main():
                                 recorded_images_found=sorted(set(d["nearest_recorded"] for d in runs if d["landed_on_recorded"])),
                                 argmin_landed_on_recorded=best["landed_on_recorded"], argmin_nearest_recorded=best["nearest_recorded"],
                                 argmin_err_vs_nearest_recorded=best["err_vs_nearest_recorded"],
-                                truth_on_chart=(setting == "on"),
+                                truth_on_chart=(setting == "on"), feat_norm_ref_public=feat_ref,
+                                argmin_feat_norm_ratio=best["feat_norm_ratio"], n_degenerate_starts=sum(d["degenerate"] for d in runs),
+                                ker_dim_note=f"ker C = span(recorded features) + ker A0: dim N' + (n - r) = {Np + bb.n - a.r}, codim r - N' = {a.r - Np}",
                                 runs=[{kk: v for kk, v in d.items() if kk != "w"} for d in runs], seconds=time.time() - t0,
                                 git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
                     print(json.dumps(rowB), flush=True)
