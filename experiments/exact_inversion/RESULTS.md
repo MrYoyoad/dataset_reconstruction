@@ -2785,3 +2785,10 @@ pays for it by amplifying every arithmetic error into a displacement, so under r
 best k is bounded by conditioning as well as by the line** — a second boundary on k from a different direction,
 not necessarily coinciding with k < r − N′; if the k = 32 rows degrade as predicted there is an optimum between 16
 and 32, named in the opens, not located tonight.
+*Refinement before the rows (yoado-6e):* the matched route does not start from the mismatch floor (0.028) but from
+the A₀ floor (2e-3 fp16, 2e-2 bf16), and the amplification is not 1/σ_min (the FP64-simulator alias worsened ~6×
+from k = 16 to 32, not the 27× of the σ_min ratio: the floor perturbation projects mostly onto well-conditioned
+directions). Held loosely: fp16/fp32 still recover at k = 32 (~5% / ~1e-6); bf16 is the one at risk, 2e-2 × ~6
+landing at 10–20% and possibly crossing from recovery into alias — which would not contradict the k = 16 law but
+refine it to two dimensions, *fidelity ≈ (training-ε floor) × (chart-conditioning amplification)*. Read off the same
+key: image-error magnitude and uniformity across letters, with the A₀ reconstruction.
