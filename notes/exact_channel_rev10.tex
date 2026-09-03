@@ -1394,14 +1394,22 @@ $[4.6\times10^{-14}]$ and $6.8\times10^{-16}$ $[6.7\times10^{-16}]$ for the
 confident batch at $N'=3$. Every cell sits on its own bracket to within a
 factor of two, so in these six the trajectory channel is at or below the
 omitted imprints and the two releases agree to machine precision. Two
-controls separate this from a tautology: the same recorded subset at the
-\emph{unscaled} step differs by $2.9\times10^{-2}$ to $1.7$ --- that is the
-error itself, cell by cell --- and a random $N'$-subset at the scaled step
-differs by $6.2\times10^{-10}$ to $1.0$. The second control is only as strong
-as its membership differs: at $N'=6$ of $8$ a random subset overlaps the
-recorded set in most of its members, which is why its weakest cells are the
-large-$N'$ ones, and in two cells the draw reproduced the recorded set
-exactly. The exception is instructive. Under
+controls separate this from a tautology (job 710597). The same recorded
+subset at the \emph{unscaled} step differs by $2.9\times10^{-2}$ to $1.7$ ---
+that is the error itself, cell by cell. A subset built from the complement,
+taking all the invisible members and filling from the weakest recorded ones,
+differs by $1.0$ in all six cells. And swapping a single member, the weakest
+recorded one for the strongest invisible one, differs by $1.1\times10^{-11}$,
+$6.2\times10^{-10}$, $1.0$, $5.7\times10^{-8}$, $1.3\times10^{-8}$ and
+$1.4\times10^{-6}$ across the six.
+
+That last row is worth reading as more than a control, because it is
+\eqref{eq:imprint} measured from a direction the imprint experiments never
+took: exchanging one member moves the release by that member's own imprint and
+by nothing else, cell by cell, over five orders of magnitude. The $1.0$ is the
+$N'=1$ cell, where the single recorded example \emph{is} the entire record, so
+swapping it replaces the release rather than perturbing it. The exception is
+instructive. Under
 decoupled weight decay the step contributes $-\eta\,\mathrm{wd}\,B_t$ as well,
 so the release determines the two combinations $\eta s/N$ and
 $\eta\,\mathrm{wd}$; a defender whose weight decay is nonzero \emph{and}
