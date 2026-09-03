@@ -64,6 +64,10 @@ def main():
     ap.add_argument("--extend-starts", type=int, default=0, help="if the recorded fraction after --random-starts is below --extend-below, "
                     "run this many starts in total: a zero at few starts is an unresolved basin, not a closed channel")
     ap.add_argument("--extend-below", type=float, default=0.02)
+    ap.add_argument("--min-landings", type=int, default=0, help="if > 0: after --random-starts, keep adding starts (in blocks of 500) until "
+                    "the RAREST recorded image has this many landings, or --max-starts is reached -- the per-image counts are what a "
+                    "rank correlation is computed from, and Poisson noise on a count of five attenuates it toward zero")
+    ap.add_argument("--max-starts", type=int, default=10000)
     ap.add_argument("--max-np", type=int, default=6, help="Part B runs when N' <= this: the certificate's null space then holds N' recorded "
                     "images, and a random start below the certificate line k < r - N' should land on ONE of them")
     ap.add_argument("--n-fit", type=int, default=50000)
@@ -152,6 +156,16 @@ def main():
                             hits = sum(min(float(torch.linalg.norm(chart.psi(d["w"].to(dev).reshape(k, 1))[:, 0] - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in rec_now) < 1e-2 for d in runs)
                             if hits / s < a.extend_below:
                                 n_starts = a.extend_starts; print(f"      extending to {n_starts} starts (recorded fraction {hits}/{s})", flush=True)
+                        if a.min_landings > 0 and s >= a.random_starts and s == n_starts and s < a.max_starts:
+                            rec_now = [i for i in range(a.N) if imp[i] / imp.max() > 1e-12]
+                            counts = {i: 0 for i in rec_now}
+                            for d in runs:
+                                xh = chart.psi(d["w"].to(dev).reshape(k, 1))[:, 0]
+                                e_r = {i: float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in rec_now}
+                                j, e = min(e_r.items(), key=lambda kv: kv[1])
+                                if e < 1e-2: counts[j] += 1
+                            if min(counts.values()) < a.min_landings:
+                                n_starts = min(s + 500, a.max_starts); print(f"      rarest recorded image has {min(counts.values())} landings after {s} starts -> extending to {n_starts}", flush=True)
                     # gates: the objective at every image's chart coordinates (recorded ones must be ~0 ON-CHART; raw truths
                     # are not on the chart and the certificate then has no zero there -- Part B is only meaningful on-chart)
                     recorded = [i for i in range(a.N) if imp[i] / imp.max() > 1e-12]
@@ -181,6 +195,9 @@ def main():
                                 truth_on_chart=(setting == "on"), feat_norm_ref_public=feat_ref,
                                 chart_repr_err_median=float(repr_err.median()), chart_repr_err_max=float(repr_err.max()),
                                 starts_run=len(runs), extended=bool(len(runs) > a.random_starts),
+                                landings_per_recorded_image={str(i): sum(1 for d in runs if d["landed_on_recorded"] and d["nearest_recorded"] == i) for i in recorded},
+                                landings_poisson_err={str(i): math.sqrt(max(1, sum(1 for d in runs if d["landed_on_recorded"] and d["nearest_recorded"] == i))) for i in recorded},
+                                min_landings_target=a.min_landings,
                                 argmin_feat_norm_ratio=best["feat_norm_ratio"], n_degenerate_starts=sum(d["degenerate"] for d in runs),
                                 ker_dim_note=f"ker C = span(recorded features) + ker A0: dim N' + (n - r) = {Np + bb.n - a.r}, codim r - N' = {a.r - Np}",
                                 runs=[{kk: v for kk, v in d.items() if kk != "w"} for d in runs], seconds=time.time() - t0,
