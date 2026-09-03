@@ -36,7 +36,16 @@ What the section establishes, in order — every label as in the .tex:
   range. NOT a graded mechanism on this evidence: the response is wildly non-uniform (within PCA 135× for Δrepr 0.057;
   within VAE 1.1× for Δrepr 0.013; between families 9.5× for Δrepr 0.025), i.e. four points in two families. The
   graded test that would settle it is a β-VAE sweep at FIXED k=16 (β ∈ {0.25,1,4,16}: richness varies, nothing else),
-  requested; a PCA k-sweep would confound richness with proximity to the line. BOTH axes are at-truth quantities (repr err is a closed-form projection; σ_min is the Jacobian at
+  requested; a PCA k-sweep would confound richness with proximity to the line. DECODER GEOMETRY IS ALREADY CONTROLLED
+  FOR THE PCA PAIR: conditional_charts.py:43-49 builds both as ψ = μ + Vw with V from the SVD, so ∂ψ/∂w is orthonormal
+  (all singular values 1, cond 1) and identical for global and local — the 135× between them is attributable to WHICH
+  directions the chart spans, not to decoder curvature. For the VAE charts ∂ψ/∂w is neither orthonormal nor constant,
+  so σ_min/σ_max of ∂ψ/∂w at the truth are being recorded there. THE DECISIVE TEST, requested: rerun the same
+  global-vs-local PCA pair against the RANDOM encoder. If the mechanism is "a trained encoder compresses within-class
+  variation, so a chart spending its coordinates there is worse conditioned", the 135× should largely vanish — a
+  random encoder has no reason to treat those directions specially. Gap collapses ⇒ the effect is a property of
+  TRAINED features ("trained encoders punish exactly the charts that draw best"); gap survives ⇒ the explanation is
+  wrong and it is the span alone. BOTH axes are at-truth quantities (repr err is a closed-form projection; σ_min is the Jacobian at
   the true coordinates; res_at_truth 1.1–2.1e-15 for all), so the trade-off is NOT solver-dependent — but the achieved
   err-vs-REAL column (0.731/0.619/0.567/0.555) IS: every cell stopped at 200 iterations off the floor, so it is HELD
   until the large-budget rerun (job 622546, 3000 iterations, restarts 4, iterations-to-floor recorded). Size of the
