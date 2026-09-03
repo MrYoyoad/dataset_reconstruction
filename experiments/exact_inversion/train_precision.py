@@ -188,12 +188,16 @@ def main():
                 valid = [d for d in runs if not d["degenerate"]]
                 best = min(valid, key=lambda d: d["objective"]) if valid else None
                 counts = {str(i): sum(1 for d in runs if d["landed"] and d["nearest"] == i) for i in recorded}
+                # closest approach per recorded image over ALL starts: a "not found" at a residual near the 1e-2 bar is a degraded
+                # recovery, not a miss (yoado-ed) -- report the image error, not only the pass/fail
+                min_err = {str(i): min([d["err"] for d in runs if d["nearest"] == i] or [float("nan")]) for i in recorded}
                 rowB = dict(part="B", set=sname, chart=chart_name, k=k, N=a.N, r=a.r, m=bb.m, seed=a.seed, train_dtype=dname, cert_tol=tol, n_prime=Np,
                             cert_line=a.r - Np, below_cert_line=bool(k < a.r - Np), random_starts=a.random_starts, iters=a.iters,
                             cert_residual_at_truth=[float(v) for v in cert_res_truth], recorded=recorded,
                             frac_starts_on_a_recorded_image=sum(d["landed"] for d in runs) / len(runs),
                             frac_starts_at_floor=sum(d["objective"] <= 1e-20 for d in runs) / len(runs),
                             recorded_images_found=sorted(int(i) for i, c in counts.items() if c > 0), landings_per_recorded_image=counts,
+                            min_err_per_recorded_image=min_err,
                             argmin_objective=(best["objective"] if best else None), argmin_landed_on_recorded=(best["landed"] if best else None),
                             argmin_err_vs_nearest_recorded=(best["err"] if best else None), n_degenerate_starts=len(runs) - len(valid),
                             objective_median=float(torch.tensor([d["objective"] for d in runs]).median()), sec=time.time() - t1,

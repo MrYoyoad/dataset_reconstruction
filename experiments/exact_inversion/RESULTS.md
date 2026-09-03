@@ -2420,11 +2420,11 @@ control at k = 32 (feedback 5e-7, margins frozen) but the letters and confident 
 ### The landing error tracks the certificate residual at the truth (all cells, from the saved first landings)
 
 Across every cell above and every Step 24 cell, the first landing's image error is **≈ 4–5 × the certificate
-residual at that image's truth**: fp64 headline 4e-6 → 1.3e-5, 5e-15 → 2e-14; tf32 storage 2e-4 → 9e-4 … 1.7e-3;
+residual at that image's truth, with ~2× per-image scatter** (tf32 spans 3.7–8.5×): fp64 headline 4e-6 → 1.3e-5, 5e-15 → 2e-14; tf32 storage 2e-4 → 9e-4 … 1.7e-3;
 bf16 storage 2e-3 → 6e-3 … 9e-3; letters fp32-trained 1e-4 → 6e-4, 1e-3 → 6e-3 … 1e-2. So "approximately
 contained → proportionally approximate recovery" is the mechanism (yoado-6e's first outcome), and the 1e-2 landing
 bar corresponds to a residual of ~2e-3 — which is why bf16 storage (residuals 2e-3 at five images) landed three of
-them just under the bar (errors 6e-3 … 9e-3) and missed two, and why the two missing fp32-trained letters
+them just under the bar (errors 6e-3 … 9e-3) and missed two (the scatter straddling the bar, not a sharp cutoff), and why the two missing fp32-trained letters
 (residuals 2.7e-3, 3.3e-3) are just over it. **Step 24's tf32 "5 found" is therefore five recovered to ~1e-3
 image error, not to 1e-7 as at fp32 or 1e-14 at fp64**; the count is honest, the sharpness scales with the residual.
 
@@ -2451,3 +2451,10 @@ The control batch (releases 1e-6 … 1e-4, seven recorded at every k) is attacka
 basin falling with k as the confident batch's does (16.6% at k = 8 on the confident batch was a different rank);
 argmin on a recorded image at every k; chart class accuracy 1.0. Job 753886 Part A at bf16 k = 58: ‖B_T‖ 1.6e-24,
 N′ = 3 at tol 0.08 (σ_rel 1, .7, .2), line 61, residuals 2e-3 … 3e-3 at three truths, 0.94–0.97 at five (Part B pending).
+
+*Guard note (yoado-6e):* the scale-invariant objective removes the exact blank as a minimiser, but at a noise-filled
+N′ a *near*-blank (small φ aligned with a noise direction) can still be a spurious local minimum — the feature-norm
+< 5% flag caught one such start in 500 at tf32. The flag is load-bearing at the noise rank, not vestigial. And for
+the tight-tolerance rows: a letter "not found" at a residual near the bar is a *degraded recovery*, not a miss —
+`train_precision.py` now reports the closest approach per recorded image (`min_err_per_recorded_image`) so the
+image error is stated directly (future runs; 764976 started before the field).
