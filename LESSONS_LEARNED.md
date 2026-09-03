@@ -45,6 +45,14 @@ cell (VAE-ReLU) has a solved σ_min 3× its truth σ_min. At the truth the order
 script — `truth_spectrum.py` already does; the cell scripts get it at their next safe edit (all are under running
 jobs as of 2026-09-03 evening), and until then it is recomputed from the two truth fields, never read off `jac_cond`.
 
+**Measure the ingredients separately, then run the combination as a prediction (2026-09-03, night).** The
+headline cell (r = 64, k = 32: private digits from random starts, instance-identifying) was not searched for; its
+three ingredients — the budget line, the basin's dependence on distance below it, the chart's fidelity vs k — were
+each measured in its own cheap cell first, and the combination was pre-registered and run once. Because each
+ingredient had its own falsifier, the combined cell could only confirm or break a specific prediction, and when
+it confirmed, every number in the sentence already had a row behind it. The opposite order — run the impressive
+cell, then explain it — is how the coupling story got written.
+
 **A number format is exponent range AND mantissa; attribute a difference to the right one (2026-09-03, night).**
 I wrote "FP16, the smallest mantissa here, keeps least" — FP16 has ten mantissa bits to bfloat16's seven; what it
 lacks is exponent range (five bits vs eight, normals stop near 6e-5), so it UNDERFLOWS the small imprints that
