@@ -7,6 +7,50 @@ Rev 9 number used) + three figures in `figures/rev10/` (generators `scripts/rev1
 `results/exact_inversion/*.jsonl` and `spectrum_*.pth`). Written with an adversarial sibling review (yoado-6c,
 yoado-d0); four errors caught and fixed before shipping are logged in LESSONS_LEARNED.md (same date).
 
+### THE HEADLINE (2026-09-03, jobs 760909 / 764976 / 771329) — the claim to lead with
+
+**A released adapter, fine-tuned in ordinary FP32 arithmetic on a class the base model does not have, hands
+back every private example it was trained on to an attacker who knows only the public model.** EMNIST 'a' as
+an 11th class on the 98% MNIST MLP (head row zero; random-row arm reproduces it), r=64, k=32 on the letters'
+own public PCA chart, private batch from the test split, chart fitted on train only (verified in the code
+path, disjoint index files).
+
+- FP64: release norm **1.00**, imprints 0.12–0.26 for all eight, certificate residuals 2e-13…7e-12 at the
+  truths, **A_T moves 9.3% and feedback ‖sB_T A_T H‖/‖z‖ = 0.43** (the adapter really moved — not one
+  gradient step in disguise), margins −2.65…−10.3 at t=1 rising to +6…+14 by t=T (the model learned the
+  class). 38.4% of 500 random starts land, **all eight found**, argmin at 3e-26.
+- **Trained in FP32** (ordinary arithmetic), tight tolerance 1e-12: 32.8% land, **all eight found**,
+  residuals 3e-7…1.3e-5. The two that a noise-matched tolerance had missed are at 5e-6/6e-6 — *the tolerance
+  hid them, not the release.* At k=16, trained AND stored fp32: 82.6% land, all eight, residuals 2e-5…6e-4.
+- The attacker needs: the release, the public base model, a public chart. NOT the recipe, labels, N, or a
+  start near the truth. Chart error 0.235 at k=32 → **instance-level** (self top-1 0.94 on held-out).
+
+**Why this replaced the earlier headline.** The confident-batch cell (r=64, k=32, 65.6% landing, all eight)
+is a *corner*: ‖B_T‖ = 7.6e-18 after a monotone 23-order collapse as chart fidelity rises (job 752500), and
+the adapter never fed back (A_T = A_0; B_T = T × one gradient step). It answers no objection about realism.
+The letters cell answers all four: not a vanishing release, not a frozen adapter, not a coarse chart, and it
+is the canonical reason to fine-tune. **Confidence collapses ‖B_T‖ by 23 orders and does NOT protect** — the
+certificate is an angle, and any format with FP32's exponent range carries a 1e-18 release fine.
+
+**Half-precision TRAINING defeats both routes we ran — which is not protection.** bf16/fp16 training keeps
+the release's norm (−12%/−3%), rank (8) and effect (margins learned), and loses only *direction*: 400
+accumulated roundings move the row space 2–25% per letter. Certificate: 0 of 8. Recipe route (job 771329):
+against fp32 training it wins outright (2e-6 from every on-chart truth); against bf16 it produces an
+**ALIAS** — residual 5.8e-4, **240× BELOW the truth's own 0.138**, at per-letter errors 0.09–0.77. *An FP64
+simulator explains a bf16-trained release better with the wrong images than the right ones.* Consequence for
+our own method, now in LESSONS: any inversion attack on a real (bf16-trained) adapter must simulate in the
+model's own arithmetic, and a low residual is not evidence that it did. Landscape cells running (779207,
+779969) to say whether this is extraction *cost* or genuine ruggedness; conclusion pre-registered in the
+gradient-based form, with derivative-free search at coarse resolution named as the untested next attacker.
+
+**Other caps and levers.** `N' ≤ m−1` (softmax zero-sum): with more than m−1 recorded, row(B_T) aligns with
+no individual example and the certificate fails for ALL of them — 20 digits recover on a 26-logit head, none
+on a 10-logit one, same data/rank/chart (positive control 725918, prediction 20/44 met exactly at a tight
+truncation). Storage precision: fp32/tf32 preserve everything above ~1e-10 of the strongest imprint (ten
+orders — no protection); the fp16 zero is this cell's 7.6e-18 norm underflowing, NOT a property of fp16.
+Basin: distance below the line dominates (16.6→74.4→96.4% at fixed k as slack goes 1→17→49), k costs ~2× per
+32 unknowns at held slack; per-image basin, never the aggregate, across cells with different N'.
+
 **NEW CLASS vs ORDINARY DATA — the matched control (2026-09-03, job 658575).** One encoder (98% MNIST MLP),
 one 11-row head, one recipe, raw images. Eight MNIST digits: median margin 17.9, imprints 7e-22 … 1,
 `rank B_T = 6` of 8, mean pairwise imprint cosine 0.04 — mostly ABSENT. Eight EMNIST 'a': median margin
