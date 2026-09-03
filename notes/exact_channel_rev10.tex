@@ -143,8 +143,8 @@ Induction on $t$; $t=0$ is (A2). Assume \eqref{eq:closure} at $t$. Then
 $B_tA_tH=P_t(A_0H)^{\!\top}A_0(H+HM_tG)=P_t\,Q\,(I+M_tG)$, which gives $D_t$.
 By Lemma~\ref{lem:grad},
 \[
-  \nabla_BL=sD_tH^{\!\top}A_t^{\!\top}=sD_t\bigl(H^{\!\top}+GM_t^{\!\top}H^{\!\top}\bigr)A_0^{\!\top}
-  =sD_t(I+GM_t^{\!\top})(A_0H)^{\!\top},\qquad
+  \nabla_BL=sD_tH^{\!\top}A_t^{\!\top}=sD_t\bigl(H^{\!\top}+G^{\!\top}M_t^{\!\top}H^{\!\top}\bigr)A_0^{\!\top}
+  =sD_t(I+GM_t^{\!\top})(A_0H)^{\!\top}\quad(G^{\!\top}=G),\qquad
   \nabla_AL=sB_t^{\!\top}D_tH^{\!\top}=A_0H\,(sP_t^{\!\top}D_t)\,H^{\!\top},
 \]
 so the update of (A3) keeps both shapes and produces \eqref{eq:rec}.
@@ -160,12 +160,26 @@ enters it through $Q=R_H^{\!\top}X^{\!\top}XR_H$ and nowhere else. The release i
   \Omega:=I_N+R_HM_TR_H^{\!\top},
 \end{equation}
 so $A_TU=X\Omega$ and $A_TV=Y$: the block $Y$ of the seed is released
-unchanged, and $B_T$, $A_TU$ depend on the seed only through $X$.
+unchanged, and $B_T$, $A_TU$ depend on the seed only through $X$. In
+particular, for every orthogonal $O\in\mathrm O(r)$ the seed $OA_0$ produces
+the same $(P_t,M_t,D_t)_{t\le T}$ and $\Omega$, and the release
+$(OA_T,\;B_TO^{\!\top})$: the coefficient trajectory is invariant under the
+LoRA gauge $BA=(BO^{\!\top})(OA)$, and the release transforms covariantly.
 \end{corollary}
 \begin{proof}
 Substitute \eqref{eq:XY} into \eqref{eq:closure}--\eqref{eq:rec}:
 $A_T=A_0+A_0HM_TH^{\!\top}=XU^{\!\top}+YV^{\!\top}+XR_HM_TR_H^{\!\top}U^{\!\top}$.
+For the gauge, $Q$ is unchanged by $X\mapsto OX$, so \eqref{eq:rec} is
+unchanged, and \eqref{eq:release} transforms as stated.
 \end{proof}
+The gauge statement was tested rather than assumed$^\dagger$ (job 487882):
+at three shapes ($n{=}96,k{=}12,N{=}8,T{=}400$; $n{=}32,k{=}6,N{=}4,T{=}200$;
+$n{=}96,k{=}10,N{=}12,T{=}150$) the relative discrepancies
+$\|A_T'-OA_T\|/\|A_T\|$, $\|B_T'-B_TO^{\!\top}\|/\|B_T\|$,
+$\|\Omega'-\Omega\|/\|\Omega\|$ are all between $5.8\times10^{-16}$ and
+$2.1\times10^{-15}$. The release still determines $X$ — the gauge moves the
+seed and the release together — so this is a statement about which part of
+the seed the coefficients cannot see, not a degeneracy of $\rho$.
 
 %----------------------------------------------------------------------------
 \subsection{Two readings of the same release}
@@ -326,7 +340,9 @@ $U_c(w)R_H(w)=H(w)$,
 \end{equation}
 an equation in $w$ alone whose left side ranges over $\mathcal B$ — the
 $N((m-1)+r-N)$ constraints of Theorem~\ref{thm:cap} on the $Nk$ unknowns,
-with no unrolling and the seed eliminated in closed form.\footnote{Eliminating
+with no unrolling and the seed eliminated in closed form; the budget obtained
+by eliminating $X$ here equals the one obtained by counting $X$ as an unknown
+in Theorem~\ref{thm:cap}, as it must.\footnote{Eliminating
 $X$ does not lower the count: the count is the dimension of the manifold that
 $B_T$ lives on, not a tally of which block ``pays for'' which unknown. That is
 why the intuition ``at $T=1$ the $A$-block hands $X$ over for free, so
@@ -519,9 +535,26 @@ headline. The withdrawals are in the repository's lessons log.
   first attempt (job 480679) was invalid by its own control — the correct
   recipe stopped at residual $7.2\times10^{-8}$ because those arms used an
   L-BFGS solver rather than LM — and is rerunning on LM (job 484255). Until
-  it reports, nothing here is evidence for or against (i)--(iii). The
-  certificate remains the recipe-free channel at the price $k<r-N$; Rev~9
-  \S3.6--3.8's curvature mixture remains the recipe-unknown approximation.
+  it reports, nothing here is evidence for or against (i)--(iii). Two facts
+  about the recipe are already in hand. First, with the data known, one
+  gradient step from the released state under decoupled weight decay is
+  $\Delta B=-\eta\,\nabla_BL-\eta\,\mathrm{wd}\,B_T$, linear in
+  $(\eta,\eta\,\mathrm{wd})$ with regressors the attacker can compute; the
+  two-parameter least squares returns$^\dagger$ $\eta$ to $5\times10^{-16}$
+  and $\mathrm{wd}=10^{-3},10^{-2}$ exactly — decay is a second regressor,
+  not an obstacle. Per-step values of $\eta$ along a schedule are recovered
+  the same way to $10^{-15}$. Whether the \emph{parameters} of a schedule, or
+  $T$ itself, are recoverable from those values is not claimed: the one fit
+  attempted returned its own initialisation and is being redone with its
+  conditioning reported, since over a short window a cosine schedule may be
+  genuinely near-degenerate in $(\text{base},T_{\max},t)$. Second, the count
+  \eqref{eq:cap} bounds the recipe too: $p$ unknown recipe scalars are
+  identifiable only if $p\le N\bigl((m-1)+r-N\bigr)-Nk$, which is $120$ at
+  the standard cell ($N=8$, $k=12$). A parametric schedule ($p=2$--$4$) sits
+  far inside; a free per-step sequence ($p=T$) is identifiable only for
+  $T\le120$ and not at $T=400$. The certificate remains the recipe-free
+  channel at the price $k<r-N$; Rev~9 \S3.6--3.8's curvature mixture remains
+  the recipe-unknown approximation.
 \item \textbf{Adam.} Its entrywise normalisation is not of the form in
   (A3): Theorem~\ref{thm:traj} does not hold, Corollary~\ref{cor:seed} does
   not reduce the seed to $X$, and the unknown seed is all of $A_0$ —

@@ -27,6 +27,12 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
+- **Gauge invariance of the coefficient trajectory VERIFIED (job 487882):** A₀ → OA₀ (O orthogonal) leaves P_T, M_T, Ω
+  unchanged to †≤2.1e-15 at three shapes and maps (A_T, B_T) → (OA_T, B_T Oᵀ) — the LoRA gauge; the coefficients see A₀
+  only through Q = R_Hᵀ XᵀX R_H, as the written-out recurrences say. Also: weight decay is a second linear regressor
+  (η to †5e-16, wd exact); per-step η values recoverable to †1e-15; schedule parameters / T NOT claimed (fit returned
+  its init; conditioning sweep running). Counting bound for recipe unknowns: p ≤ N(m−1+r−N) − Nk = 120 at (8,12), so a
+  free per-step schedule is identifiable only for T ≤ 120.
 - **Recipe-robustness arms R1–R3 (job 480679) — first attempt INVALID by its own control:** the correct-recipe
   hypothesis stopped at residual †7.2e-8 (not the floor) because the arms were built on L-BFGS rather than the LM
   solver used everywhere else; the readout is uninformative about recipes. Rerun on LM queued after 480679 ends.
