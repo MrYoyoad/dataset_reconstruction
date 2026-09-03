@@ -30,13 +30,20 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
-- **PRELIMINARY (jobs 611033/611339/612643) — charts trade expressiveness against invertibility.** At k=16 on the
-  trained backbone, cell (a): global PCA σ_min †2.33e-8 / repr err 0.421; label-local PCA †1.72e-10 / 0.364; VAE-GELU
-  †1.82e-11 / 0.339; VAE-ReLU †1.59e-11 / 0.327. Monotone: every chart that draws better is harder to invert (~1400×
-  across the range). BOTH axes are at-truth quantities (repr err is a closed-form projection; σ_min is the Jacobian at
+- **PRELIMINARY (jobs 611033/611339/612643) — across the four charts tried, better representation came with worse
+  conditioning.** At k=16 on the trained backbone, cell (a): global PCA σ_min †2.33e-8 / repr err 0.421; label-local
+  PCA †1.72e-10 / 0.364; VAE-GELU †1.82e-11 / 0.339; VAE-ReLU †1.59e-11 / 0.327 — ordering monotone, ~1400× across the
+  range. NOT a graded mechanism on this evidence: the response is wildly non-uniform (within PCA 135× for Δrepr 0.057;
+  within VAE 1.1× for Δrepr 0.013; between families 9.5× for Δrepr 0.025), i.e. four points in two families. The
+  graded test that would settle it is a β-VAE sweep at FIXED k=16 (β ∈ {0.25,1,4,16}: richness varies, nothing else),
+  requested; a PCA k-sweep would confound richness with proximity to the line. BOTH axes are at-truth quantities (repr err is a closed-form projection; σ_min is the Jacobian at
   the true coordinates; res_at_truth 1.1–2.1e-15 for all), so the trade-off is NOT solver-dependent — but the achieved
   err-vs-REAL column (0.731/0.619/0.567/0.555) IS: every cell stopped at 200 iterations off the floor, so it is HELD
-  until the large-budget rerun. Framing (auditor's, adopted): these σ_min sit 7–10 orders ABOVE the collapse floor, so
+  until the large-budget rerun (job 622546, 3000 iterations, restarts 4, iterations-to-floor recorded). Size of the
+  confound, the reason for the hold: solver gaps (achieved − chart floor) are 0.310/0.255/0.228/0.228, mean 0.255,
+  against a total chart-floor spread of 0.094 — the budget effect is 2.7× the entire chart effect. Residual is a sum
+  of squares with floor 1e-28, so every cell (a) at 1e-14…3e-9 is 14+ orders above it: all four are search failures at
+  budget, none is an alias. Framing (auditor's, adopted): these σ_min sit 7–10 orders ABOVE the collapse floor, so
   they are conditioning differences among charts that are all comfortably identifiable — the line has not moved (job
   574169 measured the boundary chart-INdependent). ReLU decoder ≈ GELU (†1.59e-11 vs †1.82e-11) ⇒ analyticity looks
   like a proof convenience, not observably load-bearing. Off-chart (realistic) cells: global PCA err-vs-REAL 1.45,
