@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A label with a slash in it becomes a directory in a save path (2026-09-03)
+
+- **Presented as:** job 656205 (flowers on CIFAR) died with `RuntimeError: Parent directory results/.../cifar10_m10_n does not exist` right after its first old-head cell, losing the mixed-batch cells the job existed for.
+- **Cause:** the head-init label for the unextended head is the string `"n/a"`, and it was interpolated into the `.pth` filename. Every earlier batch had `zero`/`random`.
+- **Fix:** `init.replace('/', '-')` in the filename (a18893a); the missing batches resubmitted as job 762253. General: never interpolate a free-text label into a path without sanitising it, and write rows incrementally (the 35 rows before the crash were on disk only because `new_class.py` emits per cell).
+
 ## A relative consistency assertion fires on a legitimately tiny release — floor it at FP64 roundoff (2026-09-03)
 
 - **Presented as:** the per-rank ladder job 721391 died with a bare `AssertionError` from `subset_and_ood.release_and_imprints`
