@@ -737,16 +737,35 @@ is rank-deficient, and the channel closes \emph{below its own capacity line}
 this happens in nine of the ten batches measured, with
 $\operatorname{rank}B_T$ between $1$ and $6$.
 
-What decides which examples survive is measured, and it is nothing but the
-margin. Across the nine rank-deficient batches$^\dagger$ (job 631392), the
-examples whose imprint lies below the floor are \emph{exactly} the
-highest-margin ones — a perfect match in all nine, whether two examples drop
-or seven. The floor is relative to each batch's own largest imprint, so the
-absolute cut moves between batches (below-floor margins run $30$ to $95$,
-above-floor $-35$ to $74$) while the within-batch ordering is exact. So an
-example is recorded or not according to how confidently the base model fits
-it \emph{relative to its batch-mates}, and neither its label nor any
-coupling between examples enters.
+What decides which examples survive is measured, and it is the margin
+\emph{ordering}. Across the nine rank-deficient batches$^\dagger$ (job
+631392), the examples whose imprint lies below the floor are \emph{exactly}
+the highest-margin ones, in all nine, with drop counts of $2,2,2,4,5,5,7,7$
+and $7$ — so the match is not carried by the cheap two-of-eight cases. Under
+random assignment the joint probability of that is $4\times10^{-13}$, and it
+reproduces in a second measurement of the same batches (job 650891, nine of
+nine).
+
+There is no absolute cut. Below-floor margins run $30$ to $95$ while
+above-floor margins reach $74$: an example at margin $44$ drops in one batch
+while one at $74$ survives in another. Recording is therefore decided by an
+example's \emph{rank within its batch}, not by any threshold on its own
+confidence — which is both more surprising than a threshold and more
+consequential, since it means a defender cannot secure an example by making
+the model confident about it in isolation. Neither its label nor any
+coupling between examples enters the ordering.
+
+One caution before that is read as a defence. The floor is relative to each
+batch's largest imprint, so a badly fit example added to a batch demotes the
+confident ones out of the \emph{count} — but the count is not the same as
+recoverability, which turns on the absolute imprint against numerical
+precision. And the absolute imprints point the other way: high-margin
+examples sit at $10^{-41}$--$10^{-38}$ in an all-confident batch and at
+$10^{-26}$--$10^{-25}$ in batches containing a badly fit one, fifteen orders
+higher. Those are different image sets, so the comparison is uncontrolled and
+proves nothing; it is exactly the measurement named as missing in
+\S\ref{sec:opens}, and until it is made, the rank should be read as a count
+of what dominates the release and not as a certificate about the rest.
 
 That the identity is a measurement and not a definition matters here, and it
 holds: the rank of $B_T$ read from its own singular spectrum, the rank of the
