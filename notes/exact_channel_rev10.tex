@@ -18,14 +18,17 @@
 %   results/exact_inversion/*.jsonl and spectrum_*.pth; PNGs in figures/rev10/).
 %
 %  MERGE NOTE — correspondence with Rev 9 numbering:
-%    Rev 9 Lemma 2 (factor invariants)        -> Theorem 1 (with the recurrences written out)
-%    Rev 9 Theorem 1 + Corollary 1 + Prop 5   -> Theorem 3 and Corollary 8
+%    (numbering below is the shared theorem counter of this file:
+%     Def 1, Lemma 2, Thm 3 closure, Cor 4 seed, Thm 5 certificate, Def 6 rho,
+%     Prop 7 simplex, Thm 8 capacity, Rem 9, Thm 10 sufficiency, Ex 11 T=1, Cor 12)
+%    Rev 9 Lemma 2 (factor invariants)        -> Theorem 3 (with the recurrences written out)
+%    Rev 9 Theorem 1 + Corollary 1 + Prop 5   -> Theorem 5 and Corollary 12
 %    Rev 9 Thm 3 / Prop 4 (pull-back)         -> cited as "Rev 9 Thm 3, Prop 4"
-%    Rev 9 Prop 8 (combined-system IFT)       -> the last step of Theorem 7
-%    Rev 9 §3.5–3.8 (conditional Primitive 3) -> replaced by §§1–3 below; the
-%         curvature/KKT mixture stays as the recipe-UNKNOWN fallback (§5, item 2)
-%    Rev 9 §15 status ledger                  -> append §6
-%    Rev 9 §16 What to say to Gal             -> replace its lead with §7
+%    Rev 9 Prop 8 (combined-system IFT)       -> the last step of Theorem 10
+%    Rev 9 §3.5–3.8 (conditional Primitive 3) -> replaced by §§1.1–1.3 below; the
+%         curvature/KKT mixture stays as the recipe-UNKNOWN fallback (§1.5, item 2)
+%    Rev 9 §15 status ledger                  -> append §1.6
+%    Rev 9 §16 What to say to Gal             -> replace its lead with §1.7
 %  Hypotheses (A1)–(A6) keep Rev 9's names and are restated as formulas in §1.
 %
 %  Conventions: a dagger † marks a number regenerated in FP64 by the repo's own
@@ -178,11 +181,13 @@ For the gauge, $Q$ is unchanged by $X\mapsto OX$, so \eqref{eq:rec} is
 unchanged, and \eqref{eq:release} transforms as stated.
 \end{proof}
 The gauge statement was tested rather than assumed$^\dagger$ (job 487882):
-at three shapes, $(n,k,N,T)=(96,12,8,400)$, $(32,6,4,200)$ and
-$(96,10,12,150)$, the relative discrepancies
-$\|A_T'-OA_T\|/\|A_T\|$, $\|B_T'-B_TO^{\!\top}\|/\|B_T\|$,
-$\|\Omega'-\Omega\|/\|\Omega\|$ are all between $5.8\times10^{-16}$ and
-$2.1\times10^{-15}$. The coefficients see only $Q$; the release sees $X$; the
+at three shapes — $(n,k,N,T)$ equal to $(96,12,8,400)$, to $(32,6,4,200)$
+and to $(96,10,12,150)$ — the relative discrepancies
+\[
+  \frac{\|A_T'-OA_T\|}{\|A_T\|},\qquad \frac{\|B_T'-B_TO^{\!\top}\|}{\|B_T\|},\qquad
+  \frac{\|\Omega'-\Omega\|}{\|\Omega\|}
+\]
+are all between $5.8\times10^{-16}$ and $2.1\times10^{-15}$. The coefficients see only $Q$; the release sees $X$; the
 gauge moves both, so nothing is lost by the attacker and the invariance is a
 statement about the trajectory, not about identifiability — the release
 still determines $X$, and $\rho$ is not degenerate.
@@ -423,15 +428,15 @@ below rests on this one.
 \begin{center}\small
 \begin{tabular}{@{}rcccc@{}}\toprule
 $N$ & $k^\star=m+r-N$ & last $k$ identifiable ($\sigma_{\min}$) & first $k$ collapsed ($\sigma_{\min}$) & jobs\\ \midrule
-4  & 32 & 30 ($1.2\times10^{-6}$) & 34 ($1.4\times10^{-19}$) & 469120\\
+4  & 32 & 30 ($1.2\times10^{-6}$) & 34 ($8.8\times10^{-19}$) & 469120\\
 8  & 28 & 27 ($1.5\times10^{-7}$) & \textbf{28} ($6.4\times10^{-19}$) & 467914, 479587\\
-12 & 24 & 22 ($5.8\times10^{-6}$) & 26 ($7.9\times10^{-21}$) & 469120\\
-14 & 22 & 21 ($1.8\times10^{-7}$) & \textbf{22} ($7.8\times10^{-19}$) & 479684, 481079\\ \bottomrule
+12 & 24 & 22 ($5.8\times10^{-6}$) & 26 ($2.5\times10^{-20}$) & 469120\\
+14 & 22 & 21 ($1.7\times10^{-7}$) & \textbf{22} ($2.3\times10^{-19}$) & 479684, 481079\\ \bottomrule
 \end{tabular}
 \end{center}
 At $N=8$ and $N=14$ the transition is one unit of $k$, on the outcome
 (recovered at $k^\star-1$, alias at $k^\star$) and on $\sigma_{\min}$, which
-drops twelve orders across that unit; it lands on $k=m+r-N$, the strict form
+drops eleven to twelve orders across that unit; it lands on $k=m+r-N$, the strict form
 that Proposition~\ref{prop:simplex} derives.\footnote{At the collapsed cells
 $\sigma_{\min}\approx10^{-19}$ against $\sigma_{\max}\sim1$ is the FP64
 floor: the measurement shows the smallest singular value falling to the
@@ -440,7 +445,7 @@ number of $10^{18}$. That the rank is exactly deficient at $k=m+r-N$ is
 Proposition~\ref{prop:simplex} and Theorem~\ref{thm:cap}, not the
 measurement.}\footnote{At $(14,21)$ a
 single-restart run stalled at residual $5\times10^{-18}$ with
-$\sigma_{\min}=1.8\times10^{-7}$ intact; six restarts reach the floor
+$\sigma_{\min}=1.7\times10^{-7}$ intact; six restarts reach the floor
 ($9.5\times10^{-31}$, error $2.8\times10^{-12}$, job 481079). Identifiable
 and solvable are different properties; that cell shows both.} The $49$-cell
 grid $N,k\in\{2,\dots,14\}$ (jobs 396214--21, 456630) lies inside the region
@@ -481,7 +486,7 @@ $r$ & line $k^\star=m+r-N$ & last full-rank $k$ ($\sigma_{\min}$) & first collap
 32 & 34 & 33 ($2.4\times10^{-6}$) & 34 ($1.4\times10^{-18}$)\\ \bottomrule
 \end{tabular}
 \end{center}
-Sharp to one unit of $k$ at all three ranks, thirteen orders across the
+Sharp to one unit of $k$ at all three ranks, about twelve orders across the
 unit, with the same pre-collapse $\sigma_{\min}\sim10^{-6}$ as the synthetic
 study. Two honesties belong in the same row. The last full-rank cell is
 already solver-degraded at every rank — image error $1.3\times10^{-2}$,
@@ -530,8 +535,8 @@ the search space is the attacker's to choose — which is the counting
 argument handing the generative-prior direction of Rev~9 its role: a prior
 is a chart-builder (Figure~\ref{fig:chart}).
 
-\begin{figure}[t]\centering
-\includegraphics[width=\linewidth]{chart_dependence_k17.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.8\linewidth]{chart_dependence_k17.png}
 \caption{Chart dependence at $k=17$, one unit below the line (job 574169).
 Rows: the real digit; what each chart can represent at all; what the attack
 returned, with the error against the real digit. Every chart is recovered
@@ -542,8 +547,9 @@ returns the digits.}\label{fig:chart}
 \paragraph{Past the line the release is reproduced by a point that is close to
 the truth.} The aliases of the table sit at image error $1.7\times10^{-3}$
 ($N=4$), $2.6$--$9.3\times10^{-3}$ ($N=8$), $6.4\times10^{-3}$ ($N=14$),
-$1.2\times10^{-2}$ ($N=12$); in $8$ of the $11$ past-line cells every image
-lies inside the study's own $10^{-2}$ recovery tolerance. The continuum of
+$1.2\times10^{-2}$ ($N=12$); in $9$ of the $13$ past-line cells every image
+lies inside the study's own $10^{-2}$ recovery tolerance, and the four
+exceptions are $1.0$--$1.7\times10^{-2}$, just outside it. The continuum of
 Theorem~\ref{thm:cap} was then walked$^\dagger$ (job 482338): from the truth,
 step along the right singular vector of $\sigma_{\min}(D\rho)$, retract onto
 $\rho^{-1}(0)$ by a few LM steps, repeat (Figure~\ref{fig:quadrant}).
@@ -570,8 +576,8 @@ recognisable, and below it the image reached is only as good as the chart.
 Whether some direction through the fibre reaches unrecognisable points is
 open.
 
-\begin{figure}[t]\centering
-\includegraphics[width=\linewidth]{fig_counting_plane.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.92\linewidth]{fig_counting_plane.png}
 \caption{The $(N,k)$ plane. Solid: $k=r-N$ (Theorem~\ref{thm:quot}). Dashed:
 $k=m+r-N$ (Theorem~\ref{thm:cap}). Dots: the 49-cell grid, all recovered.
 Diamonds and crosses: last recovered and first alias cell of each capacity
@@ -579,8 +585,8 @@ sweep; at $N=8$ and $14$ they are one unit of $k$ apart and straddle the
 dashed line. The arrow is the $N(m-1)$ of Corollary~\ref{cor:two} per image.}\label{fig:plane}
 \end{figure}
 
-\begin{figure}[t]\centering
-\includegraphics[width=\linewidth]{fig_alias_quadrant.png}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.92\linewidth]{fig_alias_quadrant.png}
 \caption{Residual against worst-image error, every run classified. Recovered
 runs (floor residual, machine-precision error) all lie below the line;
 aliases (floor residual, a different point at $0.2$--$1.2\%$ error) all lie
@@ -592,7 +598,7 @@ No alias was observed below the line in the cells tested; the below-line
 region is sampled at a few $k$ per $N$.}\label{fig:quadrant}
 \end{figure}
 
-\begin{figure}[t]\centering
+\begin{figure}[htbp]\centering
 \includegraphics[width=\linewidth]{fig_spectrum.png}
 \caption{Singular values of $D\rho$ at the truth (black) with the $B$-block
 (dashed) and $A$-block (dotted) spectra. All three cells are full column
