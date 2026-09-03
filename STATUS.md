@@ -160,11 +160,14 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   98% (global chart, distinct labels). (d) **NEW: the 98% model is NOT identifiable at k=16, seven below the
   line** — `rank B_T` = 5–6 of 8, truth Jacobian 197–211 of 256 columns; hypothesis (A4) `rank P_T = N` fails on a
   strong model with easy private data. First below-line loss of identifiability; caused by the model, not the count.
-- **Pre-registered mechanism for (d), test in flight (job 626051, `margin_check.py`):** a private digit the model
-  already classifies with margin `M` has residual `e^{−M}` from step 0 and is recorded in the release at that
-  scale. Prediction: `‖P_T[:,i]‖` tracks the per-image residual at `W₀`; falsifier: O(1) column norms on the
-  strong model. If it holds: *what leaks is what the model had to learn*, and the per-example residual at `W₀`
-  is a defender-side leakage meter.
+- **Mechanism for (d) CONFIRMED in its core (job 626051, `margin_check.py`).** The release records a private
+  example at roughly the scale of the model's softmax residual on it at `W₀`: on the 98% model the per-image
+  `‖P_T[:,i]‖` spans 5e7× (distinct labels) / 2.6e9× (repeated), 6 of 8 / 5 of 8 columns below 1e-6, **8 of 8 on
+  raw digits** (margins up to 64) — vs a 3–5× spread on the random encoder; every column < 1e-6 is a margin ≥ 16
+  image. Falsifier (O(1) columns) did not fire. Refinement: a confident image is re-recorded if a *hard* image
+  with overlapping features is in the batch (a misclassified 3 puts the confident 3 back at 1.6 through the
+  feature Gram) — which is also how the rank loss arises. Reading: **what leaks is what the model had to
+  learn**; the per-example residual at `W₀` is a defender-side predictor of which examples the adapter carries.
 - **Withdrawn:** "chart quality costs conditioning" as a general statement (holds only on the weak checkpoint
   across the four charts; VAE half unmeasured elsewhere). Multi-layer job 608693 died on a code error — not a result.
 - **Q-parametrisation: exact (gate 1.4e-15), 132 unknowns instead of 224, and it does NOT widen the basin**

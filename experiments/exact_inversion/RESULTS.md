@@ -1242,3 +1242,47 @@ established only across the four charts on the weak checkpoint (Step 14); on oth
 inverts (item 1) and the VAE half is unmeasured. "Chart quality costs conditioning" is therefore withdrawn as a
 general statement. The fidelity ranking stays embargoed (job 624463). Multi-layer LoRA (job 608693) died with a
 code error (`element 0 of tensors does not require grad`, `multilayer_lora.py:57`) — not a result; to be fixed.
+
+### Step 18, item 5 resolved — the release records an image at the scale of the model's residual on it (job 626051)
+
+`margin_check.py`: per image, the margin and softmax-residual norm at `W₀` (training starts there, `B₀ = 0`) and
+the norm of the image's column of `P_T` (recovered exactly as `B_T X (XᵀX)⁻¹`; `rank X = 8` in every row).
+`k = 16`, `A₀` seed 1; on-chart (the cells' setting) and raw digits (the realistic one).
+
+| encoder | draw | on-chart: spread of ‖P_T[:,i]‖ (max/min) | columns < 1e-6 | rank B_T | concordance with ‖res(W₀)‖ | raw digits: spread · cols < 1e-6 · rank |
+|---|---|---|---|---|---|---|
+| random | distinct | 5× | 0 / 8 | 8 | 18/28 | 3× · 0 · 8 |
+| random | repeated | 17× | 0 / 8 | 8 | 21/28 | 11× · 0 · 8 |
+| weak 78% | distinct | 19× | 0 / 8 | 8 | 15/28 | 18× · 0 · 8 |
+| weak 78% | repeated | 40× | 0 / 8 | 8 | 17/28 | 62× · 0 · 8 |
+| mid 95% | distinct | 2.3e3× | 0 / 8 | 8 | 21/28 | 2.4e2× · 0 · 8 |
+| mid 95% | repeated | 58× | 0 / 8 | 8 | 17/28 | 1.0e2× · 0 · 8 |
+| **strong 98%** | distinct | **5.2e7×** | **6 / 8** | 8 (σ₈/σ₁ 3e-9) | **21/28** | **1.3e6× · 8 / 8 · 6** |
+| **strong 98%** | repeated | **2.6e9×** | **5 / 8** | **6** | 20/28 | **2.9e7× · 8 / 8 · 6** |
+
+The strong model on the repeated draw, on-chart, per image (`y`, margin at `W₀`, ‖res(W₀)‖, ‖P_T[:,i]‖):
+0: (0, 12.8, 3.9e-6, 7.0e-2) · 1: (3, 22.0, 3.9e-10, **1.6**) · 2: (0, 46.2, 9.4e-21, 7.0e-2) · 3: (**3, −3.6**, 1.4, 3.8) ·
+4: (5, 4.7, 1.3e-2, 0.81) · 5: (0, 37.4, 5.5e-17, **1.5e-9**) · 6: (1, 21.3, 8.0e-10, **1.4e-8**) · 7: (9, 19.8, 4.1e-9, **5.7e-8**).
+
+**Confirmed, in its core.** The falsifier ("O(1) column norms on the strong model") did not fire: six of eight
+columns are below 1e-6 with distinct labels, five of eight with repeated, and on raw digits (margins up to 64,
+residuals down to 2e-28) **all eight** are — against a 3–5× spread on the random encoder. Every column below 1e-6
+belongs to an image with margin ≥ 16. The release records a private example roughly at the scale of the
+model's residual on it, and a 98% MNIST model has residual `e^{−20}…e^{−60}` on the digits it gets right.
+
+**Refinement the data forces.** The column norm is *not* a function of the image's own residual alone
+(concordance 20–24 of 28 pairs, not 28). Image 1 — a 3 with margin 22 and residual 4e-10 — is recorded at 1.6,
+because image 3 is a *misclassified* 3 (margin −3.6, residual 1.4) and the `A`-dynamics couple images through
+their feature Gram `HᵀH`: a hard example re-records the confident examples whose features overlap with it. With
+distinct labels image 1 is still the exception (0.12, next to the one low-margin image, a 5). So the honest
+statement is: **a confident example is invisible in the release unless a hard example with overlapping features
+is in the same batch** — and that is the mechanism of the rank loss too: the two 3-columns both carry image 3's
+residual and become collinear.
+
+**Reads.** (i) This is why quality hurts monotonically: the ladder is a ladder of margins. (ii) It is an
+*information* limit, below the line, that the counting cannot see, and it lives in hypothesis (A4). (iii) It is
+asymmetric in a way that matters for privacy: **what leaks is what the model had to learn** — the misclassified
+3 is recorded at 3.8, the confident 0 at 1e-9. (iv) The per-example residual at `W₀` — which the defender can
+compute from the model and the data before releasing anything — predicts which examples the adapter will
+carry, up to the Gram coupling. Not yet shown: that a below-line cell on the strong model returns the *wrong*
+confident images at the residual floor (the alias form of this); job 614344's strong sweep is the place to look.
