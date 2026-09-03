@@ -129,6 +129,15 @@ def landscape(chart, bb, X_real, X_on, y, A0, a, dev, dname, B_rel, B_ref, g):
     A0u = (A0.to(dtype) * (1 + eps * torch.sign(torch.randn_like(A0)))).double() if dname != "fp64" else A0            # one ulp on every entry
     out["response_A0_one_ulp"] = float(torch.linalg.norm(release_in(bb.phi(X_on), A0u, bb.W0, y, bb.m, a.T, a.lr, dtype)[1] - B_rel) / nB)
     W_start = W_true + 0.1 * torch.randn(k, N, generator=g).to(dev) * std
+    if a.segment_dense:                                      # coarse-scale TREND (yoado-ed): windowed means beside the pointwise residual
+        out["dense_s"] = []; out["dense_pointwise"] = []; out["dense_window_1e-3"] = []; out["dense_window_1e-2"] = []
+        for sfrac in [i / 20 for i in range(21)]:
+            Ws = W_true + sfrac * (W_start - W_true)
+            def res_at(Wq):
+                return float(torch.linalg.norm(release_in(bb.phi(chart.psi(Wq)), A0, bb.W0, y, bb.m, a.T, a.lr, dtype)[1] - B_rel) / nB)
+            out["dense_s"].append(sfrac); out["dense_pointwise"].append(res_at(Ws))
+            for rad, key in [(1e-3, "dense_window_1e-3"), (1e-2, "dense_window_1e-2")]:
+                out[key].append(sum(res_at(Ws + rad * std * torch.randn(k, N, generator=g).to(dev)) for _ in range(4)) / 4)
     for sfrac in [0.0, 1e-4, 1e-3, 1e-2, 0.03, 0.1, 0.3, 0.6, 1.0]:
         Ws = W_true + sfrac * (W_start - W_true); Hs = bb.phi(chart.psi(Ws))
         Bm = release_in(Hs, A0, bb.W0, y, bb.m, a.T, a.lr, dtype)[1]; Bf = release_in(Hs, A0, bb.W0, y, bb.m, a.T, a.lr, torch.float64)[1]
@@ -153,6 +162,7 @@ def main():
     ap.add_argument("--partb-tol", type=float, default=None, help="certificate tolerance for the Part-B search from a non-fp64 release; default = "
                     "noise-matched 10*eps (job 760909/760912); pass 1e-12 for the tight tolerance (the noise rank), which storage job 753371 "
                     "showed recovers MORE images")
+    ap.add_argument("--segment-dense", action="store_true", help="with --landscape-cells: 21 linear points start->truth, each with 4-point windows at 1e-3 and 1e-2 (coarse-scale trend)")
     ap.add_argument("--landscape-cells", nargs="*", default=[], help="measure the matched-arithmetic map's response and the residual along start->truth")
     ap.add_argument("--recipe-cells", nargs="*", default=[], help="run the RECIPE route (FP64 simulator, near start) against the release trained in each format")
     ap.add_argument("--init-noise", type=float, default=0.10); ap.add_argument("--restarts", type=int, default=1); ap.add_argument("--lm-iters", type=int, default=600)
