@@ -27,6 +27,13 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
+- **Trained-backbone programme IN FLIGHT (executor jobs 607896, 610020; queued: all-layer LoRA, chart comparison):** LoRA
+  on the head of the repo's trained 784→1000→1000→10 GELU MLP (78% test acc; forward verified 3.7e-14), 8 test-split
+  digits, PCA chart from the train split — k=6 recovered to †1.3e-13 at the floor; k=10 full rank (σ_min †2.1e-6, two
+  orders below the random-encoder cell at the same k) but solver-stalled at †1.8e-12 → rerun with the (14,21) budget.
+  Next: all-layer LoRA (outside the theorems, empirical); then charts at k=16 on the same digits — global PCA vs
+  label-conditional local PCA vs class-conditional VAE, on-chart and off-chart (the realistic case) — the cell that
+  decides whether the ≈17 numbers per digit become a picture. User's framing recorded in the .tex opens item 1.
 - **Head-width sweep in the .tex (executor's jobs 589810, 593146):** reach LINEAR in m — sharp to one unit at m=10/12/16/20/28
   (lines 18/20/24/28/36). The sweep exposed a test-bed confound (generator hidden width 32 caps the manifold at min(k,32)),
   which had confounded the N=4 row (line 32 = cap); re-run with gen_hidden=128: N=4 is 31/32, sharp; control N=8 unchanged.

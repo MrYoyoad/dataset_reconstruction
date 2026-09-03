@@ -868,7 +868,16 @@ re-derivation, and each is itemised in the repository's lessons log.
   that matters for privacy is which chart an attacker can build
   \emph{without} the private images — a population prior — and how far below
   the line it lands; that is the generative-prior direction, now with a
-  precise specification.
+  precise specification. Two priors compose here. A chart \emph{local to the
+  label}, $\psi_y(w)=\mu_y+V_yw$ or a class-conditional generator, spends
+  all $k$ coordinates on within-class variation (the label is given by the
+  task or identifiable from the release, R3), and is better conditioned than
+  a global chart. And the \emph{encoder} sets a ceiling above the count: two
+  images with the same features $\varphi(x)$ are indistinguishable to any
+  attack on this adapter, so the chart may as well be built in feature space
+  and decoded by a separate feature-inversion prior; detail the encoder
+  discards is lost whatever the chart. Cells comparing global PCA, local PCA
+  and a conditional VAE at equal $k$ on the trained backbone are queued.
 \item \textbf{The recipe family, and the access model.} What
   \S\ref{sec:measured} leaves open is the \emph{family}: the schedule fit
   assumes cosine, and choosing among families is model selection, which the
