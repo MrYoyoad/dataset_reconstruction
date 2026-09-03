@@ -1704,7 +1704,11 @@ is given (`D = R/N`), so an N′-image simulation at the original `lr` runs a *d
 `lr/N′`), which the R1 result already said can never reach the floor. Fix: simulate the subset at `lr·N′/N`, so
 the omitted images contribute zero gradient — what "invisible" means; the attacker sees only the single
 effective rate `lr/N` (fittable, Step 9); `N` is taken as known here and flagged (`oracle` gains `N_known`).
-634238's rows are void; 706597 reruns Part A with rows written as produced.
+634238's rows are void; 706597 reruns Part A with rows written as produced. **First corrected row (706597,
+repeated on-chart, `N′ = 3`, recorded subset):** predicted floor 1.1e-16, residual *at the recorded images' truth*
+1.1e-16 — the two independent computations of the floor now agree — and the solve reaches it (residual 1.1e-16,
+over-floor 1.03), `σ_min` at the subset truth 4.7e-8 (identifiable), image error 2.5e-2: with invisible images
+present the subset is determined to about `√floor / σ_min`, not to machine precision. Controls follow.
 
 ### (R5) — the batch size is not identifiable from the release (corollary, yoado-ed; falsifier job 709507)
 
@@ -1819,7 +1823,14 @@ retrieving a different digit of the same class more than half the time — "ther
 4". At `k ≥ 32` (admissible at `r = 64`) both survive: 94–99% self-identification. Caveat on the other control:
 against a pool of *projected* candidates the projection identifies its source with certainty at every `k` (top-1
 1.000 even at `k = 2`), since projection is deterministic — a membership-style identification that needs the
-candidate pool, stated as such and not as fidelity.
+candidate pool. **It is robust, not a precision artefact (job 723107):** perturbing the recovered coordinates by
+`ε` × coordinate std and re-running the retrieval among the 10,000 projected candidates, the source stays top-1 at
+100% for `ε ≤ 3e-2` at every `k ≥ 8` (96–100% at `ε = 0.1`; 49–99% at `0.3`), and even `k = 2` holds 99.8% at
+`ε = 1e-3` and 95% at `3e-3` (63% at `1e-2`). Solves land at 1e-15; a stopped-short solve at 1e-2 still identifies.
+So an attacker holding a candidate pool never needs to render anything: the low-`k` regime that is harmless as a
+*reconstruction* is fully effective as a *membership* attack — the six-coordinate chart that cannot draw a digit
+answers "was this record in the training set" with certainty. That is the strongest privacy statement in this
+section, and the objection "a six-coordinate chart cannot capture a real image" is correct and irrelevant to it.
 
 The ladder's admissible `k` at each rank (`k < r − N′`) are marks on this curve: at `r = 16` with seven recorded
 the admissible charts (`k ≤ 8`) keep 52–68% of digits identifiable to the strong model; at `r = 64` with eight
