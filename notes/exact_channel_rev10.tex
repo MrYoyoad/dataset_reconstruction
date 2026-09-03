@@ -1397,8 +1397,38 @@ So on a $98\%$ MNIST model, from the released rank-$64$ adapter, the public
 base model and a public chart --- and no recipe, no labels, no batch size and
 no starting point near the answer --- an attacker recovers every recorded
 private example, and at that chart dimension the recovered object identifies
-its source rather than merely its class. That is the claim the whole construction was built to test, and it
-is the one to put in front of a supervisor.
+its source rather than merely its class. That is the claim the whole construction was built to test.
+
+\paragraph{The scope that must travel with it: the release it was recovered
+from has norm $7.6\times10^{-18}$.} Measuring $\|B_T\|$ against $k$ on the
+same batch$^\dagger$ (job 752500) shows no window but a monotone collapse:
+$0.47$, $0.23$, $0.081$, $1.6\times10^{-13}$, $7.6\times10^{-18}$,
+$1.9\times10^{-22}$, $2.8\times10^{-24}$ at $k=8,12,16,24,32,40,56$, tracking
+the projections' minimum margin as it rises from $0.02$ to $56$. Twenty-three
+orders. The rank's apparent dip and return is a relative artefact of that
+collapse: past $k=24$ all eight imprints shrink together, so their ratios
+compress against a vanishing $\sigma_1$. In FP64 the certificate is
+scale-free --- it is an angle --- so the recoveries above are exact and the
+numbers stand. But they were obtained from a release that is numerically
+nothing, and that has a consequence the file's storage precision does not
+capture.
+
+An imprint is an accumulated residual $1-p_y\approx e^{-\text{margin}}$, and
+in arithmetic of unit roundoff $\varepsilon$ that residual is \emph{exactly}
+zero once $e^{-\text{margin}}<\varepsilon$: above margin $\approx16.6$ in
+FP32, $\approx7.6$ in FP16, $\approx5.5$ in bfloat16. The headline batch's
+projections at $k=32$ carry margins of $42$ to $60$. So had the same
+fine-tuning been run in FP32 --- as essentially all fine-tuning is --- its
+release would have been exactly zero and there would have been nothing to
+recover. The honest headline is therefore sharper than a statement about
+storage: \emph{from an FP64-trained release all eight are recovered; the same
+batch trained in FP32 leaves no release at all, because the model was certain
+of every projection.} The control batch, whose weakest projections keep
+margins of $11$ to $15$ at every $k$, plateaus at $\|B_T\|\sim10^{-6}$ to
+$10^{-4}$ and stays recorded under FP32 training --- so the channel is not
+closed by realistic arithmetic, it is closed by \emph{confidence}, which is
+the same finding as \eqref{eq:imprint} arriving through the floating-point
+format instead of through the mathematics.
 
 Two supports keep it from resting on a single cell. The per-image basin does
 not decay with $k$ once the slack is held: at $r=64$ it runs $13.8\%$,
