@@ -4,6 +4,11 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Two lower-bound qualifiers every leakage count carries (2026-09-03, from yoado-ed)
+
+- **The attacker's own tolerance.** Two private letters were absent from a count purely because the certificate tolerance was set to "noise-matched" (10ε); at 1e-12 they are found at residuals 5e-6 (jobs 760909 → 764976). So every count here bounds not only the weakest attacker we ran but an attacker who did not tune their own threshold — report counts with the tolerance, and sweep it before calling an image absent.
+- **The simulator's arithmetic.** Every recipe-route result in this work simulated in the arithmetic the release was trained in (FP64). Against a bf16-trained release an FP64 simulator produced a confident, low-residual, WRONG reconstruction (residual 240× below the truth's own; job 771329). Any gradient- or weight-inversion attack on a real adapter — trained in bf16, as they all are — must simulate in the model's own arithmetic, and a low residual is not evidence that it did. Goes in the opens as a constraint on the method, not only in the cell's row.
+
 ## An arithmetic mismatch between training and simulation produces the ALIAS verdict, not the search-failure one (2026-09-03)
 
 - **Presented as:** the recipe route (FP64 simulator, near start) against a bf16-TRAINED letter release ended at residual 5.8e-4 — 240× *below* the residual at the truth (0.138, the mismatch floor) — with images .09 … .77 from the truths (job 771329).
