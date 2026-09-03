@@ -2152,17 +2152,20 @@ rate.
   independently at $N'\le m-1$: twenty digits recover on a $26$-logit head and
   none at all on a $10$-logit one, same data, same rank, same chart. Two scopings decide how this should be said.
 
-  The \emph{robust} leakage is not the flagship cell but the ordinary one.
-  Data the base model gets wrong or has never seen --- a new category, an
-  out-of-distribution draw, a hard example --- leaves imprints of order one
-  and releases of norm $10^{-6}$ to $1$, which survive every arithmetic in
-  use. On one encoder and one head, eight ordinary digits give
-  $\operatorname{rank}B_T=6$ of $8$ while eight examples of an unseen category
-  give rank $8$ with every imprint of order one. Since adding a capability the
-  base model lacks is the canonical reason to fine-tune, that is the case the
-  privacy story should lead with.
+  \emph{Lead with the new class, because it is both the strongest cell and
+  the canonical use.} Adding a class the base model does not have --- the
+  ordinary reason to fine-tune --- is the case where nothing protects. Eight
+  unseen-category examples on a $98\%$ model, $r=64$, a $32$-dimensional
+  public chart: the model is wrong about every one at the first step, learns
+  the class by the last, the adapter moves $9.3\%$, and the release has norm
+  $1.00$ with all eight imprints between $0.12$ and $0.26$. From $500$ random
+  starts --- no recipe, no labels, no $N$, no start near the answer ---
+  $38.4\%$ land on a private letter and \emph{all eight are recovered}, the
+  best at $3\times10^{-26}$. This is not a vanishing release, not a frozen
+  adapter, and not a coarse chart: at that dimension a projection identifies
+  its own source rather than its class.
 
-  The \emph{confident} cell is the extreme, and it says something sharper at
+  \emph{The confident cell is the extreme}, and it says something sharper at
   the cost of being a corner. There $\|B_T\|=7.6\times10^{-18}$ and the
   adapter never feeds back at all --- $A_T=A_0$, and $B_T$ is $T$ times one
   gradient step --- so the fine-tune changed nothing about the model and
