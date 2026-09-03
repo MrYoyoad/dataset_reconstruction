@@ -1235,7 +1235,9 @@ in the release at that scale — below FP64 for `M ≳ 30`. Prediction: per imag
 norm at `W₀` across the four encoders, and the rank loss sits on the largest-margin digits. Falsifier: column
 norms all `O(1)` on the strong model. If it holds, the reading is *a model fine-tuned on examples it already
 fits leaves no fingerprint of them; what leaks is what it had to learn* — and the per-example residual at `W₀`
-is a leakage meter the defender can compute without running any attack.
+is a leakage meter the defender can compute without running any attack. *(Superseded: the exact quantity is the
+per-example residual ACCUMULATED during fine-tuning — see "Step 18 resolved" — of which the residual at `W₀` is the
+pre-training proxy, exact only when training leaves the example undisturbed.)*
 
 **Standing corrections to the reads above (all three now in RESULTS).** "Richer charts are worse conditioned" is
 established only across the four charts on the weak checkpoint (Step 14); on other encoders the PCA half of it
@@ -1270,7 +1272,7 @@ residuals down to 2e-28) **all eight** are — against a 3–5× spread on the r
 belongs to an image with margin ≥ 16. The release records a private example roughly at the scale of the
 model's residual on it, and a 98% MNIST model has residual `e^{−20}…e^{−60}` on the digits it gets right.
 
-**Refinement the data forces.** The column norm is *not* a function of the image's own residual alone
+**[WITHDRAWN 2026-09-03 — see "CORRECTION (job 628731)" below: the per-image "column" this paragraph reads was the order-dependent QR-basis quantity; the coupling it describes does not exist. Kept as record.]** **Refinement the data forces.** The column norm is *not* a function of the image's own residual alone
 (concordance 20–24 of 28 pairs, not 28). Image 1 — a 3 with margin 22 and residual 4e-10 — is recorded at 1.6,
 because image 3 is a *misclassified* 3 (margin −3.6, residual 1.4) and the `A`-dynamics couple images through
 their feature Gram `HᵀH`: a hard example re-records the confident examples whose features overlap with it. With
@@ -1279,7 +1281,7 @@ statement is: **a confident example is invisible in the release unless a hard ex
 is in the same batch** — and that is the mechanism of the rank loss too: the two 3-columns both carry image 3's
 residual and become collinear.
 
-**Reads.** (i) This is why quality hurts monotonically: the ladder is a ladder of margins. (ii) It is an
+**Reads** *(item (iv)'s "up to the Gram coupling" is withdrawn with the paragraph above; (i)–(iii) stand)*. (i) This is why quality hurts monotonically: the ladder is a ladder of margins. (ii) It is an
 *information* limit, below the line, that the counting cannot see, and it lives in hypothesis (A4). (iii) It is
 asymmetric in a way that matters for privacy: **what leaks is what the model had to learn** — the misclassified
 3 is recorded at 3.8, the confident 0 at 1e-9. (iv) The per-example residual at `W₀` — which the defender can
@@ -1365,7 +1367,7 @@ penultimate space**, and *same label* is the wrong proxy for it. Job 627574 (`st
 feature cosine to the hardest image and to its own-label mates next to the column norms, to make that a
 measurement rather than a reading.
 
-**Standing statement (replaces the Step-18 refinement).** A private example is recorded in the release at
+**[WITHDRAWN 2026-09-03 — see "CORRECTION (job 628731)" below: the per-image "column" this paragraph reads was the order-dependent QR-basis quantity; the coupling it describes does not exist. Kept as record.]** **Standing statement (replaces the Step-18 refinement).** A private example is recorded in the release at
 roughly the scale of the model's residual on it, plus a coupling term from the residuals of batch-mates whose
 *features* overlap with it; a batch of examples the model already fits leaves no fingerprint, and a hard example
 lends its residual to the batch in a way that is collinear across columns — it raises column norms without
@@ -1452,6 +1454,18 @@ model already fits it — and `rank B_T` counts the examples recorded above the 
 fits leaves no fingerprint; what leaks is what the model had to learn. The defender's leakage meter is the
 per-example accumulated residual during their own fine-tuning, which they compute anyway. Nothing about labels,
 feature overlap, or batch-mates enters.
+
+**Two corrections carried from the audits (2026-09-03, late).** (a) *The encoder ladder must be quoted per label
+set.* At the strong encoder, global chart, same `k` and seeds, eight distinct labels give `σ_min` 5.6e-12 with
+`rank B_T = 8` while the repeated draw gives 7.0e-19 with rank 6 — seven orders apart; a single "strong" rung
+(2.0e-15, their geometric mean) is a value no measurement lies within three orders of, and is not to be quoted.
+The clean ladder is global chart + distinct labels: **7.5e-5 / 9.1e-7 / 1.3e-8 / 5.6e-12**, rank 8 at every rung.
+(b) *The (A4) failure does not require repeated labels.* The in-distribution control of Step 19 — strong model,
+raw test digits, eight DISTINCT labels — has `rank B_T = 6`. The rank drop follows from each example's own
+confidence; repeated labels and class-local charts are two routes *to* it, and chart projection is a route *away*
+from it (projection degrades the image, the model is less certain, more is recorded — which is also why the
+on-chart and raw arms of a cell differ, and why Step 21 reports both side by side). "Strong encoder ⇒ (A4) fails"
+and "repeated labels ⇒ (A4) fails" are each too simple on their own.
 
 ## Step 19 — private data from a DIFFERENT distribution: it is recorded in full (job 644062; inversions in 644064)
 
