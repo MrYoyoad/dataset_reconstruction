@@ -718,14 +718,22 @@ never reached the floor at all. And it flags the least converged member of a
 comparison independently of the residual: among the four charts of
 \S\ref{sec:opens} it singles out the ReLU-decoder VAE ($1.6\times10^{-3}$
 against $10^{-13}$--$10^{-6}$ for the rest), the same cell whose
-solved $\sigma_{\min}$ is three times its value at the truth.\footnote{One
-asymmetry to record while using it: for a PCA chart the projection onto the
-chart is exact (orthonormal basis, closed form), while for a VAE chart it is
-itself a $300$-step optimisation, so the VAE representation errors are upper
-bounds. That biases conservatively for the richness ordering — an
-under-converged inner projection overstates a VAE's error and so understates
-its richness — but the two families' richness axes are not measured to the
-same standard.}
+solved $\sigma_{\min}$ is three times its value at the truth.\footnote{An asymmetry to record while using it: for a PCA chart the
+projection onto the chart is exact (orthonormal basis, closed form), while
+for a VAE chart it is a $300$-step Adam solve with no convergence criterion
+(vae\_chart.py:85). Between families this biases conservatively for the
+richness ordering — an under-converged inner projection overstates a VAE's
+error and so understates its richness. \emph{Within} the VAE family it does
+not, because that same inner solve returns $W_{\mathrm{true}}$, which is both
+the point the adapter is trained on and the point at which
+$\sigma_{\min}$ is evaluated; the decoder is non-linear, so $\sigma_{\min}$
+varies with position in latent space and inner-solve slack moves the richness
+and conditioning axes together with no determined sign. The GELU/ReLU pair
+therefore compares two separately fitted models differing in encoder,
+decoder and inner starting point at once, not one activation swap, and its
+$1.04\times$ in richness against $1.15\times$ in $\sigma_{\min}$ is
+unresolved on three counts: a single $A_0$ draw, below the replicate spread,
+and an unmeasured inner solve in both coordinates.}
 
 \paragraph{The boundary is about the chart, not the image.} Same digits,
 same $N=8$, $m=10$, $r=16$, line $k<18$; three charts at matched $k$\textsuperscript{$\dagger$}
