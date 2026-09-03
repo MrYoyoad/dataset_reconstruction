@@ -487,8 +487,8 @@ $\psi$ are fixed random matrices (seeded), and the only training anywhere is
 the adapter's $T$ steps on the $N$ private examples. The same holds for the
 MNIST cells below, whose encoder is a fixed random network; the private
 digits are ``unseen'' in the trivial sense that nothing was trained on
-anything before the adapter. Whether the results transfer to an adapter on
-a \emph{pretrained} backbone is untested here (\S\ref{sec:opens}). Every run is
+anything before the adapter. The trained-model paragraph below is the one cell on a learned encoder
+and a learned head. Every run is
 classified by two numbers, the final residual $\|\rho\|^2$ and the worst
 image error: \emph{recovered} — residual at the $10^{-30}$ floor and error at
 machine precision; \emph{alias} — residual at the floor at a point other than
@@ -625,6 +625,49 @@ not, as at $(14,21)$ synthetically; deeper below the line recovery is clean
 ($r=16$, $k=6,10,14$: errors $2$--$8\times10^{-14}$ at residual
 $9\times10^{-31}$). And the chart here is the digits' own principal subspace,
 which the next paragraph shows is the whole question.
+
+\paragraph{The line on a trained model.} The same construction on a
+\emph{trained} network$^\dagger$ (jobs 607896, 610020): the repository's
+MNIST classifier, a $784\to1000\to1000\to10$ GELU multilayer perceptron
+trained on the train split (test accuracy $78.5\%$; the hand-built forward
+agrees with the repository's model class to $3.7\times10^{-14}$, job
+607801), frozen; its penultimate activations are the encoder $\varphi$
+($n=1000$) and its trained output layer is $W_0$ ($m=10$). The LoRA
+adapter ($r=16$, $B_0=0$, plain SGD, $T=400$, $\eta=0.01$) is trained on
+$N=8$ digits from the \emph{test} split — unseen by the backbone and by the
+chart — with their real labels; the chart is the PCA of the train split.
+Line $k<18$.
+\begin{center}\small
+\begin{tabular}{@{}cccccc@{}}\toprule
+$k$ & $\sigma_{\min}$ at the truth & full rank & residual (80 it.) & residual (300 it.) & error vs.\ chart / vs.\ digit\\ \midrule
+6  & $3.5\times10^{-5}$ & yes & $8.4\times10^{-31}$ & — & $1.3\times10^{-13}$ / $0.87$\\
+10 & $2.1\times10^{-6}$ & yes & $1.8\times10^{-12}$ & $8.7\times10^{-31}$ (31 it.) & $1.3\times10^{-12}$ / $0.76$\\
+14 & $1.5\times10^{-7}$ & yes & $2.2\times10^{-14}$ & $9.3\times10^{-31}$ (282 it.) & $1.8\times10^{-11}$ / $0.76$\\
+16 & $1.3\times10^{-8}$ & yes & $2.1\times10^{-13}$ & running & $4.8\times10^{-2}$ / $0.73$\\
+17 & $1.2\times10^{-9}$ & yes & $4.4\times10^{-13}$ & running & $5.7\times10^{-2}$ / $0.73$\\
+\textbf{18} & $2.4\times10^{-19}$ & \textbf{no} & $3.1\times10^{-13}$ & — & $5.5\times10^{-2}$ / $0.73$\\ \bottomrule
+\end{tabular}
+\end{center}
+Three things, in order of what they are. \emph{The line holds}: full rank at
+$k=17$, collapsed at $k=18$, on a trained head and trained features —
+training changes $W_0$ and $H$, and the count sees neither. \emph{Reaching it
+costs more every step}: against the random-encoder run at matched $k$,
+$\sigma_{\min}$ at the truth is $7\times$ smaller at $k=6$, $100\times$ at
+$k=10$, $420\times$ at $k=14$ and $1100\times$ at $k=17$; at the standard
+$80$-iteration budget only $k=6$ reaches the floor, and every other
+below-line cell stops at $10^{-12}$--$10^{-14}$ with its coordinates only
+$2$--$6\%$ recovered. With $300$ iterations those cells go to the floor —
+$k=10$ in $31$ iterations, $k=14$ in $282$, the count tracking the
+conditioning — so they are search failures at one budget and recoveries at
+another, as at $(14,21)$ synthetically; only $k=18$ is an alias. A trained
+encoder does not move the capacity line; it makes the line progressively
+harder to reach, three orders of magnitude by $k=17$. \emph{The picture is
+the chart's}: the error against the real digit never falls below $0.73$
+because the PCA chart's own representation error of these digits at $k=17$
+is $0.42$ — the previous paragraph's result reproducing itself on a trained
+backbone. The backbone is learned but weak (these checkpoints are trained on
+small balanced subsets for the reconstruction setting); a strong encoder is
+a different checkpoint and a separate run.
 
 \paragraph{The boundary is about the chart, not the image.} Same digits,
 same $N=8$, $m=10$, $r=16$, line $k<18$; three charts at matched $k$\textsuperscript{$\dagger$}
@@ -910,13 +953,14 @@ re-derivation, and each is itemised in the repository's lessons log.
   whose valley widths are one-dimensional slices of the ellipsoid
   (Figure~\ref{fig:spectrum}). Rendering its leading directions as image
   edits is the natural next object.
-\item \textbf{A pretrained backbone.} Every measurement uses a random
-  frozen $W_0$ and a random frozen encoder. The theorems do not use anything
-  about $W_0$ or $\varphi$ beyond (A1) — they are fixed maps — so a
-  pretrained backbone changes nothing in \S\S\ref{sec:objects}--\ref{sec:read};
-  what it changes is the conditioning of $D\rho$, the chart an attacker can
-  build from public data, and the realism of $m$. The real-data step —
-  frozen DINO/CLIP features with an adapted head — has not been run.
+\item \textbf{A stronger backbone, and LoRA on more than one layer.} The
+  trained-model cell of \S\ref{sec:measured} uses a weak learned encoder and
+  adapts the head only, the theorems' setting; the line held and the
+  conditioning penalty was measured. Untested: a strong encoder (DINO/CLIP
+  features with an adapted head), where the penalty may be larger; and LoRA
+  on every layer, where the first adapted layer moves its own successors'
+  inputs, (A1) fails downstream, several adapters are released, and neither
+  the count nor identifiability is derived — an empirical cell, queued.
 \item \textbf{What stops the attack today is neither line.} Inside the
   capacity region, LM from perturbed-truth starts recovers up to $86\%$ start
   error, with one budget-limited failure at $81\%$ (residual $8\times10^{-5}$
@@ -940,6 +984,7 @@ re-derivation, and each is itemised in the repository's lessons log.
 level & content & status\\ \midrule
 2$'$. Seed & $(B_T,A_TU)$ depend on $A_0$ only through $X$; $Y$ released verbatim (Cor.~\ref{cor:seed}) & Theorem under (A1)--(A3)\\
 3$'$. Capacity & $k<m+r-N$, strict, from $\dim\mathcal B$ (Thm~\ref{thm:cap}, Prop.~\ref{prop:simplex}) & Theorem; sharp$^\dagger$ at $N=8,14$ synthetic and at $r=8,16,32$ on MNIST; exact identifiability of the chart coordinates\\
+3$''''$. Trained model & line at $k=18$ holds on a trained head and features; $\sigma_{\min}$ $7$--$1100\times$ smaller than random-encoder at matched $k$; below-line cells recover with budget & Verified$^\dagger$ (jobs 607896, 610020); weak backbone; strong encoder and all-layer LoRA open\\
 3$'''$. Chart & boundary chart-independent; fidelity chart-dependent ($0.51$ vs $5.7\times10^{-14}$ at $k=17$); an oracle-built chart spanning the digits recovers them at $k=N$ & Verified$^\dagger$ (job 574169); not a leakage bound\\
 3$''$. Sufficiency & $D\rho$ full column rank a.e.\ below the line, per connected component (Thm~\ref{thm:suff}) & Theorem given a witness in the component; witness measured$^\dagger$ at $T=1$; $T>1$ rests on measured $T$-independence, not on a proof\\
 5$'$. Past the line & a walkable manifold of exact reproductions; alternatives at $0.2$--$1.7\%$ (synthetic, chart contains the truth), $2$--$7\%$ on real digits, growing with distance past the line; $\le3.8\%$ along one walked direction & Verified$^\dagger$; recognisability not assessed; extent and global uniqueness open\\
@@ -972,7 +1017,9 @@ region and measures existence, not rate.
   $m-1$ per image above the certificate, and the difference is precisely the
   coefficient matrix the certificate projects away (Corollary~\ref{cor:two}).
   Measured sharp to one unit of $k$ at $N=4,8,14$ synthetically (bracketed
-  to two at $N=12$), at five head widths, and at three ranks on real digits; both terms of the cap attained by the block
+  to two at $N=12$), at five head widths, at three ranks on real digits, and
+  on a trained network with unseen test digits — where it holds unmoved
+  while the conditioning to reach it worsens a thousandfold by $k=17$; both terms of the cap attained by the block
   ranks.
 \item \emph{The chart.} The theorems pin the coordinates $w$; the attack
   returns $\psi(\hat w)$. At the same $k=17$, three charts each recover their
