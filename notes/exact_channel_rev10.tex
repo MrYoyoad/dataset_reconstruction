@@ -55,6 +55,14 @@ leakage, because the other point sits within $0.2$--$1.2\%$ of the true
 images (\S\ref{sec:measured}). The quotient's ceiling $r-N$ is therefore a
 fact about one channel, not a bound on the leakage.
 
+\emph{Provenance.} This section was produced by one executing session and
+two auditing sessions reading each other adversarially. Six claims made
+during the day were withdrawn — every one by a follow-up measurement rather
+than by argument, three of the six from the audits — and four of them had
+reached a draft labelled as a theorem or a headline before being caught. The
+withdrawals are recorded in the repository's lessons log; the numbers that
+remain are the ones that survived.
+
 %----------------------------------------------------------------------------
 \subsection{Setting and the theorem chain we stand on}
 \label{sec:setting}
@@ -494,7 +502,14 @@ is a true statement about the quotient and a false one about the leakage.
   a neighbourhood. Global injectivity of $F$ on the manifold — no distant
   alias with identical release — is open, exactly as Rev~9 states for the
   certificate. Empirically no alias has appeared below the line
-  \textnormal{[VERIFIED†]}; that is evidence, not a theorem.
+  \textnormal{[VERIFIED†]}; that is evidence, not a theorem. Two gaps in the
+  traverse evidence, named rather than discovered: it walks \emph{one}
+  null direction of forty at $(8,32)$ and one of fourteen at $(14,22)$ — a
+  multi-direction or random-combination version, which would say whether the
+  extent is direction-dependent, has not been run; and the at-line cell was
+  still rising at $3.8\%$ when its $25$ steps ended, and nobody has run it
+  longer. ``The alternatives are recognisable reconstructions'' is measured to
+  $3.8\%$ and no further; the fibre was not followed to exhaustion.
 \item \textbf{The recipe as domain parameters.} The exact channel assumes the
   recipe (optimiser family, $\eta$, $T$, $s$, decay) is known — the standard
   assumption of the KKT-reconstruction line. Unknown recipe parameters enlarge
@@ -509,8 +524,9 @@ is a true statement about the quotient and a false one about the leakage.
   not the floor, because the arms were built on an L-BFGS solver rather than
   the Levenberg--Marquardt solver used everywhere else in this study; a
   readout whose control cannot reach the floor says nothing about recipes.
-  The arms are being rerun on LM. Nothing here is evidence for or against
-  (i)--(iii). The
+  The arms are rerunning on LM (job 484255); until they report, nothing here is
+  evidence for or against (i)--(iii), and the section is not finished without
+  them. The
   certificate is the recipe-\emph{free} channel, at the price of the cap
   $r-N$; the curvature/KKT mixture of Rev~9 \S3.6--3.8 remains the
   recipe-\emph{unknown} approximate route.
@@ -593,15 +609,22 @@ level & content & status\\ \midrule
 \subsection{What to say to Gal (replaces the lead of Rev~9 \S16)}
 \label{sec:gal}
 
-Lead with the cancellation, then the count, then the theorem, then the honest
-open item — all four are mathematics.
+Order: the capacity law first, because it is a theorem with a derivation and
+a sharp measurement; the traverse second, because it turns the law into a
+statement about a set one can walk; the initialiser third, because it is what
+actually stops the attack today; the recipe fourth and openly open. Do
+\emph{not} lead with the $49/49$ grid: it lies inside the capacity region,
+it measures existence rather than rate, and a reader who reaches the capacity
+section finds it retrospectively explained rather than independently
+interesting. The cancellation and the reduction are the theorem chain
+\emph{behind} the law, and are said as such.
 \begin{enumerate}\itemsep2pt
-\item \emph{The object.} $C=P_{\mathrm{row}(B_T)^\perp}A_T=c_TP_{(A_0H)^\perp}A_0$,
+\item \emph{The chain behind the law.} $C=P_{\mathrm{row}(B_T)^\perp}A_T=c_TP_{(A_0H)^\perp}A_0$,
   $CH=0$, $\operatorname{rank}C=r-N$: two released views of one private span;
   projecting one with the subspace the other reveals cancels the seed and
-  leaves exactly $r-N$ attacker-visible equations.
-\item \emph{The same insight, forward.} The release depends on the seed only
-  through $X=A_0U$, $rN$ numbers (Theorem~\ref{thm:G}). Solve for them.
+  leaves exactly $r-N$ attacker-visible equations. Used forward instead of
+  cancelled, the same insight says the release depends on the seed only
+  through $X=A_0U$, $rN$ numbers (Theorem~\ref{thm:G}), which are solved for.
 \item \emph{The count.} The release has at most $N(m+r-N)+rN$ degrees of
   freedom against $Nk+rN$ unknowns, so the exact channel's capacity is
   $k<m+r-N$ — $m$ above the quotient's. It is a dimension count whose strict
@@ -624,11 +647,21 @@ open item — all four are mathematics.
 \item \emph{The theorem.} Below the line, $DF$ is full column rank almost
   everywhere (analytic-subvariety dichotomy plus one explicit $T=1$ witness);
   the true data is locally isolated for a.e.\ seed and a.e.\ data set.
-\item \emph{What is open, said in the same breath.} Global uniqueness; the
-  recipe as parameters (and whether it is self-detecting); how far the fibre
-  past the line extends; Adam, which keeps identifiability, loses the $rN$
-  reduction, destroys the algebraic channel entirely and — by breaking the
-  simplex constraint — hands the attacker one unit of capacity back (a
-  prediction); and the fact that what stops the attack today is the
-  initialiser, not the information.
+\item \emph{The set one can walk.} One continuation procedure, run
+  identically on both sides of the line: below it the image moves by
+  $6\times10^{-14}$; past and at it, to $1.4\%$ and $3.8\%$ at the residual
+  floor. Twelve orders apart. One direction of forty, not followed to
+  exhaustion — said in the same breath.
+\item \emph{What stops the attack today.} Not information: the initialiser.
+  Starts an attacker can build from the release alone reach the floor in $1$
+  of $20$ runs; the basin from perturbed truth exceeds $65\%$ with no edge
+  found. The slot the framework reserves for a learned or population prior is
+  the binding constraint.
+\item \emph{Openly open.} The recipe as parameters — whether misspecification
+  is self-detecting, whether $\eta$ can be fitted jointly, whether $\eta T$
+  is harmless (arms designed, first run invalidated by our own control,
+  rerunning); global uniqueness; direction-dependence of the fibre's extent;
+  Adam, which keeps identifiability, loses the $rN$ reduction, destroys the
+  algebraic channel entirely and — by breaking the simplex constraint — hands
+  the attacker one unit of capacity back (a prediction).
 \end{enumerate}
