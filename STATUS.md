@@ -19,11 +19,14 @@ What the section establishes, in order — every label as in the .tex:
   analytic dichotomy + explicit `T=1` witness, †full rank at (8,16),(8,20),(8,24), job 479587).
 - **Measured sharp on the outcome:** N=8 recovered@27 / alias@28; N=14 recovered@21 (300-iteration budget, converged at 137, job 481079,
   residual †9.5e-31, err †2.8e-12) / alias@22. The T-dependence conjecture is refuted (capacity T-independent).
-- **Corrected framing — exact identifiability, NOT leakage:** past-line solutions sit at †0.2–1.2% image error
-  (8/11 cells inside the study's own 1e-2 tolerance); a fibre continuation (job 482338) reaches †1.43% (past the line,
-  25/25 steps at the floor) and †3.84% still rising at the end (at the line, 25 steps, final) — one null direction each, hence LOWER
-  bounds on the extent. Non-isolation established; alternatives still recognisable on the paths measured; whether
-  the fibre reaches unrecognisable points is not established.
+- **Corrected framing — exact identifiability of the CHART COORDINATES, NOT leakage:** past-line solutions sit at
+  †0.17–1.7% image error on the synthetic test-bed (whose chart contains the truth by construction — the most
+  favourable case) and at †2.3–6.8% on real MNIST, where 5 of 8 past-line cells have NO image inside the 1e-2
+  tolerance; synthetically 9 of 13 cells are fully inside. A fibre continuation (job 482338) reaches †1.43% (past
+  the line, 25/25 steps at the floor) and †3.84% still rising at the end (at the line) — one null direction of 40
+  and of 14, and every cell starts from `--init near`, so every one of these is a LOWER bound on the extent, never
+  a ceiling. Non-isolation established; **"the alternatives are recognisable" is WITHDRAWN — recognisability was
+  never assessed.**
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
@@ -60,12 +63,14 @@ What the section establishes, in order — every label as in the .tex:
 - **Claims audit (yoado-51) applied:** (i) NO attacker-buildable start reaches the floor — the one "1 of 20" run sat at
   residual †9.1e-7, err 9.2e-3, restart budget exhausted (a search failure by the doc's own taxonomy); (ii) MNIST
   past-line aliases at r=16/32 sit at †2.3–6.8% with 5 of 8 past-line cells having no image inside tolerance, and the
-  synthetic past-line error grows with distance past the line at every N — "the alternatives are recognisable" is
+  synthetic past-line degradation tracks **N, not distance past the line** (at N=8 the cell sixteen units past is
+  still inside tolerance at 9.3e-3; at N=14 the cell one unit past is outside at 1.37e-2 — the four out-of-tolerance
+  cells are exactly the N=12 and N=14 ones), and the growth with distance is non-monotone; "the alternatives are recognisable" is
   withdrawn; the law is stated as not a leakage bound, with recognisability NOT assessed; (iii) fwd_check range is
   †5.3e-16–1.8e-15 (54 rows); basin recovers up to †86% start error with one budget-limited failure at 81% bracketed
   by successes; the 49-cell grid is the even values {2,…,14}.
 - **Real images + chart dependence in the .tex (executor's jobs 568095, 574169):** the line k<m+r−N holds on MNIST
-  (N=8, m=10) at r=8/16/32 — last full-rank k = 9/17/33, first collapsed 10/18/34, ~13 orders per unit — with the
+  (N=8, m=10) at r=8/16/32 — last full-rank k = 9/17/33, first collapsed 10/18/34, †11–12 orders per unit — with the
   last-ok cells solver-degraded (err ~1e-2, residual 1e-13..1e-14) and clean deeper below. Chart dependence at
   (8,16): boundary chart-independent (all three charts collapse at k=18) but fidelity chart-dependent — at k=17 each
   chart recovers its OWN image to 1e-14 while vs the REAL digit PCA 0.51 / warped 0.51 / digit-containing chart
