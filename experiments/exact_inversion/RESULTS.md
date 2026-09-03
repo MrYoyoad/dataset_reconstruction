@@ -2773,3 +2773,15 @@ from the same near start, the same solver, the same release except for the arith
 truth's 0.028, image errors .16 … .86 (median .47) — against .074 at k = 16 from the same mismatch: the worse-
 conditioned k = 32 chart (σ_min 1e-5) turns a 2.8% mismatch into a 47% displacement. The four k = 32 matched rows
 decide whether the matched attacker's 1–3% survives that conditioning.
+
+*Pre-registration for the k = 32 matched rows (yoado-ed, written before they exist):* the cost of an arithmetic
+mismatch is set by the chart's conditioning, not by the mismatch's size — the same 2.8% mismatch displaces the
+FP64 simulator by .074 at k = 16 and .47 at k = 32 (σ_min 2.7e-4 → 1e-5), a sixfold amplification from the chart
+alone. Scaling the k = 16 matched errors by that factor predicts roughly **6% for fp16 and 19% for bf16 at
+k = 32** — still recoveries, visibly degraded. Near those → the conditioning mechanism is confirmed from a
+second direction; much better → something protects the matched solver from its own floor and must be understood
+before it is celebrated. Structural point kept either way: a richer chart buys fidelity in exact arithmetic and
+pays for it by amplifying every arithmetic error into a displacement, so under real arithmetic **the attacker's
+best k is bounded by conditioning as well as by the line** — a second boundary on k from a different direction,
+not necessarily coinciding with k < r − N′; if the k = 32 rows degrade as predicted there is an optimum between 16
+and 32, named in the opens, not located tonight.
