@@ -1055,10 +1055,24 @@ scale, $300$ iterations each, with no recipe, no labels, no $N$ and no
 proximity to the truth, $51.0\%$ of starts reach the objective's floor; the
 fraction of starts landing on a recorded image is also $51.0\%$ --- the same
 number, so \emph{every} start that reached the floor is on a private image and
-none is spurious, as the kernel count requires below the line. All seven
-recorded images are found, the $\operatorname{argmin}$ over starts lands on a
-recorded image at $5.5\times10^{-15}$ from its chart projection, no start is
-degenerate, and the whole cell costs $389$\,s at $0.2$\,s per start.
+none is spurious, as the kernel count requires below the line. Had the two
+fractions differed, the count would be wrong. The two populations are cleanly
+separated and no threshold is doing any work: over the $1020$ floor-reaching
+starts the image error to the nearest recorded image runs from
+$1.3\times10^{-15}$ (min) through $5.3\times10^{-15}$ (median) to
+$3.7\times10^{-12}$ (max), while the $980$ that miss sit at objective
+$1.1\times10^{-3}$ and image error $0.47$ at the median, with nothing in
+between. All seven recorded images are found, the $\operatorname{argmin}$ over
+starts lands on a recorded image at $5.5\times10^{-15}$ from its chart
+projection, no start is degenerate, and the whole cell costs $389$\,s at
+$0.2$\,s per start.
+
+Which image a start finds is not uniform: the landings divide $414$, $383$,
+$99$, $63$, $37$, $13$, $11$ across the seven, so the basins differ by a factor
+of forty and the rarest example needed of order $180$ starts before it appeared.
+Finding \emph{some} recorded example is therefore much cheaper than finding
+\emph{all} of them, and the gap widens with the skew --- a scaling caveat that
+belongs with any statement about recovering a whole batch.
 
 Three scopings, all of which matter. The batch is \emph{on-chart}: the
 adapter was trained on the $k=6$ projections, so those projections are the
