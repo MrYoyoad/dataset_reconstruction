@@ -1852,19 +1852,25 @@ Releases already measured, rounded to FP32 / TF32 / FP16 / bfloat16 and back; `r
 per-image certificate residual re-read with the SVD tolerance at 10× the dtype's epsilon (a fixed tolerance would
 read rounding noise as *extra* rank). Strong model, `r = 16`, `k = 16`, eight images:
 
-| cell | `B_T` spectrum (rel., FP64) | recoverable by the certificate (`‖Ch_i‖/‖A_Th_i‖ < 1e-3`): FP64 → FP32 → TF32 → FP16 → bf16 |
+*(A first version of this table counted images with residual < 1e-3 — a threshold at or below the bfloat16 noise,
+which manufactures a zero by construction (caught by the design audit). The metric that answers the question is
+**separability**: a recorded image is still readable if its certificate residual sits ≥ 2 orders below the
+smallest residual among the invisible images of the same release; that gap is what an attacker with a
+per-release threshold reads.)*
+
+| cell | `B_T` spectrum (rel., FP64) | recorded images separable from the invisible band, FP64 → FP32 → TF32 → FP16 → bf16 |
 |---|---|---|
-| repeated, on-chart | 1, 2e-4, 1e-5, 9e-9, 4e-9, 1e-11, 2e-16, 1e-16 | 6 → 3 → 0 → 0 → 0 |
-| repeated, raw | (rank 6) | 6 → 1 → 1 → 1 → 0 |
-| confident, on-chart | (rank 3) | 3 → 2 → 1 → 1 → 0 |
-| hard1_diff, on-chart | (rank 4) | 4 → 2 → 2 → 2 → 0 |
+| repeated, on-chart | 1, 2e-4, 1e-5, 9e-9, 4e-9, 1e-11, 2e-16, 1e-16 | 6 → 3 → 0 → 0 → 0 (strongest recorded at 0.2 vs invisible 0.98) |
+| repeated, raw | (rank 6) | 6 → 2 → 1 → 1 → 1 (3e-3 vs 0.65) |
+| confident, on-chart | (rank 3) | 3 → 3 → 1 → 1 → 1 (2e-3 vs 0.93) |
+| hard1_diff, on-chart | (rank 4) | 4 → 2 → 2 → 2 → 1 (6e-3 vs 0.44) |
 
 Quantisation noise (relative): FP32 3e-8, TF32/FP16 2e-4–7e-4, bf16 1e-3–2e-3. The mechanism is the spectrum: the
 release's singular values fall steeply (second direction at 2e-4 of the first), so every direction below the
-quantisation noise is erased — FP32 keeps the directions above 3e-8 (three of six here), bfloat16 keeps one. **A
-bfloat16 adapter does not merely compress the release; it removes most of what an FP64 release exposes to the
-recipe-free channel.** Stated with its tolerance rule (10× epsilon) and its scope (the certificate channel; the
-full-residual channel at FP32 was not re-measured here).
+quantisation noise collapses into the invisible band — FP32 keeps what is above 3e-8, bfloat16 keeps the single
+dominant direction in three of four cells and nothing in the fourth. **A bfloat16 adapter narrows the recipe-free
+channel to at most one example; it does not close it.** Stated with its tolerance rule (10× epsilon) and its
+scope (the certificate channel; the full-residual channel at low precision is a separate measurement).
 
 ### Step 22 — a second cap on the certificate: at most `m − 1` images (found by the twenty-image cell)
 
