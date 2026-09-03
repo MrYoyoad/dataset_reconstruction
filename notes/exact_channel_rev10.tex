@@ -1104,7 +1104,25 @@ apart in exactly this regime, so the fidelity axis of \S\ref{sec:opens}'s rank
 ladder carries the classification accuracy and the representation error side
 by side rather than one standing for the other. This cell demonstrates the
 mechanism end to end; fidelity is the ladder's question, since $k$ may run to
-$r-N'-1$ and a rank-$64$ adapter admits a chart of forty-odd coordinates. The attacker needs the
+$r-N'-1$ and a rank-$64$ adapter admits a chart of forty-odd coordinates.
+
+The fidelity axis is measurable without running any attack, because whether a
+chart of dimension $k$ preserves a digit is a property of the chart and $k$
+alone --- no adapter, no release, no rank, no search. Measured$^\dagger$ (job
+719793, PCA chart fitted on $5\times10^4$ training images, evaluated on $2000$
+held-out test digits, strong $98\%$ model): the base model's accuracy on the
+$k$-projections runs $0.20$, $0.31$, $0.52$, $0.68$, $0.75$, $0.83$, $0.88$,
+$0.94$, $0.95$, $0.97$ at $k=2,4,6,8,10,12,16,20,24,32$ and is flat at $0.977$
+by $k=64$, against $0.979$ on the raw digits; the median representation error
+falls from $0.73$ to $0.29$ over the same range. Two marks turn this into the
+rank statement. At $r=16$ with seven recorded, the admissible charts $k\le8$
+keep $52$--$68\%$ of digits classifiable; at $r=64$ with eight recorded the
+admissible chart runs to $k=55$, where the projection is at the raw accuracy
+of the model. \emph{The LoRA rank is a leakage dial}, and it is the knob
+raised for utility. Note that the private batch's own $6$ of $8$ at $k=6$ sits
+twenty points above the held-out $52\%$: the batch is the illustration, the
+curve is the number, and quoting the first for the second would have
+overstated the case. The attacker needs the
 release, the public base model, and a chart; that is all, and in particular
 none of $(\eta,s,T)$, the labels, $N$, or a starting point near the answer.
 And the price of needing nothing is the lower line: $k<r-N'$ here rather than
