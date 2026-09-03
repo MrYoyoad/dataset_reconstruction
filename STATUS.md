@@ -254,6 +254,13 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   31–47 invisible, five at 6–9 recorded). And the MNIST PCA chart draws both foreign sets BETTER than MNIST
   itself (0.32 / 0.38 vs 0.52) — smoother images — so "drawn worse" failed; both effects favour the attacker on
   this data. Inversions + image grids in flight (644064).
+- **The margin-order rule (631392, verified 9/9): in every rank-deficient batch the sub-floor examples are exactly
+  the highest-margin ones — recording is decided by margin relative to batch-mates, nothing else.** Consequences
+  stamped in RESULTS: the "repeated labels are a first-order factor" reading is CONFOUNDED (different draws, different
+  margins; both draws rank 6 on raw digits); the σ₂/σ₁ trigger detects one dominant DIRECTION, not one recorded
+  example (ranks 1…8 among triggered batches). Pending: blur control for the "foreign sets are drawn better" claim
+  (smoothness, not provenance, may explain 0.32/0.38 vs 0.52); trajectory trace of image error vs residual within
+  one cell (needs the solver file free).
 - **RESOLVED (job 631392): the per-image imprint `‖C_i‖` is proportional to the accumulated residual — Kendall
   28/28 in every strong-model batch (971/1120 over all 40), ratio within one decade, and `rank B_T` = number of
   images with non-negligible imprint in all 40 batches.** Final form: the release records each example as a

@@ -1206,6 +1206,11 @@ by the between-class directions it learned first; the mid model has had to learn
 reach 95%). Left as an observation.
 
 **2. Repeated labels did not cause the gap — but they are a first-order conditioning factor on their own.**
+*[CONFOUNDED, 2026-09-03 late — the "distinct" and "repeated" draws are DIFFERENT IMAGES, not the same images
+relabelled; the repeated draw holds margin-46 and margin-37 digits against a maximum of 23 in the distinct one, and
+on raw digits both draws give rank 6 on the strong model. The differences below are draw effects; whether labels
+contribute anything beyond the margins is untested. What replaces it is the margin-order rule under "Step 18
+resolved": in all nine rank-deficient batches the sub-floor examples are exactly the highest-margin ones.]*
 On the weak encoder the gap *survives* distinct labels (397× vs 206×). Yet at fixed chart, distinct-vs-repeated
 `σ_min` is **19× (random), 40× (weak), 3.4× (mid), 8000× (strong)** better on the global chart, and
 `σ_N/σ_1(B_T)` moves by 2–4 orders in the same direction. The solve confirms it: the weak-encoder `k = 16` cell,
@@ -1455,6 +1460,18 @@ fits leaves no fingerprint; what leaks is what the model had to learn. The defen
 per-example accumulated residual during their own fine-tuning, which they compute anyway. Nothing about labels,
 feature overlap, or batch-mates enters.
 
+**The margin-order rule (verified on job 631392, all nine rank-deficient batches).** In every batch where
+`rank B_T < 8` on the strong model — ranks 1, 1, 1, 3, 3, 4, 6, 6, 6 — the examples whose imprint sits below the
+floor are *exactly* the `8 − rank` highest-margin examples of that batch, whether two drop or seven (checked
+image-by-image: 9 of 9 match). So **recording is decided by an example's margin relative to its batch-mates, and
+by nothing else**: not labels, not feature collinearity, not coupling. Consequences: (i) the label-multiset
+attribution in item 2 above is stamped confounded (different draws, different margins); (ii) all-same-label
+batches with every example wrong (Step 21: flowers, letters) have full rank, and the same-label batch with one
+wrong example (`hard1_same`) has rank 1 — labels do nothing that the margins do not already say; (iii) the
+`σ₂/σ₁` trigger of Step 20 detects one dominant *direction*, not one recorded *example*: among the nine
+triggering strong batches the rank is 1 in three, 3 in two, 4 in one, 6 in three, 8 in one — the trigger says
+"a release dominated by one direction", and the count of recorded examples is the rank, read separately.
+
 **Two corrections carried from the audits (2026-09-03, late).** (a) *The encoder ladder must be quoted per label
 set.* At the strong encoder, global chart, same `k` and seeds, eight distinct labels give `σ_min` 5.6e-12 with
 `rank B_T = 8` while the repeated draw gives 7.0e-19 with rank 6 — seven orders apart; a single "strong" rung
@@ -1523,8 +1540,11 @@ On the strong model the two *ordinary random draws* — not the margin-picked ba
 encoder's single trigger is `hard1_same` (all eight are 1s with residual ≈ 0.95 each; the spectrum is set by the
 feature geometry, not by margins) and it is rank 8 — the negative control for the read is job 650890's mid cell.
 
-**Read:** "one image carries the release" is a property of this strong model on ordinary data, 9 of 10 batches,
-not an anecdote; on the weaker models it never happens. Whether that one image can be recovered from random
+**Read:** a release *dominated by one direction* is a property of this strong model on ordinary data, 9 of 10
+batches, not an anecdote; on the weaker models it never happens. *(Stamped 2026-09-03 late: "one image carries the
+release" overstated the trigger — among the nine triggering batches `rank B_T` is 1, 1, 1, 3, 3, 4, 6, 6, 6; the
+trigger detects a dominant direction, the number of recorded examples is the rank. For the two ordinary draws the
+rank is 6 with one dominant image, which is what the most-leaking attack targets.)* Whether that one image can be recovered from random
 public-scale starts by residual ranking alone is job 650890 (per-start floor fractions, argmin-residual label
 and image, `k ∈ {16, 24, 25, 26}` toward the one-image line `k < m + r − 1 = 25`).
 
