@@ -4,6 +4,52 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Four pitfalls from writing the exact-channel theorem section (Rev 10 delta, 2026-09-03)
+
+Context: `notes/exact_channel_rev10.tex`, written theorem-first with an adversarial sibling review
+(yoado-6c, plus a third reader yoado-d0). Each item below was a false statement that reached a draft
+labelled `[THEOREM]` or a headline sentence, and was caught by the review, not by the author.
+
+**1. Rank deficiency at a point does not imply non-isolation.** The draft said "if `k ≥ m+r−N` then `DF`
+cannot have full column rank, so the truth is not locally isolated." Non-sequitur: `f(x)=x²` has `f'(0)=0`
+and an isolated fibre (first-order degeneracy can be second-order obstructed). The rescue is different in
+kind: the block bounds hold *everywhere* (A-block is `r×N` by construction, B-block has rank `N` by the
+closure theorem), so `rank Dρ ≤ cap` identically; then, off a proper analytic subvariety (closed, empty
+interior, measure zero — "open dense" alone does *not* give measure zero), the constant-rank theorem gives a
+positive-dimensional fibre through a.e. point. The honest statement is a.e., and it says nothing about how
+far the fibre extends: **non-isolation is not distance.**
+
+**2. The moving-target trap (hit three times in one day, by two sessions).** Writing the inverted map with
+its target fixed at the true `A_T U` instead of the candidate-dependent `A_T U_c(w)`. The attacker never
+sees `U`; they form `U_c(w)` for each candidate, so the residual's second block has a non-zero `w`-derivative
+`−A_T ∂U_c/∂w`. Drop it and the `T=1` budget comes out as `k ≤ m` instead of `m+r−N` — refuted by the
+measured full rank at `k=24`. Every count that omits the moving target is wrong. Corollary: per-block
+attribution stories ("A pays for X, B carries data") are false for the same reason; the count is a cap on
+block sizes and ranks only.
+
+**3. "Reproduces the release with the WRONG image" was an overclaim.** Past the capacity line the solver
+lands at the residual floor at a point that is not the truth — but that point is within 0.2–1.2% relative
+image error, and in 8 of 11 past-line cells inside the study's own 1e-2 recovery tolerance. A 0.3% error is
+a visually identical image. So `k < m+r−N` is a boundary of **exact identifiability, not (on this evidence)
+of leakage**. A fibre continuation (job 482338) walks the release-consistent set to a maximum 1.43% error with the
+residual at the floor at all 25 steps, rising then flattening in the 1.0–1.4% band — along ONE of 40 null
+directions, so a lower bound on the extent, not a diameter: non-isolation is established, and the line marks
+where *exact* recovery stops, not where recognisable recovery stops (below-line control pending). The lesson: the alias quadrant's y-axis was honest all along;
+the *labels* were not. Quote the error magnitude wherever the word "alias" appears. And do not read image
+error against arc length in joint `(w,X)` space — the `rN` nuisance coordinates advance the arc without
+moving the image; quote the maximum image error attained at the floor.
+
+**4. A "loose" measured bound was a theorem in disguise.** The B-block rank measured 216 against a cap of
+224 and was reported as slack. It is exactly `N((m−1)+r−N)`: under a softmax head the error columns sum to
+zero, so `1ᵀB_t = 0` for all `t` (induction from `B₀=0`; survives the whole (A3) closure class since
+`p(MMᵀ)M = M p(MᵀM)`), `B_T` lives in `1⊥ ⊗ Rʳ`, and the rank-`N` locus loses exactly `N` dimensions. That
+turns the *strict* inequality `k < m+r−N` from "two cells collapsed at equality" into a derivation, and it
+predicts Adam — which breaks the zero-column-sum property (`‖1ᵀB_T‖/‖B_T‖ ≈ 2.6` vs `1e-15`) — sits one unit
+higher; its B-block rank is 224 = the plain cap, exactly. When a measured rank sits a clean integer below a
+cap, look for the constraint before calling it slack.
+
+---
+
 ## The residual separates an information limit from a compute limit — foreground it above any success metric (2026-09-03)
 
 **The insight.** In any reconstruction that fits a forward model, the fitting residual classifies the

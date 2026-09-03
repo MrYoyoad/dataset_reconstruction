@@ -1,0 +1,603 @@
+% ===========================================================================
+%  Plan of Record — Revision 10 delta:  THE EXACT CHANNEL
+%  Theorem-first replacement for Rev 9 §3.5–3.8 (Primitive 3) + additions to
+%  §0, §15 (status ledger) and §16 (what to say to Gal).
+%
+%  Self-contained section. Either \input this file into the Plan of Record, or
+%  compile standalone with:
+%     \documentclass[11pt]{article}\usepackage{amsmath,amssymb,amsthm,graphicx,booktabs,hyperref}
+%     \newtheorem{theorem}{Theorem}\newtheorem{proposition}{Proposition}
+%     \newtheorem{corollary}{Corollary}\newtheorem{lemma}{Lemma}
+%     \theoremstyle{remark}\newtheorem{remark}{Remark}
+%     \begin{document}\input{exact_channel_rev10}\end{document}
+%  Figures: fig_counting_plane.png, fig_alias_quadrant.png, fig_spectrum.png
+%  (generators: scripts/rev10_figs/fig_*.py — CPU only, read the committed
+%   results/exact_inversion/*.jsonl and spectrum_*.pth; PNGs in figures/rev10/).
+%
+%  MERGE NOTE — numbering assumed from Rev 9 (so the merge is mechanical):
+%    Rev 9 Lemma 2 (factor invariants)      -> Theorem A here
+%    Rev 9 Theorem 1 + Corollary 1          -> Theorem B here
+%    Rev 9 Prop 5 (quotient ceiling)        -> Proposition F here
+%    Rev 9 Thm 3 / Prop 4 (pull-back)       -> cited as "Rev 9 Thm 3, Prop 4"
+%    Rev 9 Prop 8 (combined-system IFT)     -> the inverse-function step in Thm H
+%    Rev 9 §3.5–3.8 (conditional Primitive 3) -> REPLACED by §3.2–3.5 below;
+%         keep the curvature/KKT mixture as the recipe-UNKNOWN fallback (opens, item 2)
+%    Rev 9 §15 status ledger                -> append the rows in "Additions to the status ledger"
+%    Rev 9 §16 What to say to Gal           -> replace its lead with "What to say to Gal" below
+%  Hypotheses A1–A6 are stated IN FULL below (not by reference) for the Overleaf reader.
+%
+%  Status labels follow Rev 9: [THEOREM] proof exists; [VERIFIED†] reproduced in
+%  FP64 by the repo's own scripts (every † number is regenerated, never typed);
+%  [EMPIRICAL] to be measured; [CONJECTURE] stated with its obstructions.
+%  Provenance: every † number carries a job id (results/exact_inversion/*.jsonl,
+%  each row records seed, git hash, command line, host).
+% ===========================================================================
+
+\section{The exact channel: from the quotient to the full release}
+\label{sec:exact-channel}
+
+\paragraph{What changed since Revision 9.}
+Revision 9 proposed, as Primitive~3, a \emph{conditional} route past the
+quotient ceiling: a curvature/KKT gradient-mixture equation requiring a known
+metric $K$ and a remainder bound. That route is retained as the
+recipe-\emph{unknown} fallback (\S\ref{sec:opens}), but it is no longer the
+primary escape. The primary escape is \emph{exact}: under the same hypotheses
+that give the quotient, the whole release is a deterministic function of the
+private data plus $rN$ nuisance numbers, and that function can be inverted.
+The exact channel has its own capacity, $k < m + r - N$, which sits exactly
+$m$ above the quotient's $k < r - N$; the capacity is a dimension count whose
+strict form is now derived (the softmax simplex constraint,
+Proposition~\ref{prop:simplex}), it is measured to be sharp to one unit of
+$k$, and past it — and only past it — the release is reproduced at the floor
+by a point other than the truth. That is a boundary of \emph{exact
+identifiability}; on the present evidence it is \emph{not} a boundary of
+leakage, because the other point sits within $0.2$--$1.2\%$ of the true
+images (\S\ref{sec:measured}). The quotient's ceiling $r-N$ is therefore a
+fact about one channel, not a bound on the leakage.
+
+%----------------------------------------------------------------------------
+\subsection{Setting and the theorem chain we stand on}
+\label{sec:setting}
+
+A frozen layer $W_0\in\mathbb R^{m\times n}$ receives private representations
+$H=[h_1,\dots,h_N]\in\mathbb R^{n\times N}$, $\operatorname{rank}H=N$. LoRA
+adds $W_{\mathrm{eff}}=W_0+sBA$ with $A\in\mathbb R^{r\times n}$,
+$B\in\mathbb R^{m\times r}$; standard initialisation is $B_0=0$, $A_0$ random.
+The attacker receives the trained $(A_T,B_T)$ only. Let
+$U=\operatorname{orth}(H)$, $V=\operatorname{orth}(H^\perp)$ and write
+\[
+  X := A_0U\in\mathbb R^{r\times N},\qquad Y := A_0V\in\mathbb R^{r\times(n-N)} .
+\]
+
+\begin{theorem}[closure of the factor dynamics — Rev~9 Lemma~2]\label{thm:A}
+\textnormal{[THEOREM]} Under (A1)--(A3) below, for every $t$ there exist
+$P_t\in\mathbb R^{m\times N}$, $\widetilde M_t\in\mathbb R^{N\times N}$, $c_t$ with
+\[
+  B_t = P_t\,(A_0H)^{\!\top},\qquad A_t = A_0\bigl(c_tI + H\widetilde M_tH^{\!\top}\bigr).
+\]
+\end{theorem}
+
+\begin{theorem}[the quotient — Rev~9 Thm~1, Cor~1]\label{thm:B}
+\textnormal{[THEOREM]} $C := P_{\mathrm{row}(B_T)^\perp}A_T = c_T\,P_{(A_0H)^\perp}A_0$,
+hence $CH=0$, $\ker C=\mathcal H\oplus\ker A_0$ and
+$\operatorname{rank}C = r-N$ exactly.
+\end{theorem}
+
+\begin{proposition}[the quotient family has a ceiling — Rev~9 Prop~5]\label{prop:F}
+\textnormal{[THEOREM]} Eliminating only $A_0,P_T,\widetilde M_T,c_T$ from the
+terminal invariants imposes nothing on $H$ beyond $CH=0$ and the rank events.
+The quotient channel supplies exactly $r-N$ linear equations per private
+representation, and no rearrangement of the same invariants adds a row.
+\end{proposition}
+
+Theorems~\ref{thm:A}--\ref{thm:B} and the pull-back statements (Rev~9 Thm~3,
+Prop~4: $\operatorname{rank}(C|_T)=\min(r-N,\,k-d_\parallel)$ a.s., and local
+isolation when $\sigma_{\min}(L_x)>0$) are unchanged. Everything below is new.
+
+%----------------------------------------------------------------------------
+\subsection{Primitive 3, exact: the release is a function of the data and $rN$ numbers}
+\label{sec:reduction}
+
+\paragraph{Hypotheses.} The exact channel uses the quotient's hypotheses
+(A1)--(A4) — not (A5) — plus one that Revision~9 did not state, (A6).
+\begin{itemize}\itemsep2pt
+\item[(A1)] \emph{Fixed inputs.} The same $H$ reaches the adapter at every
+  step: no augmentation, no LoRA dropout, no trainable upstream block. This is
+  the load-bearing hypothesis; violating it is a structural collapse (the
+  invariant subspace becomes the union of per-step spans, $\mathrm{row}(B_T)\neq
+  \mathrm{col}(X)$, $CH\neq0$, $\operatorname{rank}C\to0$), not a degradation.
+\item[(A2)] $B_0=0$; $A_0$ drawn from an absolutely continuous law.
+\item[(A3)] \emph{Linear optimiser.} The update is a scalar linear filter of
+  current and past gradients and iterates (SGD, classical momentum, scalar
+  decoupled shrinkage), or a matrix map $M\mapsto p(MM^{\!\top})M$.
+  Coordinatewise Adam normalisation violates this (\S\ref{sec:opens}).
+\item[(A4)] $\operatorname{rank}P_T=N$ — stated as a \emph{hypothesis} of the
+  certificate, not a corollary. It needs $m\ge N$ and $N$ independent
+  accumulated residual trajectories; it fails for duplicated, already-fit or
+  degenerate-label examples, and when it fails $C$ is \emph{contaminated}
+  ($CH\neq0$), not merely weaker.
+\item[(A5)] $r\ge N+1$ — a hypothesis of the \emph{quotient} only (it is what
+  gives the certificate its $r-N\ge1$ rows). Theorem~\ref{thm:G} does not use it.
+\item[(A6)] \emph{Canonical basis.} The orthonormal basis $U_c(w)$ of a
+  candidate span is computed by a QR with $\operatorname{diag}R>0$. A bare QR
+  flips a whole basis column when a candidate feature crosses zero, so the map
+  below is not even continuous without this convention. It is a hypothesis of
+  the theorem, not an implementation detail.
+\end{itemize}
+
+\begin{theorem}[reduction: the release depends on $A_0$ only through $X$]\label{thm:G}
+\textnormal{[THEOREM]} Under (A1)--(A4) and (A6), the entire trajectory
+$(A_t,B_t,D_t,P_t,\widetilde M_t)_{t\le T}$ is a measurable function of
+$(X,H,W_0,\text{recipe})$ alone; $Y$ is never touched. Explicitly
+\[
+  A_T = X\,\Omega\,U^{\!\top} + c_T\,Y\,V^{\!\top},\qquad
+  B_T = P_T X^{\!\top},\qquad
+  \Omega = c_TI_N + R_H\widetilde M_TR_H^{\!\top},
+\]
+so that, with the private data written in manifold coordinates $w$
+($H=\varphi(\psi(w))$),
+\begin{equation}\label{eq:F}
+  \bigl(B_T,\;A_TU\bigr) \;=\; F(w,X),\qquad X\in\mathbb R^{r\times N}.
+\end{equation}
+The release is a deterministic function of the candidate data and $rN$
+nuisance numbers. (A5) is not used: the trajectory depends on $A_0$ only through
+$X=A_0U$ whatever the relative sizes, and the normal form goes through with
+$\operatorname{rank}X=\min(r,N)$; in particular $N\ge r$ — where the
+certificate is the zero operator — is \emph{permitted} by the reduction. It is
+untested here: every cell run has $N\le14<r=16$.
+\end{theorem}
+\begin{proof}[Proof sketch]
+By Theorem~\ref{thm:A}, $B_T$ and $A_TU$ are functions of $A_0H=A_0UR_H=XR_H$;
+the coefficient recurrences for $P_t,\widetilde M_t$ (Rev~9, proof of Lemma~2)
+are driven by $D_tH^{\!\top}$ and $A_0H$, hence by $X$; the block $Y=A_0V$ enters
+$A_T$ only as the additive term $c_TYV^{\!\top}$, which is orthogonal to $U$ and
+carries no data. The identity for $A_T$ follows by writing $A_0 = XU^{\!\top}+YV^{\!\top}$.
+\end{proof}
+
+This is Theorem~\ref{thm:B}'s insight used forward instead of cancelled: the
+quotient deletes the data-bearing part of $A_T$ to expose an $A_0$-free
+equation; the reduction keeps it and shows the unknown initialisation enters
+only through $rN$ numbers, which are then solved for. The attacker does not observe $A_TU$ — $U$ is the true span basis and is
+unknown — but $A_T$, and forms $A_TU_c(w)$ for a candidate $w$. The object
+actually inverted is therefore the \emph{residual map}
+\begin{equation}\label{eq:rho}
+  \rho(w,X) := \Bigl(\tfrac{B_{\mathrm{sim}}(w,X)-B_T}{\|B_T\|},\;\;\tfrac{\Xi_{\mathrm{sim}}(w,X)-A_TU_c(w)}{\|A_T\|}\Bigr),
+\end{equation}
+whose second block has a non-zero $w$-derivative through the moving target
+$U_c(w)$. The blocks are normalised by the \emph{fixed} released norms —
+$\|A_T\|$, deliberately not $\|A_TU_c(w)\|$, which moves with $w$ and could be
+shrunk by the optimiser; this scales the spectrum of $D\rho$, not its rank.
+Every Jacobian below ($D\rho$, written $DF$ for short) includes the
+moving-target term. The attack is $\min_{w,X}\|\rho(w,X)\|^2$ by Levenberg--Marquardt, with
+the gradient obtained by back-propagation through the unrolled recipe. \textnormal{[VERIFIED†]}: fed the
+true $(w,X)$, the simulator reproduces the released factors to relative error
+$7.4\times10^{-16}$--$8.5\times10^{-16}$ (jobs 395496, 396214--21).
+
+%----------------------------------------------------------------------------
+\subsection{The equation count, stated as a cap — and kept separate from sufficiency}
+\label{sec:counting}
+
+The number that matters is not ``how many entries the release has'' but the
+dimension of the \emph{image} of $F$. Two facts bound it.
+\begin{itemize}\itemsep2pt
+\item $A_TU_c\in\mathbb R^{r\times N}$ is $rN$ numbers; it can supply at most
+  $rN$ independent constraints, whatever it carries.
+\item $B_T=P_TX^{\!\top}$ has rank $N$ (Theorem~\ref{thm:A}) and, under a
+  softmax head, zero column sums (Proposition~\ref{prop:simplex}); it lies on
+  the manifold of rank-$N$ matrices in $\mathbf 1^\perp\otimes\mathbb R^r$, of
+  dimension $N\bigl((m-1)+r-N\bigr)$; it can supply at most that many.
+\end{itemize}
+Unknowns: $Nk$ (data, $k$ manifold coordinates per image) $+\,rN$ (the
+nuisance $X$). Hence
+\begin{equation}\label{eq:count}
+  \underbrace{N\bigl((m-1)+r-N\bigr)+rN}_{\text{cap on the release's degrees of freedom}}
+  \;\ge\;
+  \underbrace{Nk+rN}_{\text{unknowns}}
+  \;\Longleftrightarrow\; k\le (m-1)+r-N
+  \;\Longleftrightarrow\;
+  \boxed{\;k < m + r - N\;}
+\end{equation}
+(the $rN$ cancels exactly; the strict inequality is the integer form of
+$k\le(m-1)+r-N$). The deficit of one per image comes from the head, and it
+is a theorem, not a fit:
+\begin{proposition}[the simplex constraint]\label{prop:simplex}
+\textnormal{[THEOREM]} Under a softmax cross-entropy head, $B_0=0$ and (A3),
+$\mathbf 1^{\!\top}B_t=0$ for every $t$. Hence
+$B_T\in\mathbf 1^\perp\otimes\mathbb R^r$, and the locus of rank-$N$ matrices
+available to it has dimension $N((m-1)+r-N)=N(m+r-N)-N$: the plain rank-$N$
+cap carries a deficit of exactly $N$, one per image.
+\end{proposition}
+\begin{proof}
+The softmax error columns sum to zero, $\mathbf 1^{\!\top}D_t=0$ (each column
+is $p_i-y_i$ with both on the simplex). The $B$-gradient is
+$D_t(A_tH)^{\!\top}$, so $\mathbf 1^{\!\top}\nabla_B=0$; a scalar linear
+filter of such gradients preserves the identity, and so does the matrix map
+$M\mapsto p(MM^{\!\top})M=M\,p(M^{\!\top}M)$ — so the constraint holds on the
+whole (A3) closure class, Muon-type orthogonalisers included, and the strict
+form is not an SGD artefact; induction from $B_0=0$ gives
+$\mathbf 1^{\!\top}B_t=0$. Identify $\mathbf 1^\perp\otimes\mathbb R^r$ with
+$\mathbb R^{(m-1)\times r}$ by an isometry; rank-$N$ matrices there form a
+manifold of dimension $N((m-1)+r-N)$.
+\end{proof}
+\textnormal{[VERIFIED†]} two independent ways (job 479684):
+$\|\mathbf 1^{\!\top}B_T\|/\|B_T\|=3\times10^{-16}$--$1.9\times10^{-15}$
+across every SGD release on disk, all shapes, all $T$, all seeds; and the
+measured $B$-block rank at SGD $n=96,k=12,N=8$ is $216=N((m-1)+r-N)$
+\emph{exactly}, where the plain cap would be $224$. Before this derivation the
+strict form rested on two cells collapsing at equality; it now rests on the
+head. Compare the quotient's condition $k<r-N$: the exact channel's capacity
+is \emph{exactly $m$ higher per image}.
+
+\paragraph{Both halves of the cap are measured, and attained.}
+\textnormal{[VERIFIED†]} (job 479684) The per-block rank of $DF$ at the true
+$(w,X)$ measures the two supplies separately, rather than inferring them from
+where recovery fails:
+\begin{center}\small
+\begin{tabular}{@{}lcccc@{}}\toprule
+cell & $\operatorname{rank}DF$ (cols) & $\operatorname{rank}$ $B$-block / its cap & $\operatorname{rank}$ $A$-block / cap & unknowns\\ \midrule
+SGD $n{=}96,k{=}12,N{=}8$ & 224 / 224 (full) & \textbf{216} / $N((m{-}1){+}r{-}N){=}216$ (saturated) & 128 / $rN{=}128$ & $Nk{+}rN$\\
+Adam $n{=}96,k{=}12,N{=}8$ & 1632 / 1632 (full) & \textbf{224} / $N(m{+}r{-}N){=}224$ (saturated, plain) & 1536 / $rn{=}1536$ & $Nk{+}rn$\\
+SGD $n{=}32,k{=}6,N{=}4$ & 88 / 88 (full) & 88 / 124 (not binding) & 64 / $rN{=}64$ & $Nk{+}rN$\\ \bottomrule
+\end{tabular}
+\end{center}
+The $B$-block rank equals its cap in both $n=96$ rows, and the cap is
+regime-specific: SGD attains the simplex-constrained $N((m-1)+r-N)=216$, Adam
+attains the plain $N(m+r-N)=224$, because Adam's coordinatewise normalisation
+does not preserve zero column sums (\S\ref{sec:opens}, item~3). What looked
+like slack — $216$ against $224$ — is Proposition~\ref{prop:simplex}, tight.
+The $A$-block rank equals its cap in every row ($rN$ under SGD, $rn$ under
+Adam). The inequality~\eqref{eq:count} is therefore a measured equality of
+supplies, not only a boundary inferred from failures. (In the small SGD cell
+the $B$-block alone already carries all $88$ columns, so its cap is not
+binding there.)
+
+\medskip
+Two statements must be kept apart at every mention, because only the first can
+ever be measured directly:
+\begin{description}\itemsep2pt
+\item[Necessary (counting).] The block bounds hold \emph{everywhere}, not
+  only at the truth: the $A$-block is $r\times N$ by construction, and the
+  $B$-block has rank $N$ (Theorem~\ref{thm:A}) with zero column sums
+  (Proposition~\ref{prop:simplex}), so
+  $\operatorname{rank}D\rho\le N((m-1)+r-N)+rN$ identically. If $k\ge m+r-N$
+  this cap is below the number of unknowns. For real-analytic $\rho$ the set
+  where the rank is not maximal is contained in a proper analytic subvariety
+  — closed, with empty interior and Lebesgue measure zero — and off it the
+  constant-rank theorem makes the fibre of $\rho$ through $(w,X)$ a
+  submanifold of dimension $\ge Nk+rN-\bigl(N((m-1)+r-N)+rN\bigr)>0$.
+  Through almost every point there is therefore a \emph{continuum} of
+  release-consistent points \textnormal{[THEOREM]}. Two cautions. Rank
+  deficiency \emph{at a point} would not suffice ($f(x)=x^2$ has $f'(0)=0$
+  yet an isolated fibre); the statement is a.e.\ and rests on the bounds
+  holding everywhere. And a positive-dimensional fibre says nothing about how
+  far it extends: \emph{non-isolation is not distance}. Direct check
+  \textnormal{[VERIFIED†, extent pending]} (job 482338; $N=8$, $k=32$, $40$
+  numerically null directions): stepping along the $\sigma_{\min}$ singular
+  direction and retracting onto the fibre by a few LM steps keeps the residual
+  at $\sim\!10^{-30}$ at every one of $25$ continuation steps, while the image
+  error rises over the first $\sim\!20$ steps (locally non-monotone) and then
+  flattens in the $1.0$--$1.4\times10^{-2}$ band; maximum image error at the
+  floor $1.43\times10^{-2}$, past the study's own $10^{-2}$ recovery tolerance,
+  with the release reproduced exactly throughout. At the line itself
+  ($N=14$, $k=22$, $14$ null directions) the first five steps reach
+  $9.4\times10^{-3}$. \emph{The caveat belongs next to the number:} this walks
+  one direction out of forty — the continuation follows the least-constrained
+  singular direction, re-aiming as the fibre curves, but it is a single path
+  through a $40$-dimensional set — so $1.43\times10^{-2}$ bounds the fibre's
+  extent from \emph{below} and ``flattens'' describes this path, not the
+  fibre. (Quote the maximum image error at the floor, not a distance along the
+  path: arc length lives in the joint $(w,X)$ space, where the $rN$ nuisance
+  coordinates advance it without moving the image.) The below-the-line control
+  ($N=8$, $k=26$), where the traversal must be \emph{obstructed}, is
+  \textnormal{[EMPIRICAL — pending, same job]}; if the continuation walks as
+  freely below the line, this paragraph is withdrawn.
+\item[Generically sufficient (Theorem~\ref{thm:H}).] If $k<m+r-N$ then $DF$
+  has full column rank at almost every $(w,X)$, so the truth is locally
+  isolated. \textnormal{[THEOREM, given one witness]}.
+\end{description}
+
+\begin{remark}[the count is a cap, not a mechanism]\label{rem:attribution}
+It is tempting to read~\eqref{eq:count} as ``the $A$-block pins $X$ and the
+$B$-block carries the data''. That reading is false, and it failed twice in
+one day: the regression target $A_TU_c(w)$ moves with the candidate, so the
+$A$-block equation \emph{slaves} $X$ to $w$ rather than consuming $rN$
+equations to determine it; and $\Omega$ is data-dependent, so the $A$-block
+carries data as well. Neither fact changes~\eqref{eq:count}, because the cap
+is a statement about block \emph{sizes and ranks}, not about which block pins
+which unknown. Present the count only as a cap. A second trap, hit three times
+in one day: writing the map with its target fixed at the true $A_TU$ instead
+of the candidate-dependent $A_TU_c(w)$. The moving target is what couples $X$
+to $w$; omit it and every count that follows is wrong.
+\end{remark}
+
+%----------------------------------------------------------------------------
+\subsection{Generic local identifiability of the exact channel}
+\label{sec:thmH}
+
+\begin{theorem}[generic local identifiability]\label{thm:H}
+\textnormal{[THEOREM, modulo one explicit witness]} Under (A1)--(A4) and (A6),
+$\rho$ is real-analytic on the open set $\{\operatorname{rank}H_c=N\}$
+(non-empty in every cell tested; density would require $\varphi\circ\psi$ to
+be generically of full rank, verified only numerically)
+($\tanh$ generator and encoder, softmax cross-entropy, a finite composition of
+analytic update maps, and the canonical QR, which is analytic on the
+full-column-rank set). Suppose $k<m+r-N$. Then either $DF$ has full column
+rank at almost every $(w,X)$, or it is rank-deficient everywhere. A single
+point of full column rank therefore establishes: for almost every
+initialisation and almost every private data set, the true $(w,X)$ is locally
+isolated among release-consistent points — with no dependence on $r-N$.
+\end{theorem}
+\begin{proof}[Proof]
+The maximal minors of $D\rho$ are real-analytic functions on
+$\{\operatorname{rank}H_c=N\}$, which is connected because it is the complement
+of a proper analytic subset of a connected real-analytic manifold;
+their common zero set is an analytic subvariety, which is either the whole
+domain or of Lebesgue measure zero (identity theorem). Full column rank at one
+point excludes the first case. Local isolation at a full-rank point is the
+inverse-function theorem, exactly as in Rev~9 Prop~8; the proof pattern is
+that of Rev~9 Thm~3.
+\end{proof}
+
+\paragraph{The witness is explicit, at $T=1$.} Because $B_0=0$ forces
+$\nabla_A L_0=0$, one step gives $A_1=A_0$, hence $\Xi_{\mathrm{sim}}=X$ and
+\[
+  \rho_{T=1}(w,X) \;=\; \Bigl(-\eta\,D_0(w)\,R_c(w)^{\!\top}X^{\!\top}-B_T,\;\;\; X-A_TU_c(w)\Bigr),
+\]
+a closed form with no unrolling. The second block is \emph{not} independent of
+$w$: $\partial\rho_2/\partial w=-A_T\,\partial U_c/\partial w$, and it is
+exactly this term that makes the $T=1$ budget $m+r-N$ rather than $m$
+(writing the target as the fixed $A_TU$ instead predicts $k\le m$, which the
+measured full rank at $k=24$ refutes). Its Jacobian is measured full column
+rank at $(N,k)=(8,16),(8,20),(8,24)$ \textnormal{[VERIFIED†]} (job 479587). A
+symbolic verification of this Jacobian at one point is the remaining step to
+make Theorem~\ref{thm:H} unconditional at $T=1$; extending the a.e.\ claim
+to $T>1$ rides either on a witness per $T$ or on the measured
+$T$-independence of $\sigma_{\min}(DF)$ (next paragraph).
+
+\paragraph{A refuted conjecture, recorded because of \emph{why} it failed.}
+It was conjectured that the capacity is $T$-dependent — $k\le m$ at $T=1$
+(``the $A$-block hands $X$ over for free'') rising to $k<m+r-N$ at $T\ge2$.
+Measured \textnormal{[VERIFIED†]} (job 479587, $N=8$): $\sigma_{\min}(DF)$ at
+the truth is $7.26\times10^{-4},\,1.21\times10^{-4},\,3.15\times10^{-5}$ at
+$k=16,20,24$ for \emph{both} $T=1$ and $T=2$ (agreement to three significant
+figures), and collapses at $k=28$ for both ($3.3\times10^{-19}$,
+$1.3\times10^{-20}$). The capacity is $T$-independent and set by geometry,
+and the conjecture failed for precisely the reason in
+Remark~\ref{rem:attribution}. The witness at $T=1$ is a consequence, not a
+degeneracy.
+
+%----------------------------------------------------------------------------
+\subsection{The measured law: sharp to one unit of $k$ — a boundary of exact identifiability, not of leakage}
+\label{sec:measured}
+
+\textnormal{[VERIFIED†]} On the synthetic FP64 test-bed ($m=20$, $r=16$,
+$n=96$, tanh generator $\to$ $64$-d image $\to$ tanh encoder), with a
+three-way classification of every run —
+\emph{recovered}: residual at the $10^{-30}$ floor and worst-image error at
+machine precision; \emph{alias}: residual at the floor reached by a point
+other than the truth — image error $1.7\times10^{-3}$ to $1.2\times10^{-2}$
+in every such cell, i.e.\ sub-percent — with $\sigma_{\min}(DF)$ collapsed;
+\emph{search failure}: residual not at the floor —
+\begin{center}\small
+\begin{tabular}{@{}rccccc@{}}\toprule
+$N$ & line $k^\star=m+r-N$ & last $k$ identifiable ($\sigma_{\min}$) & first $k$ collapsed ($\sigma_{\min}$) & recovery bracket & jobs\\ \midrule
+4  & 32 & 30 ($1.2\times10^{-6}$) & 34 ($1.4\times10^{-19}$) & 30 / 34 & 469120\\
+8  & 28 & 27 ($1.5\times10^{-7}$) & \textbf{28} ($6.4\times10^{-19}$) & 27 / 28 & 467914, 479587\\
+12 & 24 & 22 ($5.8\times10^{-6}$) & 26 ($7.9\times10^{-21}$) & 22 / 26 & 469120\\
+14 & 22 & 21 ($1.8\times10^{-7}$) & \textbf{22} ($7.8\times10^{-19}$) & 21 / 22$^{\dagger\dagger}$ & 479684, 481079\\ \bottomrule
+\end{tabular}
+\end{center}
+At $N=8$ and $N=14$ the boundary is sharp to one unit of $k$ — on the
+\emph{outcome} (recovered at $k^\star-1$, alias at $k^\star$), not only on
+$\sigma_{\min}$, which drops $\sim\!12$ orders across the same single step —
+and the collapse lands exactly on $k=m+r-N$. The strict form of~\eqref{eq:count}
+is both the derived form (Proposition~\ref{prop:simplex}) and the measured form. ($^{\dagger\dagger}$At $(14,21)$ a single-restart run
+stalled at residual $5\times10^{-18}$ with $\sigma_{\min}=1.8\times10^{-7}$
+intact — identifiable, not yet solved; six restarts reach the floor,
+$9.5\times10^{-31}$, with error $2.8\times10^{-12}$. The local-vs-tractable
+distinction, exhibited and then closed, in one cell.)
+
+The failure \emph{signature} changes at the line and nowhere else. Below it,
+every failure observed in the programme has a residual above the floor — a
+search failure — and no alias has ever been seen. Above it, the solver
+reproduces the release to $\sim\!9\times10^{-31}$ from a point that is not
+the truth: exact identifiability is lost, cleanly separated from conditioning
+failures by the residual alone (Figure~\ref{fig:quadrant}).
+
+\emph{But the other point is close.} Past-line image errors are
+$1.7\times10^{-3}$ ($N=4$), $2.6$--$9.3\times10^{-3}$ ($N=8$),
+$6.4\times10^{-3}$ ($N=14$), $1.2\times10^{-2}$ ($N=12$); in $8$ of the $11$
+past-line cells every image is inside the study's own $10^{-2}$ recovery
+tolerance, and a $0.3\%$ relative error is a visually identical image. So the
+capacity law is a boundary of \emph{exact identifiability} and, on this
+evidence, \emph{not a boundary of leakage}: past it the attack still returns
+every image to sub-percent accuracy. The fibre is, however, traversable: the
+continuation of \S\ref{sec:counting} moves the image along it to a $1.4\%$
+error and then flattens, with the residual at the floor throughout — along
+one of forty null directions, so this bounds the extent from below. The
+capacity boundary therefore marks where \emph{exact} recovery stops, not
+where recognisable recovery stops; whether some other direction through the
+fibre goes further is the open question that decides whether the line has
+any privacy meaning at all. The $49$-cell grid
+$N,k\in\{2,\dots,14\}$ (jobs 396214--21, 456630) lies entirely inside the
+capacity region and recovers in every cell, crossing the quotient line
+$k=r-N$ throughout (Figure~\ref{fig:plane}).
+
+\begin{figure}[t]\centering
+\includegraphics[width=\linewidth]{fig_counting_plane.png}
+\caption{The $(N,k)$ plane with both boundaries. Solid: the quotient line
+$k=r-N$ (Theorem~\ref{thm:B}, Cor.). Dashed: the exact channel's capacity
+$k=m+r-N$ (\eqref{eq:count}; measured). Dots: the 49-cell grid, all
+recovered. Diamonds / crosses: the capacity sweeps' last identifiable and
+first collapsed cells at $N=4,8,12,14$; at $N=8$ and $14$ the transition is one
+unit of $k$ and lands on the dashed line. The vertical arrow is the $+m$
+of~\eqref{eq:count}: a cap on the release's degrees of freedom, not a
+mechanism (Remark~\ref{rem:attribution}).}\label{fig:plane}
+\end{figure}
+
+\begin{figure}[t]\centering
+\includegraphics[width=\linewidth]{fig_alias_quadrant.png}
+\caption{Final residual against worst-image error, every run classified by
+the three-way rule. Every recovered run (floor residual, machine-precision
+error) lies below the capacity line; every alias observed (floor residual
+from a different point, at $0.2$--$1.2\%$ image error) lies above it; search failures (residual above the floor) are
+the attacker-start and Adam arms, and the single-restart run of the $(14,21)$
+cell, which recovers at six restarts (job 481079: residual $9.5\times10^{-31}$,
+error $2.8\times10^{-12}$). No alias was observed below the line in the cells
+tested — the below-line region is sampled at a handful of $k$ per $N$ — and
+the region between the clusters is empty: the residual is a regime detector.}\label{fig:quadrant}
+\end{figure}
+
+%----------------------------------------------------------------------------
+\subsection{What the two channels say together}
+\label{sec:together}
+
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}\toprule
+channel & needs & capacity (unknowns per image it can pin)\\ \midrule
+quotient (Primitives 1--2) & $B_0=0$, linear optimiser; \emph{no} recipe, \emph{no} trajectory & $k<r-N$ \quad [THEOREM, Prop.~\ref{prop:F}]\\
+exact (Primitive 3) & the recipe (\S\ref{sec:opens}), $X$ solved for & $k<m+r-N$ \quad [necessary incl.\ strictness: THEOREM, Prop.~\ref{prop:simplex}; sufficient: Thm~\ref{thm:H}; measured sharp; exact identifiability, not leakage]\\ \bottomrule
+\end{tabular}
+\end{center}
+The recipe is the price of the extra $m$. The quotient reads only the
+trajectory-invariant $r-N$ rows of $A_T$ and uses $B_T$ solely for its row
+space; the exact channel reads all of $B_T$ and pays by simulating the
+trajectory. Consequently ``the adapter exposes only $r-N$ independent rows''
+is a true statement about the quotient and a false one about the leakage.
+
+%----------------------------------------------------------------------------
+\subsection{Open mathematics}
+\label{sec:opens}
+
+\begin{enumerate}\itemsep3pt
+\item \textbf{Local is not global.} Theorem~\ref{thm:H} isolates the truth in
+  a neighbourhood. Global injectivity of $F$ on the manifold — no distant
+  alias with identical release — is open, exactly as Rev~9 states for the
+  certificate. Empirically no alias has appeared below the line
+  \textnormal{[VERIFIED†]}; that is evidence, not a theorem.
+\item \textbf{The recipe as domain parameters.} The exact channel assumes the
+  recipe (optimiser family, $\eta$, $T$, $s$, decay) is known — the standard
+  assumption of the KKT-reconstruction line. Unknown recipe parameters enlarge
+  the domain of $F$ by $p$ scalars; the cap becomes
+  $N(m+r-N)+rN\ge Nk+rN+p$, still a dimension statement. Three claims are
+  \textnormal{[EMPIRICAL — running, jobs step14+]}: (i) misspecification is
+  self-detecting (a wrong recipe cannot reach the floor); (ii) a handful of
+  recipe scalars can be fitted jointly with $(w,X)$; (iii) non-identifiable
+  combinations such as $\eta T$ (small-step regime) are harmless. The
+  certificate is the recipe-\emph{free} channel, at the price of the cap
+  $r-N$; the curvature/KKT mixture of Rev~9 \S3.6--3.8 remains the
+  recipe-\emph{unknown} approximate route.
+\item \textbf{Adam breaks (A3), not identifiability.} Coordinatewise
+  normalisation breaks the closure of Theorem~\ref{thm:A}, so
+  Theorem~\ref{thm:G}'s reduction fails and the nuisance is the full
+  $A_0\in\mathbb R^{r\times n}$: the unknowns become $Nk+rn$ and the
+  equations $mr+rn$. \textnormal{[VERIFIED†]} (jobs 466915, 467622): the
+  Jacobian shapes show it directly — SGD $88=Nk+rN$ columns against Adam
+  $536=Nk+rn$ at $n=32$; $224$ against $1632$ at $n=96$ — and
+  $DF$ remains full column rank at the truth in every Adam cell. In one line
+  with the per-block ranks of job 479684: a $B$-block supply of $224$ against
+  SGD's $216$, twelve times the nuisance ($1536$ against $128$), the same
+  data unknowns. The $224$ is not incidental: Adam's entrywise division by
+  $\sqrt{v}+\epsilon$ does not preserve zero column sums, and
+  \textnormal{[VERIFIED†]} $\|\mathbf 1^{\!\top}B_T\|/\|B_T\|=2.6$--$2.7$ for
+  every Adam release against $10^{-15}$ under SGD. Adam saturates the
+  \emph{plain} cap $N(m+r-N)$ because it breaks the simplex constraint that
+  binds SGD to the smaller one (Proposition~\ref{prop:simplex}).
+  \textnormal{[PREDICTION — untested as a boundary]}: at the same $(m,r,N)$
+  the Adam capacity line is one unit \emph{higher} than SGD's,
+  $k\le m+r-N$ against $k\le m+r-N-1$; each cap is already attained in its
+  own regime in the table of \S\ref{sec:counting}. So
+  identifiability survives; what is lost is the cheap $rN$ reduction, and at
+  the $n=96$ work point the Adam solution is $\sim\!400\times$ worse
+  conditioned than SGD's ($\kappa=8\times10^5$ vs $2\times10^3$) with a much
+  smaller basin. Adam defends by difficulty, not by non-identifiability.
+\item \textbf{One Jacobian, three readings.} $DF$ at the truth is a single
+  object: its \emph{rank} is identifiability (Theorem~\ref{thm:H}); its
+  \emph{spectrum} is the local resolution ellipsoid
+  $\{h : h^{\!\top}(J^{\!\top}\Sigma^{-1}J)h<\tau\}$ — the anisotropic set of
+  image changes the release cannot distinguish; its \emph{whitened} form is
+  detectability, $d^2=2\,\mathrm{KL}$. The valley-width experiments of the
+  dataset-sensitivity programme are one-dimensional slices of this ellipsoid.
+  Figure~\ref{fig:spectrum} shows the spectrum at the truth for three cells
+  \textnormal{[VERIFIED†]} (job 479684): full column rank in every case (the
+  identifiability reading), the per-block spectra sitting at their caps (the
+  counting reading), and the Adam spread — $\kappa\approx8\times10^{5}$
+  against SGD's $2\times10^{3}$ at the same shape — as the conditioning
+  reading. Rendering the leading singular directions as image-space edits is
+  the natural next object \textnormal{[EMPIRICAL]}.
+
+\begin{figure}[t]\centering
+\includegraphics[width=\linewidth]{fig_spectrum.png}
+\caption{Singular spectrum of $DF$ at the true $(w,X)$ (black), with the
+$B$-block (dashed) and $A$-block (dotted) spectra, for SGD and Adam at the
+$n=96$ work point and for the small SGD cell. All three are full column rank
+above the $10^{-10}\sigma_{\max}$ tolerance; the block ranks equal their caps
+($N((m-1)+r-N)$ under SGD, $N(m+r-N)$ under Adam by
+Proposition~\ref{prop:simplex}, and $rN$ or $rn$), which is the per-block
+content of \eqref{eq:count}; the Adam spectrum is wider by $\sim\!400\times$ at the same
+shape — a conditioning penalty, not a loss of identifiability.}\label{fig:spectrum}
+\end{figure}
+\item \textbf{What actually stops the attack today is neither boundary.}
+  Within the capacity region the basin of attraction from perturbed-truth
+  starts exceeds a $65\%$ start error with no edge found
+  \textnormal{[VERIFIED†]} (job 459111), but starts an attacker can build from
+  the release alone (random, span, certificate, span-anchor) reach the floor
+  in $1$ of $20$ runs \textnormal{[VERIFIED†]}. The binding constraint is the
+  initialiser — the slot the framework reserves for a learned or population
+  prior — not information.
+\end{enumerate}
+
+%----------------------------------------------------------------------------
+\subsection{Additions to the status ledger (Rev~9 \S15)}
+\label{sec:ledger}
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}\toprule
+level & content & status\\ \midrule
+2$'$. Reduction & $(B_T,A_TU)=F(w,X)$, $X=A_0U$, $rN$ nuisance (Thm~\ref{thm:G}) & Theorem under (A1)--(A4),(A6); $N\ge r$ permitted, untested\\
+3$'$. Capacity & $k<m+r-N$ strictly, by counting~\eqref{eq:count} + Prop.~\ref{prop:simplex} & Theorem incl.\ strictness; measured sharp at $N=8,14$; exact identifiability, not leakage\\
+3$''$. Generic sufficiency & $DF$ full column rank a.e.\ below the line (Thm~\ref{thm:H}) & Theorem modulo the explicit $T=1$ witness\\
+5$'$. Alias signature & floor residual from a non-truth point only above the line; that point within $0.2$--$1.2\%$ & Verified$^\dagger$; fibre extent and global uniqueness open\\
+7$'$. Optimiser & Adam: identifiable, nuisance $rn$, $\kappa\!\uparrow$, basin$\downarrow$ & Verified$^\dagger$ mechanism; no closure theorem\\
+7$''$. Adam capacity & one unit higher than SGD (simplex constraint broken) & Prediction; block ranks $224$ vs $216$ consistent\\ \bottomrule
+\end{tabular}
+\end{center}
+
+%----------------------------------------------------------------------------
+\subsection{What to say to Gal (replaces the lead of Rev~9 \S16)}
+\label{sec:gal}
+
+Lead with the cancellation, then the count, then the theorem, then the honest
+open item — all four are mathematics.
+\begin{enumerate}\itemsep2pt
+\item \emph{The object.} $C=P_{\mathrm{row}(B_T)^\perp}A_T=c_TP_{(A_0H)^\perp}A_0$,
+  $CH=0$, $\operatorname{rank}C=r-N$: two released views of one private span;
+  projecting one with the subspace the other reveals cancels the seed and
+  leaves exactly $r-N$ attacker-visible equations.
+\item \emph{The same insight, forward.} The release depends on the seed only
+  through $X=A_0U$, $rN$ numbers (Theorem~\ref{thm:G}). Solve for them.
+\item \emph{The count.} The release has at most $N(m+r-N)+rN$ degrees of
+  freedom against $Nk+rN$ unknowns, so the exact channel's capacity is
+  $k<m+r-N$ — $m$ above the quotient's. It is a dimension count whose strict
+  form is a theorem (the softmax head costs one per image), it is measured
+  sharp to one unit of $k$, and past it — only past it — the release is
+  reproduced at the floor by a point that is not the truth. Say in the same
+  breath what that point is: within $0.2$--$1.2\%$ of the true images where
+  the solver lands, and a continuation along the release-consistent set
+  reaches $1.4\%$ and flattens — along one direction of forty, so a lower
+  bound on the extent. Non-isolation is established; every point on the
+  walked path is a sub-$1.5\%$ reconstruction; the line marks where exact
+  recovery stops, not where recognisable recovery stops. This is a boundary
+  of exact identifiability and, on this evidence, not a boundary of leakage —
+  the more interesting statement, and the honest one.
+  ``$r-N$'' bounds the quotient, not the leakage.
+\item \emph{The theorem.} Below the line, $DF$ is full column rank almost
+  everywhere (analytic-subvariety dichotomy plus one explicit $T=1$ witness);
+  the true data is locally isolated for a.e.\ seed and a.e.\ data set.
+\item \emph{What is open, said in the same breath.} Global uniqueness; the
+  recipe as parameters (and whether it is self-detecting); how far the fibre
+  past the line extends; Adam, which keeps identifiability, loses the $rN$
+  reduction, destroys the algebraic channel entirely and — by breaking the
+  simplex constraint — hands the attacker one unit of capacity back (a
+  prediction); and the fact that what stops the attack today is the
+  initialiser, not the information.
+\end{enumerate}

@@ -1,5 +1,34 @@
 # Project Status
 
+## Rev 10 delta — the exact channel, theorem-first, for the supervisor (2026-09-03; `notes/exact_channel_rev10.tex`)
+
+Self-contained LaTeX section (Rev 9 source is Mac-only; merge on Overleaf — a MERGE NOTE at the top maps every
+Rev 9 number used) + three figures in `figures/rev10/` (generators `scripts/rev10_figs/`, CPU, read the committed
+`results/exact_inversion/*.jsonl` and `spectrum_*.pth`). Written with an adversarial sibling review (yoado-6c,
+yoado-d0); four errors caught and fixed before shipping are logged in LESSONS_LEARNED.md (same date).
+
+What the section establishes, in order — every label as in the .tex:
+- **Thm G (reduction) [THEOREM]:** under (A1)–(A4),(A6) the release depends on the seed only through `X = A₀U`
+  (`rN` numbers); (A5) `r ≥ N+1` is the *quotient's* hypothesis, not the reduction's — `N ≥ r` is permitted,
+  untested. The inverted object is the residual map `ρ` with the moving target `A_T U_c(w)`, normalised by the
+  fixed `‖B_T‖`, `‖A_T‖`.
+- **The count [THEOREM incl. strictness]:** cap `N((m−1)+r−N) + rN ≥ Nk + rN ⟺ k < m+r−N`. The `−1` is now a
+  **Proposition (simplex constraint)**: softmax ⇒ `1ᵀB_t = 0` ∀t ⇒ the rank-`N` locus loses exactly `N` dims.
+  †`‖1ᵀB_T‖/‖B_T‖ = 3e-16…1.9e-15` on every SGD release; B-block rank 216 = `N((m−1)+r−N)` exactly (job 479684).
+  Necessary direction stated a.e. via constant rank off an analytic subvariety; sufficiency generic (Thm H,
+  analytic dichotomy + explicit `T=1` witness, †full rank at (8,16),(8,20),(8,24), job 479587).
+- **Measured sharp on the outcome:** N=8 recovered@27 / alias@28; N=14 recovered@21 (6 restarts, job 481079,
+  residual †9.5e-31, err †2.8e-12) / alias@22. The T-dependence conjecture is refuted (capacity T-independent).
+- **Corrected framing — exact identifiability, NOT leakage:** past-line solutions sit at †0.2–1.2% image error
+  (8/11 cells inside the study's own 1e-2 tolerance); a fibre continuation (job 482338) reaches a max †1.43% at the
+  floor over 25/25 steps and flattens in the 1.0–1.4% band — one of 40 null directions, hence a LOWER bound on the
+  extent. Non-isolation established; the line marks where exact recovery stops, not recognisable recovery.
+- **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
+  so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
+  higher than SGD's at the same `(m,r,N)`.
+- **Pending in the .tex as placeholders:** recipe-robustness arms R1–R3 (job 480679, running); the traverse's
+  final extent + the below-line control (job 482338).
+
 ## Exact LoRA inversion (framework Rev 10) — **A CAPACITY LAW: the simulation channel inverts iff `k < m + r − N`**, confirmed at N=4/8/12 (2026-09-03; jobs 469120 · 467914 · 466915/467622 · 459111 · 456630 · 452904 · 471272/473055/474132 · 408560-63; thread COMPLETE, all arms landed)
 
 Thread from an external theory bundle (`framework_rev10.pdf` theory · `results_rev9.pdf` finite-difference
