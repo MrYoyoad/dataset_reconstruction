@@ -773,27 +773,53 @@ why $P_T$ loses rank: those examples are not written into the adapter in any
 numerically meaningful way.
 
 \emph{But an example's own margin does not by itself decide what is recorded
-about it.} The $A$-dynamics couple the examples through the feature Gram
-$H^{\!\top}H$, so a hard example re-records the confident examples whose
-features overlap with it: on the strong model a correctly classified $3$ of
-margin $22$ (residual $4\times10^{-10}$) is nonetheless recorded at $1.6$,
-because a \emph{misclassified} $3$ of margin $-3.6$ shares the batch. Rank
-correlation between margin and $\|P_Te_i\|$ is $20$--$24$ concordant pairs
-of $28$, not $28$. The same coupling produces the rank loss: two same-label
-columns both carry the hard example's residual and become collinear. So the
-honest form of the mechanism is that a confident example is invisible in the
-release \emph{unless} a hard example with overlapping features shares the
-batch.
+about it}: the $A$-dynamics couple the examples through the feature Gram
+$H^{\!\top}H$, and rank correlation between margin and $\|P_Te_i\|$ is
+$20$--$24$ concordant pairs of $28$, not $28$. Three batches, chosen by
+margin under the strong model and then run through all four
+encoders$^\dagger$ (job 627166), separate the two effects.
 
-Two consequences. For the attacker, the capacity $m+r-N$ is an upper bound
-that a confident model does not spend. For the defender, the per-example
-residual at $W_0$ predicts what the adapter will carry — computable before
-any fine-tuning and without running any attack — subject to that coupling,
-which makes it a property of the batch and not only of the
-example.\footnote{The relation is not a proportionality: over $T=400$ steps
-the trajectory accumulates as the adapter moves, so $\|P_Te_i\|$ exceeds the
-initial residual by many orders. What is measured is the ordering, the
-dynamic range and the coupling, not a functional form.}
+\emph{A batch the model already fits leaves no fingerprint.} Eight
+confident digits, one from each of the highest-margin classes (margins
+$56$--$95$): on the strong model every column of $P_T$ lies between
+$5\times10^{-26}$ and $10^{-23}$ and $\operatorname{rank}B_T=3$. The same
+eight digits through the random, weak and mid encoders give rank $8$ with
+columns of order $1$. The adapter records nothing of a private set its base
+model already classifies confidently — and the witness is the \emph{rank},
+not the column size: projecting those digits onto the chart lowers some
+margins and lifts one column to $0.41$, while the rank stays at $3$, because
+what the confident examples then carry is one hard example's residual spread
+collinearly across their columns rather than information of their own.
+
+\emph{Overlapping features, not a shared label, is the coupling.} The
+natural guess is that a hard example lifts its same-class batch-mates. The
+opposite happens: a misclassified $1$ placed beside the seven
+largest-margin $1$s leaves them at the floor
+($10^{-15}$--$10^{-12}$, $\operatorname{rank}B_T=1$), while the same hard $1$
+beside confident digits of seven \emph{other} classes lifts every column
+above $5\times10^{-3}$ on-chart, with rank $4$. The reason is visible once
+stated: an example is misclassified precisely because its features are
+atypical of its label, so its Gram overlap with confident members of its own
+class is small. Same label is the wrong proxy for feature overlap.\footnote{Two
+caveats on this pair. The on-chart different-class batch contains two further
+low-margin images (margins $4.1$ and $15.6$) whose residuals also couple in,
+so the comparison is not perfectly matched; and columns at
+$10^{-14}$--$10^{-16}$ beside one of order $5$ are at the floor of the $P_T$
+recovery, not small measurements. The feature-Gram correlation that would
+make this a measurement rather than a reading is running (job 627574).}
+
+So the statement is: an example is recorded at roughly the scale of the
+model's residual on it, plus a coupling term from batch-mates whose
+\emph{features} overlap; a batch the model already fits leaves no
+fingerprint; and a hard example lends its residual collinearly, raising
+column norms without raising rank. For the attacker, the capacity $m+r-N$ is
+an upper bound that a confident model does not spend. For the defender, the
+per-example residual at $W_0$ and the batch's feature Gram — both computable
+before any fine-tuning and without running any attack — predict what the
+adapter will carry.\footnote{The relation is not a proportionality: over
+$T=400$ steps the trajectory accumulates as the adapter moves, so
+$\|P_Te_i\|$ exceeds the initial residual by many orders. What is measured is
+the ordering, the dynamic range and the coupling, not a functional form.}
 
 \paragraph{A free convergence certificate in image space.} The identity above
 is not only a result; it is an instrument. On an on-chart cell a converged
@@ -1139,10 +1165,11 @@ re-derivation, and each is itemised in the repository's lessons log.
   law has nothing to say about that regime — not because the count is wrong
   but because the adapter stops recording the easy examples at all. What is
   open now is the boundary between the two: at what accuracy, or what margin
-  distribution, does $\operatorname{rank}P_T$ begin to fall, and does a
-  defender's deliberately high-margin fine-tuning set suppress leakage as the
-  mechanism predicts. The margin meter makes that a cheap sweep rather than
-  an attack.
+  distribution, does $\operatorname{rank}P_T$ begin to fall? That a
+  deliberately high-margin fine-tuning set suppresses the release is now
+  measured (\S\ref{sec:measured}, the confident batch); what is not is how
+  the suppression degrades as the batch is diluted with harder examples, and
+  whether the feature Gram predicts the dilution quantitatively.
 \item \textbf{LoRA on more than one layer.} Adapting the first layer moves
   its own successors' inputs, so (A1) fails downstream: the closure of
   Theorem~\ref{thm:traj} does not hold, several adapters are released, and
