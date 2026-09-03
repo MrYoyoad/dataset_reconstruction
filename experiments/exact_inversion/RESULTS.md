@@ -1745,6 +1745,12 @@ a thresholded near-miss: over the 1,020 floor-reachers the image error to the ne
 are uneven (414, 383, 99, 63, 37, 13, 11): the basins differ in size by 40×, so "which image a start finds" is
 weighted, not uniform, and the rarest image needed ~180 starts.
 
+*What orders the basin sizes (job 716701, a lead, not a result — n = 7, only a perfect ordering would
+discriminate):* landings per recorded image against the imprint 17/21, against −margin 16/21, against `‖A_Tφ‖`
+15/21, against `‖x_on‖` 16/21; imprint and −margin agree with each other 20/21 (one latent quantity), `‖x_on‖` is
+independent of them (12/21) and orders the landings as well. So presence is the release's (the imprint law) while
+search cost is at best weakly ordered by it here; the rank ladder logs all four predictors per recorded image.
+
 This is the first recovery in the study that begins from nothing, and it is exact. Its scope: (i) *on-chart* —
 the fine-tuning images lie on the `k = 6` chart, so what is recovered is those chart images, which at six PCA
 components are blurs (the figure shows it); off-chart the certificate has no zero. (ii) The certificate budget is
