@@ -1861,6 +1861,19 @@ reading a solve — caught it one row late; the ladder and the twenty-image cell
 "Rank buys budget" and "the budget is reachable" remain separate claims; the fixed-`k` arm (`k = 8` at
 `r = 16 / 32 / 64`, run first in job 721391) decides whether the basin is governed by `k` or by distance below the line.
 
+**The fixed-`k` arm (job 721391, `confident` on-chart, `k = 8`, `N′ = 7`, 500 random starts each):**
+
+| r | line `r − N′` | distance below | starts on a private image | at the floor | found | argmin |
+|---|---|---|---|---|---|---|
+| 16 | 9 | 1 | **16.6%** | 16.0% | 6 of 7 | on a private image |
+| 32 | 25 | 17 | **74.4%** | 70.0% | 7 of 7 | on a private image |
+| 64 | 57 | 49 | *(pending)* | | | |
+
+Same chart, same images, same `k`, same starts: the basin quadruples when the same `k` sits seventeen rather than
+one below the line. **Distance below the certificate line governs the basin, not `k` itself — rank buys
+reachability as well as budget.** (`mnist_control` at `r = 16, k = 8` sits *at* its line — all eight recorded, line
+8 — and shows the at-line regime: 34% of starts at the floor, 4% on a private image, argmin wrong.)
+
 **Bracket, `k = 8` (job 706721, on-chart, `N′ = 7`, line 9, one below):** 2,000 starts → 345 at the floor, 364 landed on
 a recorded image (19 landed at objective ~1e-17, converging), all seven found, argmin on a recorded image at
 3.6e-15, no spurious zero. **Basin 18% at `k = 8` against 51% at `k = 6`** — narrowing toward the line, open.
