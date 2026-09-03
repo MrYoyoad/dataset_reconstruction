@@ -92,6 +92,10 @@ bracket. Next step 1 below is DONE; continue from step 2.
   (random head row) done: reproduces the zero row. Script freeze: certificate.py / lora_exact_inversion.py /
   subset_and_ood.py / vae_chart.py until 753886 and 749362 finish (multi-invocation); train_precision.py is safe to edit
   between its jobs (single invocation each).
+- **CLOSED (764976):** letters k=32 from the fp32-TRAINED release at the tight tolerance — ALL 8 from random starts
+  (32.8%); the unqualified sentence holds at the instance-identifying chart. **Step 26 (771329) k=16 so far:** recipe
+  route recovers fp32-trained letters to 2e-6; on bf16-trained it lands on an ALIAS (residual 240× below the truth's
+  floor, wrong images) — recorded, recoverable by neither route we ran, an open; fp16 and k=32 rows pending.
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget

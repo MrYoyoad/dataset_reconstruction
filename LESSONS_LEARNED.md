@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## An arithmetic mismatch between training and simulation produces the ALIAS verdict, not the search-failure one (2026-09-03)
+
+- **Presented as:** the recipe route (FP64 simulator, near start) against a bf16-TRAINED letter release ended at residual 5.8e-4 — 240× *below* the residual at the truth (0.138, the mismatch floor) — with images .09 … .77 from the truths (job 771329).
+- **Cause:** the FP64 recipe explains a bf16-accumulated release better with different images than with the true ones; the mismatch is not noise around the truth but a systematic displacement, so the solver converges (well) to the wrong point. At fp32 mismatch (4e-7) the same displacement is 2e-6 — harmless.
+- **Rule:** "residual well below the truth's residual, wrong image" is the alias form even when the residual is not zero; before reading it as a property of the release, check the residual AT the truth — if it is above the endpoint's, the simulator and the release disagree about the recipe (here: its arithmetic). The stronger, matched-arithmetic attacker is a different solver (non-differentiable loop) and was not run; record it as an open, never as protection.
+
 ## Training precision acts through accumulation and through the UPDATE's range, not the residual's (2026-09-03)
 
 - **What was pre-registered:** fp32 training keeps a 1e-18 release with the own-class rows lost (√2 lower); fp16 training kills residuals with margin > 16.6.
