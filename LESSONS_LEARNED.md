@@ -51,6 +51,14 @@ predicts Adam — which breaks the zero-column-sum property (`‖1ᵀB_T‖/‖B
 higher; its B-block rank is 224 = the plain cap, exactly. When a measured rank sits a clean integer below a
 cap, look for the constraint before calling it slack.
 
+**5. Describe a protocol from the code, not by inference.** Writing up the recipe probe (η, weight decay,
+optimiser family from one continued training step) I inferred "with the data known" because the attacker
+cannot compute ∇_B L on the private batch. Wrong: the probe trains the released adapter on the attacker's OWN
+batch with their own labels (`calibrate_recipe.py:60-71`, `schedule_probe.py:86-98`), so every regressor is
+public and no private data enters. The inferred wording would have made a clean, non-circular result look
+circular — the opposite of its point. Before stating what an experiment assumes, read the lines that build
+its inputs.
+
 ---
 
 ## The residual separates an information limit from a compute limit — foreground it above any success metric (2026-09-03)
