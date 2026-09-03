@@ -2129,3 +2129,25 @@ and k = 24 and loses rank (8 → 7 → 6)** — once the chart is faithful enoug
 projected control digits confidently and records almost nothing of them (Step 18's law, now along k). The
 assertion is being floored at roundoff (`1e-10·‖B_T‖ + 1e-13`) and the five missing control cells resubmitted; the
 k = 16 control row (88.8%, 8 of 8) stands — it was on a 3.7e-2-scale, rank-8 release.
+
+### Step 24 (pre-registered, job 753371): the headline cell from a QUANTISED release
+
+The headline (Step 23) was measured from an FP64 release; nobody ships adapters that way. The cell's eight images
+are recorded across **twelve orders**: relative imprints 1.0, .87, 9.5e-4, 2.2e-4, 6.7e-7, 4.4e-10, 6.6e-11,
+3.0e-12 — and all eight were recovered from random starts. Step 21 measured what each format keeps of the
+imprint band (relative roundoff: fp32 1.2e-7, tf32/fp16 9.8e-4, bf16 7.8e-3). This step joins the two: the same
+cell (confident, on-chart, r = 64, k = 32, 500 random starts, 300 iterations) with `(A_T, B_T)` round-tripped
+through fp64 / fp32 / tf32 / fp16 / bf16 after training (`--release-dtype`), everything downstream in FP64 on that
+file; the imprints and the recorded set stay the FP64 truth (found is always out of eight). Second variable: the
+certificate tolerance (`--tol`, the attacker's knob): the headline's 1e-12 and a noise-matched 10·ε (fp32 1.2e-6,
+tf32/fp16 1e-2, bf16 8e-2). Nine cells.
+
+**Prediction (band rule):** found = the images whose relative imprint exceeds the format's roundoff: fp64 8;
+fp32 4–5 (the 6.7e-7 image sits at ~5ε); tf32/fp16 2–3 (9.5e-4 ≈ ε); bf16 2. At tolerance 1e-12 the quantised
+spectrum is noise-filled (N′ → m = 10, line 54, still above k = 32), no start reaches the 1e-20 floor, but the
+landing count should follow the same band rule because a weak image's direction has left the row space. Falsifiers:
+8 found at fp32 (the certificate is more robust than the spectrum says); 0 found at bf16 (landings need the floor,
+not only the null space). The landing threshold stays 1e-2 on-chart image error at every precision.
+
+*Table note for the ladder (Step 23):* the 28.6% per-image basin at r = 64, k = 16 is the N′ = 3 dip cell (the other
+five imprints are ~1e-29 there): three targets, coarse normalisation — not a peak.
