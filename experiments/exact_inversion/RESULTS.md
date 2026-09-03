@@ -2513,4 +2513,10 @@ half-precision-trained adapter as well as the chart allows → "not protection" 
 O(1) (the 12% inconsistency amplified through σ_min ~1e-6 … 1e-5 into the weak directions) → an extraction gap for
 both routes we have — **still not protection**: the release provably encodes the class (learned margins, rank 8,
 O(1) imprints) and a matched-arithmetic attacker (simulating in bf16, non-differentiable, not run) is strictly
-stronger and untested. fp32-trained (rel. dev. 4e-7) is the control expected to recover to ~1e-6.
+stronger and untested. fp32-trained (rel. dev. 4e-7) is the control expected to recover to ~1e-6. *Per-letter read (yoado-ed):* the
+row-space perturbation of each letter under half-precision training is its certificate residual at the truth in
+the Part A rows (bf16 0.04 … 0.23, fp16 0.014 … 0.17); it is read beside that letter's recipe-route endpoint error
+(`err_vs_chart_per_image`). Recovery of the 2%-moved letters with failure of the 25%-moved ones would make the
+boundary quantitative and reusable; recovery of all regardless would expose the certificate's 1e-3 direction
+requirement as that route's own fragility rather than a property of the release. Outcome (b) is written as an
+*open* (two routes in one afternoon), not as a boundary.
