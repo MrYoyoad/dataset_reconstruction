@@ -1748,8 +1748,14 @@ weighted, not uniform, and the rarest image needed ~180 starts.
 *What orders the basin sizes (job 716701, a lead, not a result — n = 7, only a perfect ordering would
 discriminate):* landings per recorded image against the imprint 17/21, against −margin 16/21, against `‖A_Tφ‖`
 15/21, against `‖x_on‖` 16/21; imprint and −margin agree with each other 20/21 (one latent quantity), `‖x_on‖` is
-independent of them (12/21) and orders the landings as well. So presence is the release's (the imprint law) while
-search cost is at best weakly ordered by it here; the rank ladder logs all four predictors per recorded image.
+independent of them (12/21) and orders the landings as well. Under the null, Kendall's τ at n = 7 has standard
+deviation 0.32, so 17/21 (τ = 0.62) is under two of them and, as the maximum over four correlated candidates, is
+what nothing looks like; and among the three largest imprints — where noise on `‖C_i‖` is negligible — the
+ordering inverts (imprint 0.59 → 63 landings, 0.20 → 383). **The null is the result:** presence is the release's
+(the imprint law); search cost is not ordered by it on this cell. The limiting resource is recorded images per
+cell, not starts: job 717588 runs one cell with twenty recorded images (strong model, `r = 64`, 20 optdigits — all
+recorded per Step 19 — on-chart, 2,000 starts, `k ∈ {8, 16, 24, 32}`), 190 pairs in one run, and doubles as
+"find some among twenty". Across ladder cells the per-cell taus are pooled, never the raw (image, landings) pairs.
 
 This is the first recovery in the study that begins from nothing, and it is exact. Its scope: (i) *on-chart* —
 the fine-tuning images lie on the `k = 6` chart, so what is recovered is those chart images, which at six PCA
