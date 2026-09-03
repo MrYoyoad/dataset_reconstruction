@@ -667,7 +667,19 @@ because the PCA chart's own representation error of these digits at $k=17$
 is $0.42$ — the previous paragraph's result reproducing itself on a trained
 backbone. The backbone is learned but weak (these checkpoints are trained on
 small balanced subsets for the reconstruction setting); a strong encoder is
-a different checkpoint and a separate run.
+a different checkpoint and a separate run (\S\ref{sec:opens}).
+Figure~\ref{fig:cond} puts the two encoders side by side.
+
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.92\linewidth]{fig_trained_conditioning.png}
+\caption{$\sigma_{\min}$ of $D\rho$ at the truth against $k$, for the random
+frozen encoder and for the trained backbone with unseen test digits, at
+matched rank $r=16$ and the same line $k<18$. The line does not move: both
+collapse at $k=18$. What changes is the distance to it — a factor $7$ at
+$k=6$ and $1100$ at $k=17$ — and with it the budget the solver needs (stars:
+cells reaching the residual floor at $80$ iterations, and those needing
+$300$).}\label{fig:cond}
+\end{figure}
 
 \paragraph{The boundary is about the chart, not the image.} Same digits,
 same $N=8$, $m=10$, $r=16$, line $k<18$; three charts at matched $k$\textsuperscript{$\dagger$}
@@ -953,14 +965,22 @@ re-derivation, and each is itemised in the repository's lessons log.
   whose valley widths are one-dimensional slices of the ellipsoid
   (Figure~\ref{fig:spectrum}). Rendering its leading directions as image
   edits is the natural next object.
-\item \textbf{A stronger backbone, and LoRA on more than one layer.} The
-  trained-model cell of \S\ref{sec:measured} uses a weak learned encoder and
-  adapts the head only, the theorems' setting; the line held and the
-  conditioning penalty was measured. Untested: a strong encoder (DINO/CLIP
-  features with an adapted head), where the penalty may be larger; and LoRA
-  on every layer, where the first adapted layer moves its own successors'
-  inputs, (A1) fails downstream, several adapters are released, and neither
-  the count nor identifiability is derived — an empirical cell, queued.
+\item \textbf{A stronger backbone.} The trained-model cell of
+  \S\ref{sec:measured} adapts the head only — the theorems' setting — on a
+  backbone of $78.5\%$ test accuracy. The line held; the conditioning
+  penalty, $7\times$ at $k=6$ rising to $1100\times$ at $k=17$, is plausibly
+  a function of \emph{how trained} the features are, since a trained encoder
+  earns its accuracy by discarding within-class variation and that is
+  exactly what shrinks $\sigma_{\min}$. A well-trained encoder could
+  therefore be markedly worse conditioned, and every realistic release sits
+  on one. Untested; the clean version is the same architecture retrained to
+  high accuracy, so encoder quality moves alone.
+\item \textbf{LoRA on more than one layer.} Adapting the first layer moves
+  its own successors' inputs, so (A1) fails downstream: the closure of
+  Theorem~\ref{thm:traj} does not hold, several adapters are released, and
+  neither the count nor identifiability is derived. Running as an empirical
+  cell (job 608693, two arms: seeds known as an oracle, seeds unknown as the
+  honest attack); whatever it shows, it stays outside the theorems.
 \item \textbf{What stops the attack today is neither line.} Inside the
   capacity region, LM from perturbed-truth starts recovers up to $86\%$ start
   error, with one budget-limited failure at $81\%$ (residual $8\times10^{-5}$
