@@ -1371,3 +1371,29 @@ roughly the scale of the model's residual on it, plus a coupling term from the r
 lends its residual to the batch in a way that is collinear across columns — it raises column norms without
 restoring rank. For the defender: the per-example residual at `W₀` and the feature Gram of the batch, both
 computable before release, predict what the adapter will carry.
+
+### Step 18, the Gram measurement (job 627574) — labels settled; "feature overlap" is not the right description either
+
+`margin_check.py` with per-image feature cosines (penultimate space, unit-normalised) to the largest-residual image
+and to own-label mates, next to the `P_T` column norms; all batches of the previous section plus the two draws.
+
+- **Why the same-class batch is not lifted, measured:** under the strong model the misclassified 1 has feature
+  cosine **0.22–0.30** (raw) / 0.12–0.24 (on-chart) with the seven confident 1s; the *same digits* have cosine
+  0.63–0.72 under the weak model and 0.43–0.96 under the random encoder. A 98% model has moved a misclassified
+  1 away from the 1-cluster in feature space — that is what misclassifying it *is* for a linear head — so it has
+  nothing to lend its classmates. Label is settled as the wrong proxy.
+- **But feature cosine to the hard image does not order the columns either:** Kendall concordance across the
+  ten strong-model batches is 17, 13, 10, 16, 6, 14, 14, 11, 13, 6 of 21 — above chance on average, decisive
+  nowhere. What *does* order them in the lifted batch (`hard1_diff`, on-chart, rank 4) is each image's **own
+  step-0 residual: 20 of 21 pairs** — while the magnitudes sit far above those residuals (a margin-71 digit with
+  residual ~1e-31 has a column of 5e-3).
+- **Reading, now to be measured rather than argued (job 628xxx, `step56_traj`):** the order is preserved and
+  the magnitudes are lifted uniformly, which is what happens if training on the hard example *shifts every
+  image's margin* by a similar amount — the adapter is shared, and a residual-O(1) example drives O(1) updates
+  for 400 steps. The step-0 residual is the right predictor only when training does not disturb the example.
+  The exact quantity is the **accumulated residual along the trajectory** (`P_T` is a linear function of it),
+  which the trace job records per image (sum, max, final; margin at the end and its minimum along the way),
+  gated against `train_release` to 1e-12. Prediction: column norm ∝ accumulated residual (concordance ~21/21);
+  confident images in a batch with a hard example show a margin drop of tens of units, those in an all-confident
+  batch show none. For the defender this is better news than the step-0 version: the accumulated per-example
+  residual is something they *already compute* while fine-tuning.

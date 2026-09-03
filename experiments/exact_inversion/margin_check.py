@@ -25,6 +25,26 @@ from experiments.exact_inversion.truth_spectrum import pick_digits
 torch.set_default_dtype(torch.float64)
 
 
+def traced_release(H, A0, W0, y, m, T, lr):
+    """The SGD branch of lora_exact_inversion.train_release, copied verbatim so the per-image residual and
+       margin can be read ALONG the trajectory (train_release returns only the endpoint and is under running
+       jobs, so it is not edited).  Gated in main(): the copied loop must reproduce train_release's B_T."""
+    N = H.shape[1]; r = A0.shape[0]; ar = torch.arange(N, device=H.device)
+    Y = torch.eye(m, device=H.device)[y].T
+    A = A0.clone(); B = torch.zeros(m, r, device=H.device)
+    res, mar = [], []
+    for t in range(1, T + 1):
+        z = W0 @ H + B @ (A @ H)
+        R = torch.softmax(z, dim=0) - Y
+        res.append(torch.linalg.norm(R, dim=0))
+        zy = z[y, ar]; zo = z.clone(); zo[y, ar] = -float("inf"); mar.append(zy - zo.max(0).values)
+        D = R / N
+        gB = D @ (A @ H).T
+        gA = B.T @ D @ H.T
+        B, A = B - lr * gB, A - lr * gA
+    return A, B, torch.stack(res), torch.stack(mar)                 # residual, margin: (T, N)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--encoder", action="append", default=[])
@@ -95,6 +115,9 @@ def main():
             margin = zy - zo.max(0).values
             A0 = (sigma0 * torch.randn(a.r, bb.n, generator=torch.Generator().manual_seed(1000 + a.a0_seed))).to(dev)
             A_T, B_T = train_release(H, A0, bb.W0, y, bb.m, a.T, a.lr, "sgd")
+            _, B_tr, res_tr, mar_tr = traced_release(H, A0, bb.W0, y, bb.m, a.T, a.lr)
+            gate = float(torch.linalg.norm(B_tr - B_T) / torch.linalg.norm(B_T))
+            assert gate < 1e-12, f"traced loop does not reproduce train_release: {gate:.3e}"
             U, _ = qr_canon(H); Xs = A0 @ U                                   # r x N
             P_T = B_T @ Xs @ torch.linalg.inv(Xs.T @ Xs)
             colP = torch.linalg.norm(P_T, dim=0); sB = torch.linalg.svdvals(B_T)
@@ -108,7 +131,10 @@ def main():
                 row = dict(encoder=label, labels=lmode, pick=a.pick, image=i, y=int(y[i]), margin_W0=float(margin[i]),
                            residual_W0=float(res0[i]), P_T_col_norm=float(colP[i]),
                            P_T_over_res0=float(colP[i] / res0[i]) if float(res0[i]) > 0 else None,
-                           P_T_col_rel=float(colP[i] / cmax), P_T_floor_rel=1e-16, hard_image=hard,
+                           P_T_col_rel=float(colP[i] / cmax), P_T_floor_rel=1e-16, hard_image=hard, trace_gate=gate,
+                           res_traj_sum=float(res_tr[:, i].sum()), res_traj_max=float(res_tr[:, i].max()),
+                           res_final=float(res_tr[-1, i]), margin_final=float(mar_tr[-1, i]),
+                           margin_min_traj=float(mar_tr[:, i].min()), margin_shift=float(mar_tr[:, i].min() - margin[i]),
                            feat_cos_to_hard=float(G[i, hard]),
                            feat_cos_max_other=float(max(G[i, j] for j in range(a.N) if j != i)),
                            feat_cos_same_label_max=float(max([G[i, j] for j in range(a.N) if j != i and int(y[j]) == int(y[i])] or [float("nan")])),
