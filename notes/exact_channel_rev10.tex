@@ -1090,15 +1090,21 @@ Three scopings, all of which matter, and the first is severe. The batch is
 projections are the private data and are what is recovered exactly. Against a
 raw digit the error is the chart's, which is the factorisation of
 \S\ref{sec:measured} and not a defect of this cell --- but at $k=6$ that
-factor is doing almost all the work. Six coordinates do not preserve the class
-of a digit: in this batch the projections of $0$, $1$ and $7$ remain
-identifiable while those of $3$, $4$, $5$ and $6$ all render as a similar
-blob. So ``recovered exactly'' means recovered exactly as a six-number object
-which, for several of these examples, no longer identifies the original digit.
-The mechanism is what this cell demonstrates end to end; the fidelity is the
-rank ladder's question, since $k$ may run to $r-N'-1$ and a rank-$64$ adapter
-would admit a chart of forty-odd coordinates where the projection does keep
-its identity. The attacker needs the
+factor is doing much of the work, though less than the eye suggests. The
+projections look like blurred blobs, and by inspection several appear to have
+lost their digit; the base model disagrees, reading $6$ of the $8$ as their
+own class ($4\to9$ and $5\to8$ are the failures), so $5$ of the $7$ recorded
+examples keep their class through a six-coordinate chart. Two different
+questions hide behind ``recognisable'' and they should be reported separately.
+Class survival --- what a classifier reads off the projection --- is high even
+here. Instance survival --- whether \emph{this} handwriting is identifiable
+rather than a generic member of its class --- is what the representation error
+measures, and it is large at $k=6$. Privacy cares about both, and they come
+apart in exactly this regime, so the fidelity axis of \S\ref{sec:opens}'s rank
+ladder carries the classification accuracy and the representation error side
+by side rather than one standing for the other. This cell demonstrates the
+mechanism end to end; fidelity is the ladder's question, since $k$ may run to
+$r-N'-1$ and a rank-$64$ adapter admits a chart of forty-odd coordinates. The attacker needs the
 release, the public base model, and a chart; that is all, and in particular
 none of $(\eta,s,T)$, the labels, $N$, or a starting point near the answer.
 And the price of needing nothing is the lower line: $k<r-N'$ here rather than
