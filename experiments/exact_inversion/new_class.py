@@ -14,13 +14,19 @@ come from the CIFAR-100 TEST split (unseen by the backbone, which is CIFAR-10-on
            cells (a) on-chart and (b) raw with each chart; image grids (32 x 32 x 3) saved.
   line     k < m + r - N = 19 (m = 11) / 18 (m = 10) at r = 16, N = 8.
 
+  --domain mnist: the same on the STRONG (98%) MNIST model with an EMNIST letter ("a") as class 10 -- puts both
+  mechanisms on ONE encoder: confident digits (imprints ABSENT) against a new class (imprints PRESENT, aligned).
+  Chart for the attacker: PCA on the 4,800 public EMNIST train images of that letter; private letters from the
+  EMNIST test split.  (EMNIST idx images are stored transposed; corrected on load.)
+
   python -m experiments.exact_inversion.new_class --ks 16
+  python -m experiments.exact_inversion.new_class --domain mnist --model models/exact_inversion/mnist_mlp_strong.pth
 """
 import argparse, json, math, os, pickle, socket, sys, time
 import numpy as np, torch
 
 from experiments.exact_inversion.lora_exact_inversion import train_release, qr_canon, git_hash
-from experiments.exact_inversion.trained_backbone import TrainedBackbone, PCAChart
+from experiments.exact_inversion.trained_backbone import TrainedBackbone, PCAChart, read_idx
 from experiments.exact_inversion.train_cifar_backbone import load_cifar10
 from experiments.exact_inversion.vae_chart import invert_cell
 from experiments.exact_inversion.margin_check import traced_release
@@ -37,6 +43,20 @@ def load_cifar100_flowers(root):
         b = pickle.load(open(os.path.join(root, "cifar-100-python", split), "rb"), encoding="bytes")
         cl = np.array(b[b"coarse_labels"]); X = b[b"data"].astype(np.float64) / 255.0
         out[split] = (X[cl == 2], np.array(b[b"fine_labels"])[cl == 2])
+    return out
+
+
+def load_emnist_letters(root, letter):
+    """EMNIST 'letters' split (labels 1..26 = a..z), images transposed to MNIST orientation, [0,1]."""
+    out = {}
+    for split in ("train", "test"):
+        d = os.path.join(root, "EMNIST", "raw")
+        with open(os.path.join(d, f"emnist-letters-{split}-images-idx3-ubyte"), "rb") as f:
+            f.read(16); img = np.frombuffer(f.read(), dtype=np.uint8).reshape(-1, 28, 28).transpose(0, 2, 1).reshape(-1, 784)
+        with open(os.path.join(d, f"emnist-letters-{split}-labels-idx1-ubyte"), "rb") as f:
+            f.read(8); lab = np.frombuffer(f.read(), dtype=np.uint8)
+        sel = lab == (ord(letter) - ord("a") + 1)
+        out[split] = (img[sel].astype(np.float64) / 255.0, lab[sel].astype(np.int64))
     return out
 
 
@@ -66,23 +86,28 @@ def grid(files, path):
             X = d[key]
             for c in range(8):
                 ax = axes[fi * 3 + r, c]; ax.axis("off")
-                if c < X.shape[1]: ax.imshow(X[:, c].reshape(3, 32, 32).permute(1, 2, 0).clamp(0, 1).numpy())
+                if c < X.shape[1]:
+                    if X.shape[0] == 3072: ax.imshow(X[:, c].reshape(3, 32, 32).permute(1, 2, 0).clamp(0, 1).numpy())
+                    else: ax.imshow(X[:, c].reshape(28, 28).clamp(0, 1).numpy(), cmap="gray", vmin=0, vmax=1)
             axes[fi * 3 + r, 0].set_title(f"{os.path.basename(f)[:-4]} / {key}", fontsize=6, loc="left")
     plt.tight_layout(); plt.savefig(path, dpi=110); print(f"# figure {path}", flush=True)
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="models/exact_inversion/cifar10_mlp.pth")
+    ap.add_argument("--domain", choices=["cifar", "mnist"], default="cifar")
+    ap.add_argument("--model", default=None, help="default: cifar10_mlp.pth (cifar) / mnist_mlp_strong.pth (mnist)")
+    ap.add_argument("--letter", default="a", help="mnist domain: the EMNIST letter used as the new class")
     ap.add_argument("--ks", nargs="*", type=int, default=[16]); ap.add_argument("--N", type=int, default=8)
     ap.add_argument("--r", type=int, default=16)
     ap.add_argument("--T", type=int, default=400); ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--init-noise", type=float, default=0.10)
     ap.add_argument("--restarts", type=int, default=2); ap.add_argument("--lm-iters", type=int, default=600)
-    ap.add_argument("--batches", nargs="*", default=["flowers", "cifar10_ext", "cifar10_m10", "mixed1", "mixed4", "mixed7"],
-                    help="cifar10_ext = 8 CIFAR-10 test images on the EXTENDED head (m matched, zero row never the target); "
-                         "cifar10_m10 = same on the unextended head (reference); mixedF = F flowers + (8-F) CIFAR-10")
+    ap.add_argument("--batches", nargs="*", default=["new", "old_ext", "old_m10", "mixed1", "mixed4", "mixed7"],
+                    help="new = 8 new-class images (flowers / letters, label 10); old_ext = 8 in-distribution test images on the "
+                         "EXTENDED head (m matched, zero row never the target); old_m10 = same on the unextended head (reference); "
+                         "mixedF = F new + (8-F) old")
     ap.add_argument("--new-row", nargs="*", default=["zero", "random"], help="initialisation of the new class row")
     ap.add_argument("--charts", nargs="*", default=["flower_pca", "cifar_pca"])
     ap.add_argument("--cells", nargs="*", default=["a", "b"])
@@ -91,7 +116,12 @@ def main():
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", default=None); ap.add_argument("--save-dir", default=None); ap.add_argument("--fig", default=None)
     a = ap.parse_args(); dev = torch.device(a.device)
-    Xtr, ytr, Xte, yte = load_cifar10(a.data_root); fl = load_cifar100_flowers(a.data_root)
+    if a.domain == "cifar":
+        Xtr, ytr, Xte, yte = load_cifar10(a.data_root); fl = load_cifar100_flowers(a.data_root)
+        a.model = a.model or "models/exact_inversion/cifar10_mlp.pth"; NAMES = CIFAR10_NAMES; new_name = "flowers"
+    else:
+        Xtr, ytr = read_idx(a.data_root, "train"); Xte, yte = read_idx(a.data_root, "test"); fl = load_emnist_letters(a.data_root, a.letter)
+        a.model = a.model or "models/exact_inversion/mnist_mlp_strong.pth"; NAMES = [str(i) for i in range(10)]; new_name = f"letter_{a.letter}"
     Xtr_t = torch.tensor(Xtr[:a.n_fit], device=dev); Xte_t = torch.tensor(Xte, device=dev); yte_t = torch.tensor(yte, device=dev)
     Ftr_t = torch.tensor(fl["train"][0], device=dev); Fte_t = torch.tensor(fl["test"][0], device=dev); fte_fine = fl["test"][1]
     base = TrainedBackbone(a.model, dev, "gelu")
@@ -106,21 +136,21 @@ def main():
         return (torch.cat([flowers[0][:, :F], cifar[0][:, :a.N - F]], 1), torch.cat([flowers[1][:F], cifar[1][:a.N - F]]), flowers[2][:F] + [None] * (a.N - F))
     heads = {init: ExtendedHead(base, init, a.seed) for init in a.new_row}
     def batch_of(bname, init):
-        if bname == "flowers": return flowers, heads[init]
-        if bname == "cifar10_ext": return cifar, heads[init]
-        if bname == "cifar10_m10": return cifar, base
+        if bname in ("new", "flowers"): return flowers, heads[init]
+        if bname in ("old_ext", "cifar10_ext"): return cifar, heads[init]
+        if bname in ("old_m10", "cifar10_m10"): return cifar, base
         if bname.startswith("mixed"): return mixed(int(bname[5:])), heads[init]
         raise ValueError(bname)
-    print(f"# new_class  CIFAR-10 backbone acc {acc*100:.2f}%  flowers fine labels {flowers[2]}  ks={a.ks}  new_row={a.new_row}  git={git_hash()}", flush=True)
+    print(f"# new_class  domain={a.domain} backbone={a.model} acc {acc*100:.2f}%  new class={new_name} fine labels {flowers[2]}  ks={a.ks}  new_row={a.new_row}  git={git_hash()}", flush=True)
     if a.save_dir: os.makedirs(a.save_dir, exist_ok=True)
     saved = []
     for k in a.ks:
         a.k = k
         charts = {}
-        if "flower_pca" in a.charts: charts["flower_pca"] = PCAChart(Ftr_t, k, dev)          # public flowers (train split)
-        if "cifar_pca" in a.charts: charts["cifar_pca"] = PCAChart(Xtr_t, k, dev)            # generic public images
+        if "flower_pca" in a.charts or "new_pca" in a.charts: charts["new_pca" if a.domain == "mnist" else "flower_pca"] = PCAChart(Ftr_t, k, dev)   # public new-class images (train split)
+        if "cifar_pca" in a.charts or "old_pca" in a.charts: charts["old_pca" if a.domain == "mnist" else "cifar_pca"] = PCAChart(Xtr_t, k, dev)     # generic public images
         for bname in a.batches:
-          for init in (a.new_row if bname != "cifar10_m10" else ["n/a"]):
+          for init in (a.new_row if bname not in ("old_m10", "cifar10_m10") else ["n/a"]):
             (X_real, y, fine), bb = batch_of(bname, init if init != "n/a" else a.new_row[0])
             line = bb.m + a.r - a.N
             A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g)).to(dev)
@@ -136,9 +166,9 @@ def main():
                     Cn = Cf / imp[:, None]; cos = Cn @ Cn.T; sG = torch.linalg.svdvals(Cf)          # the imprints' Gram: magnitude vs ANGLE
                     off = cos[~torch.eye(a.N, dtype=torch.bool, device=dev)]
                     with torch.no_grad(): pred = bb.logits(X_train).argmax(0)
-                    row = dict(part="new_class", batch=bname, chart=cname, setting=setting, k=k, m=bb.m, n=bb.n, N=a.N, r=a.r, T=a.T, lr=a.lr,
+                    row = dict(part="new_class", domain=a.domain, backbone=a.model, new_class=new_name, batch=bname, chart=cname, setting=setting, k=k, m=bb.m, n=bb.n, N=a.N, r=a.r, T=a.T, lr=a.lr,
                                seed=a.seed, capacity_line=line, below_line=bool(k < line), backbone_test_acc=acc, y=y.tolist(), fine_labels=fine,
-                               new_row_init=init, pred_at_W0=pred.tolist(), pred_names_at_W0=[CIFAR10_NAMES[int(v)] if int(v) < 10 else "flower" for v in pred],
+                               new_row_init=init, pred_at_W0=pred.tolist(), pred_names_at_W0=[NAMES[int(v)] if int(v) < 10 else new_name for v in pred],
                                acc_at_W0=float((pred == y).double().mean()),
                                imprint_gram_sigma_ratio=float(sG[-1] / sG[0]), imprint_gram_cond=float(sG[0] / sG[-1]),
                                imprint_cos_offdiag_min=float(off.min()), imprint_cos_offdiag_max=float(off.max()), imprint_cos_offdiag_mean=float(off.mean()),
@@ -154,7 +184,7 @@ def main():
                         with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
                 for cell in a.cells:
                     r, X_hat, X_on_c = invert_cell(chart, bb, X_real, y, a, cell, dev, g, lambda s: None)
-                    r.update(part="new_class", batch=bname, chart=cname, new_row_init=init, k=k, m=bb.m, n=bb.n, N=a.N, r=a.r, T=a.T, lr=a.lr, seed=a.seed,
+                    r.update(part="new_class", domain=a.domain, backbone=a.model, new_class=new_name, batch=bname, chart=cname, new_row_init=init, k=k, m=bb.m, n=bb.n, N=a.N, r=a.r, T=a.T, lr=a.lr, seed=a.seed,
                              capacity_line=line, below_line=bool(k < line), backbone_test_acc=acc, y=y.tolist(), fine_labels=fine,
                              oracle=["near_init", "labels"], init_noise=a.init_noise, identifiability_test=True,
                              git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
