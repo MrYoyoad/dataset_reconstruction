@@ -288,6 +288,11 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   floor is itself the proof; 2,000 starts per cell running there (706721). Two audit catches folded: a blank
   image drove the constant-normalised objective to zero (fixed: `‖Cφ‖/‖A_Tφ‖`), and off-chart the certificate has
   no zero at all (Part B on-chart only).
+- **FIRST FROM-NOTHING RECOVERY (job 706721, RESULTS Step 22 Part B):** certificate-only inversion, on-chart,
+  `k = 6` with seven recorded images (line `r − N′ = 9`): **51% of 2,000 random public-scale starts land exactly on a
+  private image** (5.5e-15), all seven found, no spurious zero (floor fraction = recorded fraction), argmin pick is
+  a private image; no recipe, no labels, 0.2 s per start. Scope: on-chart (the recovered images are the chart's
+  6-component blurs); the budget `k < r − N′` scales with the LoRA rank — higher-rank cell queued.
 - **(R5) The batch size is not in the release — measured (709507), 6/6:** the recorded members alone at `lr·N′/N`
   reproduce the full-batch release to the omitted imprints' scale (e.g. 1.8e-15 vs 1.9e-15); only `lr/N` and `N′`
   (rank) are identifiable, never `N` — unless nonzero weight decay is published. The attacker fits one scalar.
