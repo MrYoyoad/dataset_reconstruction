@@ -17,7 +17,7 @@ What the section establishes, in order — every label as in the .tex:
   †`‖1ᵀB_T‖/‖B_T‖ = 3e-16…1.9e-15` on every SGD release; B-block rank 216 = `N((m−1)+r−N)` exactly (job 479684).
   Necessary direction stated a.e. via constant rank off an analytic subvariety; sufficiency generic (Thm H,
   analytic dichotomy + explicit `T=1` witness, †full rank at (8,16),(8,20),(8,24), job 479587).
-- **Measured sharp on the outcome:** N=8 recovered@27 / alias@28; N=14 recovered@21 (6 restarts, job 481079,
+- **Measured sharp on the outcome:** N=8 recovered@27 / alias@28; N=14 recovered@21 (300-iteration budget, converged at 137, job 481079,
   residual †9.5e-31, err †2.8e-12) / alias@22. The T-dependence conjecture is refuted (capacity T-independent).
 - **Corrected framing — exact identifiability, NOT leakage:** past-line solutions sit at †0.2–1.2% image error
   (8/11 cells inside the study's own 1e-2 tolerance); a fibre continuation (job 482338) reaches †1.43% (past the line,
@@ -27,6 +27,11 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
+- **Subagent audit applied:** the R1 residual is NOT monotone in recipe error (η×2 < η/2; T+25% is 18× below T−25%) — 'graded
+  objective' withdrawn; (14,21) reached the floor by a 300-iteration budget (137 used, 1 restart), not by six restarts;
+  every capacity/alias/recipe cell is one seed from truth+10% noise and the .tex now says so; the schedule global fit
+  and the Adam 1ᵀB_T ratio have NO committed artefact (executor asked); job 396215 never existed (range is 396214,
+  396216–21); Thm 6's rank bound now argued via the open set rank P_T = N, with N ≤ m−1 and rank H = N as hypotheses.
 - **Claims audit (yoado-51) applied:** (i) NO attacker-buildable start reaches the floor — the one "1 of 20" run sat at
   residual †9.1e-7, err 9.2e-3, restart budget exhausted (a search failure by the doc's own taxonomy); (ii) MNIST
   past-line aliases at r=16/32 sit at †2.3–6.8% with 5 of 8 past-line cells having no image inside tolerance, and the

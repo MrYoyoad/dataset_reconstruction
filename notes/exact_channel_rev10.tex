@@ -60,7 +60,7 @@ in, not about the images.
 \begin{definition}[the layer, the data, the adapter]\label{def:setup}
 Fix integers $m,n,r,N$ with $N\le r\le n$. A frozen weight
 $W_0\in\mathbb R^{m\times n}$ receives the representations
-$H=[h_1,\dots,h_N]\in\mathbb R^{n\times N}$ of the $N$ private examples;
+$H=[h_1,\dots,h_N]\in\mathbb R^{n\times N}$, $\operatorname{rank}H=N$, of the $N$ private examples;
 $E\in\{0,1\}^{m\times N}$ holds their one-hot labels. A LoRA adapter is a
 pair $A\in\mathbb R^{r\times n}$, $B\in\mathbb R^{m\times r}$ with a fixed
 scale $s>0$; the layer computes logits and loss
@@ -181,7 +181,8 @@ $A_T=A_0+A_0HM_TH^{\!\top}=XU^{\!\top}+YV^{\!\top}+XR_HM_TR_H^{\!\top}U^{\!\top}
 For the gauge, $Q$ is unchanged by $X\mapsto OX$, so \eqref{eq:rec} is
 unchanged, and \eqref{eq:release} transforms as stated.
 \end{proof}
-The gauge statement was tested rather than assumed$^\dagger$ (job 487882):
+The gauge statement was tested rather than assumed (job 487882 — a log,
+not a jsonl row; the third shape ran at $\eta=0.03$):
 at three shapes — $(n,k,N,T)$ equal to $(96,12,8,400)$, to $(32,6,4,200)$
 and to $(96,10,12,150)$ — the relative discrepancies
 \[
@@ -237,7 +238,9 @@ used.
 The attacker knows $W_0$, $\varphi$, $\psi$, $E$, the recipe $(\eta,s,T)$
 and the release $(A_T,B_T)$; the unknowns are $w\in\mathbb R^{Nk}$ and, by
 Corollary~\ref{cor:seed}, $X\in\mathbb R^{r\times N}$.\footnote{$Y$ is not an
-unknown: it is released as $A_TV$ and enters neither $B_T$ nor $A_TU$.}
+unknown: it enters neither $B_T$ nor $A_TU$, and \eqref{eq:release} shows it
+passes to the release unchanged — in the true basis $V$, which the attacker
+does not know and does not need.}
 For a candidate $(w,X)$ let $P_T(w,X)$, $M_T(w,X)$ be the output of
 \eqref{eq:rec} run with $H=H(w)$, $G=G(w)$, $Q=R_H(w)^{\!\top}X^{\!\top}XR_H(w)$,
 and $\Omega(w,X)=I+R_H(w)M_TR_H(w)^{\!\top}$. The residual map is
@@ -253,8 +256,9 @@ zero of $\rho$; the second reading asks whether it is an isolated zero.
 The target $A_TU_c(w)$ in the second block moves with the candidate, because
 the attacker does not know $U$ and must form $U_c(w)$; its $w$-derivative
 $A_T\,\partial U_c/\partial w$ is part of $D\rho$.\footnote{Writing the target
-as the fixed $A_TU$ instead drops this term and yields a count of $k\le m$,
-refuted by measurement (Example~\ref{ex:T1}). The normalisers $\|B_T\|$,
+as the fixed $A_TU$ instead drops this term and undercounts the
+$w$-dependence; the budget one then obtains is refuted by the measured full
+column rank at $k=24>m$ (Example~\ref{ex:T1}). The normalisers $\|B_T\|$,
 $\|A_T\|$ are fixed numbers — deliberately not $\|A_TU_c(w)\|$, which the
 optimiser could shrink — and scale the spectrum of $D\rho$, not its rank.}
 
@@ -270,13 +274,14 @@ and $P_0=0$. Then $\mathbf 1^{\!\top}B_t=\mathbf 1^{\!\top}P_t(A_0H)^{\!\top}=0$
 \end{proof}
 
 \begin{theorem}[capacity: the count is necessary]\label{thm:cap}
-Assume (A1)--(A3), (A6). Let
+Assume (A1)--(A3), (A6) and $N\le m-1$. Let
 \[
   \mathcal B:=\{B\in\mathbb R^{m\times r}:\ \operatorname{rank}B=N,\ \mathbf 1^{\!\top}B=0\},
   \qquad \dim\mathcal B=N(r-N)+N(m-1)=N\bigl((m-1)+r-N\bigr).
 \]
-Then $\operatorname{rank}D\rho(w,X)\le N\bigl((m-1)+r-N\bigr)+rN$ at every
-$(w,X)$ with $\operatorname{rank}H(w)=N$. Consequently, if
+Then, on each connected component of $\{(w,X):\operatorname{rank}H(w)=N\}$
+that contains a point with $\operatorname{rank}P_T(w,X)=N$, the maximal rank
+of $D\rho$ is at most $N\bigl((m-1)+r-N\bigr)+rN$. Consequently, if
 \begin{equation}\label{eq:cap}
   k\;\ge\;m+r-N\qquad\bigl(\text{equivalently } Nk+rN>\dim\mathcal B+rN\bigr),
 \end{equation}
@@ -293,20 +298,26 @@ space $S\in\operatorname{Gr}(N,r)$ and its coefficient matrix in a basis of
 $S$, an element of $\mathbb R^{(m-1)\times N}$ of full rank; the dimensions
 are $N(r-N)$ and $N(m-1)$.
 
-\emph{Rank bound.} By Theorem~\ref{thm:traj} and Proposition~\ref{prop:simplex}
-the first block of $\rho$ plus the constant $B_T/\|B_T\|$ takes values in
-$\mathcal B/\|B_T\|$ for every candidate, so the derivative of that block has
-rank at most $\dim\mathcal B$; the second block has $rN$ rows. The rank of
-$D\rho$ is at most the sum.
+\emph{Rank bound.} On the open set $\mathcal O$ where
+$\operatorname{rank}P_T(w,X)=N$, Theorem~\ref{thm:traj} and
+Proposition~\ref{prop:simplex} put the first block of $\rho$, plus the
+constant $B_T/\|B_T\|$, in $\mathcal B/\|B_T\|$, a manifold of dimension
+$\dim\mathcal B$, so the derivative of that block has rank at most
+$\dim\mathcal B$ there; the second block has $rN$ rows; so
+$\operatorname{rank}D\rho\le\dim\mathcal B+rN$ on $\mathcal O$. On a
+connected component the maximal rank of $D\rho$ is attained on an open dense
+set (the $\rho$ of \S\ref{sec:objects} is real-analytic there), which meets
+the non-empty open set $\mathcal O$; hence the maximal rank on that component
+is at most $\dim\mathcal B+rN$. (Under (A4) the truth lies in $\mathcal O$.)
 
-\emph{Fibre.} $\rho$ is real-analytic on $\{\operatorname{rank}H(w)=N\}$
-(\S\ref{sec:objects}, (A6)), so the set where $\operatorname{rank}D\rho$ is
-below its maximum is contained in a proper analytic subvariety — closed,
-with empty interior and Lebesgue measure zero. Off it the rank is locally
-constant and the constant-rank theorem makes $\rho^{-1}(\rho(p))$ a
-submanifold through $p$ of dimension $(Nk+rN)-\operatorname{rank}D\rho(p)\ge
-Nk+rN-\dim\mathcal B-rN$. The true $(w^\star,X^\star)$ lies off the
-subvariety for a.e.\ seed and data by (A2), and $\rho(w^\star,X^\star)=0$.
+\emph{Fibre.} On the component, the set where $\operatorname{rank}D\rho$ is
+below its maximum is a proper analytic subvariety — closed, with empty
+interior and Lebesgue measure zero. Off it the rank is locally constant and
+the constant-rank theorem makes $\rho^{-1}(\rho(p))$ a submanifold through
+$p$ of dimension $(Nk+rN)-\operatorname{rank}D\rho(p)\ge Nk+rN-\dim\mathcal
+B-rN$. This holds at Lebesgue-almost every $(w^\star,X^\star)$; for the seed
+that is a.e.\ under (A2), and for the data it is a.e.\ in the chart
+coordinates, and $\rho(w^\star,X^\star)=0$ at the truth.
 \end{proof}
 
 \begin{remark}\label{rem:distance}
@@ -331,8 +342,8 @@ following holds: $D\rho$ has full column rank $Nk+rN$ at almost every point
 of $\mathcal D_0$, or at no point of $\mathcal D_0$. In the first case every
 true $(w^\star,X^\star)\in\mathcal D_0$ outside a null set is an isolated
 zero of $\rho$; so one point of full column rank in $\mathcal D_0$ gives
-isolation for almost every seed and almost every private data set in
-$\mathcal D_0$.
+isolation for almost every seed (under (A2)) and Lebesgue-almost every chart
+coordinate in $\mathcal D_0$.
 \end{theorem}
 \begin{proof}
 The $(Nk+rN)$-minors of $D\rho$ are real-analytic on the connected
@@ -362,7 +373,7 @@ $U_c(w)R_H(w)=H(w)$,
 \begin{equation}\label{eq:T1}
   B_T\;=\;-\eta s\;D_0(w)\,H(w)^{\!\top}A_T^{\!\top}:
 \end{equation}
-an equation in $w$ alone whose left side ranges over $\mathcal B$ — the
+an equation in $w$ alone whose right side ranges over $\mathcal B$ — the
 $N((m-1)+r-N)$ constraints of Theorem~\ref{thm:cap} on the $Nk$ unknowns,
 with no unrolling and the seed eliminated in closed form; the budget obtained
 by eliminating $X$ here equals the one obtained by counting $X$ as an unknown
@@ -374,9 +385,12 @@ $k\le m$'' is wrong; it is refuted by measurement at $k=24>m=20$.}
 Measured$^\dagger$ (job 479587, $N=8$): $D\rho_{T=1}$ has full column rank
 at $k=16,20,24$ with $\sigma_{\min}=7.26\times10^{-4},\,1.21\times10^{-4},\,3.15\times10^{-5}$,
 identical to three figures with the $T=2$ values, and collapses at $k=28=m+r-N$
-($3.3\times10^{-19}$). This is the witness of Theorem~\ref{thm:suff} for
-$T=1$; for $T>1$ the theorem rides on the same dichotomy with the measured
-$T$-independence of $\sigma_{\min}$ as its witness.
+($3.3\times10^{-19}$). These are witnesses of Theorem~\ref{thm:suff} at
+$T=1$ for the charts $\psi_k$ with $k=16,20,24$ — each $k$ is its own chart
+and its own dichotomy. For the working point $T=400$ the witnesses are
+direct: $D\rho$ at the truth has full column rank at every $k\le27$ (jobs
+467914, 479587); the $T=1$/$T=2$ agreement to three figures is a consistency
+check on the closed form, not the witness for $T>1$.
 \end{example}
 
 \subsubsection*{The two readings side by side}
@@ -425,12 +439,16 @@ classified by two numbers, the final residual $\|\rho\|^2$ and the worst
 image error: \emph{recovered} — residual at the $10^{-30}$ floor and error at
 machine precision; \emph{alias} — residual at the floor at a point other than
 the truth, with $\sigma_{\min}(D\rho)$ collapsed; \emph{search failure} —
-residual above the floor.
+residual above the floor. Two scopings hold for every capacity, alias and
+recipe cell below: each is one seed, and each is solved from a start at the
+truth plus $10\%$ latent noise, which an attacker cannot build (the starts an
+attacker can build are the last item of \S\ref{sec:opens}). The residual and
+$\sigma_{\min}$ are attacker-computable; the image-error column is not.
 
 \paragraph{The map reproduces the release.} Fed the true $(w,X)$, the
 simulator of \eqref{eq:rho} reproduces the released factors to relative error
-$5.3\times10^{-16}$--$1.8\times10^{-15}$$^\dagger$ ($B$ and $A$ factors over
-$54$ rows; jobs 395496, 396214--21). Every number
+$5.3\times10^{-16}$--$1.8\times10^{-15}$\textsuperscript{$\dagger$} ($B$ and $A$ factors over
+$54$ rows; jobs 395496, 396214, 396216--21). Every number
 below rests on this one.
 
 \paragraph{The line of Theorem~\ref{thm:cap} is sharp to one unit of $k$.}
@@ -452,12 +470,14 @@ floor: the measurement shows the smallest singular value falling to the
 floor, and cannot by itself distinguish a rank deficiency from a condition
 number of $10^{18}$. That the rank is exactly deficient at $k=m+r-N$ is
 Proposition~\ref{prop:simplex} and Theorem~\ref{thm:cap}, not the
-measurement.}\footnote{At $(14,21)$ a
-single-restart run stalled at residual $5\times10^{-18}$ with
-$\sigma_{\min}=1.7\times10^{-7}$ intact; six restarts reach the floor
-($9.5\times10^{-31}$, error $2.8\times10^{-12}$, job 481079). Identifiable
-and solvable are different properties; that cell shows both.} The $49$-cell
-grid $N,k\in\{2,4,\dots,14\}$ (jobs 396214--21, 456630) lies inside the region
+measurement.}\footnote{At $(14,21)$ a run
+capped at $80$ LM iterations stopped, still descending, at residual
+$5\times10^{-18}$ with $\sigma_{\min}=1.7\times10^{-7}$ intact; with a
+$300$-iteration budget the same start converges at iteration $137$ to the
+floor ($9.5\times10^{-31}$, error $2.8\times10^{-12}$, job 481079, one
+restart used). Identifiable and solvable are different properties; that cell
+shows both.} The $49$-cell
+grid $N,k\in\{2,4,\dots,14\}$ (jobs 396214, 396216--21, 456630) lies inside the region
 $k<m+r-N$ and recovers in every cell while crossing $k=r-N$ throughout
 (Figure~\ref{fig:plane}).
 
@@ -471,9 +491,13 @@ Adam $n{=}96,k{=}12,N{=}8$ & 1632 / 1632 & \textbf{224} / $N(m{+}r{-}N)=224$ & 1
 SGD $n{=}32,k{=}6,N{=}4$ & 88 / 88 & 88 / 124 (not binding) & 64 / $rN=64$\\ \bottomrule
 \end{tabular}
 \end{center}
-Under SGD the $B$-block attains $\dim\mathcal B$ exactly, and
+(The Adam cell is $T=800$, $\eta=0.003$ against SGD's $T=400$, $\eta=0.01$:
+equal shape, not equal recipe.) Under SGD the $B$-block attains $\dim\mathcal B$ exactly, and
 $\|\mathbf 1^{\!\top}B_T\|/\|B_T\|=3\times10^{-16}$--$1.9\times10^{-15}$ on
-every SGD release on disk. Under Adam the same ratio is $2.6$--$2.7$: the
+every SGD release on disk (recomputed from the saved release tensors by an
+auditor: $3.0\times10^{-16}$, $5.9\times10^{-16}$ on two of them). Under
+Adam the same ratio is $2.6$--$2.7$ by the executor's check; no Adam release
+tensor is on disk, so that number carries no artefact yet: the
 entrywise normalisation does not preserve $\mathbf 1^{\!\top}D_t=0$,
 Proposition~\ref{prop:simplex} does not apply, and the $B$-block attains the
 larger manifold of all rank-$N$ matrices, $N(m+r-N)$. The same computation
@@ -507,7 +531,7 @@ $9\times10^{-31}$). And the chart here is the digits' own principal subspace,
 which the next paragraph shows is the whole question.
 
 \paragraph{The boundary is about the chart, not the image.} Same digits,
-same $N=8$, $m=10$, $r=16$, line $k<18$; three charts at matched $k$$^\dagger$
+same $N=8$, $m=10$, $r=16$, line $k<18$; three charts at matched $k$\textsuperscript{$\dagger$}
 (job 574169): the principal subspace (PCA), the same subspace under a
 non-linear warp, and a chart built to contain the eight private digits
 exactly. Two predictions of Theorems~\ref{thm:cap}--\ref{thm:suff} come
@@ -580,8 +604,11 @@ $(8,32)$ & past & 25 / 25 & $1.43\times10^{-2}$ (flat over the last five steps)\
 $(14,22)$ & at & 25 / 25 & $3.84\times10^{-2}$ (still rising at the end)\\ \bottomrule
 \end{tabular}
 \end{center}
-One procedure, one solver, one budget; only the side of the line changes,
-and the image moves by $10^{-14}$ on one side and by percent on the other.
+One procedure, one solver — the control ran a $12$-step budget against
+$24$, and below the line the numerical null space is empty ($n_{\mathrm{null}}=0$),
+so its step is along the smallest non-null direction, which the retraction
+undoes — and the image moves by $10^{-14}$ on one side and by percent on the
+other.
 This is Theorem~\ref{thm:cap} and Theorem~\ref{thm:suff} as a single
 experiment: the set of exact reproductions is a point below the line and a
 walkable manifold at and past it. Each walk follows one null direction
@@ -601,7 +628,8 @@ does not favour it.
 
 \begin{figure}[htbp]\centering
 \includegraphics[width=0.92\linewidth]{fig_counting_plane.png}
-\caption{The $(N,k)$ plane. Solid: $k=r-N$ (Theorem~\ref{thm:quot}). Dashed:
+\caption{The $(N,k)$ plane. Solid: $k=r-N$, the certificate's pull-back
+boundary (Rev~9 Thm~3, Prop~4, on the certificate of Theorem~\ref{thm:quot}). Dashed:
 $k=m+r-N$ (Theorem~\ref{thm:cap}). Dots: the 49-cell grid, all recovered.
 Diamonds and crosses: last recovered and first alias cell of each capacity
 sweep; at $N=8$ and $14$ they are one unit of $k$ apart and straddle the
@@ -636,7 +664,7 @@ takes $(\eta,s,T)$ and the labels as known. Four measurements$^\dagger$ at
 $k=12$, $N=8$, $T=400$, $\eta=0.01$ (job 484255) show that they can be
 checked, fitted, and in part read off instead.
 
-\emph{(R1) A wrong recipe cannot reach the floor.} With the control first:
+\emph{(R1) None of seven wrong recipes reached the floor.} With the control first:
 \begin{center}\small
 \begin{tabular}{@{}lll@{}}\toprule
 hypothesis simulated & residual & image error\\ \midrule
@@ -649,10 +677,12 @@ wrong optimiser (SGD release inverted as Adam) & $4.9$ & $0.26$\\ \bottomrule
 \end{tabular}
 \end{center}
 The true recipe is the unique floor-reacher, separated from the nearest
-wrong hypothesis — one step in four hundred — by twenty-three orders; the
-residual is monotone in the size of the recipe error, so it is a graded
-objective and not only a detector, and it is computed from the release and
-the candidate alone, never from the private images.
+wrong hypothesis — one step in four hundred — by twenty-three orders. The
+residual is \emph{not} monotone in the size of the recipe error
+($\eta\times2$ ends lower than $\eta/2$; $T+25\%$ is eighteen times lower
+than $T-25\%$), so it is a detector, not a graded objective; it is computed
+from the release and the candidate alone, never from the private images.
+Seven hypotheses, one cell, one seed.
 
 \emph{(R2) The learning rate can be fitted jointly with the data.} Carrying
 $\eta$ as a free unknown beside $(w,X)$ from starts at $1\times$, $2\times$,
@@ -680,27 +710,30 @@ labels they choose, so every regressor is computable from $(A_T,B_T)$ and the
 public $W_0$ and no private data enters. One step under decoupled weight
 decay is $\Delta B=-\eta\nabla_BL-\eta\,\mathrm{wd}\,B_T$, linear in
 $(\eta,\eta\,\mathrm{wd})$: the two-parameter least squares returns $\eta$ to
-$5\times10^{-16}$ and $\mathrm{wd}=10^{-3},10^{-2}$ exactly (job 487290), and
+$5\times10^{-16}$ and $\mathrm{wd}=10^{-3},10^{-2}$ to $10^{-11}$ relative
+(job 487290), and
 $\cos(\Delta B,-\nabla_BL)=1$ under SGD against $0.43$ under Adam separates
 the optimiser family (job 485912). The same probe returns the per-step $\eta$ at the continuation steps
-to $10^{-15}$ (job 487290). Under a constant rate that is all it
+to $3\times10^{-14}$ or better (jobs 487290, 488314). Under a constant rate that is all it
 returns, and $T$ stays hidden. Under a cosine schedule of known family, a
 global fit of $(\text{base},T_{\max},T)$ to six probe steps (eliminate the
 base by ratios, grid the two integers, solve the base in closed form) returns
 all three exactly — $T=400$, $T_{\max}=1000$, base $0.0100$ — and identically
-from windows of $20$, $60$ and $150$ steps (job 488314, whose probed values
-the global fit re-analyses). A schedule encodes position on
-its own curve.\footnote{A gradient fit of the same three parameters had
-landed $30$--$40\%$ off and was retracted; it was a local minimum of a
-multimodal objective, not a degeneracy. The global fit is a re-analysis of
-the saved probe output, not a new run.} The family is assumed known;
+from windows of $20$, $60$ and $150$ steps (the probed values are job
+488314's). A schedule encodes position on its own curve.\footnote{A gradient
+fit of the same three parameters had landed $30$--$40\%$ off and was
+retracted; it was a local minimum of a multimodal objective, not a
+degeneracy. The global fit is a re-analysis of the saved probe values,
+reproduced independently by an auditor from the same rows; the fitting
+script and its result row are not yet committed, so this number does not
+yet carry a dagger.} The family is assumed known;
 selecting it is a model-selection problem not run here.
 
 \paragraph{Provenance.} This section was written by one executing session
-and two auditing sessions reading each other adversarially. Six claims made
-during the day were withdrawn, every one by a follow-up measurement, three of
-them from the audits; four had reached a draft labelled as a theorem or a
-headline. The withdrawals are in the repository's lessons log.
+and four auditing sessions reading it adversarially against the rows on
+disk. Every withdrawn claim — several had reached a draft labelled as a
+theorem or a headline — was withdrawn by a follow-up measurement or a
+re-derivation, and each is itemised in the repository's lessons log.
 
 %----------------------------------------------------------------------------
 \subsection{What is open}
@@ -753,7 +786,7 @@ headline. The withdrawals are in the repository's lessons log.
   capacity region, LM from perturbed-truth starts recovers up to $86\%$ start
   error, with one budget-limited failure at $81\%$ (residual $8\times10^{-5}$
   at the iteration cap, still descending) bracketed by successes at $77\%$
-  and $86\%$$^\dagger$ (job 459111). From the $20$ starts an attacker can build
+  and $86\%$\textsuperscript{$\dagger$} (job 459111). From the $20$ starts an attacker can build
   from the release alone (random, span, certificate, span-anchor; jobs
   408560--63) it reaches the floor in \emph{none}: one run ends inside the
   $10^{-2}$ image tolerance at residual $9\times10^{-7}$ with its restart
@@ -776,7 +809,7 @@ level & content & status\\ \midrule
 3$''$. Sufficiency & $D\rho$ full column rank a.e.\ below the line, per connected component (Thm~\ref{thm:suff}) & Theorem given a witness in the component; witness measured$^\dagger$ at $T=1$; $T>1$ rests on measured $T$-independence, not on a proof\\
 5$'$. Past the line & a walkable manifold of exact reproductions; alternatives at $0.2$--$1.7\%$ (synthetic, chart contains the truth), $2$--$7\%$ on real digits, growing with distance past the line; $\le3.8\%$ along one walked direction & Verified$^\dagger$; recognisability not assessed; extent and global uniqueness open\\
 7$'$. Adam & identifiable; seed $rn$; $\kappa\uparrow$; basin$\downarrow$; simplex constraint broken & Verified$^\dagger$; one-unit-higher line predicted, untested\\
-8$'$. Recipe & wrong recipe never at the floor; $\eta$ fitted jointly; $\eta T$ split identifiable; labels identifiable; schedule leaks $T$ & Verified$^\dagger$ (jobs 484255, 485912, 487290, 488314); family selection open\\ \bottomrule
+8$'$. Recipe & none of seven wrong recipes at the floor (one cell, one seed); $\eta$ fitted jointly; $\eta T$ split identifiable; labels identifiable; cosine schedule leaks $T$ & Verified$^\dagger$ (jobs 484255, 485912, 487290, 488314) except the schedule fit, whose script is not yet committed; family selection open\\ \bottomrule
 \end{tabular}
 \end{center}
 
@@ -827,8 +860,9 @@ region and measures existence, not rate.
 \item \emph{What stops the attack.} Not information: the initialiser
   (none of $20$ attacker-buildable starts reaches the floor; from perturbed
   truth the solver recovers up to $86\%$ away).
-\item \emph{The recipe.} A wrong recipe never reaches the floor — one step
-  in four hundred is twenty-three orders away — so the residual checks it;
+\item \emph{The recipe.} None of seven wrong recipes reached the floor —
+  one step in four hundred is twenty-three orders away — so the residual
+  checks it;
   $\eta$ fits jointly with the data to machine precision; $\eta T$ is not a
   degeneracy of discrete steps; labels are identifiable; and a decaying
   schedule of known family hands over $T$ from six probe steps on the

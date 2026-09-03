@@ -30,7 +30,7 @@ Nl=np.linspace(1,15,200); cert=R-Nl; inv=M+R-Nl
 ax.fill_between(Nl,0,np.clip(cert,0,None),color=blue,alpha=0.08)
 ax.fill_between(Nl,np.clip(cert,0,None),inv,color=orange,alpha=0.10)
 ax.fill_between(Nl,inv,50,color=red,alpha=0.08)
-ax.plot(Nl,cert,color=blue,lw=2.2,label="certificate boundary  k = r − N   (Theorem 3)")
+ax.plot(Nl,cert,color=blue,lw=2.2,label="certificate boundary  k = r − N   (Rev 9 Thm 3, on the certificate)")
 ax.plot(Nl,inv,color=orange,lw=2.4,ls="--",label="capacity boundary  k = m + r − N   (Theorem 6; measured sharp)")
 ax.scatter([c[0] for c in gridrec],[c[1] for c in gridrec],s=60,color=green,edgecolor="k",lw=0.5,zorder=5,label="recovered — 49-cell grid")
 ax.scatter([c[0] for c in caprec],[c[1] for c in caprec],s=95,color=green,marker="D",edgecolor="k",lw=0.7,zorder=6,label="recovered — capacity sweep")
