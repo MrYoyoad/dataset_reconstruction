@@ -71,6 +71,10 @@ def main():
     ap.add_argument("--max-starts", type=int, default=10000)
     ap.add_argument("--start-scale", type=float, default=1.0, help="multiplier on the public coordinate std for the random starts: separates "
                     "'basin size is chart geometry' from 'targets near the start scale attract more landings'")
+    ap.add_argument("--release-dtype", default="fp64", choices=["fp64", "fp32", "tf32", "fp16", "bf16"], help="quantise the RELEASE "
+                    "(A_T, B_T) to this format after training, then upcast to FP64 for the attack -- the file the attacker receives; "
+                    "imprints and the 'recorded' set stay the FP64 truth")
+    ap.add_argument("--tol", type=float, default=1e-12, help="certificate rank tolerance (relative singular value of B_T); the attacker's knob")
     ap.add_argument("--max-np", type=int, default=6, help="Part B runs when N' <= this: the certificate's null space then holds N' recorded "
                     "images, and a random start below the certificate line k < r - N' should land on ONE of them")
     ap.add_argument("--n-fit", type=int, default=50000)
@@ -111,11 +115,16 @@ def main():
                 g = torch.Generator().manual_seed(a.seed + 7)
                 A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g)).to(dev)
                 A_T, B_T, imp, sB, Cimp = release_and_imprints(bb, X_train, y, A0, a)
-                C, Np, S = certificate(A_T, B_T)
+                if a.release_dtype != "fp64":
+                    from experiments.exact_inversion.precision_check import quantise, DTYPES   # lazy: precision_check imports this module
+                    A_T, B_T = quantise(A_T, a.release_dtype), quantise(B_T, a.release_dtype)
+                    sB = torch.linalg.svdvals(B_T)
+                C, Np, S = certificate(A_T, B_T, a.tol)
                 H = bb.phi(X_train); AH = A_T @ H
                 cert_res = (torch.linalg.norm(C @ H, dim=0) / torch.linalg.norm(AH, dim=0))
                 top = int(torch.argmax(imp))
                 rowA = dict(part="A", set=sname, setting=setting, k=k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed, y=y.tolist(),
+                            release_dtype=a.release_dtype, cert_tol=a.tol,
                             imprint_rel=[float(v / imp.max()) for v in imp], imprint_abs=[float(v) for v in imp], B_T_norm=float(torch.linalg.norm(B_T)), B_T_sigma=[float(v) for v in sB], rank_B_T=Np, rank_C=int(torch.linalg.matrix_rank(C, rtol=1e-10)),
                             cert_line=a.r - Np, cert_residual_per_image=[float(v) for v in cert_res],
                             cert_residual_recorded_max=float(max(cert_res[i] for i in range(a.N) if imp[i] / imp.max() > 1e-12)),
@@ -187,7 +196,7 @@ def main():
                     valid = [d for d in runs if not d["degenerate"]] or runs
                     best = min(valid, key=lambda d: d["objective"])
                     at_floor = [d for d in valid if d["objective"] <= 1e-20]
-                    rowB = dict(part="B", set=sname, setting=setting, k=k, cert_line=a.r - Np, below_cert_line=bool(k < a.r - Np),
+                    rowB = dict(part="B", release_dtype=a.release_dtype, cert_tol=a.tol, set=sname, setting=setting, k=k, cert_line=a.r - Np, below_cert_line=bool(k < a.r - Np),
                                 N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed, top_image_eval=top, top_label_eval=int(y[top]),
                                 oracle=[], recipe_used=False, labels_used=False, random_starts=len(runs), iters=a.iters, start_scale=a.start_scale,
                                 objective_at_truth=obj_true, argmin_objective=best["objective"], argmin_err_vs_top_chart=best["err_vs_top_chart"],
