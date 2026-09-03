@@ -1869,8 +1869,10 @@ reading a solve — caught it one row late; the ladder and the twenty-image cell
 | 32 | 25 | 17 | **74.4%** | 70.0% | 7 of 7 | on a private image |
 | 64 | 57 | 49 | *(pending)* | | | |
 
+Second batch, `mnist_control` (`N′ = 8`), same `k = 8`: `r = 16` sits *at* its line (8) — 4% on a private image,
+argmin wrong; `r = 32` (line 24, sixteen below) — **73.4%**, all eight found, argmin correct, floor 69%.
 Same chart, same images, same `k`, same starts: the basin quadruples when the same `k` sits seventeen rather than
-one below the line. **Distance below the certificate line governs the basin, not `k` itself — rank buys
+one below the line, and goes from the at-line regime to 73% for the second batch. **Distance below the certificate line governs the basin, not `k` itself — rank buys
 reachability as well as budget.** (`mnist_control` at `r = 16, k = 8` sits *at* its line — all eight recorded, line
 8 — and shows the at-line regime: 34% of starts at the floor, 4% on a private image, argmin wrong.)
 
