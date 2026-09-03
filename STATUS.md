@@ -413,6 +413,7 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   prediction came out with the opposite sign (same-class 1s not lifted; different-class on-chart batch lifted):
   the coupling follows **feature overlap**, not label — Gram measurement in flight (`step55_gram`).
 - **In flight:** feature-Gram measurement; chart budget reruns (624463); β = 4, 16 (624465); random-encoder
+- 749362: the five `mnist_control r=64` ladder cells (k = 24…56) that job 721391 lost to the imprint-sum assertion (a relative check on a release that had shrunk to 1e-6; floored at roundoff in bc0f907 — RESULTS "Why the ladder job stopped").
   ladder (624573); strong sweep (614344) — where the alias form (wrong confident digits at the residual floor)
   would show.
 - **Q-parametrisation: exact (gate 1.4e-15), 132 unknowns instead of 224, and it does NOT widen the basin**

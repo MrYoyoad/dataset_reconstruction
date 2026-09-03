@@ -47,7 +47,7 @@ bracket. Next step 1 below is DONE; continue from step 2.
 - Ladder job 721391 died on `subset_and_ood.release_and_imprints`'s assertion (`||sum_i C_i - B_T||/||B_T|| < 1e-10`)
   at `mnist_control r=64` on the cell AFTER k=16 (ks were 16 24 32 40 48 56; the on-chart batch depends on k, so the
   release differs per k). All confident rows and mnist_control k=8 (r=16/32/64) and k=16 (r=64) are on disk and
-  unaffected (the assertion is at release time). Diagnostic job 748065 prints ||B_T||, the absolute and relative
+  unaffected (the assertion is at release time). Resolved: FP64 roundoff on a release that shrinks 4 orders at k>=24 (control digits become confident on-chart); assertion floored (bc0f907); the five control cells resubmitted as job 749362 (`step69_cert_rank_ctrl_749362.jsonl`). Diagnostic job 748065 printed ||B_T||, the absolute and relative
   mismatch and the imprints at k=16..56 (`scripts/wexac_logs/imprint_chk_748065.out`). Suspected: roundoff on a tiny
   B_T (well-classified projected digits) — if so, relax the assertion to an absolute floor and log it; do NOT edit
   `subset_and_ood.py` while 706597/644064 (its main module) or 706721/725918 (import it, multi-invocation job
