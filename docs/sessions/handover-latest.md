@@ -1,12 +1,10 @@
-# Handover — 2026-09-03 20:04
-
+# Handover — 2026-09-03 20:52
 ## State
-Branch `step1-activation-rescore-retrieval`, HEAD `de78f94`. The exact-inversion thread (executor session;
-write-up session yoado-ed owns `notes/exact_channel_rev10.tex`; genuineness auditor yoado-6e has closed on every
-script) produced today the imprint law, the certificate channel, and the first from-nothing recoveries. Thirteen
-WEXAC jobs are still running; every one has a Monitor watch in this session, and the results they produce
-should be read against the pre-registered predictions in `experiments/exact_inversion/RESULTS.md` (Steps 13–22).
-Authoritative record: RESULTS.md (read Steps 18–22 first); STATUS.md top section; LESSONS_LEARNED.md top entries.
+Branch `step1-activation-rescore-retrieval`, HEAD `9edcbd2`. Executor session of the exact-inversion thread
+(write-up: yoado-ed owns `notes/exact_channel_rev10.tex`; auditor: yoado-6e). Every result up to the start-scale
+cell is written into `experiments/exact_inversion/RESULTS.md` (Steps 18–23 + the closures under "The start-scale
+cell") and STATUS.md; ten WEXAC jobs are still running with Monitor watches; a small diagnostic (748065, queue
+`short`) is recomputing the release for the cell where the ladder job 721391 tripped the imprint-sum assertion.
 
 ## Done this session
 - **Imprint law** (Step 18): `B_T = Σ_i C_i`, `‖C_i‖ ∝` the accumulated softmax residual of image i (Kendall 28/28
@@ -41,6 +39,21 @@ Job 728592 landed and is the thread's HEADLINE (RESULTS Step 23, commit 19170d3)
 66% land on a private digit, all eight found, argmin correct, chart instance-identifying (.94); reproduced in
 721391. Also in: wide-head twenty-image cell 18 of 20 from 10,000 starts (725918); per-rank sweep table; k=10
 bracket. Next step 1 below is DONE; continue from step 2.
+
+## Update 2 (after the headline)
+- Start-scale cell (737516), subset one-swapped control (706597), the 98% sweep closure (614344: no alias form),
+  the k=6 replication on hard1_diff (706721) and wide-head k=16 (725918: 15/20) are in RESULTS/STATUS (commit
+  9edcbd2) and were sent to yoado-ed with the ladder-figure path.
+- Ladder job 721391 died on `subset_and_ood.release_and_imprints`'s assertion (`||sum_i C_i - B_T||/||B_T|| < 1e-10`)
+  at `mnist_control r=64` on the cell AFTER k=16 (ks were 16 24 32 40 48 56; the on-chart batch depends on k, so the
+  release differs per k). All confident rows and mnist_control k=8 (r=16/32/64) and k=16 (r=64) are on disk and
+  unaffected (the assertion is at release time). Diagnostic job 748065 prints ||B_T||, the absolute and relative
+  mismatch and the imprints at k=16..56 (`scripts/wexac_logs/imprint_chk_748065.out`). Suspected: roundoff on a tiny
+  B_T (well-classified projected digits) — if so, relax the assertion to an absolute floor and log it; do NOT edit
+  `subset_and_ood.py` while 706597/644064 (its main module) or 706721/725918 (import it, multi-invocation job
+  scripts) are running.
+- Diagnostic scripts must be inlined in the bsub heredoc: compute nodes cannot see the session scratchpad (/tmp is
+  node-local); job 747682 died on "No such file".
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
