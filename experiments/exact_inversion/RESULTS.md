@@ -2661,7 +2661,12 @@ inverting a public map, not a statement about what the release contains. The row
 residual beside the per-letter image error (B-block joint, A-block per letter — field added after 782682
 started; for that job the total residual and the objective trace serve): residual and image error falling
 together confirms the floor reading; residual at the 2e-3 floor with image error still ~0.3 says the binding
-constraint is the parametrisation (A₀'s conditioning), not the precision.
+constraint is the parametrisation (A₀'s conditioning), not the precision. *Verdict key (yoado-6e):* Z is not new
+freedom — it is the seed block the recipe route already carried as `aux`, reparametrised — but with the matched
+residual floored at the A₀ level rather than machine zero, the LM could reach the floor with a wrong (W,
+compensating Z): a joint alias. The verdict is therefore keyed off (`err_vs_chart`, `Z_err_rel`) together, never the
+residual alone: recovered = residual ≈ floor AND small image error AND small Z error; joint alias = residual ≈
+floor with O(1) image error and Z absorbing the mismatch.
 
 ### Other rows landed with these
 - Recipe route (771329): fp16-trained k = 16 → residual 5.8e-5 (below the truth's 0.027), errors .02 … .26 (median
