@@ -754,12 +754,27 @@ released factors and the candidate alone. It is a Cauchy-type criterion — it c
 any reference to the limit — and it is therefore a legitimate recipe *selection* rule rather than a
 post-hoc diagnostic. Any claim built on reconstruction quality would not be.
 
-## Step 9 — the recipe can be MEASURED, not assumed (job 485912)
+## Step 9 — the recipe can be measured, but ONLY under continued-training access (job 485912)
 
-Proposed by the user: the attacker holds the released adapter and can keep training it on data of *their
-own* choosing. Under a scalar-linear update one further step gives exactly `ΔB = −η·gB` with
-`gB = D(A_T H′)ᵀ`, and the attacker knows the released factors, their own probe features `H′` and their own
-labels, hence knows `gB`. So `η` is a one-dimensional least squares, using **no private data at all**.
+**THREAT-MODEL CORRECTION (2026-09-03, found by the user; missed by me and by three independent audits).**
+This section originally read "the recipe can be MEASURED, not assumed", full stop. That is wrong as stated,
+and the error is basic: the probe reads `η` off an observed step `ΔB`, but **if the attacker takes that step
+they choose `η` themselves and learn nothing from it.** The measurement only works when the *victim's*
+optimizer takes the step with its hidden `η` — i.e. under **continued-training access**: a checkpoint
+carrying optimizer and scheduler state, or a fine-tuning service that trains on submitted data. The code
+does exactly that (`calibrate_recipe.py` steps with the true `a.lr`), so the experiment is sound; the
+*claim* attached to it was not. My own code comment read "the attacker runs it; only eta is unknown", which
+is incoherent on its face.
+
+**Under the weights-only release assumed everywhere else in this study, this probe does not apply**, and
+neither the schedule nor `T` is recoverable by it. What survives weights-only is R1-R3 below, which use only
+the released factors: a wrong recipe is detectable, `η` is fittable jointly with the data, and the `(η, T)`
+split and the labels are identifiable. Those are the results that carry the threat model; this one is the
+weaker contribution, and in the checkpoint case `T` is usually in the metadata anyway.
+
+Given that access, one further step gives exactly `ΔB = −η·gB` with `gB = D(A_T H′)ᵀ`, and the attacker
+knows the released factors, their own probe features `H′` and their own labels, hence knows `gB`. So `η` is
+a one-dimensional least squares, using **no private data**.
 
 | true recipe | true η | estimated η | relative error | `cos(ΔB, −gB)` | passes the parallelism test? |
 |---|---|---|---|---|---|

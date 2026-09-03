@@ -8,15 +8,20 @@ Two ideas, both from the user (2026-09-03).
     Cauchy criterion — it certifies convergence without reference to the limit — and any recipe-selection
     rule must be built on it, never on reconstruction quality.
 
-(2) Continuation calibration. The attacker holds the released adapter and can keep training it on data of
-    their OWN choosing. Under a scalar-linear update one further step gives, exactly,
+(2) Continuation calibration -- NOTE THE STRONGER ACCESS MODEL. This works only if the VICTIM'S optimizer
+    takes the further step, with its hidden eta: a checkpoint carrying optimizer/scheduler state, or a
+    fine-tuning service. If the attacker takes the step themselves they choose eta and learn nothing.
+    Under the weights-only release assumed everywhere else here, this probe does not apply.
+    Given that access, one further step gives, exactly,
         Delta B = -eta * gB,     gB = D (A_T H')^T
     and the attacker knows A_T, B_T, their own H' and their own labels, hence knows gB. So eta falls out of
     a one-dimensional least squares. This converts "the recipe is known" from an assumption into a
     measurement, using no private data at all.
     It also DISCRIMINATES the optimizer family: under SGD the observed step is exactly parallel to gB
     (cosine 1); under Adam the coordinatewise normalisation destroys that, so the cosine drops.
-    What it cannot recover is T, the number of steps already taken before the release.
+    What it cannot recover is T, the number of steps already taken before the release -- and note that in
+    the checkpoint case T is usually in the metadata anyway, which is part of why this is the weaker
+    contribution: R1-R3, which need only the released weights, are the ones that carry the threat model.
 
 Imports the main testbed so the recipe cannot drift.
   python -m experiments.exact_inversion.calibrate_recipe --release sgd --T 400 --lr 0.01
@@ -70,7 +75,12 @@ def main():
         D = (softmax_cols(W0 @ Hp + B_T @ AH) - Yp) / a.Nprobe
         gB = D @ AH.T                                      # the SGD B-gradient on the probe batch
 
-    # ---- take ONE further step with the TRUE recipe (the attacker runs it; only eta is unknown) ----
+    # ---- ONE further step taken with the VICTIM'S recipe, i.e. with the hidden eta ----
+    # THREAT MODEL, and this is the whole scope of the result: the step below uses a.lr, the TRUE rate.
+    # If the ATTACKER took the step they would be choosing eta themselves and would learn nothing from it.
+    # So this measures a recipe only under CONTINUED-TRAINING ACCESS: a checkpoint carrying optimizer and
+    # scheduler state, or a fine-tuning service that trains on submitted data. Under a WEIGHTS-ONLY
+    # release -- the threat model of the rest of this study -- this probe does NOT apply.
     with torch.no_grad():
         if a.release == "sgd":
             B1 = (1 - a.lr * a.wd) * B_T - a.lr * gB
