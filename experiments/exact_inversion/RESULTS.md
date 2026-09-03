@@ -1878,4 +1878,6 @@ Cause: `B_T = Σ_i q_i (A₀h_i)ᵀ` with the accumulated error vectors `q_i ∈
 none individually (the full-residual channel is a different question). This is the same `m − 1` as in the
 capacity count `N(m − 1 + r − N)`, met from the certificate side. Consequences: the twenty-image basin-ordering
 design cannot run on a 10-class head (its Part B was stopped, job 721393); it needs a head with `m ≥ 21`
-(EMNIST letters, 26 classes, is on disk). The eight-image cells (`N′ ≤ 7 < 9`) are unaffected.
+(EMNIST letters, 26 classes, is on disk). The eight-image cells (`N′ ≤ 7 < 9`) are unaffected. *Survey across
+`k` (job 722950):* `rank B_T = 9` and `rank C = 55` at every `k ∈ {8, 12, 16, 20, 24, 32, 40}`, all twenty imprints
+present, certificate residual 0.3–0.5 throughout — the cap is `m − 1` exactly and independent of the chart.
