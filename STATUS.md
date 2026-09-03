@@ -417,6 +417,7 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   prediction came out with the opposite sign (same-class 1s not lifted; different-class on-chart batch lifted):
   the coupling follows **feature overlap**, not label — Gram measurement in flight (`step55_gram`).
 - **In flight:** feature-Gram measurement; chart budget reruns (624463); β = 4, 16 (624465); random-encoder
+- ei81 recipe route (FP64 simulator, near start) against the bf16/fp16-trained letter releases — does a stronger attacker recover what the certificate cannot? (RESULTS Step 26, pre-registered)
 - 764976: tight-tolerance (1e-12) search from the fp32- and bf16-TRAINED releases (letters, confident, control at k=32) — the noise-matched tolerance was the wrong knob.
 - 763805: random-init letter arm of the training-precision cell (robustness check; zero-init 760909 is primary).
 - 760909 / 760912: the release loop run in fp32/bf16/fp16 (`train_precision.py`): new-class letters (decisive), confident k=32 (negative control), control k=32 (adapter moves), confident k=8; feedback and imprint-sum mismatch per row; pre-registered in RESULTS Step 24 continued.

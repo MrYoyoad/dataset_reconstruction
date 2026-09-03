@@ -2493,3 +2493,20 @@ fidelity); at k = 32 (instance-level) it is six of eight pending the tight toler
 reproduces the zero-row arm in every number (8/8 fp64, 6/8 fp32, the same two letters missing) — the result does
 not depend on how the new head row is initialised. (iv) The bf16-storage ninth cell (tol 0.08, N′ = 2): found only
 image 5 (81 landings); image 1 at residual 2.4e-3 straddled the bar — the scatter, as read above.
+
+### Step 26 (pre-registered; job below): the RECIPE route against a half-precision-trained release — is "recorded but not certificate-recoverable" protection?
+
+yoado-6e's probe: the certificate is one weak, recipe-free attacker; its failure on bf16/fp16-trained letter releases
+bounds nothing stronger. The recipe route (the unrolled FP64 simulator, `invert_lm`, from a near start with
+noise 0.1 — the identifiability cell of every earlier step) uses strictly more information. Cells: letters k = 16
+and 32, release trained in fp64 (gate: residual at the truth ~1e-16, recovery exact), fp32, bf16, fp16; simulator
+always FP64. Measured: residual at the truth (= the arithmetic-mismatch floor: predicted ≈ the release's relative
+deviation, 4e-7 / 0.12 / 0.03), σ_min of the Jacobian at the truth, the LM endpoint's residual and its per-image
+chart error. **Pre-registration:** the residual cannot reach zero from a mismatched release (floor = rel. dev.);
+the question is where the LM endpoint sits. Two outcomes, both recorded: (a) endpoint chart error below the chart's
+own representation error (.32 / .24) for every letter → the class is recovered approximately from the
+half-precision-trained adapter → "not protection" *demonstrated*; (b) endpoint error O(1) (the 12% inconsistency
+amplified through σ_min ~1e-6 … 1e-5 into the weak directions) → an extraction gap for both channels we have —
+still not protection, since the release provably encodes the class (learned margins, rank 8, O(1) imprints), but
+the honest sentence becomes "recorded, recoverable by neither route we have". fp32-trained (rel. dev. 4e-7) is
+the control expected to recover to ~1e-6.
