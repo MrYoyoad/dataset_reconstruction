@@ -1790,3 +1790,22 @@ Global chart, repeated draw, random encoder (Gaussian weights at the trained lay
 truth 2.1e-5 (k=6), 3.8e-5 (10), 1.6e-5 (14), 5.0e-7 (17), **2.5e-19 (18)** — full rank to 17, collapse at 18,
 every below-line cell at the floor within 60–272 iterations. The line holds on the random encoder exactly as on
 the trained ones; only the conditioning differs (this is the zero point of the quality ladder).
+
+### Step 22 — the fidelity axis, standalone (job 719793, `chart_fidelity.py`, 2,000 held-out test digits)
+
+Class identity preserved by a `k`-dimensional PCA chart (fitted on 50k train digits), as the base model's accuracy
+on the projections — a property of the chart family and `k` alone (no adapter, release, rank or search):
+
+| k | 2 | 4 | 6 | 8 | 10 | 12 | 16 | 20 | 24 | 32 | 40 | 48 | 56 | 64 | raw |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| strong 98% | .20 | .31 | .52 | .68 | .75 | .83 | .88 | .94 | .95 | .97 | .97 | .975 | .978 | .977 | .979 |
+| mid 95% | .31 | .46 | .66 | .76 | .81 | .85 | .88 | .92 | .93 | .94 | .94 | .94 | .94 | .945 | .951 |
+| weak 78% | .23 | .32 | .47 | .58 | .60 | .63 | .69 | .73 | .76 | .79 | .79 | .79 | .79 | .79 | .784 |
+| repr. err (median) | .73 | .69 | .64 | .62 | .59 | .56 | .52 | .49 | .46 | .41 | .38 | .34 | .32 | .29 | — |
+
+The ladder's admissible `k` at each rank (`k < r − N′`) are marks on this curve: at `r = 16` with seven recorded
+the admissible charts (`k ≤ 8`) keep 52–68% of digits identifiable to the strong model; at `r = 64` with eight
+recorded (`k ≤ 55`) the admissible chart is at the raw accuracy. Whether the *basin* holds at those `k` is the
+ladder's question, and its first signal is a warning: at `r = 16, k = 8` (one below the line) 0 of the first 500
+random starts landed, against 51% at `k = 6` — the basin collapses toward the line, so "rank buys budget" and
+"the budget is reachable" are separate claims (job 716016, adaptive to 5,000 starts).
