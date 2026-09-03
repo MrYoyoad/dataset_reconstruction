@@ -45,19 +45,30 @@ def forward_adapted(x, Ws, b1, As, Bs):
 
 def run_training(x, Ws, b1, A0s, y, m, T, lr, create_graph=False):
     """Plain SGD on ALL LoRA parameters, unrolled.  B starts at zero on every layer."""
-    As = [a for a in A0s]
-    Bs = [torch.zeros(w.shape[0], a.shape[0], dtype=x.dtype, device=x.device) for w, a in zip(Ws, A0s)]
+    # autograd.grad needs every LoRA factor to require grad.  Job 608693 died here ("element 0 of tensors does
+    # not require grad"): the release was generated under torch.no_grad() with plain A0 leaves and zero Bs.
+    # With create_graph the factors stay in the graph (their dependence on x / A0 is what the inversion
+    # differentiates through); without it each step re-leafs them so the graph does not grow with T.
+    As = [a if a.requires_grad else a.detach().requires_grad_(True) for a in A0s]
+    Bs = [torch.zeros(w.shape[0], a.shape[0], dtype=x.dtype, device=x.device, requires_grad=True)
+          for w, a in zip(Ws, A0s)]
     Y = torch.eye(m, device=x.device)[y].T
     N = x.shape[1]
-    for _ in range(T):
-        z = forward_adapted(x, Ws, b1, As, Bs)
-        zs = z - z.max(dim=0, keepdim=True).values
-        p = torch.exp(zs); p = p / p.sum(dim=0, keepdim=True)
-        loss = -(Y * torch.log(p + 1e-300)).sum() / N
-        gs = torch.autograd.grad(loss, As + Bs, create_graph=create_graph)
-        nA = len(As)
-        As = [a - lr * g for a, g in zip(As, gs[:nA])]
-        Bs = [b - lr * g for b, g in zip(Bs, gs[nA:])]
+    with torch.enable_grad():
+        for _ in range(T):
+            z = forward_adapted(x, Ws, b1, As, Bs)
+            zs = z - z.max(dim=0, keepdim=True).values
+            p = torch.exp(zs); p = p / p.sum(dim=0, keepdim=True)
+            loss = -(Y * torch.log(p + 1e-300)).sum() / N
+            gs = torch.autograd.grad(loss, As + Bs, create_graph=create_graph)
+            nA = len(As)
+            As = [a - lr * g for a, g in zip(As, gs[:nA])]
+            Bs = [b - lr * g for b, g in zip(Bs, gs[nA:])]
+            if not create_graph:
+                As = [a.detach().requires_grad_(True) for a in As]
+                Bs = [b.detach().requires_grad_(True) for b in Bs]
+    if not create_graph:
+        As = [a.detach() for a in As]; Bs = [b.detach() for b in Bs]
     return As, Bs
 
 
@@ -97,8 +108,7 @@ def main():
 
     dims = [(w.shape[1], w.shape[0]) for w in Ws]
     A0s = [(a.sigma0 * torch.randn(a.r, i, generator=g)).to(dev) for i, o in dims]
-    with torch.no_grad():
-        A_T, B_T = run_training(X_img, Ws, b1, A0s, y, m, a.T, a.lr)
+    A_T, B_T = run_training(X_img, Ws, b1, A0s, y, m, a.T, a.lr)
     n_seed = sum(a.r * i for i, o in dims); n_data = a.N * a.k
     n_rel = sum(o * a.r for i, o in dims) + n_seed
     print(f"# MULTI-LAYER LoRA on the TRAINED MLP -- EMPIRICAL, outside the theorems ((A1) fails: adapting "

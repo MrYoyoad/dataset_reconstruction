@@ -36,10 +36,34 @@ def pick_digits(perm, yte, N, mode):
     return idx
 
 
-def spectrum_at_truth(chart, bb, X_real, y, a, A0):
+def coords(chart, X, inner_iters):
+    """chart.coords_of with the inner projection budget exposed where the chart has one (learned charts)."""
+    return chart.coords_of(X, iters=inner_iters) if "iters" in chart.coords_of.__code__.co_varnames else chart.coords_of(X)
+
+
+def inner_diag(chart, X_real, W):
+    """The inner projection's own convergence at W (a learned chart's coords_of is a fixed-step Adam solve and
+       W IS the truth of the cell, so slack here moves the truth and sigma_min with it), plus the chart
+       Jacobian dpsi/dw per column (block-diagonal across images; orthonormal for PCA, so those read 1)."""
+    w = W.clone().requires_grad_(True)
+    loss = ((chart.psi(w) - X_real) ** 2).sum()
+    g, = torch.autograd.grad(loss, w)
+    smin, smax = [], []
+    for i in range(W.shape[1]):
+        def col(wi, i=i):
+            Wf = torch.cat([W[:, :i], wi[:, None], W[:, i + 1:]], dim=1)
+            return chart.psi(Wf)[:, i]
+        sv = torch.linalg.svdvals(tf.jacfwd(col)(W[:, i].detach()))
+        smin.append(float(sv[-1])); smax.append(float(sv[0]))
+    return dict(inner_loss=float(loss), inner_grad_norm=float(g.norm()),
+                dec_jac_sigma_min=min(smin), dec_jac_sigma_max=max(smax), dec_jac_cond_worst=max(smax) / min(smin))
+
+
+def spectrum_at_truth(chart, bb, X_real, y, a, A0, W_true=None):
     """The cell-(a) construction of vae_chart.invert_cell, up to the Jacobian at the truth."""
     m, n = bb.m, bb.n; k = a.k; N = a.N; nW = k * N
-    W_true = chart.coords_of(X_real); X_on = chart.psi(W_true); H = bb.phi(X_on)
+    if W_true is None: W_true = chart.coords_of(X_real)
+    X_on = chart.psi(W_true); H = bb.phi(X_on)
     A_T, B_T = train_release(H, A0, bb.W0, y, m, a.T, a.lr, "sgd")
     nB = torch.linalg.norm(B_T); nA = torch.linalg.norm(A_T)
 
@@ -76,6 +100,15 @@ def main():
     ap.add_argument("--T", type=int, default=400); ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--a0-seeds", nargs="*", type=int, default=[1, 2, 3])
+    ap.add_argument("--inner-iters", nargs="*", type=int, default=[300],
+                    help="inner projection budgets for learned charts; all A0 seeds run at the LAST level, "
+                         "earlier levels use the first seed only (they exist to show the truth moving)")
+    ap.add_argument("--perturb", type=int, default=0,
+                    help="extra at-truth spectra at this many nearby on-chart points (W + scale*std*noise), "
+                         "first seed, last inner level: a piecewise-linear (ReLU) chart Jacobian is only stable "
+                         "if these agree")
+    ap.add_argument("--perturb-scale", type=float, default=1e-3)
+    ap.add_argument("--perturb-charts", nargs="*", default=None, help="restrict --perturb to these chart labels")
     ap.add_argument("--n-fit", type=int, default=50000)
     ap.add_argument("--data-root", default="dataset_reconstruction/data")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -110,16 +143,35 @@ def main():
                 for c in a.cvae:
                     cl, cp = c.split(":", 1)
                     net = CondVAE(k); net.load_state_dict(torch.load(cp, map_location="cpu")); charts[cl] = CondVAEChart(net.to(dev).double().eval(), k, y, dev)
+                def emit(row, **extra):
+                    row.update(extra); row.update(encoder=label, encoder_path=path, backbone_test_acc=acc, labels=lmode,
+                                                  y=y.tolist(), k=k, N=a.N, r=a.r, m=bb.m, n=bb.n, T=a.T, lr=a.lr, seed=a.seed,
+                                                  capacity_line=bb.m + a.r - a.N, git=git_hash(), host=socket.gethostname(),
+                                                  cmd=" ".join(sys.argv))
+                    print(json.dumps(row), flush=True)
+                    if a.out:
+                        with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
+
+                def A0_of(s):
+                    return (sigma0 * torch.randn(a.r, bb.n, generator=torch.Generator().manual_seed(1000 + s))).to(dev)
+
                 for cname, chart in charts.items():
-                    for s in a.a0_seeds:
-                        A0 = (sigma0 * torch.randn(a.r, bb.n, generator=torch.Generator().manual_seed(1000 + s))).to(dev)
-                        row = spectrum_at_truth(chart, bb, X_real, y, a, A0)
-                        row.update(encoder=label, encoder_path=path, backbone_test_acc=acc, labels=lmode, y=y.tolist(),
-                                   chart=cname, k=k, N=a.N, r=a.r, m=bb.m, n=bb.n, T=a.T, lr=a.lr, seed=a.seed, a0_seed=s,
-                                   capacity_line=bb.m + a.r - a.N, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
-                        print(json.dumps(row), flush=True)
-                        if a.out:
-                            with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
+                    learned = "iters" in chart.coords_of.__code__.co_varnames
+                    levels = a.inner_iters if learned else [None]
+                    for li, L in enumerate(levels):
+                        W_true = coords(chart, X_real, L) if learned else chart.coords_of(X_real)
+                        diag = inner_diag(chart, X_real, W_true)
+                        seeds = a.a0_seeds if li == len(levels) - 1 else a.a0_seeds[:1]
+                        for s in seeds:
+                            row = spectrum_at_truth(chart, bb, X_real, y, a, A0_of(s), W_true)
+                            emit(row, chart=cname, a0_seed=s, inner_iters=L, perturb=0, **diag)
+                        if a.perturb and li == len(levels) - 1 and (a.perturb_charts is None or cname in a.perturb_charts):
+                            gp = torch.Generator().manual_seed(a.seed + 99)
+                            for j in range(1, a.perturb + 1):
+                                Wp = W_true + a.perturb_scale * W_true.std() * torch.randn(W_true.shape, generator=gp).to(dev)
+                                row = spectrum_at_truth(chart, bb, X_real, y, a, A0_of(a.a0_seeds[0]), Wp)
+                                emit(row, chart=cname, a0_seed=a.a0_seeds[0], inner_iters=L, perturb=j,
+                                     perturb_scale=a.perturb_scale, **inner_diag(chart, X_real, Wp))
 
 
 if __name__ == "__main__":
