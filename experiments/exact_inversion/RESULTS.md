@@ -1590,6 +1590,18 @@ angles) are different causes of a poor `σ_min(J)`, and this is the field that s
    imprint norms, imprint-Gram `σ_N/σ_1`, `rank B_T`, `σ_min(J)` at the truth — to be filled from 658575's `old_ext`
    and `new` rows.
 
+**The side-by-side (item 4), job 658575, strong 98% model, same extended head (`m = 11`, zero row), raw images:**
+
+| batch | margins (median) | imprints (relative) | `rank B_T` | imprint cosine (mean off-diagonal) | reading |
+|---|---|---|---|---|---|
+| eight MNIST digits (`old_ext`) | 17.9 | 7e-18, 1, 2e-7, 7e-8, 1e-9, 6e-6, 8e-22, 2e-3 | **6** | 0.04 | **absent** — one dominant, the rest below noise |
+| eight EMNIST 'a' (`new`) | −10.8 | 0.6, 0.5, 1, 0.4, 0.3, 0.7, 0.7, 0.7 | **8** | 0.52 | **present and aligned** |
+
+Same encoder, same head, same recipe: what changes is whether the model had anything to learn. The letters are
+recovered on-chart to the floor (`σ_min` 1.4e-7 … 4e-6); the digits are not identifiable below the line.
+(The on-chart `old_ext` row is a chart artefact — the *letter* chart projects digits so badly (repr. err 0.69)
+that the model misreads them and records them all — and is not the comparison.)
+
 Data note: EMNIST's 'letters' split merges cases, so class 'a' contains both lowercase a and uppercase A (5 of 8
 private letters are 'a', 3 are 'A'; orientation verified visually after the transpose); the public-'a' chart is
 fitted on the same mixture, so the new class is bimodal by construction, not mismatched.
