@@ -123,6 +123,14 @@ degradation splits by N (the defender's variable), not by distance past the line
 N=8 stays inside tolerance sixteen units past the line, N=12/14 are outside one unit past; and every past-line
 error is a lower bound on the fibre's extent (near-init finds the nearest branch; walks stopped by budget).
 
+**12. An edit script that asserts mid-way can silently drop everything before the assert.** A patch script applied
+five edits in memory and wrote the file once at the end; the third assert failed, so the two successful edits were
+lost with it — and because a later script then patched the *ledger* and the *lead* to reference the dropped section,
+the document spent several commits citing a section it did not contain. The build did not complain: LaTeX has no
+opinion about a paragraph that was never written. Two rules: write after each successful edit, or verify the target
+strings exist in the file afterwards rather than trusting the script's own "ok" lines. And when a script aborts,
+re-grep for every edit it claimed before assuming the rest landed.
+
 **11. Two statistic-substitutions that have each bitten this project repeatedly.** (a) *Solved-point versus
 at-truth.* The jsonl carries `jac_sigma_min` / `jac_cond` (spectrum at the point the solver returned) beside
 `jac_sigma_min_truth` (at the true coordinates). The theorems are statements about the Jacobian at the truth;
