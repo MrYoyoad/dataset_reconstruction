@@ -12,7 +12,8 @@
 %     \newtheorem{example}[theorem]{Example}
 %     \theoremstyle{remark}\newtheorem{remark}[theorem]{Remark}
 %     \begin{document}\input{exact_channel_rev10}\end{document}
-%  Figures: fig_counting_plane.png, fig_alias_quadrant.png, fig_spectrum.png
+%  Figures: fig_counting_plane.png, fig_alias_quadrant.png, fig_spectrum.png,
+%           chart_dependence_k17.png (executor's, figures/exact_inversion/, copied to figures/rev10/)
 %  (generators: scripts/rev10_figs/fig_*.py — CPU only, read the committed
 %   results/exact_inversion/*.jsonl and spectrum_*.pth; PNGs in figures/rev10/).
 %
@@ -45,7 +46,9 @@ it and solving for the $rN$ numbers gives $m-1+r-N$ equations per image
 (Theorems~\ref{thm:cap}--\ref{thm:suff}). The difference between the two is
 one identifiable object — the coefficient matrix of the released $B_T$ —
 and Corollary~\ref{cor:two} states it. Section~\ref{sec:measured} reports
-what was measured, and where the second reading stops being about leakage.
+what was measured, on the synthetic test-bed and on real digits, and shows
+that the boundary is a statement about the coordinates the attacker searches
+in, not about the images.
 
 %----------------------------------------------------------------------------
 \subsection{Objects, hypotheses, and the gradient}
@@ -110,9 +113,11 @@ $dL=\langle D,dZ\rangle=\langle D,\;s\,dB\,AH+s\,B\,dA\,H\rangle
 $V\in\mathbb R^{n\times(n-N)}$ be an orthonormal basis of $\operatorname{col}(H)^\perp$.
 Define
 \begin{equation}\label{eq:XY}
-  X:=A_0U\in\mathbb R^{r\times N},\qquad Y:=A_0V\in\mathbb R^{r\times(n-N)},
-  \qquad\text{so that}\qquad A_0=XU^{\!\top}+YV^{\!\top},\quad A_0H=XR_H,\quad
+\begin{aligned}
+  X&:=A_0U\in\mathbb R^{r\times N},\qquad Y:=A_0V\in\mathbb R^{r\times(n-N)},\\
+  \text{so that}\qquad A_0&=XU^{\!\top}+YV^{\!\top},\qquad A_0H=XR_H,\qquad
   Q=R_H^{\!\top}X^{\!\top}XR_H .
+\end{aligned}
 \end{equation}
 
 \paragraph{The private data as a manifold.} Each private image is
@@ -142,18 +147,18 @@ by $P_0=0$, $M_0=0$ and
 Induction on $t$; $t=0$ is (A2). Assume \eqref{eq:closure} at $t$. Then
 $B_tA_tH=P_t(A_0H)^{\!\top}A_0(H+HM_tG)=P_t\,Q\,(I+M_tG)$, which gives $D_t$.
 By Lemma~\ref{lem:grad},
-\[
-  \nabla_BL=sD_tH^{\!\top}A_t^{\!\top}=sD_t\bigl(H^{\!\top}+G^{\!\top}M_t^{\!\top}H^{\!\top}\bigr)A_0^{\!\top}
-  =sD_t(I+GM_t^{\!\top})(A_0H)^{\!\top}\quad(G^{\!\top}=G),\qquad
-  \nabla_AL=sB_t^{\!\top}D_tH^{\!\top}=A_0H\,(sP_t^{\!\top}D_t)\,H^{\!\top},
-\]
+\begin{align*}
+  \nabla_BL&=sD_tH^{\!\top}A_t^{\!\top}=sD_t\bigl(H^{\!\top}+G^{\!\top}M_t^{\!\top}H^{\!\top}\bigr)A_0^{\!\top}
+  =sD_t(I+GM_t^{\!\top})(A_0H)^{\!\top}\qquad(G^{\!\top}=G),\\
+  \nabla_AL&=sB_t^{\!\top}D_tH^{\!\top}=A_0H\,(sP_t^{\!\top}D_t)\,H^{\!\top},
+\end{align*}
 so the update of (A3) keeps both shapes and produces \eqref{eq:rec}.
 \end{proof}
 
 \begin{corollary}[where the seed enters]\label{cor:seed}
 Assume (A1)--(A3). The coefficient trajectory $(P_t,M_t,D_t)_{t\le T}$ is a
-function of $(W_0H,\,G,\,Q,\,E;\,\eta,s,T)$ only; the initialisation $A_0$
-enters it through $Q=R_H^{\!\top}X^{\!\top}XR_H$ and nowhere else. The release is
+function of $W_0H$, $G$, $Q$, $E$ and $(\eta,s,T)$ only; the initialisation
+$A_0$ enters it through $Q=R_H^{\!\top}X^{\!\top}XR_H$ and nowhere else. The release is
 \begin{equation}\label{eq:release}
   B_T=P_T\,R_H^{\!\top}X^{\!\top},\qquad
   A_T=X\,\Omega\,U^{\!\top}+Y\,V^{\!\top},\qquad
@@ -173,8 +178,8 @@ For the gauge, $Q$ is unchanged by $X\mapsto OX$, so \eqref{eq:rec} is
 unchanged, and \eqref{eq:release} transforms as stated.
 \end{proof}
 The gauge statement was tested rather than assumed$^\dagger$ (job 487882):
-at three shapes ($n{=}96,k{=}12,N{=}8,T{=}400$; $n{=}32,k{=}6,N{=}4,T{=}200$;
-$n{=}96,k{=}10,N{=}12,T{=}150$) the relative discrepancies
+at three shapes, $(n,k,N,T)=(96,12,8,400)$, $(32,6,4,200)$ and
+$(96,10,12,150)$, the relative discrepancies
 $\|A_T'-OA_T\|/\|A_T\|$, $\|B_T'-B_TO^{\!\top}\|/\|B_T\|$,
 $\|\Omega'-\Omega\|/\|\Omega\|$ are all between $5.8\times10^{-16}$ and
 $2.1\times10^{-15}$. The coefficients see only $Q$; the release sees $X$; the
@@ -193,9 +198,11 @@ Assume (A1)--(A5). Then $\operatorname{row}(B_T)=\operatorname{col}(A_0H)$
 as subspaces of $\mathbb R^r$, and with $\Pi_S$ the orthogonal projector of
 $\mathbb R^r$ onto $S^\perp$,
 \begin{equation}\label{eq:C}
-  C:=\Pi_{\operatorname{row}(B_T)}A_T=\Pi_{\operatorname{col}(A_0H)}A_0,\qquad
-  CH=0,\qquad \operatorname{rank}C=r-N,\qquad
+\begin{aligned}
+  C&:=\Pi_{\operatorname{row}(B_T)}A_T=\Pi_{\operatorname{col}(A_0H)}A_0,\\
+  CH&=0,\qquad \operatorname{rank}C=r-N,\qquad
   \ker C=\operatorname{col}(H)+\ker A_0 .
+\end{aligned}
 \end{equation}
 \end{theorem}
 \begin{proof}
@@ -299,8 +306,11 @@ subvariety for a.e.\ seed and data by (A2), and $\rho(w^\star,X^\star)=0$.
 \begin{remark}\label{rem:distance}
 Theorem~\ref{thm:cap} says that past the line the truth is not an isolated
 zero of $\rho$: a continuum of release-consistent candidates passes through
-it. It says nothing about how far that continuum extends in image space.
-Non-isolation is not distance; \S\ref{sec:measured} measures the distance.
+it. It says nothing about how far that continuum extends in image space:
+non-isolation is not distance. And below the line, identifiability is not
+fidelity: the coordinates $w$ are pinned, and the image returned, $\psi(\hat
+w)$, is only as good as the chart $\psi$. Section~\ref{sec:measured} measures
+both.
 \footnote{Rank deficiency of $D\rho$ \emph{at} the truth alone would not give
 non-isolation ($f(x)=x^2$ has $f'(0)=0$ and an isolated zero); the proof uses
 that the rank bound holds at every candidate, and concludes only almost
@@ -380,12 +390,16 @@ Theorem~\ref{thm:suff}.
 \end{proof}
 
 \begin{center}\small
-\begin{tabular}{@{}llll@{}}\toprule
+\begin{tabular}{@{}p{0.2\linewidth}p{0.27\linewidth}p{0.13\linewidth}p{0.32\linewidth}@{}}\toprule
  & reads & equations per image & needs\\ \midrule
 certificate (Thm~\ref{thm:quot}) & $\operatorname{row}(B_T)$; $\Pi_{\operatorname{row}(B_T)}A_T$ & $r-N$ & (A1)--(A5)\\
-exact (Thms~\ref{thm:cap}, \ref{thm:suff}) & all of $B_T$; $A_TU_c(w)$ & $(m-1)+r-N$ & (A1)--(A3), (A6), recipe (checked or fitted, \S\ref{sec:measured}), solver, a start\\ \bottomrule
+exact (Thms~\ref{thm:cap}, \ref{thm:suff}) & all of $B_T$; $A_TU_c(w)$ & $(m-1)+r-N$ & (A1)--(A3), (A6); the recipe, checked or fitted (\S\ref{sec:measured}); a solver and a start\\ \bottomrule
 \end{tabular}
 \end{center}
+Both capacities are statements about the chart coordinates $w\in\mathbb R^{Nk}$
+of Definition~\ref{def:setup}: the unknown is $w$, the theorems pin $w$, and
+the attack returns $\psi(\hat w)$. Nothing in them constrains the chart
+$\psi$, which is the attacker's to choose.
 
 %----------------------------------------------------------------------------
 \subsection{What was measured}
@@ -418,7 +432,13 @@ $N$ & $k^\star=m+r-N$ & last $k$ identifiable ($\sigma_{\min}$) & first $k$ coll
 At $N=8$ and $N=14$ the transition is one unit of $k$, on the outcome
 (recovered at $k^\star-1$, alias at $k^\star$) and on $\sigma_{\min}$, which
 drops twelve orders across that unit; it lands on $k=m+r-N$, the strict form
-that Proposition~\ref{prop:simplex} derives.\footnote{At $(14,21)$ a
+that Proposition~\ref{prop:simplex} derives.\footnote{At the collapsed cells
+$\sigma_{\min}\approx10^{-19}$ against $\sigma_{\max}\sim1$ is the FP64
+floor: the measurement shows the smallest singular value falling to the
+floor, and cannot by itself distinguish a rank deficiency from a condition
+number of $10^{18}$. That the rank is exactly deficient at $k=m+r-N$ is
+Proposition~\ref{prop:simplex} and Theorem~\ref{thm:cap}, not the
+measurement.}\footnote{At $(14,21)$ a
 single-restart run stalled at residual $5\times10^{-18}$ with
 $\sigma_{\min}=1.8\times10^{-7}$ intact; six restarts reach the floor
 ($9.5\times10^{-31}$, error $2.8\times10^{-12}$, job 481079). Identifiable
@@ -446,6 +466,79 @@ larger manifold of all rank-$N$ matrices, $N(m+r-N)$. The same computation
 predicts, untested as a boundary, that Adam's line sits one unit above SGD's
 at equal $(m,r,N)$.
 
+\paragraph{The line on real images.} MNIST digits$^\dagger$ (job 568095):
+$N=8$ real digits with their real labels, $m=10$ classes, a fixed public
+random $\tanh$ encoder $784\to128\to96$, and the chart $\psi(w)=\mu+V_kw$
+with $V_k$ the top-$k$ principal directions of $10^4$ training digits (the
+private digits projected onto it, so they lie on the chart exactly); $T=400$,
+$\eta=0.01$, plain SGD. The line $k<m+r-N$ moves with $r$ as
+Theorem~\ref{thm:cap} says:
+\begin{center}\small
+\begin{tabular}{@{}cccc@{}}\toprule
+$r$ & line $k^\star=m+r-N$ & last full-rank $k$ ($\sigma_{\min}$) & first collapsed $k$ ($\sigma_{\min}$)\\ \midrule
+8  & 10 & 9 ($8.5\times10^{-7}$) & 10 ($6.2\times10^{-19}$)\\
+16 & 18 & 17 ($1.3\times10^{-6}$) & 18 ($8.4\times10^{-18}$)\\
+32 & 34 & 33 ($2.4\times10^{-6}$) & 34 ($1.4\times10^{-18}$)\\ \bottomrule
+\end{tabular}
+\end{center}
+Sharp to one unit of $k$ at all three ranks, thirteen orders across the
+unit, with the same pre-collapse $\sigma_{\min}\sim10^{-6}$ as the synthetic
+study. Two honesties belong in the same row. The last full-rank cell is
+already solver-degraded at every rank — image error $1.3\times10^{-2}$,
+$1.5\times10^{-2}$, $6.1\times10^{-3}$ at residuals $10^{-13}$--$10^{-14}$,
+off the floor — so identifiability is sharp at the line and solvability is
+not, as at $(14,21)$ synthetically; deeper below the line recovery is clean
+($r=16$, $k=6,10,14$: errors $2$--$8\times10^{-14}$ at residual
+$9\times10^{-31}$). And the chart here is the digits' own principal subspace,
+which the next paragraph shows is the whole question.
+
+\paragraph{The boundary is about the chart, not the image.} Same digits,
+same $N=8$, $m=10$, $r=16$, line $k<18$; three charts at matched $k$$^\dagger$
+(job 574169): the principal subspace (PCA), the same subspace under a
+non-linear warp, and a chart built to contain the eight private digits
+exactly. Two predictions of Theorems~\ref{thm:cap}--\ref{thm:suff} come
+apart:
+\begin{center}\small
+\begin{tabular}{@{}llccc@{}}\toprule
+$k$ & chart & $\sigma_{\min}$ & error vs.\ own image & error vs.\ real digit\\ \midrule
+17 (below) & PCA & $2.2\times10^{-5}$ & $7.2\times10^{-14}$ & $0.510$\\
+           & warped & $2.2\times10^{-5}$ & $5.9\times10^{-14}$ & $0.510$\\
+           & contains the digits & $5.7\times10^{-5}$ & $5.8\times10^{-14}$ & $5.8\times10^{-14}$\\
+18 (at)    & PCA & $5.6\times10^{-18}$ & $2.9\times10^{-2}$ & $0.500$\\
+           & warped & $5.3\times10^{-18}$ & $2.9\times10^{-2}$ & $0.500$\\
+           & contains the digits & $5.7\times10^{-18}$ & $1.8\times10^{-2}$ & $1.8\times10^{-2}$\\
+8 (far below) & contains the digits & $6.2\times10^{-4}$ & --- & $9.5\times10^{-15}$\\
+           & PCA & $2.0\times10^{-4}$ & --- & $0.617$\\ \bottomrule
+\end{tabular}
+\end{center}
+(Residuals at the floor, $6$--$10\times10^{-31}$, in every row.) The
+boundary is chart-independent: all three charts collapse at $k=18$ exactly,
+$\sigma_{\min}$ falling from $10^{-5}$ to $10^{-18}$, because the count is
+blind to how the chart is built. What comes back is not: at $k=17$ every
+chart recovers its own representable image to $10^{-14}$, and against the
+real digit the three differ by thirteen orders. The boundary is therefore a
+statement about the chart coordinates, not about the images. Below it the
+coordinates $w$ are locally identifiable and the attack returns
+$\psi(\hat w)$; how close that is to the private image depends entirely on
+whether the chart can represent it. The capacity law bounds the
+\emph{dimension of the search}, not the fraction of the image an attacker
+can reach, and it cannot be read as a leakage bound: nothing constrains the
+attacker's chart to be data-agnostic, and one spanning the private images
+plus filler has $k=N=8$, sits far below the line, and returns them at
+$10^{-14}$ (last rows). What the boundary limits is the search space, and
+the search space is the attacker's to choose — which is the counting
+argument handing the generative-prior direction of Rev~9 its role: a prior
+is a chart-builder (Figure~\ref{fig:chart}).
+
+\begin{figure}[t]\centering
+\includegraphics[width=\linewidth]{chart_dependence_k17.png}
+\caption{Chart dependence at $k=17$, one unit below the line (job 574169).
+Rows: the real digit; what each chart can represent at all; what the attack
+returned, with the error against the real digit. Every chart is recovered
+exactly in its own coordinates; only the chart that contains the digits
+returns the digits.}\label{fig:chart}
+\end{figure}
+
 \paragraph{Past the line the release is reproduced by a point that is close to
 the truth.} The aliases of the table sit at image error $1.7\times10^{-3}$
 ($N=4$), $2.6$--$9.3\times10^{-3}$ ($N=8$), $6.4\times10^{-3}$ ($N=14$),
@@ -457,7 +550,7 @@ $\rho^{-1}(0)$ by a few LM steps, repeat (Figure~\ref{fig:quadrant}).
 \begin{center}\small
 \begin{tabular}{@{}lccc@{}}\toprule
 cell & side of $k=m+r-N$ & steps at the floor & max image error reached\\ \midrule
-$(8,26)$ & below & 8 / 8 & $6.6\times10^{-14}$\\
+$(8,26)$ & below & 13 / 13 & $6.6\times10^{-14}$\\
 $(8,32)$ & past & 25 / 25 & $1.43\times10^{-2}$ (flat over the last five steps)\\
 $(14,22)$ & at & 25 / 25 & $3.84\times10^{-2}$ (still rising at the end)\\ \bottomrule
 \end{tabular}
@@ -470,11 +563,12 @@ walkable manifold at and past it. Each walk follows one null direction
 (of $14$ and $40$), so the errors reached bound the extent from below; the
 at-line walk had not stopped rising. On the paths measured, the alternative
 solutions are recognisable reconstructions of the private images, and
-$3.8\%$ is a visible degradation. Hence: $k<m+r-N$ is the boundary of
-\emph{exact} identifiability, and on this evidence it is not a boundary of
-leakage. Whether some direction through the fibre reaches unrecognisable
-points is the question that decides what the line means for privacy, and it
-is open.
+$3.8\%$ is a visible degradation. Hence $k<m+r-N$ is the boundary of
+\emph{exact} identifiability of the chart coordinates, and it is not a
+boundary of leakage in either direction: past it the alternatives are
+recognisable, and below it the image reached is only as good as the chart.
+Whether some direction through the fibre reaches unrecognisable points is
+open.
 
 \begin{figure}[t]\centering
 \includegraphics[width=\linewidth]{fig_counting_plane.png}
@@ -560,12 +654,13 @@ $(\eta,\eta\,\mathrm{wd})$: the two-parameter least squares returns $\eta$ to
 $5\times10^{-16}$ and $\mathrm{wd}=10^{-3},10^{-2}$ exactly (job 487290), and
 $\cos(\Delta B,-\nabla_BL)=1$ under SGD against $0.43$ under Adam separates
 the optimiser family (job 485912). The same probe returns the per-step $\eta$ at the continuation steps
-to $10^{-15}$ (jobs 487290, 488314). Under a constant rate that is all it
+to $10^{-15}$ (job 487290). Under a constant rate that is all it
 returns, and $T$ stays hidden. Under a cosine schedule of known family, a
 global fit of $(\text{base},T_{\max},T)$ to six probe steps (eliminate the
 base by ratios, grid the two integers, solve the base in closed form) returns
 all three exactly — $T=400$, $T_{\max}=1000$, base $0.0100$ — and identically
-from windows of $20$, $60$ and $150$ steps. A schedule encodes position on
+from windows of $20$, $60$ and $150$ steps (job 488314, whose probed values
+the global fit re-analyses). A schedule encodes position on
 its own curve.\footnote{A gradient fit of the same three parameters had
 landed $30$--$40\%$ off and was retracted; it was a local minimum of a
 multimodal objective, not a degeneracy. The global fit is a re-analysis of
@@ -590,7 +685,11 @@ headline. The withdrawals are in the repository's lessons log.
   direction per cell — a multi-direction version, which would say whether the
   extent is direction-dependent, has not been run — and the at-line cell was
   still rising when its budget ended. ``Recognisable'' is measured to $3.8\%$
-  and no further.
+  and no further. And since the boundary is about the chart, the question
+  that matters for privacy is which chart an attacker can build
+  \emph{without} the private images — a population prior — and how far below
+  the line it lands; that is the generative-prior direction, now with a
+  precise specification.
 \item \textbf{The recipe family.} What \S\ref{sec:measured} leaves open is
   the \emph{family}: the schedule fit assumes cosine, and choosing among
   families is model selection, which the floor test of (R1) would presumably
@@ -634,10 +733,11 @@ headline. The withdrawals are in the repository's lessons log.
 \subsection{Additions to the status ledger (Rev~9 \S15)}
 \label{sec:ledger}
 \begin{center}\small
-\begin{tabular}{@{}lll@{}}\toprule
+\begin{tabular}{@{}p{0.13\linewidth}p{0.47\linewidth}p{0.34\linewidth}@{}}\toprule
 level & content & status\\ \midrule
 2$'$. Seed & $(B_T,A_TU)$ depend on $A_0$ only through $X$; $Y$ released verbatim (Cor.~\ref{cor:seed}) & Theorem under (A1)--(A3)\\
-3$'$. Capacity & $k<m+r-N$, strict, from $\dim\mathcal B$ (Thm~\ref{thm:cap}, Prop.~\ref{prop:simplex}) & Theorem; sharp$^\dagger$ at $N=8,14$; exact identifiability, not leakage\\
+3$'$. Capacity & $k<m+r-N$, strict, from $\dim\mathcal B$ (Thm~\ref{thm:cap}, Prop.~\ref{prop:simplex}) & Theorem; sharp$^\dagger$ at $N=8,14$ synthetic and at $r=8,16,32$ on MNIST; exact identifiability of the chart coordinates\\
+3$'''$. Chart & boundary chart-independent; fidelity chart-dependent ($0.51$ vs $5.7\times10^{-14}$ at $k=17$); a chart containing the digits recovers them at $k=N$ & Verified$^\dagger$ (job 574169); not a leakage bound\\
 3$''$. Sufficiency & $D\rho$ full column rank a.e.\ below the line (Thm~\ref{thm:suff}) & Theorem given one witness; witness$^\dagger$ at $T=1$\\
 5$'$. Past the line & a walkable manifold of exact reproductions, $\le3.8\%$ image error on paths measured & Verified$^\dagger$; extent and global uniqueness open\\
 7$'$. Adam & identifiable; seed $rn$; $\kappa\uparrow$; basin$\downarrow$; simplex constraint broken & Verified$^\dagger$; one-unit-higher line predicted, untested\\
@@ -650,7 +750,8 @@ level & content & status\\ \midrule
 \label{sec:gal}
 
 In this order: the law, because it is a theorem with a derivation and a sharp
-measurement; the walk, because it turns the law into a set one can move
+measurement, on synthetic data and on digits; the chart, because it is what
+the law means; the walk, because it turns the law into a set one can move
 along; the initialiser, because it is what stops the attack today; the
 recipe, because ``the attacker must be handed it'' did not survive
 measurement. Not the $49/49$ grid first: it lies inside the capacity
@@ -666,8 +767,16 @@ region and measures existence, not rate.
   — and $A_TU_c$ pays exactly for $X$. So $k<m+r-N$ (Theorem~\ref{thm:cap}),
   $m-1$ per image above the certificate, and the difference is precisely the
   coefficient matrix the certificate projects away (Corollary~\ref{cor:two}).
-  Measured sharp to one unit of $k$ at two values of $N$; both terms of the
-  cap attained by the block ranks.
+  Measured sharp to one unit of $k$ at two values of $N$ synthetically and
+  at three ranks on real digits; both terms of the cap attained by the block
+  ranks.
+\item \emph{The chart.} The theorems pin the coordinates $w$; the attack
+  returns $\psi(\hat w)$. At the same $k=17$, three charts each recover their
+  own image to $10^{-14}$ and differ by thirteen orders against the real
+  digit; a chart containing the digits recovers them at $k=N$, far below the
+  line. The law bounds the dimension of the search, not the image reached,
+  and the search space is the attacker's to choose: the counting gives the
+  generative prior its job.
 \item \emph{The walk.} Past the line the truth is not isolated
   (Theorem~\ref{thm:cap}); one continuation procedure moves the image by
   $10^{-14}$ below the line and by $1.4$--$3.8\%$ at and past it, at the
@@ -688,7 +797,7 @@ region and measures existence, not rate.
   attacker's own data. What the count leaves the defender is a free per-step
   schedule with $T>120$.
 \item \emph{Open.} The schedule family (model selection, not run); global
-  uniqueness; direction-dependence of the manifold's extent; Adam, which keeps
+  uniqueness; direction dependence of the manifold's extent; Adam, which keeps
   identifiability, loses the $rN$ reduction, destroys the certificate, and is
   predicted to sit one unit higher on the capacity line.
 \end{enumerate}

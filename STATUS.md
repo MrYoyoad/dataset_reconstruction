@@ -27,6 +27,13 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
+- **Real images + chart dependence in the .tex (executor's jobs 568095, 574169):** the line k<m+r−N holds on MNIST
+  (N=8, m=10) at r=8/16/32 — last full-rank k = 9/17/33, first collapsed 10/18/34, ~13 orders per unit — with the
+  last-ok cells solver-degraded (err ~1e-2, residual 1e-13..1e-14) and clean deeper below. Chart dependence at
+  (8,16): boundary chart-independent (all three charts collapse at k=18) but fidelity chart-dependent — at k=17 each
+  chart recovers its OWN image to 1e-14 while vs the REAL digit PCA 0.51 / warped 0.51 / digit-containing chart
+  5.7e-14; a chart containing the digits recovers them at k=N=8. The law bounds the DIMENSION OF THE SEARCH, not
+  the image reached; not a leakage bound in either direction. Scoped at the level of the theorems in the .tex.
 - **Gauge invariance of the coefficient trajectory VERIFIED (job 487882):** A₀ → OA₀ (O orthogonal) leaves P_T, M_T, Ω
   unchanged to †≤2.1e-15 at three shapes and maps (A_T, B_T) → (OA_T, B_T Oᵀ) — the LoRA gauge; the coefficients see A₀
   only through Q = R_Hᵀ XᵀX R_H, as the written-out recurrences say. Also, from a PROBE that uses NO private data (the attacker continues training the
