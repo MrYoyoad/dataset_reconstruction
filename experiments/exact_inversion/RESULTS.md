@@ -1863,11 +1863,18 @@ reading a solve — caught it one row late; the ladder and the twenty-image cell
 
 **The fixed-`k` arm (job 721391, `confident` on-chart, `k = 8`, `N′ = 7`, 500 random starts each):**
 
-| r | line `r − N′` | distance below | starts on a private image | at the floor | found | argmin |
-|---|---|---|---|---|---|---|
-| 16 | 9 | 1 | **16.6%** | 16.0% | 6 of 7 | on a private image |
-| 32 | 25 | 17 | **74.4%** | 70.0% | 7 of 7 | on a private image |
-| 64 | 57 | 49 | **96.4%** | 87.0% | 7 of 7 | on a private image |
+| r | line `r − N′` | distance below | **basin per recorded image** (aggregate / N′) | aggregate on any private image | at the floor | found | argmin |
+|---|---|---|---|---|---|---|---|
+| 16 | 9 | 1 | **2.4%** | 16.6% | 16.0% | 6 of 7 | on a private image |
+| 32 | 25 | 17 | **10.6%** | 74.4% | 70.0% | 7 of 7 | on a private image |
+| 64 | 57 | 49 | **13.8%** | 96.4% | 87.0% | 7 of 7 | on a private image |
+
+The per-image basin is the comparable quantity: the aggregate scales with how many private images there are to
+land on, and `N′` moves with `k` in every cell because projection changes the margins (e.g. `r = 32, k = 12` has
+`N′ = 4` with aggregate 63% but per-image 15.8% — *larger* than `k = 8`'s 10.6%, the opposite of the aggregate's
+reading). What this arm shows is distance dominating **at fixed `k` and fixed batch**; it does not show `k` has
+no effect. The converse needs the mirror design — equal slack, different `k`: `r = 32, k = 8` against
+`r = 64, k = 40`, both seventeen below their lines — which is inside the running ladder.
 
 Second batch, `mnist_control` (`N′ = 8`), same `k = 8`: `r = 16` sits *at* its line (8) — 4% on a private image,
 argmin wrong; `r = 32` (line 24, sixteen below) — **73.4%**, all eight found, argmin correct, floor 69%; `r = 64`
