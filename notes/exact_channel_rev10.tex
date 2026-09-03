@@ -1257,6 +1257,16 @@ basin of $5.7\%$ against $r=32$ with $k=8$ ($17$ below) at $10.6\%$, so
 thirty-two additional unknowns cost about a factor of two. Distance dominates,
 $k$ is not free, and the honest form of the claim needs both halves.
 
+A second batch's ladder shows what happens on approach to the boundary. At
+$r=64$ the per-image basin runs $71.6$, $51.6$, $18.2$, $6.6$ and $0.86$ per
+cent at $k=24,32,40,48,56$, and the number of recorded images found runs
+$7,7,7,6,5$ of seven. So the earlier reading --- that every admissible $k$ is
+attackable and only the cost varies --- holds across most of the range and
+fails within a few units of the line, where the basin becomes small enough
+that some recorded images go unsampled at a fixed start budget. That is a
+sampling limit rather than an identifiability one, but it is the attacker's
+limit all the same.
+
 One confound runs through the whole ladder and belongs with it. In the
 on-chart construction the chart does not merely bound the attacker's search:
 it \emph{defines} the private data, since the adapter is trained on the
@@ -1596,6 +1606,18 @@ attacker three per cent on-chart, and that is invisible beside the thirty-one
 per cent the chart costs anyway. Half-precision training is not protection,
 demonstrated rather than argued; its price to the attacker is a floor of
 $2\times10^{-2}$ in image error where FP64 gives $10^{-15}$.
+
+That price is set by the mantissa, and it orders as one would then expect:
+median image error $3\%$ from a bfloat16-trained release, $1\%$ from an
+FP16-trained one (its $A_0$ floor is $2.05\times10^{-3}$ against bfloat16's
+$0.0231$, a third of the unexplained fraction), $2\times10^{-6}$ from FP32 and
+$10^{-15}$ from FP64. Note that this reverses the ordering of the storage
+result above, and for a reason worth stating: reconstructing $A_0$ inside a
+matched simulator is limited by \emph{precision}, so FP16's ten mantissa bits
+beat bfloat16's seven, while reading a stored release through the certificate
+is limited by \emph{range}, so bfloat16's eight exponent bits beat FP16's
+five. The same two formats swap places depending on which of the two the
+attacker is up against.
 
 \emph{The three attackers on this one release are the clearest lesson in the
 section.} The certificate recovers none of the eight. The recipe route with an
