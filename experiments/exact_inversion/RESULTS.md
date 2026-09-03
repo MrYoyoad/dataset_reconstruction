@@ -2740,3 +2740,12 @@ floor there 0.047); from the near start (residual 0.31) the LM reaches 1.87e-3 i
 letter .029 .010 .004 .011 .038 .010 .007 .014 — **median 0.97%, max 3.8%**; raw error at the chart floor .316; Z
 error 1.8%. Recovered, at a fidelity three times better than bf16's (fp16's 11-bit mantissa leaves a third of
 bf16's A₀ error) — the per-format cost ordering follows the mantissa: bf16 3%, fp16 1%, fp32 2e-6, fp64 1e-15.
+
+*Scaling observed across the four training formats (yoado-6e), one batch, k = 16, k = 32 pending:* the matched
+attacker's recovery error tracks the **training format's unit roundoff ε within 4–20×** — bf16 (ε 7.8e-3) → 3.0%,
+fp16 (9.8e-4) → 0.97%, fp32 (1.2e-7) → 2e-6, fp64 (2.2e-16) → 1e-15 — because the cost is the A₀-reconstruction
+floor, which is the accumulated rounding of the updates and scales with ε. Read as: the leakage fidelity from a
+low-precision-trained adapter is set by the training precision, monotone and without a cliff (fp16 *storage* of a
+1e-18 release is a range cliff on a different axis). The bf16 Z error (13%) against fp16's (1.8%) is the same
+mechanism seen from the soft parameter: less accumulation, cleaner Z — the two rows cross-validate the "soft
+parameter, not alias" reading. Recorded as an observed scaling, not a law, until another batch and k = 32 repeat it.
