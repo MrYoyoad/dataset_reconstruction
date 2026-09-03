@@ -938,9 +938,31 @@ of the same prediction: had they all been assigned to one class the
 alignment would have been stronger. And an attacker's prior built from
 public flowers draws them to $0.305$. This cell isolates the new-class and
 shared-label structure rather than replicating the encoder-quality ladder,
-since its base model is weak by construction; the same construction on the
-$97.9\%$ digit model, with an EMNIST letter as the new class, is running and
-will put both extremes of the mechanism on a single encoder.
+since its base model is weak by construction.
+
+That comparison has now landed, and it is the cleanest statement of the
+mechanism in this section because both extremes sit on one encoder,
+one eleven-row head and one recipe$^\dagger$ (job 658575, raw images).
+Eight ordinary MNIST digits, at median margin $17.9$, leave imprints spanning
+$7\times10^{-22}$ to $1$ with $\operatorname{rank}B_T=6$ of $8$ and mean
+pairwise cosine $0.04$: mostly absent, and mutually unaligned. Eight EMNIST
+\emph{a}'s through the same head, at median margin $-10.8$, leave imprints all
+between $0.3$ and $1$ with $\operatorname{rank}B_T=8$ and cosine $0.52$:
+present in full, and aligned. The two axes are therefore independent. Model
+quality governs how much of \emph{ordinary} data is recorded --- that is the
+encoder-quality ladder --- while novelty of the category governs whether that
+suppression applies at all. A confident model records almost nothing of what
+it already knows and everything of what it has never seen.
+
+The practical reading is the uncomfortable one. The regime in which this
+channel closes is the regime in which fine-tuning teaches a model more of what
+it already does; the regime in which it stays fully open is the one where
+fine-tuning adds a capability the base model lacks --- which is the canonical
+reason to fine-tune at all. The defence found above is real but it does not
+apply where adapters are actually used. (The on-chart row of the same job is
+excluded: the chart there is fitted to letters and projects digits badly
+enough that the model misreads them and records them all, which is a chart
+artefact rather than the comparison.)
 
 \paragraph{On a strong model, ordinary private data collapses to one
 recorded example.} The imprint spectrum can be read off the release without
@@ -1195,15 +1217,24 @@ released tensors removes the examples whose imprints fall below the rounding
 noise. Measured$^\dagger$ (job 722663, counting images with
 $\|Ch_i\|/\|A_Th_i\|<10^{-3}$) on a batch whose $B_T$ spectrum runs
 $1$, $2\times10^{-4}$, $10^{-5}$, $9\times10^{-9}$, $4\times10^{-9}$,
-$10^{-11}$, $2\times10^{-16}$: FP64 recovers $6$, FP32 $3$, and TF32, FP16 and
-bfloat16 none; across four batches the counts fall monotonically with the
-mantissa. Quantisation noise is $3\times10^{-8}$ at FP32 and
-$10^{-3}$--$2\times10^{-3}$ at bfloat16, which is what sets the cut. This is a
-defender-side lever already in wide use for unrelated reasons: a quantised
-adapter is not merely smaller, it records fewer examples recoverably. The
-scope is the certificate channel; the full-residual channel at low precision
-is a separate measurement, and the count is threshold-relative in a way
-\S\ref{sec:opens} records.
+$10^{-11}$, $2\times10^{-16}$, the counts fall $6\to3\to0\to0\to0$ from FP64
+through FP32, TF32, FP16 to bfloat16, and fall monotonically in all four
+batches tested. Quantisation noise is $3\times10^{-8}$ at FP32 and
+$10^{-3}$--$2\times10^{-3}$ at bfloat16, which is what sets the cut.
+
+The count must be read by the \emph{gap} and not by a fixed threshold, since
+a threshold at $10^{-3}$ sits at bfloat16's own noise and would return zero by
+construction. Counting an example as readable when its residual lies two
+orders below the smallest invisible residual of the same release, bfloat16
+still leaves one separable example in two of the four batches (a third sits at
+$1.9$ orders, $6\times10^{-3}$ against $0.44$). So the honest statement is
+that \emph{a bfloat16 adapter narrows the recipe-free channel to at most one
+example; it does not close it} --- the dominant direction survives and
+everything beneath the rounding noise merges into the invisible band. That is
+still a defender-side lever already in wide use for unrelated reasons: a
+quantised adapter is not merely smaller, it records fewer examples
+recoverably. The scope is the certificate channel; the full-residual channel
+at low precision is a separate measurement.
 
 Two caveats belong with it. The vanishing is approximate rather than exact
 below full rank — the recorded residuals sit at $10^{-10}$, not at machine
