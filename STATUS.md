@@ -256,6 +256,19 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   MNIST digits at optdigits' 8-px pipeline sit at 0.320 on the same chart.** The chart half of the prediction was
   untested; "both effects favour the attacker" withdrawn; the record/no-record half stands. Inversions + grids in
   flight (644064).
+- **The certificate `C h = 0` is the recipe-free face of the imprint law (RESULTS Step 22, jobs 701679/704286).**
+  `C = P_{row(B_T)⊥}A_T` has rank `r − N′` and `‖Ch_i‖/‖A_T h_i‖` is 1e-16…1e-8 on every recorded image and
+  0.1–1.0 on every invisible one, in every batch — a recipe-free, label-free test of membership in the recorded
+  span. As an inversion channel (`Cφ(ψ(w)) = 0`, no unroll, ~0.2 s per start): the kernel count `k < r − N′` is
+  confirmed structurally — no spurious zeros below the line (floor fraction 0.00), dense at/above (0.19–0.81) —
+  and 2/16 random starts landed exactly on private images at the boundary cell, the first from-nothing recoveries
+  in the thread, though the argmin pick there is unreliable (mostly spurious floor). Below the line reaching the
+  floor is itself the proof; 2,000 starts per cell running there (706721). Two audit catches folded: a blank
+  image drove the constant-normalised objective to zero (fixed: `‖Cφ‖/‖A_Tφ‖`), and off-chart the certificate has
+  no zero at all (Part B on-chart only).
+- **Subset ("find some") test had a recipe error — 634238 VOID, rerun 706597:** the simulator divides by the number
+  of images it is given, so an N′-image simulation at the original lr is a different recipe; the residual at the
+  recorded images' own truth was 1e-2 instead of the predicted 1e-16. Fixed with `lr·N′/N` (N flagged as known).
 - **The margin-order rule (631392, verified 9/9): in every rank-deficient batch the sub-floor examples are exactly
   the highest-margin ones — recording is decided by margin relative to batch-mates, nothing else.** Consequences
   stamped in RESULTS: the "repeated labels are a first-order factor" reading is CONFOUNDED (different draws, different
