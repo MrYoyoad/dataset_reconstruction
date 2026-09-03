@@ -152,7 +152,9 @@ def main():
             emit(dict(eta_start=a.lr * start_scale, eta_fitted=eta_hat, eta_true=a.lr,
                       eta_rel_err=abs(eta_hat - a.lr) / a.lr, residual=f, final_err_max=float(err.max()),
                       reached_floor=bool(f < 1e-24), seconds=time.time() - t0,
-                      demand=a.N * a.k + a.r * a.N + 1, supply=a.N * (a.m + a.r - a.N) + a.r * a.N))
+                      demand=a.N * a.k + a.r * a.N + 1,
+                      supply=a.N * ((a.m - 1) + a.r - a.N) + a.r * a.N,   # Prop. 5 cap (1^T B_T = 0)
+                      supply_plain_cap=a.N * (a.m + a.r - a.N) + a.r * a.N))
 
     else:  # R3
         # Is the endpoint a function of eta*T only?  Hold eta*T fixed, vary the split.

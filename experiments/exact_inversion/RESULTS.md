@@ -757,6 +757,78 @@ and the gradient is exactly 1 under plain SGD, drops to 0.435 under Adam, and di
 weight decay — correctly flagging that an extra term is present rather than silently absorbing it into a
 wrong `η`.
 
+### The three arms, complete (job 484255)
+
+**R1 — a wrong recipe cannot reach the floor.** Control first, `k=12, N=8, T=400, η=0.01`:
+
+| assumed recipe | residual | at floor? | image error |
+|---|---|---|---|
+| **correct (control)** | **5.34e-31** | **yes** | 2.84e-15 |
+| T + 1 step (401 of 400) | 6.04e-8 | no | 4.10e-3 |
+| η × 1.01 | 9.09e-7 | no | 1.77e-2 |
+| T + 25% | 1.55e-4 | no | 0.299 |
+| T − 25% | 2.87e-3 | no | 0.398 |
+| η × 2 | 1.59e-3 | no | 0.535 |
+| η / 2 | 3.35e-2 | no | 0.460 |
+| wrong optimizer (SGD release inverted as Adam) | 4.90 | no | 0.255 |
+
+**R2 — the learning rate can be fitted jointly with the data.** `η` carried as a free unknown beside
+`(w, X)`, started at 1×, 2× and 0.5× the truth:
+
+| start | fitted η | relative error | residual | image error |
+|---|---|---|---|---|
+| 0.0100 | 0.01000000 | 5.2e-16 | 6.74e-31 (floor) | 2.82e-15 |
+| 0.0200 | 0.01000000 | 5.2e-16 | 7.07e-31 (floor) | 3.06e-15 |
+| 0.0050 | 0.01000000 | 5.2e-16 | 7.63e-31 (floor) | 3.14e-15 |
+
+From a start wrong by a factor of two, both the rate **and** the images come back to machine precision.
+One extra unknown against a slack of `N(m−1+r−N) − Nk = 120`, so the counting predicts it is free, and it is.
+
+**R3 — the `η·T` degeneracy is NOT exact; finite step size breaks it.** Product held at `η·T = 4.0`:
+
+| split | residual | at floor? |
+|---|---|---|
+| T=100, η=0.040 | 3.12e-7 | no |
+| T=200, η=0.020 | 3.49e-8 | no |
+| **T=400, η=0.010** | **6.44e-31** | **yes** (the true split) |
+| T=800, η=0.005 | 8.78e-9 | no |
+
+Only the true pair reproduces the release, so `η` and `T` are **separately** identifiable — the degeneracy
+is a gradient-flow statement. Note this is the *weakest* discrimination in the study (22 orders rather than
+23-29), which is exactly what one expects if the degeneracy is approached in the small-step limit.
+
+**Labels** are identifiable by the same test: true assignment 7.19e-31 (floor), swapping two examples
+2.51e-3, a cyclic shift 7.49e-6.
+
+### The schedule: a decaying rate leaks the step count that a constant one hides
+
+Per-step `η` values are probed exactly (max relative error 1e-15, jobs 487290/488314). Recovering the
+schedule *parameters* from them is a small 3-parameter fit. **A gradient fit of mine landed 30-40% off and
+I retracted the claim; that was wrong — it was a local minimum of a multimodal objective, not a
+degeneracy.** Refitting globally (eliminate the base rate by ratios, grid over the remaining two, solve the
+base in closed form — a re-analysis of already-saved probe output, no new run):
+
+| probe window | recovered T | recovered schedule length | recovered base rate |
+|---|---|---|---|
+| 6 steps | **400** (true 400) | **1000** (true 1000) | **0.010000** (true 0.01) |
+| 20 / 60 / 150 steps | identical, exact | identical, exact | identical, exact |
+
+So probing reveals `η` at the *continuation* steps, not the history — with a constant rate that is all one
+gets and `T` stays hidden. But a schedule from a known family encodes position on its own curve, so six
+probe steps pin the base rate, the schedule length and `T` exactly. **A defender who adds a schedule to
+look realistic hands over the one recipe parameter the probe otherwise cannot see.** Caveat: the family is
+assumed known here (cosine); an unknown family is a model-selection problem, not run.
+
+### The counting bound on recipes
+
+Recipe unknowns add to *demand*, so `p ≤ N(m−1+r−N) − Nk`, which is **120** at this cell. Parametric
+schedules (`p = 2-4`) sit comfortably inside. A **free per-step sequence** (`p = T`) is identifiable only
+for `T ≤ 120` and is hopeless at `T = 400`. So the defense that works against recipe-fitting is an
+unconstrained per-step schedule, and it works **by counting, not by obscurity**.
+
+*(A recorded-data erratum: the `supply` field in the R2 rows used the plain rank-`N` cap, 352, rather than
+the Prop.-5 cap of 344. Demand is inside either, so no conclusion turns on it; the code now records both.)*
+
 **What this does and does not settle.** It converts "the attacker knows the recipe" from an assumption into
 a *measurement* for the update rule and the learning rate, at zero cost in private data. It does **not**
 recover `T`, the number of steps taken before the release: the continuation reveals the rule, not the
