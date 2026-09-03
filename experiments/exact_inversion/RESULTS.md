@@ -2708,7 +2708,13 @@ would be non-uniform or O(1)), Z error 0.13 — a red herring (yoado-6e): Z is a
 whose 13% wander moves A₀ by 2% and the images by 3%; the right pair is `err_vs_chart` with `A0_recon_rel`, and
 both sit at the floor. Not a joint alias. The honest qualifier: the matched attacker recovers the class *to the
 chart floor at a fidelity set by its A₀ reconstruction* (2% → 3% here), not the certificate route's 1e-2 or
-FP64's 1e-6 — cost, not an information bound. (ii) The floor is the A₀ reconstruction, as pre-registered in mechanism though
+FP64's 1e-6 — cost, not an information bound. *Mechanism of the 3% (yoado-ed):* the endpoint's residual 0.014 is
+below the truth's own 0.023 — the same signature that at 240× was an alias — because the A₀ mismatch means the true
+latents are *not* the minimiser of the matched objective; the recovery lands where the minimiser is, 3% away,
+which is also why the error does not fall with more iterations. *The three attackers on one unchanged release:*
+certificate — none; FP64-simulator recipe route — none, and an alias at 240× below the truth's residual;
+matched-arithmetic recipe route — all eight. Nothing about the release differed; two failures looked exactly
+like protection; the third differed by arithmetic, not information. (ii) The floor is the A₀ reconstruction, as pre-registered in mechanism though
 not in magnitude: 2.3e-2, set by the 2% of A₀ that the bf16-rounded updates leave outside the feature span
 (one ulp on A₀ gave 1e-2; the accumulated rounding is twice that). The image error is ~1.3–3× the residual —
 the same order as the certificate's 4–5× law. (iii) **So half-precision training is not protection —
