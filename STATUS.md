@@ -285,6 +285,9 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   floor is itself the proof; 2,000 starts per cell running there (706721). Two audit catches folded: a blank
   image drove the constant-normalised objective to zero (fixed: `‖Cφ‖/‖A_Tφ‖`), and off-chart the certificate has
   no zero at all (Part B on-chart only).
+- **(R5) The batch size is not in the release — measured (709507), 6/6:** the recorded members alone at `lr·N′/N`
+  reproduce the full-batch release to the omitted imprints' scale (e.g. 1.8e-15 vs 1.9e-15); only `lr/N` and `N′`
+  (rank) are identifiable, never `N` — unless nonzero weight decay is published. The attacker fits one scalar.
 - **Subset ("find some") test had a recipe error — 634238 VOID, rerun 706597:** the simulator divides by the number
   of images it is given, so an N′-image simulation at the original lr is a different recipe; the residual at the
   recorded images' own truth was 1e-2 instead of the predicted 1e-16. Fixed with `lr·N′/N` (N flagged as known).
