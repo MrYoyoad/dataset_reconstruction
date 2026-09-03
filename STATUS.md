@@ -27,6 +27,11 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
+- **Head-width sweep in the .tex (executor's jobs 589810, 593146):** reach LINEAR in m — sharp to one unit at m=10/12/16/20/28
+  (lines 18/20/24/28/36). The sweep exposed a test-bed confound (generator hidden width 32 caps the manifold at min(k,32)),
+  which had confounded the N=4 row (line 32 = cap); re-run with gen_hidden=128: N=4 is 31/32, sharp; control N=8 unchanged.
+  Daggers restored for the schedule global fit (step34_schedfit_591848: exact at windows 6/20/60/150 and at T=200/700) and
+  the simplex ratios (step35_simplex_591848: SGD 3.8e-16–1.7e-15; Adam 2.6–2.7 at n=32, 1.2–1.4 at n=96).
 - **User read of the PDF applied:** (R4) rescoped to CONTINUED-TRAINING ACCESS (checkpoint with optimizer state or a
   fine-tuning service) — under weights-only release only R1–R3 hold and the schedule/T are not recovered; "sharp to one
   unit" scoped to N=8,14 (bracketed to two at N=4,12); k stated everywhere as the dimension of the attacker's search

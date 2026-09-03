@@ -17,7 +17,7 @@ def cls(r):
     if res>1e-25: return "search"
     return "alias" if (sm<1e-12 or err>1e-6) else "recovered"
 grid = load("results/exact_inversion/step4_sweep_*.jsonl")+load("results/exact_inversion/step7_disambig_*.jsonl")
-cap  = load("results/exact_inversion/step11_capacity_*.jsonl")+load("results/exact_inversion/step13_capacity_law_*.jsonl")+load("results/exact_inversion/step16_softmax_*.jsonl")+load("results/exact_inversion/step18_bracket_*.jsonl")+load("results/exact_inversion/step23_n14k21_*.jsonl")
+cap  = load("results/exact_inversion/step11_capacity_*.jsonl")+load("results/exact_inversion/step13_capacity_law_*.jsonl")+load("results/exact_inversion/step16_softmax_*.jsonl")+load("results/exact_inversion/step18_bracket_*.jsonl")+load("results/exact_inversion/step23_n14k21_*.jsonl")+[r for r in load("results/exact_inversion/step36_bottleneck_*.jsonl") if r.get("m")==20]
 gridrec={(r["N"],r["k"]) for r in grid if cls(r)=="recovered"}
 # per-cell outcome = best run at that cell (a later, larger-budget rerun supersedes a search failure)
 rank={"recovered":0,"alias":1,"search":2}; best={}
@@ -48,7 +48,7 @@ ax.text(6.1,17.5,"+ (m − 1)  per image:\nthe coefficients of P_T\nthe certific
 ax.set_xlim(1,15); ax.set_ylim(0,46)
 ax.set_xlabel("N  (private images / distinct representations)",fontsize=13)
 ax.set_ylabel("k  (dimension of the attacker's search chart, per image)",fontsize=13)
-ax.set_title("Two channels, two boundaries — k is the dimension of the attacker's search chart\nthe exact channel's capacity  k < m + r − N:  sharp to one unit of k at N = 8, 14; bracketed to two at N = 4, 12",fontsize=12.5,fontweight="bold")
+ax.set_title("Two channels, two boundaries — k is the dimension of the attacker's search chart\nthe exact channel's capacity  k < m + r − N:  sharp to one unit of k at N = 4, 8, 14; bracketed to two at N = 12",fontsize=12.5,fontweight="bold")
 ax.tick_params(labelsize=11); ax.grid(alpha=0.3)
 ax.legend(fontsize=9.3,loc="upper center",bbox_to_anchor=(0.5,-0.12),ncol=2,framealpha=0.95)
 out=os.path.join("figures/rev10","fig_counting_plane.png")

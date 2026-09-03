@@ -499,21 +499,28 @@ $54$ rows; jobs 395496, 396214, 396216--21). Every number
 below rests on this one.
 
 \paragraph{The line of Theorem~\ref{thm:cap}: sharp to one unit of $k$ at
-$N=8,14$, bracketed to two at $N=4,12$.}
+$N=4,8,14$, bracketed to two at $N=12$.}
 \begin{center}\small
 \begin{tabular}{@{}rcccc@{}}\toprule
 $N$ & $k^\star=m+r-N$ & last $k$ identifiable ($\sigma_{\min}$) & first $k$ collapsed ($\sigma_{\min}$) & jobs\\ \midrule
-4  & 32 & 30 ($1.2\times10^{-6}$) & 34 ($8.8\times10^{-19}$) & 469120\\
+4  & 32 & 31 ($1.3\times10^{-5}$) & \textbf{32} ($8.0\times10^{-18}$) & 593146$^{\ddagger}$\\
 8  & 28 & 27 ($1.5\times10^{-7}$) & \textbf{28} ($6.4\times10^{-19}$) & 467914, 479587\\
 12 & 24 & 22 ($5.8\times10^{-6}$) & 26 ($2.5\times10^{-20}$) & 469120\\
 14 & 22 & 21 ($1.7\times10^{-7}$) & \textbf{22} ($2.3\times10^{-19}$) & 479684, 481079\\ \bottomrule
 \end{tabular}
 \end{center}
-At $N=8$ and $N=14$ the transition is one unit of $k$, on the outcome
+At $N=4$, $8$ and $14$ the transition is one unit of $k$, on the outcome
 (recovered at $k^\star-1$, alias at $k^\star$) and on $\sigma_{\min}$, which
-drops eleven to twelve orders across that unit; at $N=4$ and $N=12$ the
-tested cells straddle $k^\star$ by two on each side, so the line is
-bracketed there, not resolved; it lands on $k=m+r-N$, the strict form
+drops eleven to twelve orders across that unit; at $N=12$ the tested cells
+straddle $k^\star$ by two on each side, so the line is bracketed there, not
+resolved;\footnote{$^\ddagger$The $N=4$ row was re-measured (job 593146)
+after the head-width sweep below exposed a test-bed confound: the generator
+$\psi$ had a $32$-unit hidden layer, so its manifold dimension was capped at
+$\min(k,32)$, and the $N=4$ line at $k^\star=32$ coincided with the cap. Its
+original bracket, $30$ recovered / $34$ collapsed (job 469120), could not
+separate the law from the bottleneck; with the generator widened to $128$
+units it resolves to $31$ / $32$. A control cell ($N=8$: $27$ / $28$) is
+unchanged by the widening.} it lands on $k=m+r-N$, the strict form
 that Proposition~\ref{prop:simplex} derives.\footnote{At the collapsed cells
 $\sigma_{\min}\approx10^{-19}$ against $\sigma_{\max}\sim1$ is the FP64
 floor: the measurement shows the smallest singular value falling to the
@@ -543,16 +550,43 @@ SGD $n{=}32,k{=}6,N{=}4$ & 88 / 88 & 88 / 124 (not binding) & 64 / $rN=64$\\ \bo
 \end{center}
 (The Adam cell is $T=800$, $\eta=0.003$ against SGD's $T=400$, $\eta=0.01$:
 equal shape, not equal recipe.) Under SGD the $B$-block attains $\dim\mathcal B$ exactly, and
-$\|\mathbf 1^{\!\top}B_T\|/\|B_T\|=3\times10^{-16}$--$1.9\times10^{-15}$ on
-every SGD release on disk (recomputed from the saved release tensors by an
-auditor: $3.0\times10^{-16}$, $5.9\times10^{-16}$ on two of them). Under
-Adam the same ratio is $2.6$--$2.7$ by the executor's check; no Adam release
-tensor is on disk, so that number carries no artefact yet: the
+$\|\mathbf 1^{\!\top}B_T\|/\|B_T\|=3.8\times10^{-16}$--$1.7\times10^{-15}$
+on six SGD releases at three recipes$^\dagger$ (job 591848; also recomputed
+from saved tensors by an auditor). Under Adam the same ratio is $2.6$--$2.7$
+at $n=32$ and $1.2$--$1.4$ at $n=96$$^\dagger$ (job 591848) — order one
+against $10^{-15}$: the
 entrywise normalisation does not preserve $\mathbf 1^{\!\top}D_t=0$,
 Proposition~\ref{prop:simplex} does not apply, and the $B$-block attains the
 larger manifold of all rank-$N$ matrices, $N(m+r-N)$. The same computation
 predicts, untested as a boundary, that Adam's line sits one unit above SGD's
 at equal $(m,r,N)$.
+
+\paragraph{The reach is linear in the head width.} Every earlier sweep moved
+$N$ or $r$; the sharpest untested claim of Theorem~\ref{thm:cap} was that
+the budget per image grows one-for-one with $m$. Fixed $r=16$, $N=8$,
+sweeping $m$ and straddling each width's own line$^\dagger$ (jobs 589810,
+593146):
+\begin{center}\small
+\begin{tabular}{@{}cccc@{}}\toprule
+$m$ & line $k^\star=m+r-N$ & last identifiable $k$ ($\sigma_{\min}$) & first collapsed $k$ ($\sigma_{\min}$)\\ \midrule
+10 & 18 & 17 ($2.2\times10^{-5}$) & \textbf{18} ($9.3\times10^{-18}$)\\
+12 & 20 & 19 ($2.5\times10^{-6}$) & \textbf{20} ($9.3\times10^{-18}$)\\
+16 & 24 & 23 ($1.4\times10^{-6}$) & \textbf{24} ($1.5\times10^{-18}$)\\
+20 & 28 & 27 ($1.5\times10^{-7}$) & \textbf{28} ($6.4\times10^{-19}$)\\
+28 & 36 & 35 ($6.7\times10^{-7}$) & \textbf{36} ($8.8\times10^{-20}$)\\ \bottomrule
+\end{tabular}
+\end{center}
+Sharp to one unit of $k$ at all five widths across a $2.8\times$ range of
+$m$: at fixed rank, each extra output coordinate of the head buys the
+attacker exactly one more chart dimension per image. The $m=28$ row is the
+one that first \emph{failed}: it collapsed at $k=33$, three units below its
+line — the only cell in the study to break the prediction — and the cause
+was the test-bed's generator, whose $32$-unit hidden layer caps the
+manifold dimension at $\min(k,32)$ (the same confound as the $N=4$ row
+above). Widening the generator to $128$ units restores $35$ / $36$, while a
+control cell is unchanged. A defect that none of the audits found surfaced
+because the law's prediction was sharp enough for one anomalous row to be
+visibly wrong.
 
 \paragraph{The line on real images.} MNIST digits$^\dagger$ (job 568095):
 $N=8$ real digits with their real labels, $m=10$ classes, a fixed public
@@ -788,21 +822,21 @@ returns, and $T$ stays hidden. Under a cosine schedule of known family, a
 global fit of $(\text{base},T_{\max},T)$ to six probe steps (eliminate the
 base by ratios, grid the two integers, solve the base in closed form) returns
 all three exactly — $T=400$, $T_{\max}=1000$, base $0.0100$ — and identically
-from windows of $20$, $60$ and $150$ steps (the probed values are job
-488314's). A schedule encodes position on its own curve — and with checkpoint access
-$T$ is usually in the metadata anyway, so the content of (R4) is the
-fine-tuning-service case.\footnote{A gradient
-fit of the same three parameters had landed $30$--$40\%$ off and was
-retracted; it was a local minimum of a multimodal objective, not a
-degeneracy. The global fit is a re-analysis of the saved probe values,
-reproduced independently by an auditor from the same rows; the fitting
-script and its result row are not yet committed, so this number does not
-yet carry a dagger.} The family is assumed known;
+from windows of $20$, $60$ and $150$ steps, and for releases at $T=200$ and
+$T=700$ as well$^\dagger$ (job 591848, a global grid over $(t,T_{\max})$
+with the base in closed form, fit residual $\le1.3\times10^{-16}$, applied to
+the probed values of job 488314). A schedule encodes position on its own
+curve — and with checkpoint access $T$ is usually in the metadata anyway, so
+the content of (R4) is the fine-tuning-service case.\footnote{A gradient fit
+of the same three parameters had landed $30$--$40\%$ off and was retracted;
+it was a local minimum of a multimodal objective, not a degeneracy, and the
+global fit was reproduced independently by an auditor before the script was
+committed.} The family is assumed known;
 selecting it is a model-selection problem not run here.
 
-\paragraph{Provenance.} This section was written by one executing session
-and four auditing sessions reading it adversarially against the rows on
-disk. Every withdrawn claim — several had reached a draft labelled as a
+\paragraph{Provenance.} This section was written by one executing session,
+four auditing sessions reading it adversarially against the rows on disk,
+and the author's own re-derivation of every numbered statement. Every withdrawn claim — several had reached a draft labelled as a
 theorem or a headline — was withdrawn by a follow-up measurement or a
 re-derivation, and each is itemised in the repository's lessons log.
 
@@ -882,7 +916,7 @@ level & content & status\\ \midrule
 3$''$. Sufficiency & $D\rho$ full column rank a.e.\ below the line, per connected component (Thm~\ref{thm:suff}) & Theorem given a witness in the component; witness measured$^\dagger$ at $T=1$; $T>1$ rests on measured $T$-independence, not on a proof\\
 5$'$. Past the line & a walkable manifold of exact reproductions; alternatives at $0.2$--$1.7\%$ (synthetic, chart contains the truth), $2$--$7\%$ on real digits, growing with distance past the line; $\le3.8\%$ along one walked direction & Verified$^\dagger$; recognisability not assessed; extent and global uniqueness open\\
 7$'$. Adam & identifiable; seed $rn$; $\kappa\uparrow$; basin$\downarrow$; simplex constraint broken & Verified$^\dagger$; one-unit-higher line predicted, untested\\
-8$'$. Recipe & weights-only: none of seven wrong recipes at the floor (one cell, one seed); $\eta$ fitted jointly; $\eta T$ split identifiable; labels identifiable. Continued-training access only: cosine schedule leaks $T$ & Verified$^\dagger$ (jobs 484255, 485912, 487290, 488314) except the schedule fit, whose script is not yet committed; family selection open\\ \bottomrule
+8$'$. Recipe & weights-only: none of seven wrong recipes at the floor (one cell, one seed); $\eta$ fitted jointly; $\eta T$ split identifiable; labels identifiable. Continued-training access only: cosine schedule leaks $T$ & Verified$^\dagger$ (jobs 484255, 485912, 487290, 488314, 591848); family selection open\\ \bottomrule
 \end{tabular}
 \end{center}
 
@@ -909,8 +943,8 @@ region and measures existence, not rate.
   — and $A_TU_c$ pays exactly for $X$. So $k<m+r-N$ (Theorem~\ref{thm:cap}),
   $m-1$ per image above the certificate, and the difference is precisely the
   coefficient matrix the certificate projects away (Corollary~\ref{cor:two}).
-  Measured sharp to one unit of $k$ at $N=8,14$ synthetically (bracketed to
-  two at $N=4,12$) and at three ranks on real digits; both terms of the cap attained by the block
+  Measured sharp to one unit of $k$ at $N=4,8,14$ synthetically (bracketed
+  to two at $N=12$), at five head widths, and at three ranks on real digits; both terms of the cap attained by the block
   ranks.
 \item \emph{The chart.} The theorems pin the coordinates $w$; the attack
   returns $\psi(\hat w)$. At the same $k=17$, three charts each recover their
