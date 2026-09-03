@@ -2754,3 +2754,13 @@ low-precision-trained adapter is set by the training precision, monotone and wit
 1e-18 release is a range cliff on a different axis). The bf16 Z error (13%) against fp16's (1.8%) is the same
 mechanism seen from the soft parameter: less accumulation, cleaner Z — the two rows cross-validate the "soft
 parameter, not alias" reading. Recorded as an observed scaling, not a law, until another batch and k = 32 repeat it.
+
+*Two readings from the write-up lane (yoado-ed), recorded here so no one quotes a single "safer format" number:*
+(i) **the cost ordering reverses the storage ordering.** Against a matched simulator fp16 leaves the attacker a 1%
+floor and bf16 a 3% one (reconstructing A₀ is limited by *precision*: ten mantissa bits beat seven); reading a
+*stored* release through the certificate, bf16 kept the most and fp16 the least (limited by *range*: eight
+exponent bits beat five). The two attacks are limited by different halves of the format; "which format is safer"
+has no single answer. (ii) **The control ladder qualifies "every admissible k is attackable":** 7, 7, 7, 6, 5 of
+seven at k = 24 … 56 — attackable across most of the range, with recorded images going *unsampled* at a fixed
+budget within a few units of the line as the basin shrinks: a sampling limit, not an identifiability one, but the
+attacker's limit all the same.

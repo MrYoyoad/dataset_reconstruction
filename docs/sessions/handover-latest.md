@@ -126,6 +126,8 @@ Overleaf). Current as of their HEAD `99e9c37`:
   figure reads timed out on their side — no figure since the k=6 panel has been checked by yoado-ed personally.**
 - Their lane's traps: a patch script that applies several edits and writes once discards all of them if a later
   anchor misses — verify against the file's bytes; never grep a pattern that spans a LaTeX line wrap or contains `$`.
+- **Figures have had one reader.** yoado-ed's image reads timed out four times; nothing since the k=6 panel was
+  verified by them. Before a figure goes to Gal: a third check against the rows (STATUS carries the same caveat).
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
