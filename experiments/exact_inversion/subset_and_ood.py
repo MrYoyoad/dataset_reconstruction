@@ -67,7 +67,10 @@ def release_and_imprints(bb, X_train, y, A0, a):
     H = bb.phi(X_train)
     A_T, B_T = train_release(H, A0, bb.W0, y, bb.m, a.T, a.lr, "sgd")
     _, B_tr, _, _, C = traced_release(H, A0, bb.W0, y, bb.m, a.T, a.lr)
-    assert float(torch.linalg.norm(C.sum(0) - B_T) / torch.linalg.norm(B_T)) < 1e-10
+    mis, nB = float(torch.linalg.norm(C.sum(0) - B_T)), float(torch.linalg.norm(B_T))
+    # relative check with an ABSOLUTE floor: a confidently-classified batch has ||B_T|| ~ 1e-6 while the traced and the
+    # direct loop differ by FP64 roundoff (~1e-15) whatever the scale (ladder job 721391, diagnostic 748065)
+    assert mis <= 1e-10 * nB + 1e-13, f"imprint sum vs release: abs {mis:.3e}, ||B_T|| {nB:.3e}, rel {mis / nB:.3e}"
     sB = torch.linalg.svdvals(B_T)
     return A_T, B_T, torch.linalg.norm(C.reshape(C.shape[0], -1), dim=1), sB, C
 
