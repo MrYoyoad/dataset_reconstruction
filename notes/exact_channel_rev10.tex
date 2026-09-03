@@ -649,26 +649,30 @@ checked rather than assumed, through the full column rank of $D\rho$ at the
 truth reported in the table (a rank-deficient $P_T$ would show there).
 \begin{center}\small
 \begin{tabular}{@{}cccccc@{}}\toprule
-$k$ & $\sigma_{\min}$ at the truth & full rank & residual (80 it.) & residual (300 it.) & error vs.\ chart / vs.\ digit\\ \midrule
-6  & $3.5\times10^{-5}$ & yes & $8.4\times10^{-31}$ & — & $1.3\times10^{-13}$ / $0.87$\\
-10 & $2.1\times10^{-6}$ & yes & $1.8\times10^{-12}$ & $8.7\times10^{-31}$ (31 it.) & $1.3\times10^{-12}$ / $0.76$\\
-14 & $1.5\times10^{-7}$ & yes & $2.2\times10^{-14}$ & $9.3\times10^{-31}$ (282 it.) & $1.8\times10^{-11}$ / $0.76$\\
-16 & $1.3\times10^{-8}$ & yes & $2.1\times10^{-13}$ & running & $4.8\times10^{-2}$ / $0.73$\\
-17 & $1.2\times10^{-9}$ & yes & $4.4\times10^{-13}$ & running & $5.7\times10^{-2}$ / $0.73$\\
-\textbf{18} & $2.4\times10^{-19}$ & \textbf{no} & $3.1\times10^{-13}$ & — & $5.5\times10^{-2}$ / $0.73$\\ \bottomrule
+$k$ & $\sigma_{\min}$ at the truth & full rank & residual (80 it.) & residual (300 it.) & error vs.\ chart / median vs.\ digit\\ \midrule
+6  & $3.5\times10^{-5}$ & yes & $8.4\times10^{-31}$ & — & $1.3\times10^{-13}$ / $0.530$\\
+10 & $2.1\times10^{-6}$ & yes & $1.8\times10^{-12}$ & $8.7\times10^{-31}$ (31 it.) & $1.3\times10^{-12}$ / $0.479$\\
+14 & $1.5\times10^{-7}$ & yes & $2.2\times10^{-14}$ & $6.3\times10^{-31}$ (281 it.) & $1.8\times10^{-11}$ / $0.460$\\
+16 & $1.3\times10^{-8}$ & yes & $2.1\times10^{-13}$ & $1.6\times10^{-14}$ (300 it., not at floor) & $3.5\times10^{-2}$ / $0.421$\\
+17 & $1.2\times10^{-9}$ & yes & $4.4\times10^{-13}$ & running & $5.7\times10^{-2}$ / $0.421$\\
+\textbf{18} & $2.4\times10^{-19}$ & \textbf{no} & $3.1\times10^{-13}$ & — & $5.5\times10^{-2}$ / $0.417$\\
+20 & $2.7\times10^{-19}$ & no & $8.1\times10^{-13}$ & — & $5.0\times10^{-2}$ / $0.416$\\
+22 & $3.6\times10^{-18}$ & no & $2.8\times10^{-13}$ & — & $7.4\times10^{-2}$ / $0.405$\\ \bottomrule
 \end{tabular}
 \end{center}
 Three things, in order of what they are. \emph{The line holds}: full rank at
-$k=17$, collapsed at $k=18$, on a trained head and trained features —
+$k=17$, collapsed at $k=18$ and at every $k$ beyond it tested ($20$, $22$),
+on a trained head and trained features —
 training changes $W_0$ and $H$, and the count sees neither. \emph{Reaching it
 costs more every step}: against the random-encoder run at matched $k$,
 $\sigma_{\min}$ at the truth is $7\times$ smaller at $k=6$, $100\times$ at
 $k=10$, $420\times$ at $k=14$ and $1100\times$ at $k=17$; at the standard
 $80$-iteration budget only $k=6$ reaches the floor, and every other
 below-line cell stops at $10^{-12}$--$10^{-14}$ with its coordinates only
-$2$--$6\%$ recovered. With $300$ iterations those cells go to the floor —
-$k=10$ in $31$ iterations, $k=14$ in $282$, the count tracking the
-conditioning — so they are search failures at one budget and recoveries at
+$2$--$6\%$ recovered. With $300$ iterations $k=10$ and $k=14$ go to the floor
+in $31$ and $281$ iterations respectively — the count tracking the
+conditioning — while $k=16$ does not reach it even then ($1.6\times10^{-14}$
+at the cap), so the budget needed is climbing faster than linearly in $k$; so they are search failures at one budget and recoveries at
 another, as at $(14,21)$ synthetically; only $k=18$ is an alias. A trained
 encoder does not move the capacity line; it makes the line progressively
 harder to reach, three orders of magnitude by $k=17$. \emph{The picture is the chart's}, and on the converged cells the identity is
