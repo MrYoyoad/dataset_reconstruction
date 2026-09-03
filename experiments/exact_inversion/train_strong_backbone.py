@@ -25,9 +25,11 @@ from experiments.exact_inversion.lora_exact_inversion import git_hash
 from experiments.exact_inversion.trained_backbone import read_idx
 
 
-def build():
+def build(n_out=10):
+    """n_out > 10 pads the head with logits that are never targets (softmax still runs over all of them): the
+       certificate cap N' <= m - 1 is then moved with the data, encoder, batch and training all held fixed."""
     return nn.ModuleList([nn.Linear(784, 1000), nn.Linear(1000, 1000, bias=False),
-                          nn.Linear(1000, 10, bias=False)])
+                          nn.Linear(1000, n_out, bias=False)])
 
 
 def fwd(layers, x):
@@ -53,6 +55,8 @@ def main():
     ap.add_argument("--target-acc", type=float, default=0.97)
     ap.add_argument("--data-root", default="dataset_reconstruction/data")
     ap.add_argument("--out-dir", default="models/exact_inversion")
+    ap.add_argument("--n-out", type=int, default=10, help="head width; > 10 pads with never-target logits")
+    ap.add_argument("--name", default=None, help="checkpoint stem (default mnist_mlp); padded heads get _m{n_out}")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     a = ap.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)
@@ -61,11 +65,12 @@ def main():
     Xtr, ytr = read_idx(a.data_root, "train"); Xte, yte = read_idx(a.data_root, "test")
     Xtr_t = torch.tensor(Xtr, device=dev).float(); ytr_t = torch.tensor(ytr, device=dev)
     Xte_t = torch.tensor(Xte, device=dev).float(); yte_t = torch.tensor(yte, device=dev)
-    layers = build().to(dev).float()
+    layers = build(a.n_out).to(dev).float()
+    stem = a.name or ("mnist_mlp" if a.n_out == 10 else f"mnist_mlp_m{a.n_out}")
     opt = torch.optim.Adam(layers.parameters(), lr=a.lr)
     lossf = nn.CrossEntropyLoss()
     mid_done = False
-    print(f"# training 784-1000-1000-10 GELU on the FULL train split ({Xtr_t.shape[0]} images)  "
+    print(f"# training 784-1000-1000-{a.n_out} GELU on the FULL train split ({Xtr_t.shape[0]} images)  "
           f"git={git_hash()} host={socket.gethostname()}", flush=True)
     for ep in range(a.epochs):
         perm = torch.randperm(Xtr_t.shape[0], device=dev)
@@ -76,12 +81,12 @@ def main():
             acc = float((fwd(layers, Xte_t).argmax(1) == yte_t).float().mean())
         print(f"  epoch {ep+1:>2}  test acc {acc*100:.2f}%", flush=True)
         if not mid_done and acc >= a.mid_acc:
-            save_ckpt(layers, os.path.join(a.out_dir, "mnist_mlp_mid.pth"), acc, ep + 1); mid_done = True
+            save_ckpt(layers, os.path.join(a.out_dir, f"{stem}_mid.pth"), acc, ep + 1); mid_done = True
         if acc >= a.target_acc and ep >= 4:
-            save_ckpt(layers, os.path.join(a.out_dir, "mnist_mlp_strong.pth"), acc, ep + 1)
+            save_ckpt(layers, os.path.join(a.out_dir, f"{stem}_strong.pth"), acc, ep + 1)
     with torch.no_grad():
         acc = float((fwd(layers, Xte_t).argmax(1) == yte_t).float().mean())
-    save_ckpt(layers, os.path.join(a.out_dir, "mnist_mlp_strong.pth"), acc, a.epochs)
+    save_ckpt(layers, os.path.join(a.out_dir, f"{stem}_strong.pth"), acc, a.epochs)
     print(json.dumps(dict(final_test_acc=acc, epochs=a.epochs, git=git_hash(),
                           host=socket.gethostname(), cmd=" ".join(sys.argv))), flush=True)
 
