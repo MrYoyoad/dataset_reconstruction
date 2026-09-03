@@ -8,12 +8,15 @@ Rev 9 number used) + three figures in `figures/rev10/` (generators `scripts/rev1
 yoado-d0); four errors caught and fixed before shipping are logged in LESSONS_LEARNED.md (same date).
 
 **Latest additions (2026-09-03, late).** Two structural results and two voided arms:
-- **(R5) The batch size is not identifiable [DERIVED, not measured].** `η`, the adapter scale and `N` enter
+- **(R5) The batch size is not identifiable [DERIVED, then MEASURED — job 709507].** `η`, the adapter scale and `N` enter
   every recurrence only through `ηs/N`, so the release cannot reveal `N` — only `N'`, the number recorded,
   via `rank B_T`. A batch of eight with two invisible members is indistinguishable from a batch of six at a
   proportionally smaller step. Exception: nonzero *published* weight decay gives the second combination
   `η·wd` and hence `N`. This is also why a subset simulation must run at `lr·N'/N` (job 634238 VOID, rerun
-  706597).
+  706597). Falsifier passed: the full-batch release and its recorded members alone at `lr·N'/N` agree to
+  1.8e-15 … 7.5e-17 across six cells, each ON its own omitted-imprint bracket within a factor of two, while
+  the same subset at the unscaled step differs by 2.9e-2 … 1.7. The exact half (η and N inseparable, neither
+  needed) is unconditional; the "eight with two invisible = six at a smaller step" half holds to the floor.
 - **The certificate line comes from the KERNEL, not from `C`'s rank.** `ker C = span{recorded h_i} ⊕ ker A_0`
   has dimension `N' + (n−r)`, i.e. codimension `r−N'` in feature space; a `k`-dim chart meets it in
   `k−(r−N')` dims. Below the line the recorded examples are isolated solutions and generically the only

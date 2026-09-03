@@ -1355,7 +1355,7 @@ $0.1$--$0.7\%$. Labels: the true assignment reaches the floor
 all of them ($7.5\times10^{-6}$) does not.
 
 \emph{(R5) The batch size is absorbed into the step, and is not
-identifiable.} This one is a corollary of \eqref{eq:rec} rather than a
+identifiable.} This one is a corollary of \eqref{eq:rec}, and then a
 measurement. If the recipe minimises the \emph{mean} rather than the sum, as
 implementations normally do, then Lemma~\ref{lem:grad} carries a factor $1/N$
 and every recurrence in \eqref{eq:rec} depends on $(\eta,s,N)$ only through
@@ -1381,9 +1381,27 @@ beyond. They differ through two channels, not one: the omitted imprints
 $\sum_{i\,\mathrm{inv}}C_i$ directly, and the invisible rows of $M_T$, which
 enter $A_t$ and so perturb the \emph{recorded} examples' imprints as well ---
 the same second channel that keeps the certificate residuals at $10^{-10}$
-rather than at machine precision. The second can be the larger of the two, so
-a measured discrepancy above the omitted-imprint scale is the trajectory
-channel and not a refutation. The exception is instructive. Under
+rather than at machine precision.
+
+Measured$^\dagger$ (job 709507, strong backbone, three batches raw and
+chart-projected). Comparing the full-batch release against its recorded
+members alone at step $\eta N'/N$, with the omitted imprints' relative scale
+in brackets: $1.8\times10^{-15}$ $[1.9\times10^{-15}]$ and
+$4.9\times10^{-16}$ $[4.0\times10^{-16}]$ for the repeated batch at $N'=6$;
+$1.3\times10^{-15}$ $[1.5\times10^{-15}]$ at $N'=1$ and $7.5\times10^{-17}$
+$[3.8\times10^{-17}]$ at $N'=4$ for \texttt{hard1\_diff}; $4.6\times10^{-14}$
+$[4.6\times10^{-14}]$ and $6.8\times10^{-16}$ $[6.7\times10^{-16}]$ for the
+confident batch at $N'=3$. Every cell sits on its own bracket to within a
+factor of two, so in these six the trajectory channel is at or below the
+omitted imprints and the two releases agree to machine precision. Two
+controls separate this from a tautology: the same recorded subset at the
+\emph{unscaled} step differs by $2.9\times10^{-2}$ to $1.7$ --- that is the
+error itself, cell by cell --- and a random $N'$-subset at the scaled step
+differs by $6.2\times10^{-10}$ to $1.0$. The second control is only as strong
+as its membership differs: at $N'=6$ of $8$ a random subset overlaps the
+recorded set in most of its members, which is why its weakest cells are the
+large-$N'$ ones, and in two cells the draw reproduced the recorded set
+exactly. The exception is instructive. Under
 decoupled weight decay the step contributes $-\eta\,\mathrm{wd}\,B_t$ as well,
 so the release determines the two combinations $\eta s/N$ and
 $\eta\,\mathrm{wd}$; a defender whose weight decay is nonzero \emph{and}
