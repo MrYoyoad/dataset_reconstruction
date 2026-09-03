@@ -2005,6 +2005,13 @@ raw-digit case has no certificate zero — Step 22), Adam (no certificate), or a
 | 64 | 24 | 7 | 57 | 33 | 83.6% | 11.9% | 7/7 | .95 | .84 |
 | 64 | 32 | 8 | 56 | 24 | 66.0% | 8.3% | 8/8 | .97 | .94 |
 
+| 64 | 40 | 8 | 56 | 16 | 45.2% | 5.7% | 8/8 | .97 | .97 |
+
+**The mirror pair (equal slack, different `k`):** `r = 32, k = 8` (17 below) has a per-image basin of 10.6%;
+`r = 64, k = 40` (16 below) 5.7%. So at held distance, 32 more unknowns cost about 2× in basin — distance
+dominates, but `k` is not free. **Chart/private disjointness, verified in the code path for 728592 and every
+ladder row:** the chart is `PCAChart(Xtr_t, k)` with `Xtr` from the *train* idx file (first 50,000), the
+coordinate scale from the same train images, and every private batch from `Xte_t`, the *test* idx file.
 `N′` moves with `k` (projection changes the margins), so only the per-image column is comparable across rows.
 Read across: at `r = 64` the per-image basin stays at 8–29% from `k = 8` to `k = 32` while the chart goes from
 class-only (`.11` instance id) to instance-identifying (`.94`); at `r = 32` the admissible `k` stop at 16–24.
