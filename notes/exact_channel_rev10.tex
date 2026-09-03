@@ -1468,6 +1468,39 @@ $10^{-10}$ of the strongest imprint} --- ten orders of dynamic range, which is
 essentially no protection --- while FP16 protects only when the release is
 already too small to have moved the model.
 
+\paragraph{The canonical case has none of the corner's caveats.} Everything
+above is a demonstration on a batch the model was certain of. The case that
+matters is the opposite one, and it is also what people fine-tune for: a class
+the base model does not have. Measured$^\dagger$ (job 760909, EMNIST
+\emph{a} as an eleventh class on the $98\%$ digit model, its head row
+initialised to zero, $r=64$, $k=32$ on the letters' own public chart, FP64).
+The margins at $t=1$ are $-2.65$ to $-10.3$: the model is wrong about every
+letter, and unlike the digits no amount of chart fidelity can make it right
+about a class it does not have, so the collapse mechanism has nothing to act
+on. By $t=T$ the margins are $+6.0$ to $+13.7$ --- the model learned the
+class. The adapter genuinely moved: $A_T$ is $9.3\%$ from $A_0$ and the
+feedback $\|sB_TA_TH\|/\|z\|$ is $0.43$, against $10^{-19}$ in the confident
+cell. The release has norm $1.00$, the eight imprints are $0.12$ to $0.26$ ---
+comparable, all recorded --- and the certificate residuals at the truths are
+$2\times10^{-13}$ to $7\times10^{-12}$ \emph{with a moving adapter}. From
+$500$ random starts, $38.4\%$ land on a letter, every one at the floor, and
+all eight are found; the $\operatorname{argmin}$ sits on a letter at
+$3\times10^{-26}$. The chart's own error is $0.235$.
+
+That cell answers each objection the flagship one invites. It is not a
+vanishing release ($1.00$ against $7.6\times10^{-18}$), so no format's
+subnormal floor touches it. It is not a frozen adapter, so it is not one
+gradient step in disguise and the trajectory is doing real work. It is not a
+low-dimensional chart, so the recovery is instance-level. And it is the
+canonical reason to fine-tune rather than a corner. One qualification stands:
+under FP32 \emph{training} the release is unchanged to $4\times10^{-7}$ but
+the certificate residuals at the truths rise to $10^{-4}$--$3\times10^{-3}$,
+because four hundred steps of accumulated rounding act on a \emph{moving}
+adapter --- the opposite regime from the confident cell, where a frozen
+adapter made FP32 exact. At a noise-matched tolerance that recovers six of
+eight; the tight-tolerance search is running and is what will say whether the
+canonical case survives realistic training arithmetic intact.
+
 Two supports keep it from resting on a single cell. The per-image basin does
 not decay with $k$ once the slack is held: at $r=64$ it runs $13.8\%$,
 $28.6\%$, $11.9\%$, $8.3\%$ at $k=8,16,24,32$, and at $r=32$ it runs $10.6\%$,
