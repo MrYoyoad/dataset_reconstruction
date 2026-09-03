@@ -4,6 +4,11 @@
 A. FIND SOME OF THE SAMPLES.  The release carries only the examples the model had to learn (Step 18): B_T has
    numerical rank N' < N.  The attacker can read N' off the release and invert for N' images instead of N -- the
    budget per image grows (k < m + r - N'), and the invisible images set a residual FLOOR instead of zero.
+   WHAT IS ATTACKER-REALIZABLE HERE IS ONLY THE COUNT N'.  WHICH images are the recorded ones is taken from the
+   ground-truth imprints (subset_identity = "oracle (imprint)" in every row), the start is near-truth, and for
+   N' > 2 the labels are given: Part A asks "given which images are recorded, are they identifiable from the
+   release?", not "does an attacker discover which images are recorded".  Every row carries its oracle list,
+   start_err_median, init_noise and identifiability_test=True.
    Labels: for N' = 1 searched over the 10 classes (the attacker does not know them); for N' > 1 GIVEN for the
    recorded images (oracle, flagged).  Start: near-truth of the recorded images (identifiability test, as in
    every cell here).  The N' = N inversion of the same release is the control ("find all" against "find some").
@@ -74,6 +79,7 @@ def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda 
     W_init = W_true + a.init_noise * torch.randn(k, Np, generator=g).to(dev) * W_true.std()
     with torch.no_grad():
         Uc, _ = qr_canon(bb.phi(chart.psi(W_init))); Xinit = A_T @ Uc
+        e0 = torch.linalg.norm(chart.psi(W_init) - X_sub_true, dim=0) / torch.linalg.norm(X_sub_true, dim=0)
 
     class Adapter:
         psi = staticmethod(chart.psi)
@@ -90,7 +96,9 @@ def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda 
         res_A = float(torch.linalg.norm(Xis - A_T @ Uc) ** 2 / torch.linalg.norm(A_T) ** 2)
     e = torch.linalg.norm(X_hat - X_sub_true, dim=0) / torch.linalg.norm(X_sub_true, dim=0)
     return dict(residual=float(resid), residual_B=res_B, residual_A=res_A, err_max=float(e.max()), err_median=float(e.median()),
-                err_per_image=[float(v) for v in e], seconds=time.time() - t0, lm_iters_used=diag.get("lm_iters_used")), X_hat
+                err_per_image=[float(v) for v in e], start_err_median=float(e0.median()), start_err_max=float(e0.max()),
+                init_noise=a.init_noise, identifiability_test=True,
+                seconds=time.time() - t0, lm_iters_used=diag.get("lm_iters_used")), X_hat
 
 
 def floor_pred(C, B_T, subset):
@@ -141,7 +149,8 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
                 X_sub_true = X_on[:, sub_t]; y_sub = y[sub_t]
                 fl = floor_pred(C, B_T, sub)
                 row = dict(base, subset=sname, subset_idx=sub, n_prime=Np, residual_floor_pred=fl,
-                           budget_line_subset=bb.m + a.r - Np, oracle=["subset_identity", "near_init"])
+                           budget_line_subset=bb.m + a.r - Np, oracle=["subset_identity", "near_init"],
+                           subset_identity="oracle (imprint)", n_prime_source="rank(B_T) read off the release")
                 if sname == "recorded" and Np <= 2:                    # the attacker's label procedure
                     ranked = label_search(chart, bb, A_T, B_T, X_sub_true, a, dev, budget=300)
                     found = ranked[0]["labels"]; y_run = torch.tensor(found, device=dev)
@@ -160,7 +169,7 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
         r_all, X_hat_all = invert_subset(chart, bb, A_T, B_T, X_on, y, a, dev, torch.Generator().manual_seed(a.seed + 11))
         rec = order[:n12]
         row_all = dict(base, subset="all (control)", subset_idx=list(range(a.N)), n_prime=a.N, residual_floor_pred=0.0,
-                       oracle=["near_init", "labels"], labels_oracle=True, **r_all)
+                       oracle=["near_init", "labels"], labels_oracle=True, subset_identity="n/a (all N)", **r_all)
         row_all.update(err_vs_chart_max=r_all["err_max"],
                        err_recorded_max=float(max(r_all["err_per_image"][i] for i in rec)),
                        err_invisible_max=float(max([r_all["err_per_image"][i] for i in range(a.N) if i not in rec] or [float("nan")])))
@@ -257,7 +266,8 @@ def part_B(a, backbones, chart, dev, out, save_dir, perm):
             for cell in ("a", "b"):
                 r, X_hat, X_on_c = invert_cell(chart, bb, X_ood, y, a, cell, dev, g, lambda s: None)
                 r.update(part="B", ood_set=sname, encoder=ename, backbone_test_acc=acc, chart="mnist_pca", y=labels,
-                         oracle=["near_init", "labels"],
+                         oracle=["near_init", "labels"], init_noise=a.init_noise, identifiability_test=True,
+                         start_convention="invert_cell: W_true + init_noise*std*noise in latent space (start_err not recomputed here)",
                          k=a.k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed)
                 print(json.dumps(r), flush=True); rows.append(r)
                 if save_dir:
