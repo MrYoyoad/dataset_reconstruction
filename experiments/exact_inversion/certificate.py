@@ -60,6 +60,9 @@ def main():
     ap.add_argument("--T", type=int, default=400); ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--random-starts", type=int, default=16); ap.add_argument("--iters", type=int, default=300)
+    ap.add_argument("--extend-starts", type=int, default=0, help="if the recorded fraction after --random-starts is below --extend-below, "
+                    "run this many starts in total: a zero at few starts is an unresolved basin, not a closed channel")
+    ap.add_argument("--extend-below", type=float, default=0.02)
     ap.add_argument("--max-np", type=int, default=6, help="Part B runs when N' <= this: the certificate's null space then holds N' recorded "
                     "images, and a random start below the certificate line k < r - N' should land on ONE of them")
     ap.add_argument("--n-fit", type=int, default=50000)
@@ -122,7 +125,10 @@ def main():
                     def feat_ratio(w):
                         with torch.no_grad(): return float(torch.linalg.norm(A_T @ bb.phi(chart.psi(w.reshape(k, 1)))) / feat_ref)
                     gs = torch.Generator().manual_seed(a.seed + 31); t0 = time.time(); runs = []
-                    for s in range(a.random_starts):
+                    repr_err = torch.linalg.norm(X_on - X_real, dim=0) / torch.linalg.norm(X_real, dim=0)     # the chart's own ceiling at this k
+                    n_starts = a.random_starts
+                    s = 0
+                    while s < n_starts:
                         w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
                         w, obj, it = lm_cert(fun, w0, a.iters)
                         x_hat = chart.psi(w.reshape(k, 1))
@@ -133,6 +139,12 @@ def main():
                         runs.append(dict(start=s, objective=obj, iters=it, err_vs_top_chart=e_on, err_vs_top_raw=e_raw,
                                          nearest=int(min(range(a.N), key=lambda j: e_all[j])), feat_norm_ratio=fr,
                                          degenerate=bool(fr < 0.05), w=w.detach().cpu()))
+                        s += 1
+                        if s == a.random_starts and a.extend_starts > a.random_starts:
+                            rec_now = [i for i in range(a.N) if imp[i] / imp.max() > 1e-12]
+                            hits = sum(min(float(torch.linalg.norm(chart.psi(d["w"].to(dev).reshape(k, 1))[:, 0] - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in rec_now) < 1e-2 for d in runs)
+                            if hits / s < a.extend_below:
+                                n_starts = a.extend_starts; print(f"      extending to {n_starts} starts (recorded fraction {hits}/{s})", flush=True)
                     # gates: the objective at every image's chart coordinates (recorded ones must be ~0 ON-CHART; raw truths
                     # are not on the chart and the certificate then has no zero there -- Part B is only meaningful on-chart)
                     recorded = [i for i in range(a.N) if imp[i] / imp.max() > 1e-12]
@@ -148,7 +160,7 @@ def main():
                     at_floor = [d for d in valid if d["objective"] <= 1e-20]
                     rowB = dict(part="B", set=sname, setting=setting, k=k, cert_line=a.r - Np, below_cert_line=bool(k < a.r - Np),
                                 N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed, top_image_eval=top, top_label_eval=int(y[top]),
-                                oracle=[], recipe_used=False, labels_used=False, random_starts=a.random_starts, iters=a.iters,
+                                oracle=[], recipe_used=False, labels_used=False, random_starts=len(runs), iters=a.iters,
                                 objective_at_truth=obj_true, argmin_objective=best["objective"], argmin_err_vs_top_chart=best["err_vs_top_chart"],
                                 argmin_err_vs_top_raw=best["err_vs_top_raw"], argmin_nearest_is_top=bool(best["nearest"] == top),
                                 frac_starts_at_floor=len(at_floor) / len(runs),
@@ -160,6 +172,8 @@ def main():
                                 argmin_landed_on_recorded=best["landed_on_recorded"], argmin_nearest_recorded=best["nearest_recorded"],
                                 argmin_err_vs_nearest_recorded=best["err_vs_nearest_recorded"],
                                 truth_on_chart=(setting == "on"), feat_norm_ref_public=feat_ref,
+                                chart_repr_err_median=float(repr_err.median()), chart_repr_err_max=float(repr_err.max()),
+                                starts_run=len(runs), extended=bool(len(runs) > a.random_starts),
                                 argmin_feat_norm_ratio=best["feat_norm_ratio"], n_degenerate_starts=sum(d["degenerate"] for d in runs),
                                 ker_dim_note=f"ker C = span(recorded features) + ker A0: dim N' + (n - r) = {Np + bb.n - a.r}, codim r - N' = {a.r - Np}",
                                 runs=[{kk: v for kk, v in d.items() if kk != "w"} for d in runs], seconds=time.time() - t0,

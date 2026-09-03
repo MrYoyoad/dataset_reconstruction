@@ -1753,6 +1753,18 @@ higher-rank adapter opens a proportionally richer recipe-free channel (untested;
 (iii) Which recorded image a start lands on is chosen by the start, not the attacker. Bracket rows (`k = 8`
 below, `k = 10` above; `hard1_diff`) follow.
 
+**Pre-registered for the rank cell (job 716xxx, `r ∈ {16, 32, 64}`, on-chart, 500 → 5,000 adaptive starts).** Two
+claims, kept apart by a fixed-`k` ladder (`k = 8` at every `r`): *rank buys budget* — the certificate line
+`k < r − N′` moves up with `r`, so a richer chart is admissible — is the scientific claim; *rank buys basin* — at
+fixed `k` more slack below the line makes the search easier — is a separate, weaker effect. The deliverable's
+y-axis is the chart's own representation error at each `k`: the honest form of the fidelity claim is **"the
+recipe-free channel's fidelity ceiling is the chart error at `k = r − N′ − 1`"**, a curve with its own falsifier
+(if the recovered error at the largest below-line `k` does not sit on the chart-error curve, something other than
+the budget limits it). A zero recorded fraction at few starts is an *unresolved basin*, not a closed channel —
+the search-failure/alias distinction in a new form — hence the adaptive budget. Framing, if both lines move:
+**the LoRA rank is a leakage dial for both routes** — the recipe route's `k < m + r − N` and the certificate route's
+`k < r − N′` — and it is the knob practitioners turn for utility.
+
 ### Step 18 — the random-encoder ladder at fixed architecture is complete (job 624573)
 
 Global chart, repeated draw, random encoder (Gaussian weights at the trained layers' norms): `σ_min(J)` at the
