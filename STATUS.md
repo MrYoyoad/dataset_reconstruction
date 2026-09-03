@@ -65,6 +65,24 @@ What the section establishes, in order — every label as in the .tex:
   574169 measured the boundary chart-INdependent). ReLU decoder ≈ GELU (†1.59e-11 vs †1.82e-11) ⇒ analyticity looks
   like a proof convenience, not observably load-bearing. Off-chart (realistic) cells: global PCA err-vs-REAL 1.45,
   VAE 0.728 — unreadable until the residual at the chart's projected point is measured.
+- **ENCODER QUALITY ENDS THE CHANNEL BEFORE THE COUNT DOES (jobs 625113, 626051) — the biggest result of the day.**
+  Fixed architecture (784→1000→1000→10 GELU), fixed chart, fixed k=16 (four units BELOW the line 18), 3 A0 seeds:
+  σ_min at the truth = †1.7e-5 (random weights, 8.7%) → †1.4e-7 (78.5%) → †7.1e-9 (95.1%) → †2.0e-15 (97.9%), cond
+  †3.8e5 → †6.1e15. Monotone, ten orders. AND at 97.9% hypothesis (A4) FAILS: rank X = 8 but rank B_T = 6 (global) /
+  5 (local), so rank P_T < N and Dρ is rank-deficient (210/256) four units below the line — the first loss of
+  identifiability in the study NOT caused by the count. MECHANISM (job 626051, per image): column i of P_T is the
+  accumulated error trajectory of example i, so what the adapter records scales with how wrong the base model was.
+  Base margin at W0 vs ‖P_T e_i‖: random 23× spread, weak 110×, mid 2.5e3, strong †8.8e10 — on the strong model the
+  largest-margin digits sit at 1e-11…1e-9 against ~4 for the hardest, which is why P_T loses rank. TWO CONSEQUENCES:
+  for the attacker the capacity m+r−N is an upper bound a confident model does not spend; for the DEFENDER the
+  per-example margin at initialisation is a leakage meter computable before any fine-tuning and without any attack.
+- **WITHDRAWN: "richer chart costs conditioning" as a general statement.** The global/local σ_min ratio is not
+  monotone in encoder quality: random 0.66× (local BETTER), weak 286× (local worse), mid 0.27× (local BETTER),
+  strong 4150×. The 135× was the 78% checkpoint's, not a property of trained encoders. My within-class-compression
+  mechanism is refuted as stated; the mid checkpoint shows the opposite. Repeated labels did NOT cause the gap (it
+  survives distinct labels at 397× on weak) but are a first-order factor in their own right (19×–8000× depending on
+  encoder), and every Step-13/14 number was taken on the harder repeated draw — with distinct labels the weak
+  encoder at k=16 reaches the FLOOR in 93 iterations where the repeated draw was still descending at 300.
 - **THE LINE HOLDS ON A TRAINED MODEL (jobs 607896, 610020; in the .tex as "The line on a trained model"):** trained
   784→1000→1000→10 GELU MNIST MLP (78.45% test acc), LoRA r=16 on the head, N=8 unseen TEST digits, public PCA chart —
   full rank at k=17 (σ_min †1.2e-9), collapsed at k=18 (†2.4e-19): line unmoved. Conditioning vs the random-encoder
