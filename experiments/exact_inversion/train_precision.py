@@ -35,7 +35,8 @@ multi-invocation and hold certificate.py / lora_exact_inversion.py).
 """
 import argparse, json, math, os, socket, sys, time
 import torch
-from experiments.exact_inversion.lora_exact_inversion import train_release, git_hash
+from experiments.exact_inversion.lora_exact_inversion import train_release, git_hash, simulate_sgd_reduced, qr_canon, invert_lm
+import torch.func as tf
 from experiments.exact_inversion.trained_backbone import TrainedBackbone, PCAChart, read_idx
 from experiments.exact_inversion.subset_and_ood import pick_batch
 from experiments.exact_inversion.new_class import load_emnist_letters, ExtendedHead
@@ -73,6 +74,44 @@ def release_in(H, A0, W0, y, m, T, lr, dtype):
     return A.double(), B.double(), C.double(), zeros / total, mar[0], mar[1], feedback
 
 
+def recipe_route(chart, bb, X_real, X_on, y, A0, A_T, B_T, a, dev, g):
+    """vae_chart.invert_cell's recipe route ("cell a": the truth is on the chart), copied so the RELEASE can be the one
+       trained in a low-precision format while the SIMULATOR stays FP64 -- the attacker who knows the recipe but not
+       the arithmetic it was run in. Near start (init_noise) + restarts, LM with the autograd Jacobian; the residual at
+       the truth is the arithmetic mismatch floor, sigma_min at the truth the local identifiability."""
+    m, n = bb.m, bb.n; k = a.k; N = a.N; nW = k * N
+    H = bb.phi(X_on); W_true = chart.coords_of(X_real)
+    nB = torch.linalg.norm(B_T); nA = torch.linalg.norm(A_T)
+
+    def res_vec(v):
+        Wc = v[:nW].reshape(k, N); aux = v[nW:].reshape(a.r, N)
+        Bs, Xis, Uc = simulate_sgd_reduced(bb.phi(chart.psi(Wc)), aux, bb.W0, y, m, a.T, a.lr, 0.0)
+        return torch.cat([((Bs - B_T) / nB).reshape(-1), ((Xis - A_T @ Uc) / nA).reshape(-1)])
+
+    U_true, _ = qr_canon(H); v0 = torch.cat([W_true.reshape(-1), (A0 @ U_true).reshape(-1)]).detach()
+    sv = torch.linalg.svdvals(tf.jacfwd(res_vec)(v0).detach())
+    smin, smax = float(sv[-1]), float(sv[0]); res_truth = float(torch.linalg.norm(res_vec(v0)))
+    W_init = W_true + a.init_noise * torch.randn(k, N, generator=g).to(dev) * W_true.std()
+    with torch.no_grad():
+        Uc, _ = qr_canon(bb.phi(chart.psi(W_init))); Xinit = A_T @ Uc
+
+    class Adapter:
+        psi = staticmethod(chart.psi)
+        features_from_latents = staticmethod(lambda Wc: bb.phi(chart.psi(Wc)))
+    args = argparse.Namespace(m=m, T=a.T, lr=a.lr, wd=0.0, release="sgd", seed=a.seed,
+                              restarts=a.restarts, restart_noise=0.1, lm_iters=a.lm_iters, lm_lambda=1e-2,
+                              lm_scale="identity", stage_x=0, jac="fwd", solver="lm", outer=30, lbfgs_iter=20)
+    t0 = time.time()
+    W_hat, aux, resid, sec, nrs, diag = invert_lm(Adapter, A_T, B_T, bb.W0, y, args, W_init, Xinit, lambda s: None)
+    X_hat = chart.psi(W_hat)
+    e_chart = torch.linalg.norm(X_hat - X_on, dim=0) / torch.linalg.norm(X_on, dim=0)
+    e_real = torch.linalg.norm(X_hat - X_real, dim=0) / torch.linalg.norm(X_real, dim=0)
+    return dict(jac_sigma_min_truth=smin, jac_sigma_max_truth=smax, res_at_truth=res_truth, residual=resid,
+                err_vs_chart_per_image=[float(v) for v in e_chart], err_vs_chart_max=float(e_chart.max()), err_vs_chart_median=float(e_chart.median()),
+                err_vs_REAL_max=float(e_real.max()), err_vs_REAL_median=float(e_real.median()), start_noise=a.init_noise,
+                seconds=time.time() - t0, **diag), X_hat
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="models/exact_inversion/mnist_mlp_strong.pth")
@@ -90,6 +129,8 @@ def main():
     ap.add_argument("--partb-tol", type=float, default=None, help="certificate tolerance for the Part-B search from a non-fp64 release; default = "
                     "noise-matched 10*eps (job 760909/760912); pass 1e-12 for the tight tolerance (the noise rank), which storage job 753371 "
                     "showed recovers MORE images")
+    ap.add_argument("--recipe-cells", nargs="*", default=[], help="run the RECIPE route (FP64 simulator, near start) against the release trained in each format")
+    ap.add_argument("--init-noise", type=float, default=0.10); ap.add_argument("--restarts", type=int, default=1); ap.add_argument("--lm-iters", type=int, default=600)
     ap.add_argument("--n-fit", type=int, default=50000)
     ap.add_argument("--data-root", default="dataset_reconstruction/data")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -162,6 +203,15 @@ def main():
                 res = torch.linalg.norm(Cc @ H, dim=0) / torch.linalg.norm(A_T @ H, dim=0)
                 rowA[f"Np_{tname}"] = Np; rowA[f"cert_line_{tname}"] = a.r - Np; rowA[f"cert_residual_{tname}"] = [float(v) for v in res]
             emit(rowA)
+            if cell in a.recipe_cells and nB > 0:                         # ---- recipe route against THIS release (yoado-6e's probe)
+                a.k = k
+                rr, X_hat = recipe_route(chart, bb, X_real, X_on, y, A0, A_T, B_T, a, dev, torch.Generator().manual_seed(a.seed + 11))
+                rowR = dict(part="R", set=sname, chart=chart_name, k=k, N=a.N, r=a.r, m=bb.m, seed=a.seed, train_dtype=dname, simulator="fp64",
+                            B_T_rel_dev_from_fp64=rel_to_fp64, **rr, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
+                emit(rowR)
+                if a.save_dir:
+                    torch.save(dict(x_real=X_real.cpu(), x_chart=X_on.cpu(), x_hat=X_hat.detach().cpu(), meta=rowR),
+                               os.path.join(a.save_dir, f"recipe_{sname}_k{k}_{dname}.pth"))
             # ---- Part B: random-start certificate search from THIS release (certificate.py's objective, starts, threshold)
             if cell in a.partb_cells and dname in a.partb_dtypes and nB > 0:
                 tol = (a.partb_tol if a.partb_tol is not None else tol_nm) if dname != "fp64" else 1e-12
