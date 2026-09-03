@@ -1,4 +1,4 @@
-# Handover — 2026-09-03 20:52
+# Handover — 2026-09-03 21:29
 ## State
 Branch `step1-activation-rescore-retrieval`, HEAD `9edcbd2`. Executor session of the exact-inversion thread
 (write-up: yoado-ed owns `notes/exact_channel_rev10.tex`; auditor: yoado-6e). Every result up to the start-scale
@@ -56,6 +56,25 @@ bracket. Next step 1 below is DONE; continue from step 2.
   node-local); job 747682 died on "No such file".
 
 - Auditor ask (yoado-6e): when 749362's rows land, read ‖B_T‖ and rank from THAT job's saved release tensors under `results/exact_inversion/step69_ctrl_749362_r64/` (not from the CPU diagnostic) before writing the collapse-along-k finding beside its Part B rows.
+
+## Update 3 (the release-vs-k finding and the precision programme)
+- **Job 752500 (RESULTS "The release against k"):** the confident batch's release collapses monotonically with the
+  chart — ‖B_T‖ 0.47 (k=8) → 0.08 (16) → 1.6e-13 (24) → **7.6e-18 (32, the HEADLINE cell)** → 2.8e-24 (56), tracking
+  the projections' margins 11 → 60; the control plateaus at 1e-6…1e-4 (margins 11–15). No "window"; the rank dip at
+  k=16 is a relative artefact. The headline number now carries "release norm 7.6e-18" (STATUS scope caveat).
+- **Mechanism, corrected before any row (RESULTS Step 24 continued):** off-class softmax entries exp(−margin) survive
+  to a format's subnormal floor (fp32/bf16: margins ~100; fp16: ~16.6); unit roundoff only zeroes the own-class
+  entry; the release never feeds back (1e-18 vs logits 40, below the ulp even in FP64) so A_T = A0 and B_T is the
+  one-step gradient × T. Predicted: headline survives fp32/bf16 TRAINING, erased by fp16's range; fp16 STORAGE zeroes
+  the whole file (0 found); spectrum (primary predictor) and imprints agree in this cell: fp32 5, tf32 2, bf16 2.
+- **Jobs in flight for this:** 753371 (headline cell from a quantised release, 9 cells; the fp64 cell first),
+  753886 (bf16 vs fp64 at k=58/60 — relabelled "is a bf16 release attackable where the chart is faithful"; the
+  "widen the line" trade hypothesis was withdrawn: on-chart the fidelity is the training k), 760909 (letters 'a'
+  as an 11th class, loop run in fp64/fp32/bf16/fp16, search from each — the decisive arm), 760912 (confident k=32,
+  control k=32, confident k=8 in the four formats), 749362 (control ladder k=24…56). Read rows against the
+  pre-registrations; the letters' projected margins at t=1 are read from the fp64 row first.
+- `train_precision.py` is new (no shared module edited — 753371/753886 are multi-invocation jobs holding
+  certificate.py; do not edit certificate.py / lora_exact_inversion.py / subset_and_ood.py until they finish).
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
