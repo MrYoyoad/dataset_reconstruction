@@ -2728,3 +2728,9 @@ fp32 training — 8 of 8 from random starts (certificate, tight tolerance), reci
 training — certificate 0, FP64 simulator alias, **matched simulator 3%** (k = 16). fp16 training — certificate 0,
 FP64 simulator alias at a quarter of bf16's (pending matched). fp16 storage of an O(1) release — not tested here
 (the 7.6e-18 headline release underflows; the letters' would not).
+
+*Recipe route, FP64 simulator, k = 32, bf16-trained letters (771329):* residual 5.5e-4 against the truth's 0.129
+(the alias form again), but the endpoint is now far away — image errors .32 … 2.03 (median 1.12) — the k = 32
+Jacobian is worse conditioned (σ_min 1e-5 against 2.7e-4 at k = 16), so the same mismatch is absorbed by a much
+larger displacement; still descending at the 600-iteration cap. The matched-arithmetic row at k = 32 (782682) is
+the one that decides whether the 3% recovery survives the harder chart.
