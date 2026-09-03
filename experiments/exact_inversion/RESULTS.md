@@ -2256,3 +2256,18 @@ only: *is a bf16 release attackable at all in the regime where the chart is fait
 little*, with the FP64 control at the same k expected at or above its own line; the FP64 control is read by
 err-vs-truth (spurious = low objective, err > 1e-2), not by landing count, and nothing is carried across from
 k = 32.
+
+**Training-precision jobs submitted (760909 letters, 760912 digits; `train_precision.py`, design audited).** Cells:
+`letters_a` at k = 32 and 16 (EMNIST 'a' as an eleventh class on the strong model, zero head row, chart = public
+letters' PCA — the decisive arm: negative margins, O(1) residuals, survives every format), `confident` k = 32 (the
+headline; negative control for precision), `mnist_control` k = 32 (the companion where the adapter *moves*),
+`confident` k = 8 (the recorded-at-every-precision digit cell). Formats fp64 (gate against `train_release`), fp32,
+bf16, fp16 — the loop itself run in the format. Random-start search (500 starts, certificate.py's objective and
+1e-2 threshold) from the fp64/fp32/fp16 letter releases and the fp32/fp16 digit releases. Every row carries the
+**feedback** `‖B_T A_T H‖/‖z‖` and the margins at t = 1 and T (yoado-ed's objection: at 1e-18 the adapter never
+moves the logits, so the headline is one gradient step in disguise — the control and letter cells are where the
+fine-tune does something), the **imprint-sum mismatch** `‖Σ C_i − B_T‖` (yoado-6e: it must scale with the signal,
+not with O(1) intermediates, or 7.6e-18 would be roundoff), and the fraction of residual entries that are exactly
+zero. Falsifier made precise (yoado-6e): fp32 at confident k = 32 should give a *nonzero* release ~√2 below FP64
+(own-class rows lost); an exactly-zero fp32 release breaks the off-class/own-class split. The letters' projected
+margins at t = 1 are read from the fp64 row before the letter predictions are held to (yoado-ed's caution).
