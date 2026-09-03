@@ -935,9 +935,20 @@ digits returns them exactly — and does so at `k = 8`, far under the line.
 1. The law bounds **the dimension of the search**, not the fraction of the image an attacker can reach.
    Anywhere it is glossed as a privacy statement it must read *identifiability within the chosen chart*.
    A defender cannot read `k < m+r−N` as a bound on leakage.
-2. **Nothing forces the chart to be data-agnostic.** An attacker who spans the private images plus filler
-   directions has a chart of dimension `N` that contains them exactly — `k = 8` here, far under the line —
-   and recovers the true digits at 1e-14. The capacity bound never notices.
+2. **Nothing forces the chart to be data-agnostic — but be careful what that construction is.** The
+   `exact` chart spans the private images plus filler directions, so it contains them at dimension `N`
+   (`k = 8` here, far under the line) and the inversion returns the true digits at 1e-14. **CORRECTED
+   (2026-09-03): this is an ORACLE construction, not an attack.** Building that chart requires the private
+   images, so quoting it as something "an attacker can do" is circular, and an earlier version of this
+   section did exactly that. What it legitimately proves is the point it was built for: the boundary is a
+   property of the chart and not of the images, since the same `k` and the same release give thirteen
+   orders of difference in fidelity.
+
+   The **attacker-realizable** version of the same construction is a chart fitted to the data
+   *distribution* rather than to the specific private images — i.e. a generative prior. That is where the
+   counting becomes genuinely constructive rather than merely limiting: it states the requirement as a
+   number the prior must come in under, `k < m + r − N` degrees of freedom per image, computable from the
+   release before any attack is attempted. Unbuilt here.
 3. So a better generative model buys strictly more leakage at the same budget. That makes the
    generative-prior direction a **consequence of the counting** rather than a hope, and it is the honest
    answer to "is the boundary a real privacy limit": no — it limits the search space, and the search space

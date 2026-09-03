@@ -58,11 +58,15 @@ def git_hash():
 # ----------------------------------------------------------------------------------------------------------
 class World:
     """k-dim image manifold x = psi(w) = tanh(W2 tanh(W1 w) + b) in R^P;  encoder phi(x) = tanh(E2 tanh(E1 x)) in R^n."""
-    def __init__(self, k, P, n, seed, device):
+    def __init__(self, k, P, n, seed, device, gen_hidden=32):
+        """gen_hidden caps the manifold dimension: psi factors through it, so the effective dimension is
+           min(k, gen_hidden) whatever k is asked for.  It was hardcoded at 32, which silently confounded
+           every cell with k > 32 (the generator, not the release, was the binding constraint there).
+           Default 32 keeps all earlier runs reproducible; raise it to probe k > 32 honestly."""
         g = torch.Generator().manual_seed(seed)
-        self.k, self.P, self.n = k, P, n
-        self.W1 = (torch.randn(32, k, generator=g) / math.sqrt(k)).to(device)
-        self.W2 = (torch.randn(P, 32, generator=g) / math.sqrt(32)).to(device)
+        self.k, self.P, self.n, self.gen_hidden = k, P, n, gen_hidden
+        self.W1 = (torch.randn(gen_hidden, k, generator=g) / math.sqrt(k)).to(device)
+        self.W2 = (torch.randn(P, gen_hidden, generator=g) / math.sqrt(gen_hidden)).to(device)
         self.b = (0.7 * torch.randn(P, generator=g)).to(device)           # breaks the x -> -x symmetry
         self.E1 = (torch.randn(128, P, generator=g) / math.sqrt(P)).to(device)
         self.E2 = (torch.randn(n, 128, generator=g) / math.sqrt(128)).to(device)
@@ -403,7 +407,7 @@ def verdict(err_max, res, frac):
 
 def run_cell(args, log=print, save_prefix=None):
     dev = torch.device(args.device)
-    world = World(args.k, args.P, args.n, args.seed, dev)
+    world = World(args.k, args.P, args.n, args.seed, dev, args.gen_hidden)
     g = torch.Generator().manual_seed(args.seed + 7)
     N, r, m, n, k = args.N, args.r, args.m, args.n, args.k
     # ---- private data and release ----
@@ -518,6 +522,8 @@ def main():
     ap.add_argument("--k", type=int, default=12); ap.add_argument("--N", type=int, default=8)
     ap.add_argument("--r", type=int, default=16); ap.add_argument("--m", type=int, default=20)
     ap.add_argument("--n", type=int, default=96); ap.add_argument("--P", type=int, default=64)
+    ap.add_argument("--gen-hidden", type=int, default=32,
+                    help="generator hidden width; CAPS the manifold dimension at min(k, this). Must exceed k.")
     ap.add_argument("--T", type=int, default=1500); ap.add_argument("--lr", type=float, default=0.03)
     ap.add_argument("--wd", type=float, default=0.0); ap.add_argument("--sigma0", type=float, default=None)
     ap.add_argument("--seed", type=int, default=1)
@@ -546,6 +552,14 @@ def main():
     ap.add_argument("--sweep-ks", type=int, nargs="*", default=[2, 4, 6, 8, 10, 12, 14])
     args = ap.parse_args()
     if args.sigma0 is None: args.sigma0 = 1.0 / math.sqrt(args.n)
+    ks_probed = args.sweep_ks if args.sweep else [args.k]
+    if max(ks_probed) >= args.gen_hidden:
+        print(f"# WARNING: k up to {max(ks_probed)} >= gen_hidden {args.gen_hidden}: the generator caps the "
+              f"manifold dimension, so those cells test the GENERATOR, not the release. Raise --gen-hidden.",
+              flush=True)
+    if args.P < max(ks_probed):
+        print(f"# WARNING: P={args.P} < k={max(ks_probed)}: the image space itself is smaller than the chart.",
+              flush=True)
     print(f"# device={args.device} release={args.release} r={args.r} m={args.m} n={args.n} git={git_hash()} "
           f"host={socket.gethostname()}\n# cmd: {' '.join(sys.argv)}", flush=True)
     log = (lambda s: None) if args.quiet else (lambda s: print(s, flush=True))

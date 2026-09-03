@@ -90,7 +90,12 @@ orders apart at the same budget.
 **Consequence:** the law bounds the *dimension of the search*, not the fraction of the image reachable, and
 must be stated as identifiability **within the chosen chart**. A defender cannot read `k < m+r−N` as a
 leakage bound — nothing forces the attacker's chart to be data-agnostic, and one spanning the private images
-plus filler has dimension `N`, sits far below the line, and returns the digits exactly. This makes the
+plus filler has dimension `N`, sits far below the line, and returns the digits exactly — **but that chart is
+an ORACLE construction, not an attack** (building it needs the private images; an earlier wording called it
+attacker-buildable, which is circular). What it proves is that the boundary is chart-relative. The
+realizable version is a chart fit to the data *distribution*, i.e. a generative prior, and the counting
+states its requirement as a number: fewer than `m + r − N` degrees of freedom per image, computable from the
+release before attacking. This makes the
 generative-prior direction a *consequence of the counting* rather than a hope.
 Figures `figures/exact_inversion/chart_dependence_k{17,18}.png`; write-up `experiments/exact_inversion/RESULTS.md` Steps 10-11.
 
