@@ -1286,75 +1286,86 @@ level & content & status\\ \midrule
 \subsection{What to say to Gal (replaces the lead of Rev~9 \S16)}
 \label{sec:gal}
 
-In this order: the law, because it is a theorem with a derivation and a sharp
-measurement, on synthetic data and on digits; the chart, because it is what
-the law means; the walk, because it turns the law into a set one can move
-along; the initialiser, because it is what stops the attack today; the
-recipe, because under weights-only release $\eta$, the $(\eta,T)$ split and
-the labels are fitted from the release and a wrong recipe is detected, while
-the schedule needs continued-training access. Not the $49/49$ grid first: it lies inside the capacity
-region and measures existence, not rate.
-\begin{enumerate}\itemsep2pt
-\item \emph{The chain.} Theorem~\ref{thm:traj} writes the adapter's
-  trajectory in closed form; Corollary~\ref{cor:seed} shows the seed enters
-  through $rN$ numbers $X$ and the rest of it is released verbatim. Projecting
-  $X$ away is Rev~9's certificate, $r-N$ equations per image
-  (Theorem~\ref{thm:quot}); solving for it is the exact channel.
-\item \emph{The law.} The released $B_T$ lives on a manifold of dimension
-  $N((m-1)+r-N)$ — the $-1$ is the softmax head, Proposition~\ref{prop:simplex}
-  — and $A_TU_c$ pays exactly for $X$. So $k<m+r-N$ (Theorem~\ref{thm:cap}),
-  $m-1$ per image above the certificate, and the difference is precisely the
-  coefficient matrix the certificate projects away (Corollary~\ref{cor:two}).
-  Measured sharp to one unit of $k$ at $N=4,8,14$ synthetically (bracketed
-  to two at $N=12$), at five head widths, at three ranks on real digits, and
-  on a trained network with unseen test digits — where it holds unmoved
-  while the conditioning to reach it worsens a thousandfold by $k=17$; both terms of the cap attained by the block
-  ranks.
-\item \emph{The chart.} The theorems pin the coordinates $w$; the attack
-  returns $\psi(\hat w)$. At the same $k=17$, three charts each recover their
-  own image to $10^{-14}$ and differ by thirteen orders against the real
-  digit; an oracle-built chart spanning the digits recovers them at $k=N$,
-  far below the line. The law bounds the dimension of the search, not the
-  image reached,
-  and the search space is the attacker's to choose: the counting gives the
-  generative prior its job.
-\item \emph{The walk.} Past the line the truth is not isolated
-  (Theorem~\ref{thm:cap}); one continuation procedure moves the image by
-  $10^{-14}$ below the line and by $1.4$--$3.8\%$ at and past it, at the
-  residual floor throughout. Where the solver lands past the line, the
-  alternative is within $1.7\%$ in the synthetic chart that contains the
-  truth and $2$--$7\%$ on real digits, growing with distance; recognisability
-  is not assessed. So the line bounds \emph{exact} identifiability and is
-  not a leakage bound; how far the manifold reaches is open — one direction
-  of forty was walked, and one cell was still rising.
-\item \emph{The theorem behind the sharpness.} Below the line $D\rho$ is
-  full column rank almost everywhere or nowhere (Theorem~\ref{thm:suff});
-  the $T=1$ closed form \eqref{eq:T1} is the witness.
-\item \emph{What the model itself does.} On a fixed architecture, the better
-  the encoder the worse conditioned the inversion — ten orders of
-  $\sigma_{\min}$ from random weights to $97.9\%$ accuracy — and at $97.9\%$
-  the adapter stops recording the easy examples altogether:
-  $\operatorname{rank}P_T<N$, so the channel closes two units below its own
-  capacity line, for reasons of the model rather than the count. The
-  mechanism is the gradient itself: the release is a sum of rank-one pieces,
-  one per private example, each bounded by that example's own accumulated
-  error. So a batch the model already fits leaves every piece below
-  $1.5\times10^{-24}$ — the release is numerically empty — where the same
-  digits through a weaker encoder give eight pieces of order one, and
-  $\operatorname{rank}B_T$ counts how many examples were recorded at all.
-\item \emph{What stops the attack.} Not information: the initialiser
-  (none of $20$ attacker-buildable starts reaches the floor; from perturbed
-  truth the solver recovers up to $86\%$ away).
-\item \emph{The recipe.} Under weights-only release: none of seven wrong
-  recipes reached the floor — one step in four hundred is twenty-three orders
-  away — so the residual checks it;
-  $\eta$ fits jointly with the data to machine precision; $\eta T$ is not a
-  degeneracy of discrete steps; labels are identifiable. Only with continued-training access (a checkpoint
-  with optimiser state, or a fine-tuning service) does a decaying schedule of
-  known family hand over $T$ from six probe steps. What the count leaves the
-  defender is a free per-step schedule with $T>120$.
-\item \emph{Open.} The schedule family (model selection, not run); global
-  uniqueness; direction dependence of the manifold's extent; Adam, which keeps
-  identifiability, loses the $rN$ reduction, destroys the certificate, and is
-  predicted to sit one unit higher on the capacity line.
+Lead with two theorems, each with a sharp measurement. The first says how
+many numbers per private example a released adapter can hold; the second
+says which examples are in it at all. Together they make the adapter a
+\emph{measurable channel}: two computable quantities, one of which the
+defender can evaluate during their own training without simulating any
+attack. The reconstructions are consequences, and the $49/49$ grid should
+not lead — it sits inside the capacity region and measures existence, not
+rate.
+
+\begin{enumerate}\itemsep3pt
+\item \emph{The chain the theorems stand on.} Theorem~\ref{thm:traj} writes
+  the adapter's whole trajectory in closed form; Corollary~\ref{cor:seed}
+  shows the random initialisation enters it through only $rN$ numbers, the
+  rest being released verbatim. Projecting those away is Rev~9's
+  certificate, $r-N$ equations per image (Theorem~\ref{thm:quot}); solving
+  for them is the exact channel, and the difference between the two is one
+  identifiable object (Corollary~\ref{cor:two}).
+
+\item \textbf{Theorem I — capacity.} The released $B_T$ lies on a manifold
+  of dimension $N((m-1)+r-N)$, the $-1$ being the softmax head
+  (Proposition~\ref{prop:simplex}), while $A_TU_c$ pays exactly for the
+  seed. Hence $k<m+r-N$ coordinates per example (Theorem~\ref{thm:cap}), and
+  full column rank almost everywhere below it (Theorem~\ref{thm:suff}, with
+  the closed-form $T=1$ witness). Measured sharp to one unit of $k$ at
+  $N=4,8,14$, at five head widths, at three ranks on real MNIST digits, and
+  on a \emph{trained} network with unseen test digits — where the line holds
+  unmoved while the conditioning needed to reach it worsens a thousandfold.
+  Both terms of the cap are attained by the measured block ranks.
+
+\item \textbf{Theorem II — imprint.} The gradient in $B$ is a sum of
+  rank-one terms, one per private example, so
+  $B_T=\sum_iC_i$ with $\|C_i\|$ bounded by \emph{that example's own}
+  accumulated error and no cross term (\eqref{eq:imprint}). Measured on
+  $320$ example-batch pairs across four encoders: one proportional line over
+  thirty-five orders of magnitude, rank correlation $971$ of $1120$ pairs,
+  and $\operatorname{rank}B_T$ equal to the number of examples recorded above
+  the floor in all forty batches (Figure~\ref{fig:imprint}).
+
+\item \emph{What the two theorems give the defender — this is the tool.}
+  What leaks is what the model had to learn. A private batch its base model
+  already fits leaves every imprint below $1.5\times10^{-24}$: the release is
+  numerically empty. Conditioning worsens ten orders from random weights to
+  $97.9\%$ accuracy at fixed architecture, and at $97.9\%$ hypothesis (A4)
+  fails outright — $\operatorname{rank}P_T<N$ — so the channel closes
+  \emph{below its own capacity line}, for reasons of the model rather than
+  the count. The exposure meter is therefore the per-example accumulated
+  residual during the defender's own fine-tuning: already computed in the
+  course of training, and requiring no attack to interpret.
+
+\item \emph{What they give the attacker.} $\operatorname{rank}B_T$ is read
+  off the release with no private knowledge and says how many examples were
+  recorded; on the $97.9\%$ model that is essentially one, in $9$ of $10$
+  ordinary batches. Private data from a different distribution is recorded
+  in full — scanned digits misclassified $4/8$ by that model give every
+  imprint order one and full rank — and, on the two foreign sets tried, is
+  also drawn \emph{better} by the attacker's MNIST chart than MNIST is.
+
+\item \emph{Why a prior is the missing piece, precisely.} The theorems pin
+  the chart \emph{coordinates}; the attack returns $\psi(\hat w)$. At one
+  fixed $k$, three charts each recover their own representable image to
+  $10^{-14}$ and differ by thirteen orders against the real digit. So
+  reconstruction factorises as capacity $\times$ chart quality: this work
+  fixes the first exactly, and a prior supplies the second. Richness is free
+  in conditioning terms, so the instruction is to spend the coordinates on
+  the best chart available.
+
+\item \emph{What stops the attack today.} At $N=8$, none of $20$
+  attacker-buildable starts reaches the residual floor, while from perturbed
+  truth the solver recovers from $86\%$ away — so the obstruction is the
+  initialiser, not the information. But that obstruction scales with the
+  number of \emph{recorded} examples, and the model decides that number: the
+  one-recorded-example case is the attacker-realisable arm, and it is
+  running.
+
+\item \emph{Open, and said in the same breath.} Global uniqueness below the
+  line; how far the release-consistent set extends past it (one direction of
+  forty was walked, and one cell was still rising); the accuracy at which
+  (A4) begins to fail; LoRA on more than one layer, where the closure fails
+  and the measured cells are dominated by the unrolled optimisation rather
+  than by identifiability; Adam, which keeps identifiability, loses the seed
+  reduction, destroys the certificate and is predicted to sit one unit higher
+  on the line; and the schedule family under a weights-only release.
 \end{enumerate}
