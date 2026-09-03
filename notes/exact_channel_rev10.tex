@@ -860,6 +860,23 @@ $31$--$47$ and leaving imprints of $10^{-11}$ or less.
 
 \subsubsection*{What an attacker gets from it}
 
+\paragraph{The image finishes long before the residual does.} On the
+$95.1\%$ backbone every below-line cell stops at residual
+$10^{-13}$--$10^{-15}$ after $300$ iterations — fifteen orders above the
+reproduction floor, so by the classification of \S\ref{sec:measured} these
+are search failures. Yet the median image error already equals the chart's
+own representation error to within $10^{-6}$--$10^{-3}$ at
+$k=6,10,14,16$$^\dagger$ (job 614344). The last fifteen orders of residual
+buy nothing an attacker can see: they refine the chart coordinates far below
+the resolution at which the chart itself can draw. Two readings follow. For
+identifying the boundary, the residual remains the right instrument, because
+it is what distinguishes an alias from a search failure. For judging what an
+attacker \emph{gets}, it is the wrong one, and the image-space gap of
+\S\ref{sec:measured} is the honest measure — a cell can be a search failure
+by residual and finished by picture.
+
+
+
 \paragraph{A free convergence certificate in image space.} The identity above
 is not only a result; it is an instrument. On an on-chart cell a converged
 inversion \emph{must} land on the chart's own best point, so
