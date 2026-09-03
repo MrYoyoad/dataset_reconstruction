@@ -136,6 +136,8 @@ def main():
                         feat_ref = float(torch.linalg.norm(A_T @ bb.phi(Xtr_t[:256].T), dim=0).median())
                     def feat_ratio(w):
                         with torch.no_grad(): return float(torch.linalg.norm(A_T @ bb.phi(chart.psi(w.reshape(k, 1)))) / feat_ref)
+                    with torch.no_grad():                                   # the certificate at each image's own truth, for the extension rule
+                        cert_res_truth = torch.linalg.norm(C @ bb.phi(X_on), dim=0) / torch.linalg.norm(A_T @ bb.phi(X_on), dim=0)
                     gs = torch.Generator().manual_seed(a.seed + 31); t0 = time.time(); runs = []
                     repr_err = torch.linalg.norm(X_on - X_real, dim=0) / torch.linalg.norm(X_real, dim=0)     # the chart's own ceiling at this k
                     n_starts = a.random_starts
@@ -158,7 +160,10 @@ def main():
                             if hits / s < a.extend_below:
                                 n_starts = a.extend_starts; print(f"      extending to {n_starts} starts (recorded fraction {hits}/{s})", flush=True)
                         if a.min_landings > 0 and s >= a.random_starts and s == n_starts and s < a.max_starts:
-                            rec_now = [i for i in range(a.N) if imp[i] / imp.max() > 1e-12]
+                            # "recorded" for the extension rule = images the certificate actually annihilates (residual < 1e-3 at the
+                            # truth), not the imprint threshold: a boundary image (present but outside row(B_T) numerically) can
+                            # never be landed on and would otherwise pin the extension at the cap (seen on job 725918)
+                            rec_now = [i for i in range(a.N) if imp[i] / imp.max() > 1e-12 and float(cert_res_truth[i]) < 1e-3]
                             counts = {i: 0 for i in rec_now}
                             for d in runs:
                                 xh = chart.psi(d["w"].to(dev).reshape(k, 1))[:, 0]
