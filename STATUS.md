@@ -354,6 +354,12 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   images can be individually in `row(B_T)`; with 20 recorded optdigits on a 10-class head, rank saturates at 9 and
   no image satisfies the certificate (residuals 1e-2–0.5 even in FP64). The twenty-image cell was stopped; a
   26-class (EMNIST letters) head would be needed. Eight-image cells unaffected.
+- **Start scale (737516):** the aggregate basin is insensitive to the start scale (65–74% at 0.5×/1×/2×) but the
+  distribution over targets is not — 0.5× concentrates on the dominant image and misses two of seven, 2× flattens
+  the skew 5× — so the attacker sweeps the scale to cover targets; "search cost is the chart's geometry" narrows to
+  the dominant target. **Subset test:** a wrong subset reaches its own floor too; discrimination is by the floor's
+  level (1e-16 vs 2e-10) — "find some" = minimise the residual over subsets. **No alias form on the 98% model**
+  (614344 complete): rank-deficient at every k, never at the floor — search failure, not alias.
 - **At r = 64 the entire admissible chart range is attackable (721391):** every cell from k = 8 to k = 48 finds
   all recorded images with the argmin correct; only the cost varies — 13.8% → 2.6% of starts per image (5×) — while
   fidelity climbs from class-only to .99 instance identification. Nowhere in the range is the attacker stopped.

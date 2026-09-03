@@ -2059,3 +2059,51 @@ on this head sit at 1e-8 … 4e-3 — landings are counted by image error < 1e-2
 ### Bracket, `k = 10` (job 706721): still below its line for this batch (`N′ = 5`, line 11) — 13.4% of 2,000 starts
 on a private digit, all five found, argmin correct, floor fraction 12.9% ≈ recorded (no spurious zero). The
 at/above-line regime is the earlier 704286 rows (`k = 12, 14, 16`: spurious zeros dense, argmin wrong).
+
+### The start-scale cell (job 737516): the public scale is not special; the skew is partly the start distribution's
+
+Same cells, 500 random starts each, drawn at 0.5× / 1× / 2× the public coordinate std:
+
+| cell | scale | aggregate on a private image | found | landings per image (in image order) | Kendall(landings, feature norm) |
+|---|---|---|---|---|---|
+| r=64, k=32 | 0.5× | 69.4% | 8/8 | 5, 25, 6, 103, 8, 13, **183**, 4 | 16/28 |
+| | 1× | 65.6% | 8/8 | 34, 34, 30, 58, 26, 19, **103**, 24 | 23/28 |
+| | 2× | 71.2% | 8/8 | 33, 33, 63, 45, 31, 13, **80**, 58 | 18/28 |
+| r=32, k=8 | 0.5× | 71.6% | **5/7** | **0**, 19, 1, 35, 6, **297**, **0** | 14/21 |
+| | 1× | 74.4% | 7/7 | 6, 73, 16, 84, 10, **180**, 3 | 15/21 |
+| | 2× | 67.0% | 7/7 | 12, 51, 47, 84, 3, **127**, 11 | 17/21 |
+
+Landing-order stability across scales: 0.5× vs 1× 20/28 and 19/21; 1× vs 2× 20/28 and 19/21; 0.5× vs 2× 15/28
+and 17/21. **Reads.** (i) The *aggregate* is insensitive to the start scale (65–71%, 67–74%): the public scale is
+not the best place to start, nor a bad one — any scale in this range lands most starts. (ii) The *distribution*
+over targets is scale-dependent: at 0.5× the mass concentrates on the dominant image (183 of 347; 297 of 358)
+and two of seven images are never found; at 2× it flattens (min/max 13/80 and 3/127). The dominant image is the
+same at every scale (chart geometry), the rest re-order with the scale (start distribution): the confound is
+resolved as *both*, and the feature-norm ordering measured at 1× (23/28) is not scale-invariant (16/28 at 0.5×).
+(iii) The actionable version stands: **an attacker who sweeps the start scale covers targets a single scale
+misses and flattens the coupon-collection skew** — at 2× the rarest image needs a fifth of the starts it needs at
+0.5×. The "search cost is the chart's geometry" sentence is narrowed to the dominant target; the rest of the
+ordering belongs to the start distribution, which the attacker controls.
+
+### Subset test, the one-swapped control (job 706597): a wrong subset reaches ITS OWN floor — discrimination is by the floor's level
+
+`repeated` on-chart, `N′ = 3`: the recorded subset reaches its predicted floor 1.1e-16 exactly (over-floor 1.03,
+image error 2.5e-2); the **one-swapped** subset (weakest recorded → strongest invisible) *also* reaches its own
+predicted floor — 2.1e-10 predicted, 2.1e-10 at its truth, 2.1e-10 achieved, over-floor 1.00 — at image error
+7e-2 with `σ_min` 3.3e-10. So "reaches its predicted floor" does not discriminate subsets, as the design audit
+warned it might; **what discriminates is the level of the floor**, six orders apart here (1e-16 vs 2e-10), and
+the attacker sees that level as the achievable residual of each candidate subset. "Find some" therefore reads:
+*minimise the residual over the choice of subset* — the recorded subset is the one whose residual can go lowest —
+which is a search over subsets the attacker can run without knowing which images are recorded.
+
+### Closures from the older jobs
+- **The alias form did not appear (job 614344, 98% model, repeated draw, `k = 6 … 18`):** `σ_min` at the truth is
+  1e-14 … 1e-19 at *every* `k` (the two invisible digits make the Jacobian rank-deficient below the line), and the
+  residual never reaches the floor (7e-18 … 1e-12 at the cap, still descending, image error 5–15%) — the strong
+  model's below-line failure manifests as non-convergence on a rank-deficient problem, not as a floor reached
+  with wrong digits. Search failure throughout; no alias.
+- Certificate k=6 replicates on a second batch (`hard1_diff`, seven recorded): 44.6% of 2,000 starts, all seven,
+  floor fraction = recorded fraction, argmin exact (job 706721).
+- Wide head, `k = 16` (job 725918): 62.5% of 10,000 starts on a private digit, 15 of 20 found (17 recorded).
+- The ladder job (721391) exited on an assertion after its `mnist_control r = 64, k = 16` row (88.8%, 8 of 8); all
+  `confident` rows and the `mnist_control` k = 8 rows at every rank were already on disk.
