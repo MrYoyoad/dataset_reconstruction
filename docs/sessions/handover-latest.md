@@ -1,4 +1,4 @@
-# Handover — 2026-09-03 21:29
+# Handover — 2026-09-03 22:39
 ## State
 Branch `step1-activation-rescore-retrieval`, HEAD `9edcbd2`. Executor session of the exact-inversion thread
 (write-up: yoado-ed owns `notes/exact_channel_rev10.tex`; auditor: yoado-6e). Every result up to the start-scale
@@ -107,6 +107,25 @@ bracket. Next step 1 below is DONE; continue from step 2.
 - **Step 26 RESULT (782682, bf16-trained letters k=16, matched-arithmetic route): recovered to 3% median image
   error (max 6.9%), raw error at the chart floor; residual 0.014 vs the truth's A₀ floor 0.023; Z error 0.13 —
   not protection, DEMONSTRATED. fp16/fp32 and k=32 rows pending.**
+
+## Write-up lane (yoado-ed's state, folded in at their request)
+`notes/exact_channel_rev10.tex` (33 pp; builds via `bash scripts/rev10_figs/build_pdf.sh`; the PDF is gitignored, the
+.tex is not; the Rev 9 source is Mac-only, so a MERGE NOTE at the top maps every Rev 9 number and the user merges on
+Overleaf). Current as of their HEAD `99e9c37`:
+- Headline = the NEW-CLASS cell (letters, r=64, k=32, trained in FP32, all eight from random starts, instance-level);
+  the confident-batch cell demoted to "the extreme" with its 7.6e-18 release and frozen adapter stated; the measured
+  section and the pitch both lead with the letters.
+- Certificate block ordered mechanism → limits (N′ ≤ m−1, precision) → from-nothing → basin → three disclosures →
+  synthesis (moved last so no claim precedes its own qualification).
+- Carried with scope: ‖B_T‖ collapse along k; storage precision by the gap, not a fixed threshold; the FP16 zero
+  scoped to this cell's norm; basin governed mostly by distance with k costing ~2× per 32 unknowns; the start-scale
+  falsifier narrowing the feature-norm claim to one scale; R5 (batch size not identifiable), R6 (subset chosen by
+  the level of the floor). The half-precision block ends with the three attackers on one release.
+- NOT yet in the .tex (waiting on rows): the fp16/fp32/k=32 matched-arithmetic rows (782682); the k=58/60 FP64
+  control (753886); the control ladder's completion (749362 — done, RESULTS has it); both ladder figures. **Three
+  figure reads timed out on their side — no figure since the k=6 panel has been checked by yoado-ed personally.**
+- Their lane's traps: a patch script that applies several edits and writes once discards all of them if a later
+  anchor misses — verify against the file's bytes; never grep a pattern that spans a LaTeX line wrap or contains `$`.
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
