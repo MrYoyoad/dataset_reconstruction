@@ -1489,3 +1489,27 @@ release); optdigits: 2e-4, 1e-3, 4e-5, 1, 0.7, 0.1, 0.8, 0.6 (five within one de
   recovered images look like the foreign digits is job 644064 (cells (a)/(b), image grids saved).
 - Scope: this is the record/no-record axis (`rank B_T`, basis-free) beside the chart-fidelity axis
   (`chart_repr_err`); they are not merged. Starts for the inversions are near-truth as everywhere here.
+
+## Step 20 — the most-leaking example: prevalence of the one-image release (job 650891); the attack from random starts (job 650890, IN FLIGHT)
+
+**Trigger.** The attacker reads `σ₂/σ₁` of the released `B_T`; below `τ = 1e-3` the release is treated as
+carrying one image. Prevalence over the 40 batches on disk (10 batch compositions — three margin-picked, two
+random draws, raw and on-chart — × 4 encoders at one architecture; `k = 16`, `N = 8`, `r = 16`):
+
+| encoder | batches triggered | `σ₂/σ₁` range | `rank B_T` over the 10 batches |
+|---|---|---|---|
+| random (8.7%) | 1 / 10 (a false positive: rank 8) | 8.7e-4 … 0.79 | all 8 |
+| weak (78%) | 0 / 10 | 0.021 … 0.58 | all 8 |
+| mid (95%) | 0 / 10 | 0.005 … 0.69 | all 8 |
+| **strong (98%)** | **9 / 10** | **4.8e-16 … 0.07** | 1, 1, 1, 3, 3, 4, 6, 6, 6, 8 |
+
+On the strong model the two *ordinary random draws* — not the margin-picked batches — are one-image releases
+(`σ₂/σ₁` = 2.1e-5 and 2.9e-5 raw; 2.3e-4 and 2.4e-4 on-chart). The one strong batch that does not trigger is
+`hard1_diff` on-chart (`σ₂/σ₁` = 0.07, rank 4: a low-margin 3 shares the release with the hard 1). The random
+encoder's single trigger is `hard1_same` (all eight are 1s with residual ≈ 0.95 each; the spectrum is set by the
+feature geometry, not by margins) and it is rank 8 — the negative control for the read is job 650890's mid cell.
+
+**Read:** "one image carries the release" is a property of this strong model on ordinary data, 9 of 10 batches,
+not an anecdote; on the weaker models it never happens. Whether that one image can be recovered from random
+public-scale starts by residual ranking alone is job 650890 (per-start floor fractions, argmin-residual label
+and image, `k ∈ {16, 24, 25, 26}` toward the one-image line `k < m + r − 1 = 25`).
