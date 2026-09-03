@@ -309,6 +309,9 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
 - **Precision is a privacy parameter (722663):** quantising the release erases every direction of `B_T` below the
   rounding noise — certificate-recoverable images 6 → 3 → 0 → 0 → 0 across FP64 → FP32 → TF32 → FP16 → bf16 on the
   repeated draw (spectrum 1, 2e-4, 1e-5, 9e-9 …); a bfloat16 adapter keeps one direction. Tolerance rule 10×eps.
+- **The `m − 1` cap measured switching back ON (725918):** the same MNIST MLP retrained with a padded 26-logit head
+  (16 never targets; 98.28%, same data) turns the twenty-image cell from rank 9 / certificate dead-for-all into
+  rank 19 / residuals 1e-8–4e-3 for nineteen images (the twentieth at the numerical boundary). Only `m` changed.
 - **Second cap on the certificate: `N′ ≤ m − 1`.** Error vectors live on the softmax simplex, so at most `m − 1`
   images can be individually in `row(B_T)`; with 20 recorded optdigits on a 10-class head, rank saturates at 9 and
   no image satisfies the certificate (residuals 1e-2–0.5 even in FP64). The twenty-image cell was stopped; a

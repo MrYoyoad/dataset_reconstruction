@@ -1909,6 +1909,12 @@ only `m` changes; data, encoder, batch, rank and chart fixed), then the identica
 `rank B_T` 9 → **20**; `rank C` 55 → **44** (= `r − N′`); the per-image certificate residual falls from 0.3–0.5 to
 the floor for all twenty; the certificate line moves to `k < 44`, so below it random starts land on the twenty.
 A cap that is measured switching back *on* when `m` is widened is a different class of evidence from an
-explained failure. *Survey across
+explained failure. **Measured (job 725918, `mnist_mlp_m26_strong.pth`, 98.28% — the same accuracy as the 10-logit
+model, same data):** at `k = 8` on the identical twenty images, `rank B_T` **9 → 19**, `rank C` **55 → 45**
+(= `r − N′`), and the certificate residual of **nineteen** images falls from 0.3–0.5 to **2.5e-8 … 4.3e-3** — five to
+seven orders below the invisible band — with the twentieth (imprint 3e-7 of the largest, the numerical boundary
+between "present" and "in the row space") at 0.23. Prediction met in substance (19 not 20: the one boundary image
+is the definitional divergence already noted); the channel that was dead for all twenty on the 10-class head is
+open for nineteen on the 26-class head with nothing else changed. *Survey across
 `k` (job 722950):* `rank B_T = 9` and `rank C = 55` at every `k ∈ {8, 12, 16, 20, 24, 32, 40}`, all twenty imprints
 present, certificate residual 0.3–0.5 throughout — the cap is `m − 1` exactly and independent of the chart.
