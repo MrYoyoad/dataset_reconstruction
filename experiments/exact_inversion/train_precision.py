@@ -205,7 +205,10 @@ def matched_lm(chart, bb, X_real, X_on, y, A0, A_rel, B_rel, a, dev, dtype, g):
     e_chart = torch.linalg.norm(X_hat - X_on, dim=0) / torch.linalg.norm(X_on, dim=0)
     e_real = torch.linalg.norm(X_hat - X_real, dim=0) / torch.linalg.norm(X_real, dim=0)
     Z_hat = v[nW:].reshape(r, N)
-    return dict(gate_true_A0=gate, res_at_truth_matched=res_truth_matched, res_at_truth_fp64_sim=res_truth_fp64, A0_recon_rel_at_truth=A0_recon_rel,
+    with torch.no_grad():                                          # per-letter residual (yoado-ed): A-block column i is letter i's; the B-block is joint
+        fB = f[: bb.m * r]; fA = f[bb.m * r:].reshape(r, N)
+        per_letter_A = [float(torch.linalg.norm(fA[:, i])) for i in range(N)]; resB = float(torch.linalg.norm(fB))
+    return dict(gate_true_A0=gate, residual_B_block=resB, residual_A_block_per_letter=per_letter_A, res_at_truth_matched=res_truth_matched, res_at_truth_fp64_sim=res_truth_fp64, A0_recon_rel_at_truth=A0_recon_rel,
                 start_objective=obj0, residual=obj ** 0.5, objective=obj, lm_iters_used=used, stopped=("converged" if obj < 1e-30 else ("no_accept" if used < a.lm_iters else "cap")),
                 err_vs_chart_per_image=[float(x) for x in e_chart], err_vs_chart_median=float(e_chart.median()), err_vs_chart_max=float(e_chart.max()),
                 err_vs_REAL_median=float(e_real.median()), Z_err_rel=float(torch.linalg.norm(Z_hat - Z_true) / torch.linalg.norm(Z_true)),
