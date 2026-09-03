@@ -2679,3 +2679,9 @@ floor with O(1) image error and Z absorbing the mismatch.
 - Control ladder k = 56 (749362): N′ = 6, line 58, 0.86% of 5,000 starts on a recorded image, 5 of 6 found, argmin on
   a recorded image — the control batch attackable at every k from 24 to 56 (71.6 → 51.6 → 18.2 → 6.6 → 0.86%).
   Ladder figure re-rendered with the control cells: `figures/exact_inversion/certificate_ladder.png`.
+
+*Matched route, gate row (782682, letters k = 16, fp64 release, fp64 simulation):* from the 0.1 near start
+(objective 0.109) the LM converges in 17 iterations to residual 1e-15, image error 1e-15 for every letter, Z error
+5e-15 — the Z-parametrised A₀ candidate and the surrogate-Jacobian solver reproduce the recipe route's exact
+recovery; the objective trace falls 0.109 → 8e-3 → 7.6e-4 → … → 1e-30 monotonically. The bf16, fp16 and fp32 rows
+are running against this gate.
