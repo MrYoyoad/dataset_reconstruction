@@ -116,7 +116,7 @@ def main():
                 cert_res = (torch.linalg.norm(C @ H, dim=0) / torch.linalg.norm(AH, dim=0))
                 top = int(torch.argmax(imp))
                 rowA = dict(part="A", set=sname, setting=setting, k=k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed, y=y.tolist(),
-                            imprint_rel=[float(v / imp.max()) for v in imp], rank_B_T=Np, rank_C=int(torch.linalg.matrix_rank(C, rtol=1e-10)),
+                            imprint_rel=[float(v / imp.max()) for v in imp], imprint_abs=[float(v) for v in imp], B_T_norm=float(torch.linalg.norm(B_T)), B_T_sigma=[float(v) for v in sB], rank_B_T=Np, rank_C=int(torch.linalg.matrix_rank(C, rtol=1e-10)),
                             cert_line=a.r - Np, cert_residual_per_image=[float(v) for v in cert_res],
                             cert_residual_recorded_max=float(max(cert_res[i] for i in range(a.N) if imp[i] / imp.max() > 1e-12)),
                             cert_residual_invisible_min=float(min([cert_res[i] for i in range(a.N) if imp[i] / imp.max() <= 1e-12] or [float("nan")])),
