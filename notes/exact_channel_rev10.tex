@@ -1045,6 +1045,33 @@ solutions, so a search started at random reaches \emph{one} of them with no
 way to steer and no way to tell from the objective which — the $N'=1$ case is
 the one where recovering a solution and recovering \emph{the} example
 coincide.
+\paragraph{From nothing: the certificate recovers recorded images from random
+starts.} The two properties above --- recipe-free, and a landscape with no
+unrolled dynamics --- combine into the first arm of this study that an
+attacker could actually run. Measured$^\dagger$ (job 706721, strong backbone,
+confident batch, chart-projected at $k=6$ with $N'=7$ recorded, so the
+certificate line $k<r-N'=9$ is satisfied): from $2000$ random starts at public
+scale, $300$ iterations each, with no recipe, no labels, no $N$ and no
+proximity to the truth, $51.0\%$ of starts reach the objective's floor; the
+fraction of starts landing on a recorded image is also $51.0\%$ --- the same
+number, so \emph{every} start that reached the floor is on a private image and
+none is spurious, as the kernel count requires below the line. All seven
+recorded images are found, the $\operatorname{argmin}$ over starts lands on a
+recorded image at $5.5\times10^{-15}$ from its chart projection, no start is
+degenerate, and the whole cell costs $389$\,s at $0.2$\,s per start.
+
+Three scopings, all of which matter. The batch is \emph{on-chart}: the
+adapter was trained on the $k=6$ projections, so those projections are the
+private data and are what is recovered exactly --- against a raw digit the
+error is the chart's, which is the factorisation of
+\S\ref{sec:measured} and not a defect of this cell. The attacker needs the
+release, the public base model, and a chart; that is all, and in particular
+none of $(\eta,s,T)$, the labels, $N$, or a starting point near the answer.
+And the price of needing nothing is the lower line: $k<r-N'$ here rather than
+$k<m+r-N'$, six coordinates per image rather than twenty-two. The bracket at
+$k=8$ (below the line) and $k=10$ (above it) is running and is what will say
+whether the basin narrows toward the boundary.
+
 Two caveats belong with it. The vanishing is approximate rather than exact
 below full rank — the recorded residuals sit at $10^{-10}$, not at machine
 precision, because the invisible examples' contribution to $M_T$ does not
@@ -1648,10 +1675,21 @@ rate.
   in conditioning terms, so the instruction is to spend the coordinates on
   the best chart available.
 
-\item \emph{What stops the attack today.} At $N=8$, none of $20$
-  attacker-buildable starts reaches the residual floor, while from perturbed
-  truth the solver recovers from $86\%$ away — so the obstruction is the
-  initialiser, not the information. The hypothesis under test is that this
+\item \textbf{The attack, and the trade it makes.} There are two routes and
+  they buy opposite things. The \emph{recipe route} inverts the full residual
+  and has the wide line, $k<m+r-N$, twenty-two coordinates per image at these
+  sizes --- but it needs the recipe, and at $N=8$ none of $20$
+  attacker-buildable starts reaches its residual floor, while from perturbed
+  truth the solver recovers from $86\%$ away, so the obstruction there is the
+  initialiser and not the information. The \emph{certificate route} needs
+  nothing but the release, the public model and a chart --- no recipe, no
+  labels, no $N$ --- and pays for it with the narrow line, $k<r-N'$. Below
+  that line it works from nothing: $2000$ random starts, $51\%$ of them
+  reaching the floor, every one of those on a private image, all seven
+  recorded images recovered, at $0.2$\,s a start (job 706721, on-chart at
+  $k=6$). That is the tool, and its price is legible: the attacker chooses
+  between a wide chart that needs the recipe and a narrow one that needs
+  almost nothing. The hypothesis under test is that this
   obstruction scales with the number of \emph{recorded} examples rather than
   with $N$, which would make it the model's choice: on a strong model the
   release is often dominated by one example, and one example is a far smaller

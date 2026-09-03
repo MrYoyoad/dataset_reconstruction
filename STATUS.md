@@ -7,6 +7,20 @@ Rev 9 number used) + three figures in `figures/rev10/` (generators `scripts/rev1
 `results/exact_inversion/*.jsonl` and `spectrum_*.pth`). Written with an adversarial sibling review (yoado-6c,
 yoado-d0); four errors caught and fixed before shipping are logged in LESSONS_LEARNED.md (same date).
 
+**FIRST FROM-NOTHING RECOVERY (2026-09-03, job 706721).** The certificate route recovers recorded private
+images from random public-scale starts with **no recipe, no labels, no N and no proximity to the truth** —
+the first arm in this study an attacker could actually run. On-chart at k=6 (N'=7 recorded, certificate line
+r−N'=9): 2000 starts × 300 iterations, **51.0% reach the objective floor and 51.0% land on a recorded image
+— the same number, so every floor-reacher is a private image and none is spurious**, exactly as the kernel
+count requires below the line. All seven recorded images found; argmin lands on a recorded image at 5.5e-15
+from its chart projection; 0.2 s per start, 389 s for the cell. SCOPE, non-negotiable in any write-up: the
+batch is ON-CHART (the adapter was trained on the k=6 projections, so those projections ARE the private data
+and are what is recovered — against a raw digit the error is the chart's); the attacker needs the release,
+the public base model and a chart, and nothing else; the price of needing nothing is the NARROW line
+k < r−N' (6 coordinates per image here, against 22 for the recipe route). Bracket at k=8 (below) and k=10
+(above) pending. **This is the tool**: two routes, opposite trades — a wide chart that needs the recipe and
+has an unsolved basin, or a narrow one that needs almost nothing and has a 51% basin.
+
 **Latest additions (2026-09-03, late).** Two structural results and two voided arms:
 - **(R5) The batch size is not identifiable [DERIVED, then MEASURED — job 709507].** `η`, the adapter scale and `N` enter
   every recurrence only through `ηs/N`, so the release cannot reveal `N` — only `N'`, the number recorded,
