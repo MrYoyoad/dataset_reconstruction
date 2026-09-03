@@ -1712,5 +1712,9 @@ six cells:** the recorded members alone at `lr·N′/N` reproduce the full-batch
 imprints' relative scale — `‖ΔB_T‖/‖B_T‖` = 1.8e-15 vs omitted 1.9e-15 (repeated raw, N′ = 6), 4.9e-16 vs 4.0e-16
 (repeated on), 1.3e-15 vs 1.5e-15 (hard1_diff raw, N′ = 1), 7.5e-17 vs 3.8e-17 (hard1_diff on, N′ = 4), 4.6e-14 vs
 4.6e-14 (confident raw, N′ = 3), 6.8e-16 vs 6.7e-16 (confident on) — while the same subset at the *unscaled* step
-differs by 3e-2 … 1.7 (the 634238 error) and a random N′-subset at the scaled step by 6e-10 … 1.0 in four cells
-(in the other two the seeded random draw coincided with the recorded set). **`N` is not in the release; `N′` is.**
+differs by 3e-2 … 1.7 (the 634238 error). Constructed controls at the scaled step (job 710597, replacing a random
+subset that shared most members at large N′): a subset built from the *complement* (all invisible members, filled
+with the weakest recorded ones; overlap 0–4 of N′) differs by **1.0 in all six cells**; the recorded set with its
+weakest member swapped for the strongest invisible one differs by 1.1e-11, 6.2e-10, 1.0, 5.7e-8, 1.3e-8, 1.4e-6 —
+i.e. by the swapped member's own imprint, which is what the imprint law says it should. **`N` is not in the
+release; `N′` is.**
