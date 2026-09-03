@@ -45,6 +45,14 @@ cell (VAE-ReLU) has a solved σ_min 3× its truth σ_min. At the truth the order
 script — `truth_spectrum.py` already does; the cell scripts get it at their next safe edit (all are under running
 jobs as of 2026-09-03 evening), and until then it is recomputed from the two truth fields, never read off `jac_cond`.
 
+**A cross-dataset comparison needs a matched-nuisance control before it is a finding (2026-09-03, late).** "The
+MNIST chart draws foreign digits better than MNIST" (0.32 vs 0.52) read as a surprise about the chart until the
+same MNIST digits were pushed through the foreign set's own 8-px resolution pipeline on the same basis: 0.320.
+It was smoothness. Before reporting any cross-set number as a property of provenance, put the in-distribution
+control through the foreign set's nuisance transform (resolution, blur, contrast, centring) and re-measure on the
+same basis; if the gap closes, the claim was never tested. Cost: one CPU job, minutes. Cost of skipping it: a
+withdrawn paragraph.
+
 **Submission gotcha.** New modules under `experiments/exact_inversion/` import
 `experiments.exact_inversion.<module>`, so they must be launched as `python -u -m experiments.exact_inversion.x`;
 `python -u experiments/exact_inversion/x.py` dies in 5 s with `ModuleNotFoundError: experiments`. Two jobs lost
