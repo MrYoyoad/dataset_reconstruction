@@ -19,6 +19,15 @@ conditioned; it was 135× worse) is only useful if the mechanism replacing it is
 before the control runs — done: encoder compression of within-class variation, falsified if a random encoder of
 the same architecture shows the same gap.
 
+**Solved-point vs at-truth fields — the third bite.** Rows carry `jac_sigma_min` / `jac_cond` (at the *stopped*
+point) and `jac_sigma_min_truth` / `jac_sigma_max_truth` (at the truth). Substituting the first for the second
+produced a false "non-monotone in cond" reading of the chart ordering on the write-up side: the least-converged
+cell (VAE-ReLU) has a solved σ_min 3× its truth σ_min. At the truth the ordering is monotone
+(2.75e8 / 5.68e10 / 3.76e11 / 4.39e11). Rule: every cross-arm comparison uses the `_truth` fields; `cond_truth` is
+`sigma_max_truth / sigma_min_truth` and is to be recorded as its own field (`jac_cond_truth`) in every cell
+script — `truth_spectrum.py` already does; the cell scripts get it at their next safe edit (all are under running
+jobs as of 2026-09-03 evening), and until then it is recomputed from the two truth fields, never read off `jac_cond`.
+
 **Submission gotcha.** New modules under `experiments/exact_inversion/` import
 `experiments.exact_inversion.<module>`, so they must be launched as `python -u -m experiments.exact_inversion.x`;
 `python -u experiments/exact_inversion/x.py` dies in 5 s with `ModuleNotFoundError: experiments`. Two jobs lost
