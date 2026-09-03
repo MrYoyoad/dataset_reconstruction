@@ -2615,3 +2615,54 @@ exactly); if the device's bf16 loop were not bit-reproducible, "verification ora
 Falsifier: a bf16 response ∝ δ down to 1e-4 (a smooth map at the attacker's scale) — then a matched LM (FP64
 Jacobian, bf16 residual) is feasible and is run next. fp32 is expected in between (response ~1e-6 at δ = 1e-6
 from its own rounding, then linear).
+
+### Step 26 addendum, measured (779207, 779969): the falsifier fired — the bf16 map is smooth at the attacker's scale
+
+Response `‖B(W + δ) − B(W)‖/‖B‖` of the format's training map (letters, r = 64) to a relative perturbation δ of the
+latents, beside the FP64 map's, and to one ulp on every entry of A₀:
+
+| k | format | δ = 1e-6 | δ = 1e-4 | δ = 1e-2 | FP64 map at the same δ | one ulp on A₀ | release's deviation from FP64 |
+|---|---|---|---|---|---|---|---|
+| 16 | fp32 | 1.3e-6 | 1.2e-4 | 1.05e-2 | 1.25e-6 / 1.17e-4 / 1.05e-2 | 1.4e-7 | 4.4e-7 |
+| 16 | **bf16** | **4.4e-6** | **4.4e-3** | 1.6e-2 | same | **1.0e-2** | **0.12** |
+| 16 | fp16 | 2.0e-4 | 7.2e-4 | 1.1e-2 | same | 1.3e-3 | 0.026 |
+| 32 | bf16 | 1.7e-5 | 2.7e-3 | 1.8e-2 | 1.05e-6 / 1.06e-4 / 1.46e-2 | 1.1e-2 | 0.115 |
+| 32 | fp16 | 2.2e-4 | 6.2e-4 | 1.5e-2 | same | 1.2e-3 | 0.027 |
+
+Residual along the segment truth → 0.1-noise start, matched arithmetic against the format's release (k = 16, bf16):
+s = 0 → **0 exactly** (determinism gate passed, every cell), 1e-4 → 2.3e-3, 1e-3 → 3.6e-3, 1e-2 → 5.9e-3, 0.03 → 8e-3,
+0.1 → 0.022, 0.3 → 0.062, 0.6 → 0.12, 1 → 0.19; the FP64 simulator against the same release: 0.138 flat until
+s = 0.3, then 0.146, 0.18, 0.24. Dense segment (21 points, 779969): the pointwise matched residual rises
+monotonically 0 → 0.19 at every format (bf16 k = 16: 0, .013, .022, .033, … .189; fp64: 0, .009, .018, … .187), and
+the 4-point window means at radius 1e-3 track it to within 6e-3 and at radius 1e-2 to within ~1.5e-2 — no flat
+region, no needle.
+
+**Reads.** (i) **The pre-registration is falsified in the direction that helps the attacker.** The release's 12%
+deviation from FP64 is a *systematic bias* of bf16 accumulation, shared by nearby inputs, not a decorrelating
+noise: the bf16 map responds smoothly (4e-6 at δ = 1e-6, within 4× of FP64) up to a rounding floor of only
+2e-3 … 4e-3 reached at δ ≈ 1e-4, and linearly beyond. (ii) The matched landscape is monotone from the start to the
+truth at every window size, with a local floor of ~2e-3 — an ordinary smooth landscape with a small noise floor,
+navigable by a gradient surrogate; the word is **cost**, not ruggedness, and the "needle" reading is withdrawn.
+(iii) The remaining obstacle is A₀: one ulp on every entry of A₀ moves the bf16 release by 1e-2, so the attacker's
+reconstruction of A₀ (from A_T, with the learned part in the span of the candidate features up to rounding) sets a
+mismatch floor predicted at 1e-3 … 1e-2, against the FP64 simulator's 0.138. **Pre-committed next step, run
+(job 782682):** the matched recipe route — the full loop simulated in the training format, unknowns W and Z with
+A₀ candidate `A_T − Z Hcᵀ`, FP64 Jacobian as surrogate, acceptance on the matched residual, near start 0.1 —
+letters k = 16 and 32 in fp64 (gate: exact), fp32, bf16, fp16. *Pre-registration:* the matched residual at the
+truth (Z least-squares) is the A₀ floor, 1e-3 … 1e-2 at bf16; the LM ends within ~5× that of the on-chart truths,
+i.e. `err_vs_chart` ≲ 1e-2 … 5e-2 — the class recovered from a bf16-trained adapter by an attacker who simulates in
+its arithmetic → **not protection, demonstrated**; falsifier: endpoint error ≳ 0.1 (the alias persists) — then the
+A₀ floor, not the landscape, is the extraction limit, and the sentence stays "recorded, recoverable by no route we
+built".
+
+### Other rows landed with these
+- Recipe route (771329): fp16-trained k = 16 → residual 5.8e-5 (below the truth's 0.027), errors .02 … .26 (median
+  .074) — the alias form at a quarter of bf16's displacement; k = 32 fp64 gate exact (σ_min 9.7e-6), k = 32
+  fp32-trained → errors 3e-6 … 1e-4 (outcome (a)); bf16/fp16 at k = 32 pending.
+- Control bf16-trained, tight tolerance (764976): 0 found, residuals .08 … .87 at the truths.
+- bf16 release above the FP64 line (753886, k = 58, tol 0.08, N′ = 3, line 61): **0 landings in 5,000 starts**;
+  residual 2e-3 … 2.7e-3 at the three strong truths, and the argmin (objective 9e-8) sits 7.8% from a recorded
+  image — a degraded near-miss, not a landing; fp64 control at k = 58/60 pending.
+- Control ladder k = 56 (749362): N′ = 6, line 58, 0.86% of 5,000 starts on a recorded image, 5 of 6 found, argmin on
+  a recorded image — the control batch attackable at every k from 24 to 56 (71.6 → 51.6 → 18.2 → 6.6 → 0.86%).
+  Ladder figure re-rendered with the control cells: `figures/exact_inversion/certificate_ladder.png`.
