@@ -72,18 +72,25 @@ def release_and_imprints(bb, X_train, y, A0, a):
     return A_T, B_T, torch.linalg.norm(C.reshape(C.shape[0], -1), dim=1), sB, C
 
 
-def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda s: None, A0=None):
+def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda s: None, A0=None, n_full=None):
     """Invert the FULL release for a SUBSET of images (N' columns).  Unknowns: k x N' latents + r x N' seed block.
+       The recipe divides the gradient by the number of images it is given, so an N'-image simulation at the
+       original lr is a DIFFERENT recipe (effective rate lr/N' instead of lr/N): job 634238 evaluated the subset
+       residual at the recorded images' own truth and found 1e-2 -- not the predicted 1e-16 -- for exactly this
+       reason.  With n_full given, the subset is simulated at lr * N'/N so the omitted images contribute zero
+       gradient, which is what "invisible" means.  An attacker sees only the single effective rate lr/N (fittable,
+       Step 9); here N is taken as known and flagged in the row.
        With A0 given, also the Jacobian of the SUBSET residual at the subset truth (W_true, A0 U_sub): sigma_min
        there separates "identifiable subset" from "the near-truth start did not move"; the residual there is the
        floor the omitted images impose (not zero), reported per block."""
     k = a.k; Np = len(y_sub); nW = k * Np
+    lr_eff = a.lr * (Np / n_full) if n_full else a.lr
     W_true = chart.coords_of(X_sub_true)
     nB = torch.linalg.norm(B_T); nA = torch.linalg.norm(A_T)
 
     def res_vec(v):
         Wc = v[:nW].reshape(k, Np); aux = v[nW:].reshape(a.r, Np)
-        Bs, Xis, Uc = simulate_sgd_reduced(bb.phi(chart.psi(Wc)), aux, bb.W0, y_sub, bb.m, a.T, a.lr, 0.0)
+        Bs, Xis, Uc = simulate_sgd_reduced(bb.phi(chart.psi(Wc)), aux, bb.W0, y_sub, bb.m, a.T, lr_eff, 0.0)
         return torch.cat([((Bs - B_T) / nB).reshape(-1), ((Xis - A_T @ Uc) / nA).reshape(-1)])
 
     truth = {}
@@ -102,20 +109,20 @@ def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda 
     class Adapter:
         psi = staticmethod(chart.psi)
         features_from_latents = staticmethod(lambda Wc: bb.phi(chart.psi(Wc)))
-    args = argparse.Namespace(m=bb.m, T=a.T, lr=a.lr, wd=0.0, release="sgd", seed=a.seed, restarts=a.restarts,
+    args = argparse.Namespace(m=bb.m, T=a.T, lr=lr_eff, wd=0.0, release="sgd", seed=a.seed, restarts=a.restarts,
                               restart_noise=0.1, lm_iters=a.lm_iters, lm_lambda=1e-2, lm_scale="identity",
                               stage_x=0, jac="fwd", solver="lm", outer=30, lbfgs_iter=20)
     t0 = time.time()
     W_hat, aux, resid, sec, nrs, diag = invert_lm(Adapter, A_T, B_T, bb.W0, y_sub, args, W_init, Xinit, log)
     X_hat = chart.psi(W_hat)
     with torch.no_grad():                                          # the residual per block (different floors)
-        Bs, Xis, Uc = simulate_sgd_reduced(bb.phi(X_hat), aux, bb.W0, y_sub, bb.m, a.T, a.lr, 0.0)
+        Bs, Xis, Uc = simulate_sgd_reduced(bb.phi(X_hat), aux, bb.W0, y_sub, bb.m, a.T, lr_eff, 0.0)
         res_B = float(torch.linalg.norm(Bs - B_T) ** 2 / torch.linalg.norm(B_T) ** 2)
         res_A = float(torch.linalg.norm(Xis - A_T @ Uc) ** 2 / torch.linalg.norm(A_T) ** 2)
     e = torch.linalg.norm(X_hat - X_sub_true, dim=0) / torch.linalg.norm(X_sub_true, dim=0)
     return dict(residual=float(resid), residual_B=res_B, residual_A=res_A, err_max=float(e.max()), err_median=float(e.median()),
                 err_per_image=[float(v) for v in e], start_err_median=float(e0.median()), start_err_max=float(e0.max()),
-                init_noise=a.init_noise, identifiability_test=True, **truth,
+                init_noise=a.init_noise, identifiability_test=True, lr_eff=lr_eff, n_full_known=bool(n_full), **truth,
                 seconds=time.time() - t0, lm_iters_used=diag.get("lm_iters_used")), X_hat
 
 
@@ -132,9 +139,15 @@ def label_search(chart, bb, A_T, B_T, X_sub_true, a, dev, budget):
     b = argparse.Namespace(**vars(a)); b.lm_iters = budget; b.restarts = 1
     for combo in itertools.product(range(10), repeat=Np):
         r, _ = invert_subset(chart, bb, A_T, B_T, X_sub_true, torch.tensor(combo, device=dev), b, dev,
-                             torch.Generator().manual_seed(a.seed + 11))
+                             torch.Generator().manual_seed(a.seed + 11), n_full=a.N)
         out.append(dict(labels=list(combo), residual=r["residual"], residual_B=r["residual_B"], err_max=r["err_max"]))
     return sorted(out, key=lambda d: d["residual"])
+
+
+def emit(a, row):
+    row.update(git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
+    if a.out:
+        with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
 
 
 def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
@@ -167,7 +180,7 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
                 X_sub_true = X_on[:, sub_t]; y_sub = y[sub_t]
                 fl = floor_pred(C, B_T, sub)
                 row = dict(base, subset=sname, subset_idx=sub, n_prime=Np, residual_floor_pred=fl,
-                           budget_line_subset=bb.m + a.r - Np, oracle=["subset_identity", "near_init"],
+                           budget_line_subset=bb.m + a.r - Np, oracle=["subset_identity", "near_init", "N_known"],
                            subset_identity="oracle (imprint)", n_prime_source="rank(B_T) read off the release")
                 if sname == "recorded" and Np <= 2:                    # the attacker's label procedure
                     ranked = label_search(chart, bb, A_T, B_T, X_sub_true, a, dev, budget=300)
@@ -176,10 +189,10 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
                                label_correct=bool(found == y_sub.tolist()), labels_oracle=False)
                 else:
                     y_run = y_sub; row.update(labels_oracle=True); row["oracle"] = row["oracle"] + ["labels"]
-                r_sub, X_hat = invert_subset(chart, bb, A_T, B_T, X_sub_true, y_run, a, dev, torch.Generator().manual_seed(a.seed + 11), A0=A0)
+                r_sub, X_hat = invert_subset(chart, bb, A_T, B_T, X_sub_true, y_run, a, dev, torch.Generator().manual_seed(a.seed + 11), A0=A0, n_full=a.N)
                 row.update(**r_sub, err_vs_chart_max=r_sub["err_max"],
                            residual_over_floor=(r_sub["residual_B"] / fl if fl > 0 else None))
-                print(json.dumps(row), flush=True); rows.append(row)
+                print(json.dumps(row), flush=True); rows.append(row); emit(a, row)
                 if save_dir:
                     torch.save(dict(x_real=X_real[:, sub_t].cpu(), x_chart=X_sub_true.cpu(), x_hat=X_hat.cpu(), meta=row),
                                os.path.join(save_dir, f"A_{mode}_{setting}_N{Np}_{sname}.pth"))
@@ -191,7 +204,7 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
         row_all.update(err_vs_chart_max=r_all["err_max"],
                        err_recorded_max=float(max(r_all["err_per_image"][i] for i in rec)),
                        err_invisible_max=float(max([r_all["err_per_image"][i] for i in range(a.N) if i not in rec] or [float("nan")])))
-        print(json.dumps(row_all), flush=True); rows.append(row_all)
+        print(json.dumps(row_all), flush=True); rows.append(row_all); emit(a, row_all)
         if save_dir:
             torch.save(dict(x_real=X_real.cpu(), x_chart=X_on.cpu(), x_hat=X_hat_all.cpu(), meta=row_all),
                        os.path.join(save_dir, f"A_{mode}_{setting}_all.pth"))
@@ -279,7 +292,7 @@ def part_B(a, backbones, chart, dev, out, save_dir, perm):
                            B_T_sigma_ratio=float(sB[a.N - 1] / sB[0]),
                            chart_repr_err_median=float(repr_err.median()), chart_repr_err_max=float(repr_err.max()),
                            k=a.k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed)
-                print(json.dumps(row), flush=True); rows.append(row)
+                print(json.dumps(row), flush=True); rows.append(row); emit(a, row)
             # the attack with the MNIST chart, on-chart (a) and off-chart (b)
             for cell in (() if a.skip_invert else ("a", "b")):
                 r, X_hat, X_on_c = invert_cell(chart, bb, X_ood, y, a, cell, dev, g, lambda s: None)
@@ -287,7 +300,7 @@ def part_B(a, backbones, chart, dev, out, save_dir, perm):
                          oracle=["near_init", "labels"], init_noise=a.init_noise, identifiability_test=True,
                          start_convention="invert_cell: W_true + init_noise*std*noise in latent space (start_err not recomputed here)",
                          k=a.k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed)
-                print(json.dumps(r), flush=True); rows.append(r)
+                print(json.dumps(r), flush=True); rows.append(r); emit(a, r)
                 if save_dir:
                     torch.save(dict(x_real=X_ood.cpu(), x_chart=X_on_c.cpu(), x_hat=X_hat.cpu(), meta=r),
                                os.path.join(save_dir, f"B_{sname}_{ename}_{cell}.pth"))
@@ -341,10 +354,6 @@ def main():
     rows = []
     if "A" in a.part: rows += part_A(a, strong, strong, chart, a.Xte_t, a.yte_t, perm, dev, a.out, a.save_dir)
     if "B" in a.part: rows += part_B(a, {"weak": weak, "mid": mid, "strong": strong}, chart, dev, a.out, a.save_dir, perm)
-    for row in rows:
-        row.update(git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
-        if a.out:
-            with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
     if a.save_dir and a.fig: grid(a.save_dir, a.fig)
 
 
