@@ -36,8 +36,14 @@ Authoritative record: RESULTS.md (read Steps 18–22 first); STATUS.md top secti
 - Subset ("find some") test: recipe error found (batch size is part of the recipe) and fixed (`lr·N′/N`);
   corrected first row: predicted floor = residual at the recorded truth (1.1e-16 both).
 
+## Update (after the note was written)
+Job 728592 landed and is the thread's HEADLINE (RESULTS Step 23, commit 19170d3): r=64, k=32, 500 random starts →
+66% land on a private digit, all eight found, argmin correct, chart instance-identifying (.94); reproduced in
+721391. Also in: wide-head twenty-image cell 18 of 20 from 10,000 starts (725918); per-rank sweep table; k=10
+bracket. Next step 1 below is DONE; continue from step 2.
+
 ## Next step(s)
-1. **Read job 728592** (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
+1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
    (line 56, 24 below), basin (saturating with distance) and fidelity (instance id .94 at k=32). If random
    starts land on private images there, it is the thread's headline: instance-identifying images from random
    starts with no recipe. Send the row (not a reading) to yoado-ed.
