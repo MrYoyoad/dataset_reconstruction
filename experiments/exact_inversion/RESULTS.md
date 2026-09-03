@@ -2652,8 +2652,16 @@ letters k = 16 and 32 in fp64 (gate: exact), fp32, bf16, fp16. *Pre-registration
 truth (Z least-squares) is the A₀ floor, 1e-3 … 1e-2 at bf16; the LM ends within ~5× that of the on-chart truths,
 i.e. `err_vs_chart` ≲ 1e-2 … 5e-2 — the class recovered from a bf16-trained adapter by an attacker who simulates in
 its arithmetic → **not protection, demonstrated**; falsifier: endpoint error ≳ 0.1 (the alias persists) — then the
-A₀ floor, not the landscape, is the extraction limit, and the sentence stays "recorded, recoverable by no route we
-built".
+A₀ floor, not the landscape, is the extraction limit. *Written before the rows so that neither outcome reads as a
+surprise (yoado-ed): the solver's result cannot change the conclusion, only its magnitude.* A descent path exists
+(measured); it terminates at whatever floor the A₀ reconstruction imposes; a recovery that stops at the
+arithmetic's own floor still returns the private image to within that floor — 1e-2 or 5e-2 decides how degraded
+the disclosure is, not whether there is one; and an alias persisting above 0.1 names the A₀ floor as a *cost* of
+inverting a public map, not a statement about what the release contains. The rows carry the achieved matched
+residual beside the per-letter image error (B-block joint, A-block per letter — field added after 782682
+started; for that job the total residual and the objective trace serve): residual and image error falling
+together confirms the floor reading; residual at the 2e-3 floor with image error still ~0.3 says the binding
+constraint is the parametrisation (A₀'s conditioning), not the precision.
 
 ### Other rows landed with these
 - Recipe route (771329): fp16-trained k = 16 → residual 5.8e-5 (below the truth's 0.027), errors .02 … .26 (median
