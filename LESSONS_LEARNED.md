@@ -135,6 +135,18 @@ degradation splits by N (the defender's variable), not by distance past the line
 N=8 stays inside tolerance sixteen units past the line, N=12/14 are outside one unit past; and every past-line
 error is a lower bound on the fibre's extent (near-init finds the nearest branch; walks stopped by budget).
 
+**13. A per-example reading of a factored quantity needs a permutation test before it is believed.** We read column
+i of the adapter's coefficient matrix as "what was recorded about example i" and built three claims on it — a
+margin/leakage table, a feature-Gram coupling between batch-mates, and a defender-side meter. Expanding the release
+shows column i is −ηs(Σ_t D_t)R_Hᵀ evaluated at i, which mixes every example j ≥ i in batch order with weights from
+the triangular factor of the feature QR: basis-dependent, order-dependent, and changed by permuting the batch. The
+falsifier cost thirty seconds (permute and re-read) and was not run; a gated trajectory trace eventually refuted the
+story from the other end, by showing the margins the coupling was supposed to move do not move at all. Two rules.
+Before any per-example attribution from a factored object, check that the quantity is basis-free — here the correct
+object is the per-example summand of the gradient itself, B_T = Σ_i C_i, whose norm involves example i alone. And
+prefer the aggregate invariant when one exists: every RANK statement in that section survived the retraction
+untouched, because rank does not depend on the basis the columns are expressed in.
+
 **12. An edit script that asserts mid-way can silently drop everything before the assert.** A patch script applied
 five edits in memory and wrote the file once at the end; the third assert failed, so the two successful edits were
 lost with it — and because a later script then patched the *ledger* and the *lead* to reference the dropped section,

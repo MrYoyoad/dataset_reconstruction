@@ -70,20 +70,17 @@ What the section establishes, in order — every label as in the .tex:
   digits through the random/weak/mid encoders give rank 8 with columns of order 1 — so it is the model, not the
   digits. On-chart (projection lowers margins) one column rises to 0.41 but rank stays 3: what confident images then
   carry is a hard image's residual spread collinearly, so RANK, not column size, is the witness.
-- **AND: a shared label is the wrong proxy (SETTLED by cosines) — but FEATURE OVERLAP is not the coupling either (job 627574).**
-  A misclassified 1 beside the seven largest-margin 1s leaves them at the floor (rank B_T = 1); the same hard 1
-  beside confident digits of seven OTHER classes lifts every column above 5e-3 (rank 4). The LABEL question is
-  settled by measured cosines: under the strong model that misclassified 1 sits at †0.22–0.30 with the confident 1s
-  where the SAME digits are at †0.63–0.72 under weak and †0.43–0.96 under random — a 98% model has moved it out of
-  the 1-cluster, which for a linear head is what misclassification IS. BUT cosine does NOT order the lifted columns
-  (Kendall †6–17 of 21 across ten batches: above chance on average, decisive nowhere); the columns follow each
-  image's OWN step-0 residual (20/21) at magnitudes 20+ orders above it. Order preserved + magnitudes lifted
-  uniformly = the signature of a uniform MARGIN SHIFT during training (shared adapter; one O(1)-residual example
-  drives 400 steps of updates). Pre-registered with falsifier as job 628731: column ∝ ACCUMULATED residual (21/21),
-  and confident images beside a hard example should drop tens of margin units where an all-confident batch shows
-  none. If it holds, the defender-side quantity is the accumulated residual during their OWN fine-tuning.
-  Caveats in the .tex: the different-class batch has two further low-margin images; columns at 1e-14–1e-16 beside
-  one of order 5 are at the P_T-recovery floor.
+- **RETRACTED (job 628731): the per-example column reading and everything built on it.** Column i of P_T is NOT
+  "what the adapter recorded about image i": expanding the release, P_T = −ηs(Σ_t D_t) R_Hᵀ, so column i mixes the
+  accumulated errors of every image j ≥ i IN BATCH ORDER weighted by R_H[i,j] — basis- and order-dependent, and a
+  batch permutation changes it. The gated trajectory trace refuted the story directly: confident images' margins do
+  NOT move during training (a margin-71 digit ends at 71.1; no image in the all-confident batch moves > 0.1) while
+  their apparent columns sat 15–26 orders above their accumulated residuals. WITHDRAWN: the margin table (23× →
+  8.8e10), the feature-Gram coupling, the label-vs-feature reading, "margin at initialisation is a leakage meter",
+  and the defender-side "plus the batch's feature Gram". The feature cosines are correct measurements that explain
+  nothing. Prediction-2's cell is VOID, not evidence. The basis-free per-example object is C_i = −ηs Σ_t D_t[:,i]
+  (A_t h_i)ᵀ with B_T = Σ_i C_i and ‖C_i‖ bounded by image i's accumulated error alone, no cross term — job 631392.
+  Lesson: a 30-second falsifier (permute the batch and re-read) was available and not run.
 - **ENCODER QUALITY ENDS THE CHANNEL BEFORE THE COUNT DOES (jobs 625113, 626051) — the biggest result of the day.**
   Fixed architecture (784→1000→1000→10 GELU), fixed chart, fixed k=16 (four units BELOW the line 18), 3 A0 seeds:
   σ_min at the truth = †1.7e-5 (random weights, 8.7%) → †1.4e-7 (78.5%) → †7.1e-9 (95.1%) → †2.0e-15 (97.9%), cond
