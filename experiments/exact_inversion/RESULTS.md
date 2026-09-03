@@ -1164,3 +1164,81 @@ LBFGS on `W`); arm B: seeds unknown (22,384 unknowns). Outside the theorems (`th
 Every row from these carries `rank_B_T`, `σ_N/σ_1(B_T)` and `rank_X` (the per-cell witness that rank `P_T = N`
 holds with the labels actually drawn). Deferred, not refused: the residual at the chart's own best point for cell
 (b) (needs an edit to `vae_chart.py`, which is under running jobs; will be a standalone script).
+
+### Step 18 results — three-seed spectra at the truth (job 625113) and the distinct-labels cell (job 624573, first row)
+
+`truth_spectrum.py`: `k = 16` (line 18), `N = 8`, `r = 16`, `T = 400`, `lr = 0.01`, three `A₀` seeds per cell,
+geometric means; ranges in brackets. Encoders at a **fixed architecture** (784-1000-1000-10 GELU): `random` =
+Gaussian weights matched to the weak checkpoint's layer norms (8.7% test acc), `weak` = 78.5%, `mid` = 95.1%,
+`strong` = 97.9%. Label draws: `repeated` = `[0,3,0,3,5,0,1,9]` (the Step-13/14 draw), `distinct` =
+`[0,3,5,1,9,6,7,4]`. Chart's-best error: global 0.421 (repeated) / 0.518 (distinct); local 0.364 (both).
+
+| encoder | labels | chart | σ_min(J) at truth | cond(J) at truth | rank J / 256 | rank B_T | σ_N/σ_1(B_T) |
+|---|---|---|---|---|---|---|---|
+| random | distinct | global | 7.5e-5 [3.6e-5..1.3e-4] | 7.5e4 | 256 | 8 | 6.0e-2 |
+| random | distinct | local | 1.0e-4 [6.4e-5..1.6e-4] | 5.3e4 | 256 | 8 | 8.8e-2 |
+| random | repeated | global | 4.0e-6 [3.5e-6..4.6e-6] | 2.0e6 | 256 | 8 | 2.3e-5 |
+| random | repeated | local | 6.8e-6 [6.4e-6..7.7e-6] | 1.1e6 | 256 | 8 | 9.0e-5 |
+| weak 78% | distinct | global | 9.1e-7 [8.7e-7..9.5e-7] | 8.6e6 | 256 | 8 | 2.5e-4 |
+| weak 78% | distinct | local | 2.3e-9 [6.4e-10..6.0e-9] | 3.2e9 | 256 | 8 | 2.6e-6 |
+| weak 78% | repeated | global | 2.2e-8 [1.5e-8..3.3e-8] | 3.4e8 | 256 | 8 | 1.6e-6 |
+| weak 78% | repeated | local | 1.1e-10 [8.1e-11..1.6e-10] | 6.9e10 | 256 | 8 | 1.0e-8 |
+| mid 95% | distinct | global | 1.3e-8 [3.1e-9..3.2e-8] | 4.8e8 | 256 | 8 | 2.6e-5 |
+| mid 95% | distinct | local | 9.1e-8 [3.8e-8..1.7e-7] | 5.8e7 | 256 | 8 | 3.8e-4 |
+| mid 95% | repeated | global | 3.9e-9 [2.3e-9..7.3e-9] | 1.8e9 | 256 | 8 | 5.9e-7 |
+| mid 95% | repeated | local | 7.8e-9 [5.2e-9..1.2e-8] | 1.1e9 | 256 | 8 | 1.4e-6 |
+| **strong 98%** | distinct | global | **5.6e-12** [3.5e-12..7.6e-12] | 3.4e12 | **254–255** | 8 | **4.2e-9** |
+| **strong 98%** | distinct | local | **3.5e-19** | 6.1e19 | **197–200** | **6** | 1.9e-16 |
+| **strong 98%** | repeated | global | **7.0e-19** | 1.1e19 | **210–211** | **6** | 1.2e-16 |
+| **strong 98%** | repeated | local | **6.5e-19** | 4.7e19 | **203–205** | **5** | 1.5e-16 |
+
+Single-draw spread across the three seeds: ≤ 2.3× in `σ_min` for every non-collapsed cell except weak/distinct/
+local (9×) and mid/distinct/global (10×); the effects below are all far larger than that.
+
+**1. The local-vs-global gap is a property of the weak checkpoint, not of trained encoders.** Global/local
+`σ_min` ratio: random **0.6× / 0.7×** (local slightly *better*), weak **206× / 397×**, mid **0.5× / 0.1×** (local
+better, as originally predicted), strong 1.1× (both collapsed) / 1.6e7× (local collapsed, global barely not).
+The pre-registered mechanism — "a trained classifier compresses within-class variation, so the local chart
+pays" — predicted the gap should grow with training. It **vanishes at mid**. The random-encoder half of the
+falsifier fired as predicted, but the mid point rules out the monotone story: **refuted as stated.** What makes
+the 78% checkpoint special is not measured here (candidate: a partially-trained model's features are dominated
+by the between-class directions it learned first; the mid model has had to learn within-class structure to
+reach 95%). Left as an observation.
+
+**2. Repeated labels did not cause the gap — but they are a first-order conditioning factor on their own.**
+On the weak encoder the gap *survives* distinct labels (397× vs 206×). Yet at fixed chart, distinct-vs-repeated
+`σ_min` is **19× (random), 40× (weak), 3.4× (mid), 8000× (strong)** better on the global chart, and
+`σ_N/σ_1(B_T)` moves by 2–4 orders in the same direction. The solve confirms it: the weak-encoder `k = 16` cell,
+still descending at 300 iterations with repeated labels (Step 13), **reaches the floor in 93 iterations with
+distinct labels** (job 624573, first row: residual 7.5e-31, err vs chart 3.1e-12, `σ_min` 8.1e-7 — matching
+the spectrum's 9.1e-7). Same-label private examples produce near-collinear residual trajectories, and the
+release records them worse. The Step-13/14 numbers were all taken on the harder draw.
+
+**3. The encoder-quality ladder is monotone at fixed architecture, and it reaches non-identifiability.**
+Global chart, distinct labels: `σ_min` **7.5e-5 → 9.1e-7 → 1.3e-8 → 5.6e-12** (random → 78% → 95% → 98%), i.e.
+82× / 69× / 2400× per step; cond 7.5e4 → 3.4e12. Same ordering with repeated labels and on the local chart
+except the weak/local anomaly of item 1. The mid checkpoint's own solve at `k = 10` (job 614344): `σ_min`
+7.9e-8 vs the weak model's 2.2e-6, still descending at 300 iterations. **Quality hurts, four points.**
+
+**4. NEW — the strong model's release is not identifiable at k = 16, seven below the line.** With repeated
+labels `B_T` has numerical rank **5–6 of 8** (`σ_N/σ_1` = 1e-16, machine zero) and the truth Jacobian rank
+203–211 of 256; with distinct labels `B_T` keeps rank 8 only at `σ_8/σ_1` = 4e-9 and `J` is 1–2 columns short.
+`rank X = 8` in every row, so `rank P_T < N`: hypothesis (A4) of the theory summary — `N` independent
+accumulated residual trajectories — **fails on a strong model with easy private data**, and the capacity line,
+which presupposes it, does not apply there. This is the first below-line loss of identifiability in the study,
+and it is caused by the model, not by the count.
+
+**5. Pre-registered mechanism for item 4, with its test in flight (job 626051, `margin_check.py`).** Column `i`
+of `P_T` is the accumulated softmax residual `p_t(x_i) − e_{y_i}`. `B₀ = 0`, so the trajectory starts at `W₀`;
+a 98% model classifies an easy test digit with margin `M`, its residual is `~e^{−M}`, and the digit is recorded
+in the release at that scale — below FP64 for `M ≳ 30`. Prediction: per image, `‖P_T[:, i]‖` tracks the residual
+norm at `W₀` across the four encoders, and the rank loss sits on the largest-margin digits. Falsifier: column
+norms all `O(1)` on the strong model. If it holds, the reading is *a model fine-tuned on examples it already
+fits leaves no fingerprint of them; what leaks is what it had to learn* — and the per-example residual at `W₀`
+is a leakage meter the defender can compute without running any attack.
+
+**Standing corrections to the reads above (all three now in RESULTS).** "Richer charts are worse conditioned" is
+established only across the four charts on the weak checkpoint (Step 14); on other encoders the PCA half of it
+inverts (item 1) and the VAE half is unmeasured. "Chart quality costs conditioning" is therefore withdrawn as a
+general statement. The fidelity ranking stays embargoed (job 624463). Multi-layer LoRA (job 608693) died with a
+code error (`element 0 of tensors does not require grad`, `multilayer_lora.py:57`) — not a result; to be fixed.

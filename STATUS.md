@@ -150,12 +150,23 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
 - **Two confounds in the chart cells, reruns in flight.** (1) Every cell stopped at 200 iterations 14 orders
   above the floor, so the *fidelity* ranking partly ranks budget → job 624463 at 3000 iterations. (2) The private
   draw has three 0s; the local chart gives them an identical map → job 624573 reruns with 8 distinct labels.
-- **Pre-registered mechanism + falsifier.** A trained classifier compresses within-class variation, where local
-  charts and VAEs spend their coordinates. Falsifier: a random encoder of the same architecture and layer norms
-  should collapse the 135× (job 624573). Graded version: β-VAE family at fixed k (job 624465), with `σ(∂ψ/∂w)`
-  recorded so decoder geometry is separated from encoder treatment.
-- **Encoder quality, first row: it hurts.** Mid checkpoint (96%) at `k=6`: `σ_min` 1.16e-6 vs 3.54e-5 on the 78%
-  model — 30.6× worse, off the floor at 300 iterations where the weak model took 45. One row (†); ladder pending.
+- **Three-seed spectra at the truth (job 625113), four encoders at ONE architecture × two label draws × two
+  charts — RESULTS Step 18.** (a) The local-vs-global 135× is the **weak checkpoint's**: random 0.7×, weak 397×,
+  mid 0.1× (local *better*). My pre-registered "trained encoders compress within-class variation" mechanism is
+  **refuted as stated** (it predicted growth with training; the gap vanishes at 95%). (b) **Repeated labels** (three
+  0s in the draw) did not cause that gap but cost 19×/40×/3.4×/8000× in `σ_min` on their own; with eight distinct
+  labels the weak-encoder `k=16` cell that stalled at 300 iterations reaches the floor in 93 (job 624573).
+  (c) **Encoder-quality ladder, monotone:** `σ_min` 7.5e-5 → 9.1e-7 → 1.3e-8 → 5.6e-12 for random → 78% → 95% →
+  98% (global chart, distinct labels). (d) **NEW: the 98% model is NOT identifiable at k=16, seven below the
+  line** — `rank B_T` = 5–6 of 8, truth Jacobian 197–211 of 256 columns; hypothesis (A4) `rank P_T = N` fails on a
+  strong model with easy private data. First below-line loss of identifiability; caused by the model, not the count.
+- **Pre-registered mechanism for (d), test in flight (job 626051, `margin_check.py`):** a private digit the model
+  already classifies with margin `M` has residual `e^{−M}` from step 0 and is recorded in the release at that
+  scale. Prediction: `‖P_T[:,i]‖` tracks the per-image residual at `W₀`; falsifier: O(1) column norms on the
+  strong model. If it holds: *what leaks is what the model had to learn*, and the per-example residual at `W₀`
+  is a defender-side leakage meter.
+- **Withdrawn:** "chart quality costs conditioning" as a general statement (holds only on the weak checkpoint
+  across the four charts; VAE half unmeasured elsewhere). Multi-layer job 608693 died on a code error — not a result.
 - **Q-parametrisation: exact (gate 1.4e-15), 132 unknowns instead of 224, and it does NOT widen the basin**
   (1/3 vs 0/3 at 1.5×, 0/3 both beyond). The seed was never the obstruction. Closed.
 - **Genuineness audit (read-only sibling, code + rows): nothing self-confirming.** Ground truth never reaches the
