@@ -1361,7 +1361,7 @@ different-class batch *is* lifted on-chart (every column ≥ 5e-3, `rank B_T = 4
 misclassified 1 is misclassified *because its features do not look like a 1's*, so its feature-Gram overlap with
 confident 1s is small; on-chart, the different-class batch contains two further low-margin images (a 3 at 4.1, a
 5 at 15.6) whose residuals couple into the rest. So the coupling is through **feature overlap in the encoder's
-penultimate space**, and *same label* is the wrong proxy for it. Job 628xxx (`step55_gram`) records each image's
+penultimate space**, and *same label* is the wrong proxy for it. Job 627574 (`step55_gram`) records each image's
 feature cosine to the hardest image and to its own-label mates next to the column norms, to make that a
 measurement rather than a reading.
 
