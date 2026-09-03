@@ -143,7 +143,7 @@ def main():
                     n_starts = a.random_starts
                     s = 0
                     while s < n_starts:
-                        w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
+                        w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std * a.start_scale).reshape(-1)
                         w, obj, it = lm_cert(fun, w0, a.iters)
                         x_hat = chart.psi(w.reshape(k, 1))
                         e_on = float(torch.linalg.norm(x_hat[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
@@ -187,7 +187,7 @@ def main():
                     at_floor = [d for d in valid if d["objective"] <= 1e-20]
                     rowB = dict(part="B", set=sname, setting=setting, k=k, cert_line=a.r - Np, below_cert_line=bool(k < a.r - Np),
                                 N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed, top_image_eval=top, top_label_eval=int(y[top]),
-                                oracle=[], recipe_used=False, labels_used=False, random_starts=len(runs), iters=a.iters,
+                                oracle=[], recipe_used=False, labels_used=False, random_starts=len(runs), iters=a.iters, start_scale=a.start_scale,
                                 objective_at_truth=obj_true, argmin_objective=best["objective"], argmin_err_vs_top_chart=best["err_vs_top_chart"],
                                 argmin_err_vs_top_raw=best["err_vs_top_raw"], argmin_nearest_is_top=bool(best["nearest"] == top),
                                 frac_starts_at_floor=len(at_floor) / len(runs),
