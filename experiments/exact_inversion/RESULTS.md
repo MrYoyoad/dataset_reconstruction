@@ -2600,8 +2600,18 @@ stops "not extractable by our solvers" from sliding into "not there". *The decid
 trend, not the local ruggedness* (second job, 779969, `--segment-dense`): along 21 linear points from the 0.1
 start to the truth, the pointwise matched residual beside 4-point window means at radii 1e-3 and 1e-2 of the
 coordinate std. Pre-registration: a windowed mean falling monotonically toward the truth under ~0.1 local noise →
-extraction is a solver-engineering problem, the word is *cost*; a windowed mean flat until the last window → a
-needle, the word is *ruggedness*.
+extraction is a solver-engineering problem, the word is *cost*, and a derivative-free search at the window's
+resolution is the next attacker; a windowed mean flat until the last window → a needle, and (yoado-6e) *no
+landscape-navigating solver of either kind* — gradient or derivative-free — has a signal to follow: matched
+arithmetic is then a verification oracle, not an inversion, and only exact enumeration reaches the needle
+(infeasible in a 128–256-dimensional latent space) — an extraction cost, present-but-unreachable, still not
+protection since a compute-unbounded verifier or a future method is not excluded. *On the A₀ proxy (yoado-6e):*
+one ulp on a fully known A₀ is more conservative than "the floor of what an attacker could achieve" — the SGD
+release only ever constrains the projection A₀U onto the candidate span (≈ A_T U, 9% off for the letters), and
+the component of A₀ orthogonal to that span is unconstrained; so if one ulp of a fully known A₀ already cascades
+to 1e-2 … 1e-1, matched simulation is uncomputable for the real attacker *a fortiori*, and the two facts are
+stated together. The s = 0 point of the matched segment is a determinism gate (same inputs, same roundings → 0
+exactly); if the device's bf16 loop were not bit-reproducible, "verification oracle" would not hold either.
 Falsifier: a bf16 response ∝ δ down to 1e-4 (a smooth map at the attacker's scale) — then a matched LM (FP64
 Jacobian, bf16 residual) is feasible and is run next. fp32 is expected in between (response ~1e-6 at δ = 1e-6
 from its own rounding, then linear).
