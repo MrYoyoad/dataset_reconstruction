@@ -2112,7 +2112,12 @@ of the release they contain.
 - Certificate k=6 and k=8 replicate on a second batch (`hard1_diff`, seven recorded, line 9): 44.6% and 18.9% of
   2,000 starts land on a recorded image (confident batch: 51% and 18.2%), all seven found at both k, floor fraction
   ≈ recorded fraction (.446/.446, .179/.189), argmin exact (7.5e-15 at k=8) (job 706721).
-- Wide head, `k = 16` (job 725918): 62.5% of 10,000 starts on a private digit, 15 of 20 found (17 recorded).
+- Wide head (job 725918), the k ladder on the twenty-digit batch (m = 26, r = 64): k = 8 → 18 of 20 found (N′ 19);
+  k = 16 → 62.5% of 10,000 starts, 15 of 20 (N′ 17); **k = 24 → 46.9% of 10,000, 13 of 20 (N′ 16, line 48)**, landings
+  per image 0 / 57 / 1,765 (min / median / max), no start at the 1e-20 floor because the certificate residual at the
+  recorded truths reaches 0.1 (images present but numerically outside the row space at this N′), argmin on a recorded
+  image, chart error .25; k = 32 → N′ 15 (line 49), residual at recorded truths up to 0.4 (Part B pending). The wide
+  head's release loses rank with k as the confident batch's does (19 → 17 → 16 → 15): the same collapse-with-fidelity.
 - The ladder job (721391) exited on an assertion after its `mnist_control r = 64, k = 16` row (88.8%, 8 of 8); all
   `confident` rows and the `mnist_control` k = 8 rows at every rank were already on disk.
 
