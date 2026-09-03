@@ -1918,7 +1918,11 @@ Cause: `B_T = Σ_i q_i (A₀h_i)ᵀ` with the accumulated error vectors `q_i ∈
 none individually (the full-residual channel is a different question). This is the same `m − 1` as in the
 capacity count `N(m − 1 + r − N)`, met from the certificate side. Consequences: the twenty-image basin-ordering
 design cannot run on a 10-class head (its Part B was stopped, job 721393); it needs a head with `m ≥ 21`
-(EMNIST letters, 26 classes, is on disk). The eight-image cells (`N′ ≤ 7 < 9`) are unaffected. **Pre-registered
+(EMNIST letters, 26 classes, is on disk). The eight-image cells (`N′ ≤ 7 < 9`) are unaffected. **The truncation
+tolerance is the attacker's free knob (job 727654, `tolerance_sweep.py`):** rebuilding `C` from the same `B_T` at
+tolerances 1e-1 … 1e-16 — on the 10-class head the annihilated count is **0 at every tolerance and every dtype**
+(spectrum 1, .6, .4, .3, .2, .08, .07, .02, .02, **3e-16**: nine directions, then nothing) — the cap is not a
+tolerance artefact. **Pre-registered
 positive test (job 725918):** the *same* MNIST MLP retrained with a padded 26-logit head (16 logits never targets —
 only `m` changes; data, encoder, batch, rank and chart fixed), then the identical twenty-image cell. Predictions:
 `rank B_T` 9 → **20**; `rank C` 55 → **44** (= `r − N′`); the per-image certificate residual falls from 0.3–0.5 to
@@ -1928,8 +1932,18 @@ explained failure. **Measured (job 725918, `mnist_mlp_m26_strong.pth`, 98.28% �
 model, same data):** at `k = 8` on the identical twenty images, `rank B_T` **9 → 19**, `rank C` **55 → 45**
 (= `r − N′`), and the certificate residual of **nineteen** images falls from 0.3–0.5 to **2.5e-8 … 4.3e-3** — five to
 seven orders below the invisible band — with the twentieth (imprint 3e-7 of the largest, the numerical boundary
-between "present" and "in the row space") at 0.23. Prediction met in substance (19 not 20: the one boundary image
-is the definitional divergence already noted); the channel that was dead for all twenty on the 10-class head is
-open for nineteen on the 26-class head with nothing else changed. *Survey across
+between "present" and "in the row space") at 0.23. **Then the tolerance sweep (727654): the count climbs 0 → 1 → 10 → 16 → 18 → 18 → 20 as the tolerance tightens
+from 1e-8 to 1e-14, and `B_T`'s spectrum runs 1, .7, .5, .2, .1, .07, .06, .01, 3e-3, 6e-6, 1e-7, 7e-9 … 3e-12, 6e-14,
+then 2e-16.** So the prediction 20 / 44 is met *exactly* at a tolerance of 1e-14 — the shortfall was my truncation
+— and the twentieth image is a case of **collinearity, not magnitude**: its imprint is 3e-7 of the largest but its
+direction contributes a singular value of 6e-14, seven orders smaller, because it is nearly dependent on the
+other nineteen. The channel that was dead for all twenty on the 10-class head is open for all twenty on the
+26-class head with nothing else changed. Per dtype the wall of the count-vs-tolerance curve — the release's
+information content — is 20 (FP64), 17 (FP32, noise 2e-8 swamps σ₁₈…σ₂₀ at 2e-11 … 6e-14), and **0** at TF32 /
+FP16 / bfloat16 for this batch (nothing annihilated below 1e-3 at any tolerance: with twenty comparable
+imprints the residual of even the strongest is set by the noise). For the eight-image cells the wall by
+separability is: repeated 6 / 6 / 5 / 2 / 5 and confident 3 / 3 / 3 / 1 / 3 over FP64 / FP32 / TF32 / FP16 / bf16 —
+higher than the single-tolerance counts of the precision table, which should be read as lower bounds; bfloat16
+keeps most of what has a two-order gap to the invisible band, FP16 (the smallest mantissa here) keeps least. *Survey across
 `k` (job 722950):* `rank B_T = 9` and `rank C = 55` at every `k ∈ {8, 12, 16, 20, 24, 32, 40}`, all twenty imprints
 present, certificate residual 0.3–0.5 throughout — the cap is `m − 1` exactly and independent of the chart.
