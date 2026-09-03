@@ -266,6 +266,8 @@ What the section establishes, in order — every label as in the .tex:
 
 ## HEADLINE (2026-09-03 night, jobs 728592/721391, RESULTS Step 23): private images recovered from RANDOM starts, no recipe, no labels
 
+> **Scope caveat (2026-09-03, job 752500):** the headline cell's release has norm **7.6e-18** — the confident batch's projections at k = 32 have margins 42–60 and the strong model records only their 1e-18 softmax residuals. The certificate is scale-free in FP64, so the recoveries are exact, but under fp32 *training* arithmetic those residuals are exactly zero and the release is empty (pre-registered, RESULTS Step 24 continued); fp16 storage zeroes the file outright. The control batch (margins 11–15) keeps a 1e-6…1e-4 release at every k. The leakage-vs-k picture is therefore: what the model still had to learn about the projections, which vanishes as the chart sharpens for a confident batch.
+
 Strong 98% MNIST model, LoRA r = 64, eight private digits it was confident about, 32-component public PCA chart:
 the certificate-only inversion from 500 random public-scale starts lands on a private digit **66% of the time,
 finds all eight** (19–103 landings each, argmin correct at 2e-14), with no spurious zero — reproduced in two jobs —

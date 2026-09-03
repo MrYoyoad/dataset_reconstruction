@@ -2169,3 +2169,51 @@ against the sharpness of what remains. Falsifier: zero landings at bf16 k = 58/6
 quantisation wins outright). Note the private data at k = 58/60 is the projection at that k, so the release is
 retrained there: "the two survivors" are the two strongly recorded images of that cell, not literally those of
 k = 32.
+
+### The release against k, both batches (job 752500, CPU FP64, r = 64, on-chart, N = 8, seed 1): the headline cell's release has norm 7.6e-18
+
+| k | confident ‖B_T‖ | rank @1e-10 / @1e-6 | margin min / median at W₀ | control ‖B_T‖ | rank | margin min / median |
+|---|---|---|---|---|---|---|
+| 8 | 4.7e-1 | 7 / 5 | 0.02 / 10.8 | 8.4e-1 | 8 / 7 | −7.6 / 9.3 |
+| 12 | 2.3e-1 | 4 / 3 | 2.0 / 22.5 | 3.7e-1 | 8 / 4 | −0.5 / 16.6 |
+| 16 | 8.1e-2 | 3 / 3 | 4.1 / 39.5 | 3.7e-2 | 8 / 2 | 4.7 / 19.8 |
+| 24 | **1.6e-13** | 6 / 3 | 31.6 / 47.7 | 1.7e-6 | 7 / 6 | 15.4 / 23.7 |
+| 32 | **7.6e-18** | 5 / 4 | 41.5 / 50.3 | 7.9e-6 | 6 / 6 | 13.6 / 25.4 |
+| 40 | 1.9e-22 | 8 / 5 | 52.1 / 57.3 | 8.3e-6 | 7 / 6 | 13.5 / 22.3 |
+| 48 | 2.8e-22 | 6 / 4 | 51.9 / 59.6 | 4.5e-6 | 6 / 6 | 14.2 / 21.1 |
+| 56 | 2.8e-24 | 6 / 5 | 56.3 / 60.2 | 9.3e-5 | 6 / 5 | 11.2 / 24.0 |
+
+(r = 16 and 32 at k = 8/12/16 agree with r = 64 to the leading digit: the collapse is the batch's, not the rank's.)
+Headline cell (confident, k = 32) spectrum `σ_i/σ_1`: 1, .83, 8.3e-4, 1.7e-4, 5e-7, 6.7e-11, 1.7e-11, 1.7e-12 — one-to-one
+with the imprints (no collinearity in this cell), absolute imprints 6e-18 … 2e-29.
+
+**Reads.** (i) *The window question (yoado-ed):* the confident batch does not sit in a window — its release collapses
+**monotonically and completely** as the chart sharpens: 0.47 at k = 8 (one projected digit at margin 0.02, nearly
+misclassified), 0.08 at k = 16, then 1.6e-13, 7.6e-18, … 2.8e-24 by k = 56, as the projections' margins climb from
+11 to 60. The rank's dip-and-return (7 → 3 → 5–8) is a *relative* effect: at k ≥ 24 every image is confident, the
+imprints shrink together and their ratios compress, so more of them clear a relative tolerance of a vanishing σ₁.
+(ii) *The control plateaus:* its weakest projected digits keep margins of 11–15 at every k ≥ 24, so its release
+stays at 1e-6 … 1e-4 — twelve orders above the confident batch's at the same k. (iii) **The headline (Step 23) was
+recovered from a release of norm 7.6e-18.** In FP64 the certificate is scale-free — only directions enter — so the
+recoveries are exact; but the number has to be stated with the headline. What it implies is in the next step.
+
+### Step 24 continued: pre-registrations revised by the spectrum (written before any quantised row was read)
+
+*Spectrum prediction* (σ_i/σ_1 above the format's relative roundoff): fp32 **5** (5e-7 is 4× the roundoff — borderline
+4), tf32 **2** (8.3e-4 sits just under 9.8e-4 — borderline 3), bf16 **2**; the imprint prediction gives the same
+counts (the spectrum and the imprints coincide in this cell). **fp16 is revised from 2–3 to 0:** ‖B_T‖ = 7.6e-18 is
+below fp16's smallest subnormal (6e-8), so the *whole release rounds to zero* — Step 21's "dynamic range decides",
+now for the entire file, not a tail. tf32 and bf16 keep the fp32 exponent range and preserve it.
+
+*Training precision — the prediction that matters (not tested by 753371, which quantises after FP64 training):*
+an image's imprint is its accumulated softmax residual `1 − p_y ≈ exp(−margin)`; training arithmetic at unit
+roundoff `ε` makes that residual **exactly zero** once `exp(−margin) < ε`: fp32 (ε = 6e-8) records nothing with
+margin above ~16.6, bf16 (3.9e-3) above ~5.5, fp16 (4.9e-4) above ~7.6. The confident batch's projections at k ≥ 24
+have margins 32–60, so **under fp32 training the headline cell's release is exactly zero — there is nothing to
+recover**; at k = 8 (margins 0.02 … ) part of it is recorded even in bf16. The control's weakest digits (margins
+11–15) stay recorded under fp32 training at every k, and drop out under bf16/fp16. Pre-registered for a
+training-precision cell (design to audit): run the release loop itself in fp32 / bf16 / fp16 at the confident and
+control k = 32 cells (and confident k = 8); predicted ‖B_T‖: confident k = 32 → 0 exactly in all three; control
+k = 32 → ~8e-6 in fp32, 0 in bf16/fp16; confident k = 8 → ~0.47 in all three with the images above the margin
+threshold dropping out. **If confirmed, the headline is an FP64-training statement**: the leakage of a confidently
+classified batch exists only when the training arithmetic can represent residuals of 1e-18.
