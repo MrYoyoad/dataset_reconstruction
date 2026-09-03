@@ -1736,6 +1736,15 @@ at the floor equals the fraction on a private image (0.510 = 0.510 — no spurio
 requires below the line); zero degenerate starts; the attacker's argmin pick is a private image at 5.5e-15;
 0.2 s per start. Figure `figures/exact_inversion/certificate_recovery_k6_706721.png`.
 
+**The equality of the two fractions is the kernel count measured directly:** 1,020 of 2,000 starts reached the
+floor and *all 1,020* are on a recorded image — below the line the recorded examples are the only solutions, so
+every floor-reacher must be one of them; had the fractions differed, the count would be wrong. The landing is not
+a thresholded near-miss: over the 1,020 floor-reachers the image error to the nearest recorded image has min
+1.3e-15, median 5.3e-15, 90th percentile 1.5e-12, max 3.7e-12 — machine precision throughout, no tail — while the
+980 non-floor starts sit at objective ≈1e-3 with image error ≈0.47, cleanly separated. Landings per recorded image
+are uneven (414, 383, 99, 63, 37, 13, 11): the basins differ in size by 40×, so "which image a start finds" is
+weighted, not uniform, and the rarest image needed ~180 starts.
+
 This is the first recovery in the study that begins from nothing, and it is exact. Its scope: (i) *on-chart* —
 the fine-tuning images lie on the `k = 6` chart, so what is recovered is those chart images, which at six PCA
 components are blurs (the figure shows it); off-chart the certificate has no zero. (ii) The certificate budget is
