@@ -1,81 +1,78 @@
-# Handover — 2026-09-03 17:15
+# Handover — 2026-09-03 20:04
 
 ## State
-Branch `step1-activation-rescore-retrieval`. My lane this session was the **document**, not the compute:
-`notes/exact_channel_rev10.tex` (~21 pp) is a self-contained, theorem-first Rev 10 delta section for the
-Plan of Record, rebuilt from a prose draft into Definition → Lemma → hypotheses → Theorem → proof form and
-audited by three independent sessions. It builds locally to `notes/exact_channel_rev10.pdf` via
-`bash scripts/rev10_figs/build_pdf.sh` (static musl tectonic; the PDF is gitignored, the .tex is not).
-The exact-inversion **experiments are owned by another session** (executor, currently `yoado-f4`; the
-lineage rotated twice today: yoado-6c → yoado-b7 → yoado-f4). Ten of its jobs are still running.
+Branch `step1-activation-rescore-retrieval`, HEAD `de78f94`. The exact-inversion thread (executor session;
+write-up session yoado-ed owns `notes/exact_channel_rev10.tex`; genuineness auditor yoado-6e has closed on every
+script) produced today the imprint law, the certificate channel, and the first from-nothing recoveries. Thirteen
+WEXAC jobs are still running; every one has a Monitor watch in this session, and the results they produce
+should be read against the pre-registered predictions in `experiments/exact_inversion/RESULTS.md` (Steps 13–22).
+Authoritative record: RESULTS.md (read Steps 18–22 first); STATUS.md top section; LESSONS_LEARNED.md top entries.
 
 ## Done this session
-- Rewrote the mathematical core as theorems with proofs; every hypothesis (A1)–(A6) stated as a formula
-  where it is used. Added Corollary (general adapted layer: `k < m+r−N+1` without softmax, `k ≤ mr/N` for
-  `N ≥ r`) and the Q-parametrisation (seed unknowns `N(N+1)/2` instead of `rN`), both derived-not-run.
-- **Theorem I (capacity)** `k < m+r−N`: strict form DERIVED from the softmax simplex constraint
-  (`1ᵀB_t = 0`), measured sharp at N=4,8,14, at five head widths, three ranks on MNIST, and on a TRAINED
-  784→1000→1000→10 MLP with unseen test digits.
-- **Theorem II (imprint)** `B_T = Σ_i C_i`, `C_i = −ηs Σ_t D_t[:,i](A_t h_i)ᵀ`: what the release records per
-  example is bounded by that example's own accumulated error. Figure `figures/rev10/fig_imprint.png`.
-- Wrote up, with scoping: encoder-quality ladder; where (A4) fails; out-of-distribution data; the
-  attacker-side rank trigger and its prevalence; chart-dependence and chart-richness; new-class (CIFAR).
-- **Four retractions of my own claims**, all caught by peer audit and all logged in LESSONS_LEARNED
-  (items 10–15): per-example P_T columns (basis/order-dependent); the feature-Gram "coupling"; the
-  "richer chart costs conditioning" trade-off; the averaged encoder rung (2.0e-15 — a value no measurement
-  lies within three orders of).
-- Restructured §measured into four labelled groups and rewrote §"What to say to Gal" as a two-theorem
-  pitch (the last supervisor meeting failed on "correlations, no tool").
+- **Imprint law** (Step 18): `B_T = Σ_i C_i`, `‖C_i‖ ∝` the accumulated softmax residual of image i (Kendall 28/28
+  on the strong model; rank `B_T` = number of images above the floor in all 40 batches); recording is decided by
+  margin order within the batch (9/9). A 98% model records nothing of confident digits (imprints ≤ 1e-24,
+  rank 3) and everything of a new class (flowers on CIFAR, letter 'a' on MNIST; rank 8, aligned, cosine ~.5).
+  Withdrawn en route: feature-Gram coupling (QR-basis artefact), label-multiset causation (confounded draws),
+  "richer chart ⇒ worse conditioned", "foreign sets drawn better" (resolution), and a false "0/500 basin
+  collapse" (a raw cell).
+- **Certificate** (Step 22): `C = P_{row(B_T)⊥}A_T`, `Ch_i ≈ 0` exactly for recorded images (1e-16…1e-8 vs 0.1–1
+  invisible) — recipe-free, label-free. Certificate-only inversion from RANDOM public-scale starts, on-chart,
+  below `k < r − N′`: 51% of 2,000 starts land exactly on private images at k=6 (18% at k=8), floor fraction =
+  recorded fraction (kernel count measured), argmin reliable below the line, spurious zeros dense at/above.
+  Objective must be `‖Cφ‖/‖A_Tφ‖` (a constant-normalised form let a blank image win; audit catch).
+- **Rank is a leakage dial three ways** (fixed-k arm, job 721391): at k=8 the basin is 16.6 → 74.4 → 96.4% at
+  r = 16/32/64 (1/17/49 below the line) — distance below the line governs, rank buys reachability as well as
+  budget; fidelity axis standalone (`chart_fidelity.py`, 2,000 held-out digits): class survival .52/.68/.88/.97 and
+  instance survival .04/.11/.57/.94 at k = 6/8/16/32.
+- **Membership needs no fidelity**: a recovered projection identifies its source among 10k projected candidates
+  with certainty at every k, robust to 3% coordinate noise at k ≥ 8.
+- **Second certificate cap `N′ ≤ m − 1`** (softmax simplex): twenty recorded digits on a 10-class head → rank 9,
+  certificate dead for all; the SAME MLP with a padded 26-logit head → rank 19 (20 at tolerance 1e-14, rank C 44),
+  residuals to 1e-8…4e-3. The twentieth image is collinearity (σ 6e-14 vs imprint 3e-7), not precision.
+- **Precision**: dynamic range decides, not mantissa — FP16 underflows the small imprints, bfloat16 keeps them
+  coarsely (most revealing low-precision format); structural closure only when many examples are comparably
+  recorded. **(R5)** only `lr/N` enters the recurrence — N is not identifiable, only N′ (measured 6/6).
+- Subset ("find some") test: recipe error found (batch size is part of the recipe) and fixed (`lr·N′/N`);
+  corrected first row: predicted floor = residual at the recorded truth (1.1e-16 both).
 
 ## Next step(s)
-1. **The matched control for the EMNIST new-class cell (job 658575) has not landed.** Two `batch=new` rows
-   are in: on the 98.2% MNIST model an 11th class (EMNIST 'a') gives `rank_B_T = 8` with all imprints within
-   ~3.7× and imprint-Gram σ_N/σ_1 ≈ 0.092 (present and aligned). The pre-registered prediction is that the
-   quality ladder FLATTENS for a new class where ordinary data loses rank — i.e. "how good the model is" and
-   "has it seen this category" are independent axes of exposure. **Do not write that up until the
-   same-job control (MNIST digits on the extended head, same chart and k) is in**, because at the strong
-   encoder ordinary digits give rank 8 on-chart/distinct and rank 6 raw/distinct, so the comparison must be
-   matched within the job.
-2. The attacker-realisable arm (job 650890, `most_leaking.py`) is the first cell that starts from random
-   public-scale coordinates rather than near the truth. Headline must be the **selection** — does
-   `argmin_residual` pick the right label and image — not the success rate. `k ∈ {24,25,26}` tests the
-   one-image line `k < m+r−1 = 25` in the only arm an attacker could occupy.
-3. Job 652786 is the negative control that matters: act on a trigger that fires for the WRONG reason
-   (random encoder, eight 1s, collinear features). If the argmin pick is wrong there, the .tex footnote on
-   the trigger becomes a measured caveat instead of a caution.
-4. Still open in §opens: global uniqueness; the fibre's extent past the line (one direction of forty walked,
-   one cell still rising); the accuracy at which (A4) begins to fail; multi-layer LoRA (measured, but both
-   arms 20 orders off the floor with the ORACLE arm nearly as bad, so no identifiability statement);
-   Adam's predicted one-unit-higher line; the schedule family under weights-only release.
+1. **Read job 728592** (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
+   (line 56, 24 below), basin (saturating with distance) and fidelity (instance id .94 at k=32). If random
+   starts land on private images there, it is the thread's headline: instance-identifying images from random
+   starts with no recipe. Send the row (not a reading) to yoado-ed.
+2. Read the rest as they land, against RESULTS' pre-registrations: 725918 (wide-head twenty-image landings;
+   extension pinned by the boundary image — read the nineteen), 721391 (per-rank sweeps), 706721 (k=10 bracket:
+   floor and recorded fractions must come APART; hard1_diff), 706597 (subset controls: one-swapped and
+   confident-only must NOT reach the recorded floor), 650890 (one-image attack: argmin label over 10 must be 0;
+   k=24/25/26 line), 652786 (negative controls: random-encoder false-positive trigger must fail), 644064 (OOD
+   inversion grids), 656205 (flowers mixed 1/4/7), 658575 (letters on mid/weak — predicted: ladder FLATTENS for a
+   new class), 614344 (98% sweep — alias form?), 624463/624465 (3000-iter chart reruns, β family; fidelity
+   ranking embargoed until then).
+3. When 624463/624465/614344 finish (they hold `lora_exact_inversion.py`, `vae_chart.py`, `conditional_charts.py`,
+   `trained_backbone.py`): the deferred edits in one commit — `jac_cond_truth` field per cell script, β kwarg
+   fold-back into `vae_chart.train_vae`, off-chart best-point residual, `median_gap_to_chart`, per-iteration
+   trajectory trace in `invert_lm`, certificate block appended to the full residual (report with/without),
+   subset oracle flag. Run `basin_predictors.py` over all ladder cells (pool per-cell taus, never raw pairs).
+4. If wanted: the 26-class head as the basin-with-power cell (built: `models/exact_inversion/mnist_mlp_m26_strong.pth`).
 
 ## Open threads / gotchas
-- **Running jobs**: 614344 (strong/mid sweep), 624463 (chart budget rerun at 3000 iters), 624465 (β-VAE),
-  624573 (labels/random-encoder), 634238 + 644064 (subset & OOD inversions), 650890 (most-leaking),
-  652786 (negative control), 656205 (CIFAR new class), 658575 (MNIST/EMNIST new class).
-- **Three peer sessions in play**: executor `yoado-f4`; theory auditor `yoado-77`; claims auditor `yoado-36`.
-  They have both offered further passes. Names rotate — use `ListAgents` and re-identify rather than
-  assuming a handle.
-- **The tooling failure that bit three times today**: a Python patch script that applies several edits in
-  memory and writes once at the end silently DISCARDS everything if a later assert fails — and it once
-  produced a commit whose message claimed edits the file did not contain. Write after each edit, and verify
-  target strings in the file rather than trusting the script's own "ok" lines.
-- **Never read `jac_sigma_min` or `jac_cond`** — those are at the point the solver stopped. The theorems are
-  about the Jacobian at the truth: use `jac_sigma_min_truth`, and compute cond as
-  `jac_sigma_max_truth / jac_sigma_min_truth`. This substitution produced three separate wrong readings.
-- **Never read the jsonl `verdict` field** into a document: it thresholds on image error alone and calls a
-  9e-7-residual run "recovered".
-- The `labels` field in `step51`/`step58` is the STRING "distinct"/"repeated", not a list — classifying by
-  `len(set(...))` silently mis-splits every group.
-- All MNIST/trained cells start from truth + 10% noise (`--init near`) and are identifiability tests, not
-  attacks; the .tex says so. The only exception is 650890.
+- Running jobs (all watched): 728592, 725918, 721391, 706721, 706597, 650890, 652786, 644064, 656205, 658575,
+  624463, 624465, 614344. Several share GPU nodes and are slow (3000-iteration LM cells take hours).
+- Launch new modules with `python -u -m experiments.exact_inversion.<mod>` (a file path dies on import).
+- Part B of `certificate.py` is meaningful ON-CHART only (`--settings on`); raw truths are not on the chart.
+- `invert_lm`'s `restarts` = number of ATTEMPTS (0 runs nothing).
+- `subset_and_ood.py` and `most_leaking.py` write rows as produced; older runs wrote only at the end.
+- Every recovery cell except the certificate arm starts NEAR THE TRUTH (identifiability test, flagged per row).
+- Read `setting` and `_truth` fields before any number; check the residual at the truth before reading a solve.
+- The auditors' rules that bit today: grep for retraction survivors; matched-nuisance controls for cross-set
+  claims; per-image quantities must be basis-independent; a count needs its gap; tolerance is the attacker's knob.
 
 ## Pointers
-- Deliverable: `notes/exact_channel_rev10.tex` (+ wrapper `notes/exact_channel_rev10_main.tex`); build with
-  `bash scripts/rev10_figs/build_pdf.sh`; figures `figures/rev10/` from `scripts/rev10_figs/fig_*.py`
-  (CPU-only, read committed jsonl). Rev 9 source is Mac-only, so the .tex carries a MERGE NOTE mapping every
-  Rev 9 number it uses — the user merges on Overleaf.
-- Executor's authoritative write-up: `experiments/exact_inversion/RESULTS.md` (retracted claims are stamped
-  in place, not deleted). Durable record: `STATUS.md` top section; pitfalls `LESSONS_LEARNED.md` items 10–15.
-- Memory: `project_exact_inversion_capacity_law` carries the corrected framing — the law bounds the CHART
-  COORDINATES, never say "wrong image" or "recognisable", and reconstruction factorises as
-  capacity × chart quality.
+- RESULTS: `experiments/exact_inversion/RESULTS.md` (Steps 18–22 + corrections); STATUS.md top; LESSONS top.
+- Scripts: `certificate.py`, `tolerance_sweep.py`, `precision_check.py`, `chart_fidelity.py`, `basin_predictors.py`,
+  `margin_check.py` (imprints, traced release), `subset_and_ood.py`, `most_leaking.py`, `new_class.py`,
+  `train_strong_backbone.py --n-out 26`, `batch_scale_check.py`, `blur_control.py`.
+- Figures: `figures/exact_inversion/certificate_recovery_k6_706721.png`, `newclass_recoveries_preview.png`.
+- Submit pattern: `bsub -q long-gpu -gpu "num=1" -R "rusage[mem=8192] select[ngpus>0]" -J <name> -o scripts/wexac_logs/<name>_%J.out -e ... <<'EOF' ... set +u; source .../conda.sh; conda activate .../rec; cd /home/projects/galvardi/yoado; python -u -m ... EOF`
+- Siblings: yoado-ed (write-up, uds:/run/user/50309/cc-socks/4170091.sock), yoado-6e (auditor, ...4170067.sock).
