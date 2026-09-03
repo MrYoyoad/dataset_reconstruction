@@ -60,6 +60,8 @@ def main():
     ap.add_argument("--T", type=int, default=400); ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--random-starts", type=int, default=16); ap.add_argument("--iters", type=int, default=300)
+    ap.add_argument("--max-np", type=int, default=6, help="Part B runs when N' <= this: the certificate's null space then holds N' recorded "
+                    "images, and a random start below the certificate line k < r - N' should land on ONE of them")
     ap.add_argument("--n-fit", type=int, default=50000)
     ap.add_argument("--data-root", default="dataset_reconstruction/data")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -106,7 +108,7 @@ def main():
                     print(json.dumps(rowA), flush=True)
                     if a.out:
                         with open(a.out, "a") as f: f.write(json.dumps(rowA) + "\n")
-                if "B" in a.part and Np == 1:                                  # certificate-only inversion of the dominant image
+                if "B" in a.part and Np <= a.max_np:                           # certificate-only inversion: land on a RECORDED image
                     nA = torch.linalg.norm(A_T)
                     fun = lambda w: (C @ bb.phi(chart.psi(w.reshape(k, 1)))).reshape(-1) / nA
                     gs = torch.Generator().manual_seed(a.seed + 31); t0 = time.time(); runs = []
@@ -119,10 +121,18 @@ def main():
                         e_all = [float(torch.linalg.norm(x_hat[:, 0] - X_on[:, j]) / torch.linalg.norm(X_on[:, j])) for j in range(a.N)]
                         runs.append(dict(start=s, objective=obj, iters=it, err_vs_top_chart=e_on, err_vs_top_raw=e_raw,
                                          nearest=int(min(range(a.N), key=lambda j: e_all[j])), w=w.detach().cpu()))
-                    # the truth's own objective (gate) and the attacker's pick = smallest objective
-                    w_true = W_all[:, top].reshape(-1); obj_true = float(fun(w_true) @ fun(w_true))
+                    # gates: the objective at every image's chart coordinates (recorded ones must be ~0 ON-CHART; raw truths
+                    # are not on the chart and the certificate then has no zero there -- Part B is only meaningful on-chart)
+                    recorded = [i for i in range(a.N) if imp[i] / imp.max() > 1e-12]
+                    obj_at = [float(fun(W_all[:, i].reshape(-1)) @ fun(W_all[:, i].reshape(-1))) for i in range(a.N)]
+                    w_true = W_all[:, top].reshape(-1); obj_true = obj_at[top]
+                    for d in runs:                                              # which recorded image, if any, did the start land on
+                        x_hat = chart.psi(d["w"].to(dev).reshape(k, 1))
+                        e_rec = {i: float(torch.linalg.norm(x_hat[:, 0] - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in recorded}
+                        d["nearest_recorded"], d["err_vs_nearest_recorded"] = min(e_rec.items(), key=lambda kv: kv[1])
+                        d["landed_on_recorded"] = bool(d["err_vs_nearest_recorded"] < 1e-2)
                     best = min(runs, key=lambda d: d["objective"])
-                    at_floor = [d for d in runs if d["objective"] <= 1e3 * max(obj_true, 1e-32)]
+                    at_floor = [d for d in runs if d["objective"] <= 1e-20]
                     rowB = dict(part="B", set=sname, setting=setting, k=k, cert_line=a.r - Np, below_cert_line=bool(k < a.r - Np),
                                 N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed, top_image_eval=top, top_label_eval=int(y[top]),
                                 oracle=[], recipe_used=False, labels_used=False, random_starts=a.random_starts, iters=a.iters,
@@ -130,6 +140,13 @@ def main():
                                 argmin_err_vs_top_raw=best["err_vs_top_raw"], argmin_nearest_is_top=bool(best["nearest"] == top),
                                 frac_starts_at_floor=len(at_floor) / len(runs),
                                 frac_starts_recovered=sum(d["err_vs_top_chart"] < 1e-2 for d in runs) / len(runs),
+                                n_prime=Np, recorded_idx=recorded, objective_at_each_truth=obj_at,
+                                objective_at_recorded_max=max(obj_at[i] for i in recorded),
+                                frac_starts_on_a_recorded_image=sum(d["landed_on_recorded"] for d in runs) / len(runs),
+                                recorded_images_found=sorted(set(d["nearest_recorded"] for d in runs if d["landed_on_recorded"])),
+                                argmin_landed_on_recorded=best["landed_on_recorded"], argmin_nearest_recorded=best["nearest_recorded"],
+                                argmin_err_vs_nearest_recorded=best["err_vs_nearest_recorded"],
+                                truth_on_chart=(setting == "on"),
                                 runs=[{kk: v for kk, v in d.items() if kk != "w"} for d in runs], seconds=time.time() - t0,
                                 git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
                     print(json.dumps(rowB), flush=True)
