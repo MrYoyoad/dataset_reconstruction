@@ -61,6 +61,33 @@ its inputs.
 
 ---
 
+## `k` is a property of the chart, not of the data — do not read a dimension bound as a privacy bound (2026-09-03)
+
+**The mistake.** Having measured that the exact-inversion capacity boundary `k < m + r − N` moves with the
+LoRA rank exactly as predicted — on synthetic data and then on real MNIST at three ranks — I wrote that this
+"kills a fixed-`k` explanation". The user pushed back: it does not, because `k` is the dimension of the
+*chart* chosen to search in, not a property of the images. A different parameterisation is a different
+problem, not a refutation.
+
+**Why it matters, measured.** Same digits, same `N, m, r`, three charts at matched `k` (job 574169):
+- the **boundary** is chart-independent — pca, a nonlinearly warped version of the same manifold, and a
+  chart built to contain the digits all collapse at exactly `k = 18`, `σ_min` going ~2e-5 → ~5e-18;
+- what **comes back** is not — at `k = 17` each chart recovers its own representable image to ~1e-14, but
+  against the *real* digit: pca 0.51, warped 0.51, exact-chart **5.7e-14**. Thirteen orders apart at the
+  same `k` and the same budget.
+
+**Rule.** A capacity/dimension bound limits the *search space*, not the fraction of the signal recoverable.
+State it as identifiability **within the chosen chart**. And remember the search space belongs to the
+attacker: nothing forces the chart to be data-agnostic, so one that spans the private images plus filler has
+dimension `N`, sits far below the line, and returns the true images exactly. Any defence argued from a
+dimension bound has to argue about the chart too.
+
+**Second-order lesson.** Report both errors whenever a manifold model sits between the attack and the data:
+error against what the chart can represent (the optimisation succeeded) and error against the real datum
+(the attack succeeded). Reporting only the first is how a 51% reconstruction gets logged as `1e-14`.
+
+---
+
 ## The residual separates an information limit from a compute limit — foreground it above any success metric (2026-09-03)
 
 **The insight.** In any reconstruction that fits a forward model, the fitting residual classifies the

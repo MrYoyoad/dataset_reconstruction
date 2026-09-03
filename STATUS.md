@@ -51,6 +51,30 @@ What the section establishes, in order — every label as in the .tex:
   against †1.43e-2 past the line (8,32, 25 steps) and †3.84e-2 at the line (14,22, 25 steps, final). Same procedure,
   only the side of the boundary changes, twelve orders apart: the direct experimental form of the capacity law.
 
+## Exact inversion on REAL data, and a scoping correction: `k` is the chart's dimension, not the data's (2026-09-03, jobs 568095, 574169)
+
+**The capacity law holds on real MNIST.** Genuine digits with real labels, `m = 10`, manifold = their own PCA
+subspace, frozen public encoder, `N = 8`. The boundary moves with the rank exactly as predicted and is sharp
+to one unit of `k` at every rank: †`r=8` last full-rank `k=9` / first collapsed `k=10`; †`r=16` 17 / 18;
+†`r=32` 33 / 34. Below the line real digits reconstruct to †~1e-14; past it the residual returns to the
+reproduction floor while images sit at †2.7-6.8% — the same *identifiability, not leakage* pattern. So the
+law is not an artefact of the synthetic tanh manifold.
+
+**But a correction to how it was being stated, prompted by the user.** `k` is the dimension of the *chart*
+searched in, not a property of the images, so the rank sweep rules out only a chart-intrinsic threshold and
+says nothing about a different parameterisation being a different problem. Tested directly at matched `k`
+(job 574169): the **boundary is chart-independent** — pca, a nonlinearly warped chart, and a chart built to
+contain the digits all collapse at exactly †`k = 18`, `σ_min` †2e-5 → †5e-18 — while **what comes back is
+not**: at `k = 17`, against the *real* digit, pca †0.510, warped †0.510, exact-chart †5.7e-14. Thirteen
+orders apart at the same budget.
+
+**Consequence:** the law bounds the *dimension of the search*, not the fraction of the image reachable, and
+must be stated as identifiability **within the chosen chart**. A defender cannot read `k < m+r−N` as a
+leakage bound — nothing forces the attacker's chart to be data-agnostic, and one spanning the private images
+plus filler has dimension `N`, sits far below the line, and returns the digits exactly. This makes the
+generative-prior direction a *consequence of the counting* rather than a hope.
+Figures `figures/exact_inversion/chart_dependence_k{17,18}.png`; write-up `experiments/exact_inversion/RESULTS.md` Steps 10-11.
+
 ## Exact LoRA inversion (framework Rev 10) — **A CAPACITY LAW: the simulation channel inverts iff `k < m + r − N`**, confirmed at N=4/8/12 (2026-09-03; jobs 469120 · 467914 · 466915/467622 · 459111 · 456630 · 452904 · 471272/473055/474132 · 408560-63; thread COMPLETE, all arms landed)
 
 Thread from an external theory bundle (`framework_rev10.pdf` theory · `results_rev9.pdf` finite-difference

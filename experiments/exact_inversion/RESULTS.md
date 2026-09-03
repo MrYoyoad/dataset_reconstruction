@@ -844,3 +844,74 @@ reaches the floor", a control that cannot reach the floor makes the readout unin
 three arms on LM. Not edited mid-flight, per the standing rule.
 
 Nothing about recipes should be concluded from this yet, in either direction.
+
+
+## Step 10 — the law on REAL images: MNIST (job 568095)
+
+The capacity law was derived and measured on a synthetic tanh manifold. This is the first test on real data.
+Private data are genuine MNIST digits with their real labels, restricted to their own PCA subspace (so the
+manifold coordinates are real principal components and `k` is a real dimension); `φ` is a frozen public
+network; the head has `m = 10` classes; the recipe is the plain SGD the law is stated for. `N = 8`.
+
+The line must **move with `r`**, and it does — sharp to one unit of `k` at every rank:
+
+| r | predicted line `k < m+r−N` | last `k` full-rank at the truth | first `k` collapsed |
+|---|---|---|---|
+| 8 | **10** | 9 | 10 |
+| 16 | **18** | 17 | 18 |
+| 32 | **34** | 33 | 34 |
+
+At `r = 16`: `σ_min` at the truth runs 2.6e-4 (k=6), 2.0e-4 (k=10), 6.4e-5 (k=14), 1.3e-6 (k=17), then
+**8.4e-18 at k=18** — the same collapse to the FP64 floor as in the synthetic testbed. Below the line real
+digits are reconstructed to ~1e-14. Past it the residual returns to the floor while images sit at 2.7-6.8%
+error, i.e. the same "identifiability boundary, not leakage boundary" pattern, now on real digits. The
+`k = 17` cell degrades and comes off the residual floor, mirroring the marginal-cell behaviour near the
+boundary seen at `(N,k) = (14,21)` synthetically.
+
+**So the law is not an artefact of the synthetic generator.**
+
+## Step 11 — but `k` is a property of the CHART, not of the images (job 574169)
+
+**This is a correction to how I had been stating the result, prompted by the user.** I wrote that the
+`r`-sweep "kills a fixed-`k` explanation". That is too strong. `k` is the dimension of the *chart* chosen to
+search in; the counting argument only ever sees that number, and nothing about how the chart is built
+enters. So the `r`-sweep rules out exactly one alternative — a chart-intrinsic threshold independent of `r`
+— and says nothing about the fact that a different parameterisation is a different problem.
+
+That is falsifiable, so it was tested: same digits, same `N, m, r`, three charts at **matched `k`**.
+`pca` (linear, data-fit), `warped` (the same manifold under a fixed nonlinear reparametrisation), and
+`exact` (an orthonormal chart whose span **contains the private digits**, so it can represent them exactly).
+
+**(i) The boundary is chart-independent.** All three collapse at exactly `k = 18 = m+r−N`:
+
+| chart | `σ_min` at k=17 | `σ_min` at k=18 | full rank at 18? |
+|---|---|---|---|
+| pca | 2.24e-5 | 5.57e-18 | no |
+| warped | 2.17e-5 | 5.30e-18 | no |
+| exact | 5.72e-5 | 5.66e-18 | no |
+
+**(ii) What actually comes back is not.** Below the line every chart recovers *its own* representable image
+to ~1e-14. Measured against the **real digit**:
+
+| chart | chart representation error | recovered vs the REAL digit (k=17) |
+|---|---|---|
+| pca | 0.41 | **0.510** |
+| warped | 0.41 | **0.510** |
+| exact | 0.00 | **5.7e-14** |
+
+Thirteen orders of magnitude apart, at the same `k`, the same budget and the same boundary.
+`figures/exact_inversion/chart_dependence_k17.png` and `_k18.png` show it: the PCA chart recovers its own
+blurred digit perfectly and is still half the image away from the truth, while the chart containing the
+digits returns them exactly — and does so at `k = 8`, far under the line.
+
+**Consequences, and they weaken the privacy reading further.**
+1. The law bounds **the dimension of the search**, not the fraction of the image an attacker can reach.
+   Anywhere it is glossed as a privacy statement it must read *identifiability within the chosen chart*.
+   A defender cannot read `k < m+r−N` as a bound on leakage.
+2. **Nothing forces the chart to be data-agnostic.** An attacker who spans the private images plus filler
+   directions has a chart of dimension `N` that contains them exactly — `k = 8` here, far under the line —
+   and recovers the true digits at 1e-14. The capacity bound never notices.
+3. So a better generative model buys strictly more leakage at the same budget. That makes the
+   generative-prior direction a **consequence of the counting** rather than a hope, and it is the honest
+   answer to "is the boundary a real privacy limit": no — it limits the search space, and the search space
+   is the attacker's to choose.
