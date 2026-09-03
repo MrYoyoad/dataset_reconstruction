@@ -2734,3 +2734,9 @@ FP64 simulator alias at a quarter of bf16's (pending matched). fp16 storage of a
 Jacobian is worse conditioned (σ_min 1e-5 against 2.7e-4 at k = 16), so the same mismatch is absorbed by a much
 larger displacement; still descending at the 600-iteration cap. The matched-arithmetic row at k = 32 (782682) is
 the one that decides whether the 3% recovery survives the harder chart.
+
+*Matched route, fp16-trained letters k = 16 (782682):* A₀ floor 2.05e-3 (A₀ unexplained 0.66%; FP64 simulator's
+floor there 0.047); from the near start (residual 0.31) the LM reaches 1.87e-3 in 23 iterations; image error per
+letter .029 .010 .004 .011 .038 .010 .007 .014 — **median 0.97%, max 3.8%**; raw error at the chart floor .316; Z
+error 1.8%. Recovered, at a fidelity three times better than bf16's (fp16's 11-bit mantissa leaves a third of
+bf16's A₀ error) — the per-format cost ordering follows the mantissa: bf16 3%, fp16 1%, fp32 2e-6, fp64 1e-15.
