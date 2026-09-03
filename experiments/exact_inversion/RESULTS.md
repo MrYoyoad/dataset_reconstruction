@@ -1590,3 +1590,43 @@ Scoping fixed in advance: near-truth starts, labels given (`oracle = [near_init,
 new class's negative margin is set by the initialisation, not learned — margin claims ride on the random-row arm;
 the CIFAR MLP is a weak encoder (53% best-test-epoch checkpoint) and that domain isolates the new-class /
 shared-label structure only, not a quality replication.
+
+## Step 22 — the certificate `C h = 0`, re-read through the imprints (job 701679, `certificate.py`)
+
+**Derivation.** With `B₀ = 0` and SGD every update to `A` lies in `row(B_T)`, so `C := P_{row(B_T)⊥} A_T = P⊥ A₀`.
+In the imprint form `B_T ≈ Σ_i q_i (A₀h_i)ᵀ` the row space is spanned by `A₀h_i` of the *recorded* images only, so
+
+```
+C h_i = 0  for recorded images,   C h_i ≠ 0  for invisible ones,   rank C = r − N′ .
+```
+
+No `η`, `T` or labels enter. So (A) `‖Cφ(x)‖` is a **recipe-free test of whether `x` was recorded**, and (B) for
+`N′ = 1` the `r − 1` linear-in-features equations `Cφ(ψ(w)) = 0` determine the dominant image when `k < r − 1`,
+with no unrolled dynamics — a recipe-free, label-free inversion. The theory's "`CH = 0` for all N" is hypothesis
+(A4) once more: it holds exactly where every image is recorded and fails where imprints vanish (this is also
+the near-duplicate contamination of Step 6, now with its cause). Adam releases have `rank B_T = r`, `C ≡ 0`.
+
+**Part A, measured (strong model, `mnist_control`, `k = 12`; the certificate does not depend on `k`):**
+
+| setting | `rank B_T` | `rank C` (= `r − N′`) | `‖Ch_i‖/‖A_T h_i‖` per image |
+|---|---|---|---|
+| raw | 6 | **10** | 9e-15, **0.8**, 4e-10, 6e-10, 1e-13, **0.5**, 4e-10, 8e-13 — the two O(1) entries are the two highest-margin (invisible) digits |
+| on-chart | 8 | 8 | all eight ≤ 2e-8 |
+
+Prediction confirmed on the first rows: the certificate sees exactly the recorded examples, and an attacker can
+apply it to any candidate image without knowing how the adapter was trained. Part B (certificate-only inversion
+of the dominant image from 16 random public-scale starts, `k ∈ {12, 14, 15, 16}`, certificate line `k < 15`) is
+in flight; the rows will carry `oracle = []`, `recipe_used = False`, `labels_used = False`.
+
+## Step 18, distinct-label solve cells (job 624573, 3000 iterations, `random_encoder_control.py`)
+
+| encoder | labels | chart | `σ_min(J)` at truth | residual | iterations | outcome |
+|---|---|---|---|---|---|---|
+| weak 78% | distinct | global | 8.1e-7 | 7.5e-31 | 93 | floor |
+| weak 78% | distinct | local | 1.55e-9 | 1.6e-25 | 3000 (cap) | still descending, err vs chart 2e-5 |
+| random | distinct | global | 1.2e-4 | 9.2e-31 | 27 | floor |
+| random | distinct | local | 6.8e-5 | 8.6e-31 | 31 | floor |
+
+The weak checkpoint's local-vs-global gap survives distinct labels in the solve (520× in `σ_min`, floor vs cap);
+on the random encoder of the same architecture the two charts are within 1.8× and both reach the floor in ~30
+iterations. Consistent with the three-seed spectra: the gap is the weak checkpoint's, not trained encoders'.
