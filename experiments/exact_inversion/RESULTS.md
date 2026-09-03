@@ -93,12 +93,35 @@ rank-deficient, so **local identifiability fails** — the solution is no longer
 
 Read the residual column carefully, because it is the discriminator this project keeps relying on. In the
 failed cells the residual is still at the reproduction floor (`~9e-31`) while the image error is `5e-3` to
-`9e-3`. That is the signature of an **alias**: the release is reproduced exactly by a point that is not
-the truth. Every failure earlier in this study had a non-zero residual and was a search failure; these are
-the first cells where the release genuinely does not determine the data. (Note the errors sit just under
-the 1e-2 recovery tolerance, so a naive `frac_recovered` would score them as successes. They are not
-successes — they are a flat direction that happens to be locally weak. This is a case where the tolerance
-is the wrong instrument and `σ_min` is the right one.)
+`9e-3`. The release is reproduced exactly by a point that is **not** the truth, so the truth has ceased to
+be locally isolated.
+
+**CORRECTED (independent audit, 2026-09-03) — do NOT call this "the wrong image".** An earlier version of
+this section said the release was reproduced "with the wrong image", and the claim set derived from it said
+the release no longer determines the data. That is **not supportable on these numbers**. The past-line
+image errors are `1.7e-3` (N=4, k=34/38), `2.6e-3`-`5.7e-3` (N=8, k=28/29/30), `5.3e-3`-`9.3e-3`
+(N=8, k=32/38/44), `6.4e-3` (N=14, k=22), `1.2e-2` (N=12, k=26). In **8 of the 11** past-line cells
+`frac_recovered` is 1.0: every image is inside this study's own 1e-2 tolerance. A 0.3% relative image error
+is a visually identical image.
+
+What was measured is that the solution is **no longer pinned to machine precision** — an eleven-order jump
+from `1e-14` to `1e-3` — not that it is unrecovered. So:
+
+> **The capacity law is a boundary of exact identifiability. It is not, on this evidence, a boundary of
+> leakage.** Past `k = m + r − N` the attack still returns every image to sub-percent accuracy.
+
+That tension is more interesting than the overclaim it replaces, and it should be stated rather than
+smoothed over.
+
+**A second limit on the word "alias".** Every past-line cell was run from `--init near`, i.e. starting
+adjacent to the truth, so the solver drifts along the flat direction only as far as LM happens to take it.
+The measured `1e-3` is therefore a **lower bound on the fibre, not its diameter**. Earning the word alias
+requires travelling the null direction: take the right singular vector of `J` at `σ_min` and continue along
+it, retracting onto the release-consistent set at each step, and report how far the image actually moves
+while the release is still reproduced. Job 482338 does exactly that, with a below-the-line control where
+the traversal must be obstructed. Until it reports, the correct wording is: *the solution ceases to be
+locally isolated; from a truth-adjacent start the solver lands 0.2%-1% away in image space; the extent of
+the release-consistent set has not been measured.*
 
 **The boundary matches the refined count, not the naive one.** `Nk ≈ mr = 320` was the first guess. The
 observed collapse is between 208 and 256, which `mr` does not predict — but the derivation check's
@@ -134,16 +157,67 @@ are disjoint — `N = 12` has already collapsed at `k = 26` while `N = 4` is sti
 fixed-`k` explanation is ruled out by that crossing. The collapse is 13-14 orders of magnitude in `σ_min`
 across one step of the sweep, so the boundary is sharp rather than gradual.
 
+**Single-unit brackets (jobs 479587, 479684), and an honest off-by-one.** Stepping `k` one at a time:
+
+| N | line `m+r−N` | last healthy k | `σ_min` there | first collapsed k | `σ_min` there |
+|---|---|---|---|---|---|
+| 8 | 28 | **27** | 1.53e-7 | **28** | 6.43e-19 |
+| 14 | 22 | **21** | 1.65e-7 | **22** | 2.30e-19 |
+
+The collapse happens **at equality**, `k = m + r − N`. An audit correctly noted that the naive count only
+derives `k ≤ m + r − N`, one unit weaker — so the strict form was, briefly, measured rather than derived.
+
+**RESOLVED: the strict inequality IS derived, and the missing unit is the softmax simplex constraint.**
+Under softmax cross-entropy the error columns sum to zero, `1ᵀD_t = 0`. Since `∇_B L = D_t(A_tH)ᵀ`, also
+`1ᵀ∇_B L = 0`; with `B₀ = 0` and any scalar-linear update, induction gives `1ᵀB_t = 0` for every `t`. So
+`B_T` does not merely have rank `N` — it lies in `1^⊥ ⊗ ℝ^r`, of dimension `(m−1)r`. Rank-`N` matrices
+there form a manifold of dimension `N((m−1) + r − N) = N(m+r−N) − N`, a deficit of exactly `N`. The count
+then returns
+
+```
+    N((m-1)+r-N) + rN  >=  Nk + rN     <=>     k <= (m-1)+r-N = m+r-N-1     <=>     k < m+r-N   (strict)
+```
+
+**Verified two independent ways.** Directly: `‖1ᵀB_T‖/‖B_T‖` = 3e-16 … 1.9e-15 across *every* SGD release
+on disk, all shapes, all `T`, all seeds. And through the rank: the measured `rank(B-block)` for SGD
+`n=96, k=12, N=8` is **216**, and `N((m−1)+r−N) = 216` exactly, where the plain cap would be 224. The
+"216 / 224" entry in the per-block table is therefore not slack — it is this constraint, and it is tight.
+
+**A falsifiable prediction, with supporting evidence already in hand.** Adam's coordinatewise
+normalisation divides the gradient entrywise and does **not** preserve zero column sums: measured
+`‖1ᵀB_T‖/‖B_T‖` = **2.6-2.7** for every Adam release, i.e. order one against `1e-15` under SGD. So under
+Adam the constraint is absent and the cap reverts to the plain `N(m+r−N)`, predicting an Adam capacity
+**one unit higher** than SGD at the same `(m, r, N)`. Supporting: the measured Adam `rank(B-block)` at
+`n=96, k=12, N=8` is **224** = the plain cap exactly, saturated, against SGD's 216 = the `1^⊥` cap exactly.
+Both caps attained, each in its own regime. Untested directly; the discriminating run is an Adam capacity
+sweep at `k = m+r−N`.
+
+Note the irony worth carrying into any defense discussion: Adam destroys the exact algebraic channel
+outright, and hands the attacker back one unit of exact-inversion capacity.
+
+**The deciding cell is still not decidable in FP64, and that caveat stands even though the law is now
+derived.** For `k > m + r − N` strictly, ill-conditioning cannot
+masquerade as rank deficiency: the containment argument forces `σ_min = 0` exactly. But *at* equality the
+count permits full rank, and `σ_min ≈ 8e-19` with `cond ≈ 2e18` is precisely the regime where FP64 cannot
+separate a rank-deficient problem from an identifiable one with `cond ≈ 1e18`. The image error cannot
+discriminate either, since attainable accuracy there is about `ε·cond`. So the law is a theorem; the
+strictness is an empirical off-by-one whose deciding cell is undecidable at this precision.
+
 **What the law says.** The released `B_T = P_T Xᵀ` is `m × r` of rank `N`, so it carries
 `N(m + r − N)` independent numbers, however large `m × r` looks. Divide by the `N` images and each image
 gets a budget of `m + r − N` numbers. An image with more degrees of freedom than that cannot be pinned
 down, and the failure is genuine non-identifiability — residual at the reproduction floor, wrong image.
 So the honest capacity statement for the whole attack is:
 
-| channel | boundary | failure mode past it |
-|---|---|---|
-| certificate (Primitive 1-2) | `k < r − N` | true aliases; `C` is blind |
-| simulation (Primitive 3) | `k < m + r − N` | true aliases; `J` at the truth is rank-deficient |
+| channel | boundary | provenance | failure mode past it |
+|---|---|---|---|
+| certificate (Primitive 1-2) | `k < r − N` | **†bundle** (`results_rev9.pdf` Fig. 1) — **not reproduced in this repo**; there is no `C`-only recovery experiment under `results/exact_inversion/` | aliases; `C` is blind |
+| simulation (Primitive 3) | `k < m + r − N` | measured here (jobs 467914, 469120, 479587, 479684) | `J` at the truth is rank-deficient; images still sub-percent |
+
+The two rows are **not commensurable measurements** — the first is a bundle number under this project's
+standing rule that bundle numbers stay provisional until reproduced here. So "the difference is exactly
+`m`" should be read as *against the bundle's certificate boundary*, not as a difference between two
+in-repo measurements.
 
 Simulation buys a factor of `(m + r − N)/(r − N)` in per-image complexity — here `28/8 = 3.5×` at `N = 8`
 — and the released head width `m` is what buys it. That is a much more useful statement than "the `r − N`
@@ -345,9 +419,12 @@ All four arms started from **release-only** points, i.e. no access to the truth.
 | spananchor (minimise out-of-estimated-span energy) | 5 | **0** | 0.58-1.04 | 6e-3 … 3.7e-1 |
 | cert (minimise `‖Cφ(ψ(w))‖²`, the Primitive-1 anchor) | 5 | **0** | 0.74-1.04 | 3.5e-2 … 3.1e-1 |
 
-**1 of 20.** The single success is the span estimator on seed 3, reaching a `9.2e-3` image error at
-residual `9.1e-7` — inside the 1e-2 tolerance but nowhere near the `1e-15`/`1e-30` that a perturbed-truth
-start reaches, so it entered the basin and was still converging rather than finishing.
+**1 of 20, and even that one is generous by this study's own criterion.** The single success is the span
+estimator on seed 3, at a `9.2e-3` image error with residual `9.1e-7`. Everywhere else this file uses a
+*dual* criterion — image error below 1e-2 **and** residual at the reproduction floor — and this row fails
+the second half by six orders. So the accurate statement is: **1 of 20 reached sub-1% image error without
+converging; 19 of 20 failed outright** (image errors 0.69-1.44, residuals 5e-3 to 0.37). Note this makes
+the initializer look like an even harder constraint than the looser wording did.
 
 **The certificate anchor is the informative failure, and it is a clean demonstration of Primitive 2.** Its
 pre-solve genuinely succeeds: it drives `‖Cφ(ψ(w))‖` to `1.1e-6` on seed 1 and `5.0e-8` on seed 3, i.e. it
@@ -386,11 +463,18 @@ discontinuity that made the simulated release jump when a feature crossed zero, 
 
 ## What this says for the plan
 
-1. **The exact channel is not budget-limited.** `r − N` bounds the certificate, not the leakage. Any
-   defense argued from "the adapter only has `r − N` independent rows" is arguing about one primitive.
-2. **The crux is confirmed to be the basin**, and it is more forgiving than the prototype suggested:
-   24% at full deformation, with restarts as the currency. Every failure observed anywhere in this
-   session had a nonzero residual — **not one alias**. Failures here are search failures.
+1. **The exact channel has its own budget, and it is `k < m + r − N`, not `r − N`.** (This supersedes the
+   earlier "the exact channel is not budget-limited", which was written before the capacity sweep.) The
+   certificate's `r − N` bounds one primitive; the simulation channel's own boundary sits `m` higher.
+   Any defense argued from "the adapter only has `r − N` independent rows" is arguing about one channel —
+   but a defense argued from `m + r − N` is arguing about exact identifiability, **not** about leakage,
+   because past that line the images are still recovered to sub-percent accuracy.
+2. **The crux is the basin, and post-fix it is very wide.** (This supersedes the earlier "24% at full
+   deformation, with restarts as the currency" — both numbers were pre-fix artefacts, see Step 2.)
+   Post-fix: 16 of 17 runs recover out to a 0.86 worst-case start error, every one at `restarts = 1`, and
+   the edge was never located. The earlier claim that **every** failure in the session had a nonzero
+   residual is also superseded: the capacity cells past `k = m + r − N` have floor residuals. Below that
+   line, failures are search failures; past it, they are not.
 3. **The initializer question is the open one**, and it is now the only arm whose result would change
    the story. That is the right place for a learned/population prior, which is what the framework says.
 4. **Report `cert_norm` beside `eps_inv` forever.** A zero certificate scores perfectly on the natural
@@ -493,6 +577,13 @@ protect the batch.
 
 *Point 2 — confirmed.* Every failing row has a residual of `1e-8`-`1e-9`, far above the reproduction
 floor: search/conditioning failures, not true aliases. The stated falsifier is not met.
+
+*A caveat on the detector itself.* The three-way rule assumes the residual is either at `~1e-30` or
+clearly non-zero. Near the capacity boundary that stops being true: `(N, k) = (14, 21)`, the last cell
+below the line and one of the two cells the strictness claim rests on, sits at residual `5.0e-18` with a
+`5.0e-4` image error — neither at the floor nor a stall, and classed a search failure while being
+recovered for any practical purpose. The residual floor itself degrades near the boundary, so the bins
+stop being crisp exactly where they are being read.
 
 *Point 1 — confirmed once sampled finely enough, and my "cliff" claim is withdrawn.* I first reported a
 twelve-order jump between separations 0.35 and 0.206 and called the transition sharp. That was a
