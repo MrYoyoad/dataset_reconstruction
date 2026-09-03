@@ -195,24 +195,34 @@ sweep at `k = m+r−N`.
 Note the irony worth carrying into any defense discussion: Adam destroys the exact algebraic channel
 outright, and hands the attacker back one unit of exact-inversion capacity.
 
-**The deciding cell is still not decidable in FP64, and that caveat stands even though the law is now
-derived.** For `k > m + r − N` strictly, ill-conditioning cannot
-masquerade as rank deficiency: the containment argument forces `σ_min = 0` exactly. But *at* equality the
-count permits full rank, and `σ_min ≈ 8e-19` with `cond ≈ 2e18` is precisely the regime where FP64 cannot
-separate a rank-deficient problem from an identifiable one with `cond ≈ 1e18`. The image error cannot
-discriminate either, since attainable accuracy there is about `ε·cond`. So the law is a theorem; the
-strictness is an empirical off-by-one whose deciding cell is undecidable at this precision.
+**A measurement caveat that the derivation, not the data, settles.** For `k > m + r − N` strictly,
+ill-conditioning cannot masquerade as rank deficiency: the containment argument forces `σ_min = 0` exactly.
+But *at* equality the plain count would permit full rank, and there `σ_min ≈ 8e-19` with `cond ≈ 2e18` sits
+at the FP64 floor — precisely the regime where the measurement cannot separate a rank-deficient problem
+from an identifiable one with `cond ≈ 1e18`, and the image error cannot discriminate either since attainable
+accuracy there is about `ε·cond`. **So the strictness is not settled by the measurement; it is settled by
+the simplex derivation above** (`1ᵀB_T = 0` puts `B_T` in `1^⊥ ⊗ ℝ^r`, giving the cap a deficit of exactly
+`N` and hence `k ≤ m+r−N−1`). The data are consistent with it and cannot, at this precision, have
+established it alone. *(Caveat and framing owed to an independent audit.)*
 
 **What the law says.** The released `B_T = P_T Xᵀ` is `m × r` of rank `N`, so it carries
 `N(m + r − N)` independent numbers, however large `m × r` looks. Divide by the `N` images and each image
-gets a budget of `m + r − N` numbers. An image with more degrees of freedom than that cannot be pinned
-down, and the failure is genuine non-identifiability — residual at the reproduction floor, wrong image.
+gets a budget of `m + r − N` numbers. An image with more degrees of freedom than that is **not locally
+isolated**: past the line the release is reproduced at the floor by a *different* point, so the truth
+ceases to be pinned.
+
+**Do not read that as "the wrong image".** Measured, those points sit at 0.2%-6.8% relative image error and
+in most past-line cells every image is inside the study's own 1e-2 tolerance — see the corrected block
+above and Step 7. This is a boundary of **exact identifiability**, and on this evidence it is **not** a
+boundary of leakage. Step 11 sharpens it further: it is identifiability of the *chart coordinates*, and how
+close `ψ(ŵ)` lands to the private image depends on whether the chart can represent it at all.
+
 So the honest capacity statement for the whole attack is:
 
 | channel | boundary | provenance | failure mode past it |
 |---|---|---|---|
 | certificate (Primitive 1-2) | `k < r − N` | **†bundle** (`results_rev9.pdf` Fig. 1) — **not reproduced in this repo**; there is no `C`-only recovery experiment under `results/exact_inversion/` | aliases; `C` is blind |
-| simulation (Primitive 3) | `k < m + r − N` | measured here (jobs 467914, 469120, 479587, 479684) | `J` at the truth is rank-deficient; images still sub-percent |
+| simulation (Primitive 3) | `k < m + r − N` | measured here (jobs 467914, 469120, 479587, 479684) and on real MNIST at three ranks (job 568095) | `J` at the truth is rank-deficient; the truth is not isolated, and the alternative points are still 0.2-6.8% reconstructions |
 
 The two rows are **not commensurable measurements** — the first is a bundle number under this project's
 standing rule that bundle numbers stay provisional until reproduced here. So "the difference is exactly
