@@ -2121,7 +2121,7 @@ of the release they contain.
   k = 16 → 62.5% of 10,000 starts, 15 of 20 (N′ 17); **k = 24 → 46.9% of 10,000, 13 of 20 (N′ 16, line 48)**, landings
   per image 0 / 57 / 1,765 (min / median / max), no start at the 1e-20 floor because the certificate residual at the
   recorded truths reaches 0.1 (images present but numerically outside the row space at this N′), argmin on a recorded
-  image, chart error .25; k = 32 → N′ 15 (line 49), residual at recorded truths up to 0.4 (Part B pending). The wide
+  image, chart error .25; **k = 32 → 27.9% of 10,000, 12 of 20 (N′ 15, line 49)**, landings 0 / 30 / 1,544, argmin on a recorded image, chart error .23; k = 40 → N′ 14 (line 50, Part B pending). The wide
   head's release loses rank with k as the confident batch's does (19 → 17 → 16 → 15): the same collapse-with-fidelity.
 - The ladder job (721391) exited on an assertion after its `mnist_control r = 64, k = 16` row (88.8%, 8 of 8); all
   `confident` rows and the `mnist_control` k = 8 rows at every rank were already on disk.
