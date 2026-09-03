@@ -821,6 +821,27 @@ digit ends at $71.1$). Equation~\eqref{eq:imprint} is the basis-free
 replacement, and every rank statement above was unaffected by the
 retraction.}
 
+\paragraph{On a strong model, ordinary private data collapses to one
+recorded example.} The imprint spectrum can be read off the release without
+any private knowledge, and $\sigma_2/\sigma_1(B_T)<10^{-3}$ is the
+attacker's test for ``one example carries this''. Its frequency over the
+forty batches$^\dagger$ (job 650891): $9$ of $10$ on the strong encoder
+($\sigma_2/\sigma_1$ from $4.8\times10^{-16}$ to $0.07$; ranks
+$1,1,1,3,3,4,6,6,6,8$), and $0$ of $10$ on both the weak and the mid
+encoders ($0.021$--$0.58$ and $0.005$--$0.69$). Both \emph{ordinary} random
+draws trigger on the strong model ($2.1$ and $2.9\times10^{-5}$ raw), and
+the single non-trigger there is the batch built to contain two low-margin
+examples. So the reduction to one recorded example is not a curiosity of one
+draw: on this $97.9\%$ model it is what ordinary private data does, and it
+never happens on the weaker ones.\footnote{The test can fire for the wrong
+reason. The random encoder produces one false positive
+($\sigma_2/\sigma_1=8.7\times10^{-4}$ at full rank $8$) on a batch of eight
+$1$s, all at residual $\approx0.95$: there the spectrum reflects the near
+collinearity of the features, not a difference in what was recorded. A
+spectral gap is evidence about the release, not automatically about the
+margins, and a negative control that acts on a non-triggered read is what
+makes the test load-bearing.}
+
 \paragraph{Private data from a different distribution is more exposed, on
 both axes.} The mechanism predicts that data unlike anything the base model
 has seen is recorded in full, since the model gets it wrong; the chart
