@@ -37,6 +37,14 @@ def main():
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--a0-seed", type=int, default=1)
     ap.add_argument("--on-chart", action="store_true", help="evaluate on the PCA projection of the digits (cell a) instead of the raw digits")
+    ap.add_argument("--pick", choices=["draw", "confident", "hard1_same", "hard1_diff"], default="draw",
+                    help="batch composition, margins taken under --pick-model over the test split: "
+                         "draw = the cells' random draw (--labels); confident = the N largest-margin digits of N "
+                         "distinct classes (prediction: every column < 1e-6, rank loss outright); "
+                         "hard1_same = the most-misclassified digit + the N-1 largest-margin digits of ITS class; "
+                         "hard1_diff = the same hard digit + the largest-margin digit of N-1 other classes "
+                         "(prediction: the Gram coupling lifts the same-class batch, not the different-class one)")
+    ap.add_argument("--pick-model", default="models/exact_inversion/mnist_mlp_strong.pth")
     ap.add_argument("--n-fit", type=int, default=50000)
     ap.add_argument("--data-root", default="dataset_reconstruction/data")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -48,13 +56,36 @@ def main():
     norm_bb = TrainedBackbone(a.norm_model, dev, "gelu")
     perm = torch.randperm(Xte_t.shape[0], generator=torch.Generator().manual_seed(a.seed + 7))
     chart = PCAChart(Xtr_t, a.k, dev) if a.on_chart else None
+    picked = None
+    if a.pick != "draw":
+        ref = TrainedBackbone(a.pick_model, dev, "gelu")
+        with torch.no_grad():
+            z = ref.logits(Xte_t.T); zy = z[yte_t, torch.arange(z.shape[1], device=dev)]
+            zo = z.clone(); zo[yte_t, torch.arange(z.shape[1], device=dev)] = -float("inf")
+            mar = (zy - zo.max(0).values).cpu()
+        def top_of(c, n, exclude=()):
+            cand = [(float(mar[i]), i) for i in range(len(mar)) if int(yte[i]) == c and i not in exclude]
+            return [i for _, i in sorted(cand, reverse=True)[:n]]
+        if a.pick == "confident":
+            picked = [top_of(c, 1)[0] for c in sorted(range(10), key=lambda c: -float(top_of(c, 1) and mar[top_of(c, 1)[0]]))[:a.N]]
+        else:
+            hard = int(torch.argmin(mar)); c = int(yte[hard])
+            if a.pick == "hard1_same":
+                picked = [hard] + top_of(c, a.N - 1, exclude={hard})
+            else:
+                others = [k for k in range(10) if k != c]
+                others = sorted(others, key=lambda k: -float(mar[top_of(k, 1)[0]]))[:a.N - 1]
+                picked = [hard] + [top_of(k, 1)[0] for k in others]
+        print(f"# pick={a.pick} under {a.pick_model}: idx={picked} y={[int(yte[i]) for i in picked]} "
+              f"margins={[round(float(mar[i]), 2) for i in picked]}", flush=True)
+        a.labels = [a.pick]
     print(f"# margin check  encoders={a.encoder}  labels={a.labels}  on_chart={a.on_chart}  git={git_hash()}", flush=True)
     for spec in a.encoder:
         label, path = spec.split("=", 1)
         bb = RandomBackbone(norm_bb, dev, a.encoder_seed) if path == "random" else TrainedBackbone(path, dev, "gelu")
         sigma0 = a.sigma0 if a.sigma0 is not None else 1.0 / math.sqrt(bb.n)
         for lmode in a.labels:
-            idx = torch.tensor(pick_digits(perm, yte, a.N, lmode), device=dev)
+            idx = torch.tensor(picked if picked is not None else pick_digits(perm, yte, a.N, lmode), device=dev)
             X = Xte_t[idx].T.contiguous(); y = yte_t[idx]
             if chart is not None: X = chart.psi(chart.coords_of(X))
             H = bb.phi(X); z = bb.W0 @ H                                   # logits at W0 (B0 = 0)
@@ -68,7 +99,7 @@ def main():
             P_T = B_T @ Xs @ torch.linalg.inv(Xs.T @ Xs)
             colP = torch.linalg.norm(P_T, dim=0); sB = torch.linalg.svdvals(B_T)
             for i in range(a.N):
-                row = dict(encoder=label, labels=lmode, image=i, y=int(y[i]), margin_W0=float(margin[i]),
+                row = dict(encoder=label, labels=lmode, pick=a.pick, image=i, y=int(y[i]), margin_W0=float(margin[i]),
                            residual_W0=float(res0[i]), P_T_col_norm=float(colP[i]),
                            P_T_over_res0=float(colP[i] / res0[i]) if float(res0[i]) > 0 else None,
                            rank_B_T=int((sB > 1e-12 * sB[0]).sum()), B_T_sigma_ratio=float(sB[a.N - 1] / sB[0]),

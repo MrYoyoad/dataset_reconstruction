@@ -1286,3 +1286,44 @@ asymmetric in a way that matters for privacy: **what leaks is what the model had
 compute from the model and the data before releasing anything — predicts which examples the adapter will
 carry, up to the Gram coupling. Not yet shown: that a below-line cell on the strong model returns the *wrong*
 confident images at the residual floor (the alias form of this); job 614344's strong sweep is the place to look.
+
+### Step 17 result — multi-layer LoRA does not invert at this budget, seeds known or not (job 626564)
+
+`multilayer_lora.py` after the grad fix (commit `0b1c091`): LoRA `r = 8` on all three layers of the 78% MLP,
+`T = 100`, `lr = 0.01`, `N = 8`, `k = 14`, global PCA chart, start `W_true + 0.10·noise`, LBFGS. Gate: the
+simulator reproduces the release at the truth to **0.0**. Released numbers 38,352; unknowns 112 (data) + 22,272
+(seeds).
+
+| arm | unknowns | residual | err vs chart (max) | images < 1e-2 | seconds |
+|---|---|---|---|---|---|
+| A — seeds KNOWN (oracle) | 112 | 2.2e-8 | 7.4e-2 | 3 / 8 | 64 |
+| B — seeds UNKNOWN (the attack) | 22,384 | 7.7e-7 | 7.9e-2 | 1 / 8 | 132 |
+
+Both arms are **optimisation failures** (residual 20+ orders above the floor), not aliases, and the oracle arm
+fails almost as badly as the honest one — so at this budget the obstruction is the unrolled three-layer map
+itself, not the unknown seeds. The count (38,352 > 22,384) says nothing against identifiability; nothing here
+says anything for it either. Outside the theorems ((A1) fails: adapting layer 1 moves the features); empirical
+only. Next honest step, if pursued: the LM solver on arm A (112 unknowns is LM-sized) and `σ_min(J)` at the
+truth, which is the same instrument as everywhere else. (Provenance note: the two rows carry different git
+hashes — a sibling session committed to the branch between the arms; `multilayer_lora.py` itself did not change.)
+
+### Step 18, β-family first point (job 626565) — richness at fixed decoder family does not move conditioning
+
+`truth_spectrum.py` on the saved decoders, weak encoder, repeated draw, `k = 16`, three inner-projection
+budgets, three `A₀` seeds at the last one, three perturbations of `1e-3·std`:
+
+| chart | chart's best (repr err) | inner loss (300 / 1000 / 3000) | σ_min(J) at truth (levels; seeds; perturbations) | decoder Jacobian σ_min / σ_max |
+|---|---|---|---|---|
+| global PCA | 0.421 | — | 3.3e-8 / 2.4e-8 / 1.5e-8 (seeds) | 1 / 1 (orthonormal) |
+| VAE β = 1 (GELU) | 0.339 | 90.47 / 90.47 / 90.47 | 1.13e-11 at every level; 1.13–1.67e-11 (seeds); 1.13–1.14e-11 (perturbations) | 0.0080 / 6.69 |
+| VAE β = 0.25 (GELU) | **0.222** | 47.11 / 47.08 / 47.07 | 1.15e-11 / 1.15e-11 / 1.22e-11; 0.99–1.28e-11 (seeds) | 0.012 / 6.2 |
+
+- **The inner-projection confound is closed, not argued:** the on-chart truth is at the same inner loss at 300
+  and 3000 steps, `σ_min` is identical across levels and under perturbation. (The inner gradient norm *rises*
+  at 3000 — Adam at fixed `lr` bouncing around a converged minimum, not a moving truth.)
+- **Richness within one decoder family does not change conditioning:** β = 0.25 draws markedly better than
+  β = 1 (0.222 vs 0.339) at the *same* `σ_min` (1.15e-11 vs 1.13e-11). Together with the PCA pair inverting on
+  the mid and random encoders (earlier in Step 18), **"richer chart ⇒ worse conditioned" is dead as a general
+  statement.** What survives: on this encoder the VAE family sits ~2000× below PCA in `σ_min`, and the decoder's
+  own conditioning (σ_max/σ_min ≈ 400–830 vs exactly 1) is the right size for most of that — consistent with
+  decoder geometry, not evidence about the encoder. β = 4, 16, ReLU and cVAE follow when their artefacts land.

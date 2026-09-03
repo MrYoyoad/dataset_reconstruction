@@ -186,8 +186,18 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   with overlapping features is in the batch (a misclassified 3 puts the confident 3 back at 1.6 through the
   feature Gram) — which is also how the rank loss arises. Reading: **what leaks is what the model had to
   learn**; the per-example residual at `W₀` is a defender-side predictor of which examples the adapter carries.
-- **Withdrawn:** "chart quality costs conditioning" as a general statement (holds only on the weak checkpoint
-  across the four charts; VAE half unmeasured elsewhere). Multi-layer job 608693 died on a code error — not a result.
+- **Withdrawn:** "richer chart ⇒ worse conditioned" as a general statement — the PCA pair inverts on the mid and
+  random encoders, and within the VAE family β = 0.25 draws better (0.222 vs 0.339) at the *same* `σ_min`
+  (1.15e-11 vs 1.13e-11; job 626565). The VAE's ~2000× gap to PCA on the weak encoder is the size of its own
+  decoder conditioning (400–830 vs 1). The inner-projection confound is closed: same truth at 300/1000/3000 inner
+  steps, same `σ_min` under perturbation.
+- **Multi-layer LoRA (job 626564, after the grad fix): optimisation failure in BOTH arms** — seeds known (112
+  unknowns) residual 2.2e-8, 3/8 images; seeds unknown (22,384) 7.7e-7, 1/8. Gate 0.0. The three-layer unroll is
+  the obstruction at this budget, not the seeds. Empirical, outside the theorems; no identifiability statement.
+- **In flight:** batch-composition test of the coupling (job 627166: all-confident batch → predicted rank loss
+  outright; one hard + seven confident, same class vs different classes → separates "overlapping features" from
+  "same label"); chart budget reruns (624463); β = 4, 16 (624465); random-encoder ladder (624573); strong sweep
+  (614344) — where the alias form (wrong confident digits at the residual floor) would show.
 - **Q-parametrisation: exact (gate 1.4e-15), 132 unknowns instead of 224, and it does NOT widen the basin**
   (1/3 vs 0/3 at 1.5×, 0/3 both beyond). The seed was never the obstruction. Closed.
 - **Genuineness audit (read-only sibling, code + rows): nothing self-confirming.** Ground truth never reaches the
