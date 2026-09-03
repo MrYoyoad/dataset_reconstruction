@@ -701,6 +701,32 @@ cells reaching the residual floor at $80$ iterations, and those needing
 $300$).}\label{fig:cond}
 \end{figure}
 
+\paragraph{A free convergence certificate in image space.} The identity above
+is not only a result; it is an instrument. On an on-chart cell a converged
+inversion \emph{must} land on the chart's own best point, so
+$\bigl|\,\text{median image error}-\text{chart representation error}\,\bigr|$
+is zero at convergence and grows as the solver falls short — an image-space
+diagnostic that costs nothing, needs no floor known in advance, and is
+independent of the residual. Measured across twenty-two on-chart rows it
+tracks the residual over fourteen orders$^\dagger$: $0$ at residuals
+$10^{-31}$, $10^{-13}$ at $5\times10^{-17}$, $10^{-7}$ at $10^{-14}$,
+$1.6\times10^{-3}$ at $2.9\times10^{-9}$. Two uses. At the fixed $80$-iteration
+budget of the trained-model sweep it gives the shortfall as a curve in $k$ —
+$3.8\times10^{-8}$, $7.2\times10^{-5}$, $4.1\times10^{-4}$,
+$1.5\times10^{-3}$, $2.4\times10^{-3}$ at $k=14,16,17,18,20$ — for cells that
+never reached the floor at all. And it flags the least converged member of a
+comparison independently of the residual: among the four charts of
+\S\ref{sec:opens} it singles out the ReLU-decoder VAE ($1.6\times10^{-3}$
+against $10^{-13}$--$10^{-6}$ for the rest), the same cell whose
+solved $\sigma_{\min}$ is three times its value at the truth.\footnote{One
+asymmetry to record while using it: for a PCA chart the projection onto the
+chart is exact (orthonormal basis, closed form), while for a VAE chart it is
+itself a $300$-step optimisation, so the VAE representation errors are upper
+bounds. That biases conservatively for the richness ordering — an
+under-converged inner projection overstates a VAE's error and so understates
+its richness — but the two families' richness axes are not measured to the
+same standard.}
+
 \paragraph{The boundary is about the chart, not the image.} Same digits,
 same $N=8$, $m=10$, $r=16$, line $k<18$; three charts at matched $k$\textsuperscript{$\dagger$}
 (job 574169): the principal subspace (PCA), the same subspace under a
