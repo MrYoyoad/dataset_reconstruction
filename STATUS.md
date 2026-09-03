@@ -302,6 +302,10 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   floor is itself the proof; 2,000 starts per cell running there (706721). Two audit catches folded: a blank
   image drove the constant-normalised objective to zero (fixed: `‖Cφ‖/‖A_Tφ‖`), and off-chart the certificate has
   no zero at all (Part B on-chart only).
+- **Membership needs no fidelity (723107):** from a recovered k-projection, the source is identified among 10,000
+  projected candidates with certainty at every k, robust to coordinate noise of 3% at k ≥ 8 (0.3% at k = 2) —
+  the six-coordinate chart that cannot draw a digit answers "was this record in the training set". Subset test
+  (706597, corrected): predicted floor = residual at the recorded truth (1.1e-16 both), solve reaches it.
 - **Precision is a privacy parameter (722663):** quantising the release erases every direction of `B_T` below the
   rounding noise — certificate-recoverable images 6 → 3 → 0 → 0 → 0 across FP64 → FP32 → TF32 → FP16 → bf16 on the
   repeated draw (spectrum 1, 2e-4, 1e-5, 9e-9 …); a bfloat16 adapter keeps one direction. Tolerance rule 10×eps.

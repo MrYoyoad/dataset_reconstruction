@@ -45,6 +45,18 @@ cell (VAE-ReLU) has a solved σ_min 3× its truth σ_min. At the truth the order
 script — `truth_spectrum.py` already does; the cell scripts get it at their next safe edit (all are under running
 jobs as of 2026-09-03 evening), and until then it is recomputed from the two truth fields, never read off `jac_cond`.
 
+**Three from the certificate night (2026-09-03).** (1) *A structural cap found by a cell that "failed":* the
+twenty-image cell was built to give 190 pairs for a correlation; it gave rank 9 and no certificate-recoverable
+image, because the accumulated error vectors live on the softmax simplex and at most `m − 1` of them are
+independent — `N′ ≤ m − 1` is a second line on the certificate channel, the same `m − 1` as in the capacity count.
+When a designed cell returns "nothing", read its spectrum before calling it a basin problem. (2) *Read the setting
+field before the number:* a "0 of 500 starts" I reported as a basin collapse was the RAW cell of a job that ran
+both settings, on which the truth is not on the chart and there is no solution by construction; the on-chart cell
+sat at 18%. Every row carries `setting`; the monitor's filter printed it and I did not look. (3) *Tolerances follow
+the dtype:* re-reading `rank B_T` after quantising a release at a fixed 1e-12 tolerance would read rounding noise as
+extra rank; the tolerance must scale with the dtype's epsilon, and the operative quantity is each direction's size
+against the quantisation noise, not the rank alone.
+
 **The batch size is part of the recipe (2026-09-03, night).** Simulating a SUBSET of the private images with the
 original learning rate silently changed the recipe, because the gradient is divided by the number of images the
 simulator is given: the subset residual at the recorded images' own truth was 1e-2 instead of the predicted
