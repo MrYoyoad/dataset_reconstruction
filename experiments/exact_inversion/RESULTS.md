@@ -2283,3 +2283,11 @@ not with O(1) intermediates, or 7.6e-18 would be roundoff), and the fraction of 
 zero. Falsifier made precise (yoado-6e): fp32 at confident k = 32 should give a *nonzero* release ~√2 below FP64
 (own-class rows lost); an exactly-zero fp32 release breaks the off-class/own-class split. The letters' projected
 margins at t = 1 are read from the fp64 row before the letter predictions are held to (yoado-ed's caution).
+
+*Letters prediction written before the rows (yoado-ed):* the digits collapsed because projection **raised** their
+margins toward the model's confidence. The letters start at margin −10.8 — the model is wrong about them, not
+unsure — and projection cannot make a head with a zero row correct about that class, so their `t = 1` margins should
+stay negative at every k and their imprints of order one. If the fp64 rows show that, the collapse mechanism is
+confirmed by the case that escapes it. The fork it decides for the write-up: letters at k = 32 with O(1) imprints
+= one cell that is both robust to arithmetic and instance-identifying (lead of the measured section); letters
+collapsing as the projections sharpen = robust-but-coarse beside sharp-but-cornered.
