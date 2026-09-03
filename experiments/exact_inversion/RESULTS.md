@@ -2027,6 +2027,7 @@ raw-digit case has no certificate zero — Step 22), Adam (no certificate), or a
 
 | 64 | 40 | 8 | 56 | 16 | 45.2% | 5.7% | 8/8 | .97 | .97 |
 | 64 | 48 | 8 | 56 | 8 | 20.6% | 2.6% | 8/8 | .975 | .99 |
+| 64 | 56 | 7 | 57 | 1 | 2.0% | 0.3% | 4/7 | .978 | .99 |
 
 **The mirror pair (equal slack, different `k`):** `r = 32, k = 8` (17 below) has a per-image basin of 10.6%;
 `r = 64, k = 40` (16 below) 5.7%. So at held distance, 32 more unknowns cost about 2× in basin — distance
@@ -2039,7 +2040,9 @@ construction — so the declining per-image basin (13.8 → 28.6 → 11.9 → 8.
 either; the attribution is carried by the fixed-`k` arm and the mirror pair, which varied one at a time, and the
 series is consistent with them, not evidence for them. What the series *does* show: **every cell in the admissible
 range finds all recorded images with the argmin correct** — from `k = 8` at 13.8% per image to `k = 48` at 2.6% —
-so at `r = 64` the entire admissible chart range is attackable and only the *cost* varies, a factor of five,
+so at `r = 64` the admissible chart range up to `k = 48` is attackable and only the *cost* varies, a factor of five
+(at `k = 56`, one below the line, the basin collapses to 0.3% per image and 4 of 7 are found — the same one-below
+collapse the fixed-`k` arm showed at rank 16),
 against a fidelity that climbs from class-only (.11 instance id) to .99. There is no dimension in that range
 where the attacker is stopped, only ones where they must buy more starts. (The `k = 16` point has `N′ = 3`
 against seven or eight elsewhere — a coarse estimate, not to carry weight either way.) At `r = 32` the admissible
