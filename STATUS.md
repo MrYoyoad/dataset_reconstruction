@@ -7,6 +7,28 @@ Rev 9 number used) + three figures in `figures/rev10/` (generators `scripts/rev1
 `results/exact_inversion/*.jsonl` and `spectrum_*.pth`). Written with an adversarial sibling review (yoado-6c,
 yoado-d0); four errors caught and fixed before shipping are logged in LESSONS_LEARNED.md (same date).
 
+**NEW CLASS vs ORDINARY DATA — the matched control (2026-09-03, job 658575).** One encoder (98% MNIST MLP),
+one 11-row head, one recipe, raw images. Eight MNIST digits: median margin 17.9, imprints 7e-22 … 1,
+`rank B_T = 6` of 8, mean pairwise imprint cosine 0.04 — mostly ABSENT. Eight EMNIST 'a': median margin
+−10.8, imprints all 0.3–1, `rank B_T = 8`, cosine 0.52 — PRESENT IN FULL and aligned. **Model quality and
+category novelty are INDEPENDENT axes of exposure.** The "a confident model records nothing" defence is
+real but does NOT apply where fine-tuning adds a capability the base model lacks — the canonical reason to
+fine-tune. (On-chart row of the same job excluded: the letter-fitted chart projects digits badly enough that
+the model misreads and records them all — chart artefact, not the comparison.)
+
+**Two more caps and a lever.** (a) `N' ≤ m−1`: imprint columns carry the softmax zero-sum, so
+`rank B_T ≤ min(m−1, r, N')`; with more than m−1 recorded, row(B_T) aligns with NO individual example and the
+certificate fails for all of them at once (20 optdigits on a 10-class head: rank 9, residuals 0.3–0.5 for
+every image in FP64, invariant across k ∈ {8…40}). Positive control running (job 725918: same MLP, padded
+26-logit head, 16 logits never targets — only m changes; predicted rank 9 → 20, residuals → floor).
+(b) **Release precision is a privacy lever**: counting by the GAP (recorded ≥2 orders below the smallest
+invisible residual), FP64 → bfloat16 falls 6 → 0, 6 → 1, 3 → 1, 4 → 0 across four batches. Honest sentence:
+**bfloat16 narrows the recipe-free channel to at most one example; it does not close it.** A fixed 1e-3
+threshold would have returned zero by construction (bf16 noise is 1e-3–2e-3) — that version is withdrawn.
+(c) **Membership needs no fidelity**: the source stays top-1 among 10k candidates under coordinate
+perturbation 3e-2 at every k ≥ 8, while solves land at 1e-15 — ten orders of slack. Blurriness is no defence
+against the question most privacy regimes ask.
+
 **FIRST FROM-NOTHING RECOVERY (2026-09-03, job 706721).** The certificate route recovers recorded private
 images from random public-scale starts with **no recipe, no labels, no N and no proximity to the truth** —
 the first arm in this study an attacker could actually run. On-chart at k=6 (N'=7 recorded, certificate line
