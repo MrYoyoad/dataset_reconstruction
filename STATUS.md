@@ -340,8 +340,10 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   26-class (EMNIST letters) head would be needed. Eight-image cells unaffected.
 - **Rank buys reachability, not only budget (721391, fixed-k arm):** at the same k = 8, the certificate basin is
   16.6% of random starts at r = 16 (one below its line) and **74.4% at r = 32** (seventeen below); second batch 4%
-  (at its line) → 73.4%. Distance below the line governs the basin, not k. The LoRA rank is a leakage dial for
-  budget, fidelity and reachability at once — and it is the knob turned for utility. r = 64 pending.
+  (at its line) → 73.4% → 89.0%; first batch 16.6 → 74.4 → **96.4%** at r = 16 / 32 / 64 (1 / 17 / 49 below the
+  line). Distance below the line governs the basin, not k, and it saturates. The LoRA rank is a leakage dial for
+  budget, fidelity and reachability at once — and it is the knob turned for utility. The cell combining all three
+  (r = 64, k = 32: admissible, 25 below, instance-identifying at .94) is running (728592).
 - **Fidelity axis, standalone (719793/721003, 2,000 held-out digits):** class survival of a k-dim PCA projection
   (strong-model accuracy) .52/.68/.88/.95/.97/.98 at k=6/8/16/24/32/56; instance survival (nearest-neighbour
   self-identification among 10k raw digits) .04/.11/.57/.84/.94/.99 at the same k. At rank 16 the certificate's

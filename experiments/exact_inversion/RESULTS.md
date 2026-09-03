@@ -1867,10 +1867,12 @@ reading a solve — caught it one row late; the ladder and the twenty-image cell
 |---|---|---|---|---|---|---|
 | 16 | 9 | 1 | **16.6%** | 16.0% | 6 of 7 | on a private image |
 | 32 | 25 | 17 | **74.4%** | 70.0% | 7 of 7 | on a private image |
-| 64 | 57 | 49 | *(pending)* | | | |
+| 64 | 57 | 49 | **96.4%** | 87.0% | 7 of 7 | on a private image |
 
 Second batch, `mnist_control` (`N′ = 8`), same `k = 8`: `r = 16` sits *at* its line (8) — 4% on a private image,
-argmin wrong; `r = 32` (line 24, sixteen below) — **73.4%**, all eight found, argmin correct, floor 69%.
+argmin wrong; `r = 32` (line 24, sixteen below) — **73.4%**, all eight found, argmin correct, floor 69%; `r = 64`
+(line 56, forty-eight below) — **89.0%**, all eight found. The basin saturates with distance below the line:
+16.6 → 74.4 → 96.4% at distances 1 → 17 → 49 (first batch).
 Same chart, same images, same `k`, same starts: the basin quadruples when the same `k` sits seventeen rather than
 one below the line, and goes from the at-line regime to 73% for the second batch. **Distance below the certificate line governs the basin, not `k` itself — rank buys
 reachability as well as budget.** (`mnist_control` at `r = 16, k = 8` sits *at* its line — all eight recorded, line
