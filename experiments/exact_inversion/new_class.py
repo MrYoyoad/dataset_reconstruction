@@ -27,7 +27,8 @@ from experiments.exact_inversion.margin_check import traced_release
 from experiments.exact_inversion.subset_and_ood import margins_of
 
 torch.set_default_dtype(torch.float64)
-FLOWER_FINE = [54, 62, 70, 82, 92]                       # orchid, poppy, rose, sunflower, tulip (coarse class 2, "flowers")
+FLOWER_FINE = [54, 62, 70, 82, 92]
+CIFAR10_NAMES = ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"]                       # orchid, poppy, rose, sunflower, tulip (coarse class 2, "flowers")
 
 
 def load_cifar100_flowers(root):
@@ -40,10 +41,17 @@ def load_cifar100_flowers(root):
 
 
 class ExtendedHead:
-    """The CIFAR-10 backbone with its head extended by a zero row for the new class (m = 11)."""
-    def __init__(self, bb, n_new=1):
+    """The CIFAR-10 backbone with its head extended by one row for the new class (m = 11): zero (the practice) or
+       Gaussian at the RMS norm of the existing rows (so the new class starts with margins of ordinary spread,
+       which lets the imprint law be TESTED against initial margins rather than exhibited by construction)."""
+    def __init__(self, bb, init="zero", seed=0):
         self.W1, self.b1, self.W2, self.act = bb.W1, bb.b1, bb.W2, bb.act
-        self.W0 = torch.cat([bb.W0, torch.zeros(n_new, bb.W0.shape[1], device=bb.W0.device)], 0)
+        if init == "zero":
+            row = torch.zeros(1, bb.W0.shape[1], device=bb.W0.device)
+        else:
+            g = torch.Generator().manual_seed(seed); row = torch.randn(1, bb.W0.shape[1], generator=g).to(bb.W0.device)
+            row = row * (torch.linalg.norm(bb.W0, dim=1).pow(2).mean().sqrt() / torch.linalg.norm(row))
+        self.W0 = torch.cat([bb.W0, row], 0); self.new_row_init = init
         self.m, self.n = self.W0.shape
     phi = TrainedBackbone.phi
     logits = TrainedBackbone.logits
@@ -72,7 +80,10 @@ def main():
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--init-noise", type=float, default=0.10)
     ap.add_argument("--restarts", type=int, default=2); ap.add_argument("--lm-iters", type=int, default=600)
-    ap.add_argument("--batches", nargs="*", default=["flowers", "cifar10", "mixed"])
+    ap.add_argument("--batches", nargs="*", default=["flowers", "cifar10_ext", "cifar10_m10", "mixed1", "mixed4", "mixed7"],
+                    help="cifar10_ext = 8 CIFAR-10 test images on the EXTENDED head (m matched, zero row never the target); "
+                         "cifar10_m10 = same on the unextended head (reference); mixedF = F flowers + (8-F) CIFAR-10")
+    ap.add_argument("--new-row", nargs="*", default=["zero", "random"], help="initialisation of the new class row")
     ap.add_argument("--charts", nargs="*", default=["flower_pca", "cifar_pca"])
     ap.add_argument("--cells", nargs="*", default=["a", "b"])
     ap.add_argument("--n-fit", type=int, default=50000)
@@ -86,15 +97,21 @@ def main():
     base = TrainedBackbone(a.model, dev, "gelu")
     with torch.no_grad():
         acc = float((base.logits(Xte_t.T).argmax(0) == yte_t).double().mean())
-    ext = ExtendedHead(base)
     if a.sigma0 is None: a.sigma0 = 1.0 / math.sqrt(base.n)
     g = torch.Generator().manual_seed(a.seed + 7)
     pf = torch.randperm(Fte_t.shape[0], generator=g)[:a.N]; pc = torch.randperm(Xte_t.shape[0], generator=g)[:a.N]
     flowers = (Fte_t[pf].T.contiguous(), torch.full((a.N,), 10, device=dev), [int(v) for v in fte_fine[pf.numpy()]])
     cifar = (Xte_t[pc].T.contiguous(), yte_t[pc], None)
-    mixed = (torch.cat([flowers[0][:, :a.N // 2], cifar[0][:, :a.N // 2]], 1), torch.cat([flowers[1][:a.N // 2], cifar[1][:a.N // 2]]), None)
-    batches = dict(flowers=(flowers, ext), cifar10=(cifar, base), mixed=(mixed, ext))
-    print(f"# new_class  CIFAR-10 backbone acc {acc*100:.2f}%  flowers fine labels {flowers[2]}  ks={a.ks}  git={git_hash()}", flush=True)
+    def mixed(F):
+        return (torch.cat([flowers[0][:, :F], cifar[0][:, :a.N - F]], 1), torch.cat([flowers[1][:F], cifar[1][:a.N - F]]), flowers[2][:F] + [None] * (a.N - F))
+    heads = {init: ExtendedHead(base, init, a.seed) for init in a.new_row}
+    def batch_of(bname, init):
+        if bname == "flowers": return flowers, heads[init]
+        if bname == "cifar10_ext": return cifar, heads[init]
+        if bname == "cifar10_m10": return cifar, base
+        if bname.startswith("mixed"): return mixed(int(bname[5:])), heads[init]
+        raise ValueError(bname)
+    print(f"# new_class  CIFAR-10 backbone acc {acc*100:.2f}%  flowers fine labels {flowers[2]}  ks={a.ks}  new_row={a.new_row}  git={git_hash()}", flush=True)
     if a.save_dir: os.makedirs(a.save_dir, exist_ok=True)
     saved = []
     for k in a.ks:
@@ -103,7 +120,8 @@ def main():
         if "flower_pca" in a.charts: charts["flower_pca"] = PCAChart(Ftr_t, k, dev)          # public flowers (train split)
         if "cifar_pca" in a.charts: charts["cifar_pca"] = PCAChart(Xtr_t, k, dev)            # generic public images
         for bname in a.batches:
-            (X_real, y, fine), bb = batches[bname]
+          for init in (a.new_row if bname != "cifar10_m10" else ["n/a"]):
+            (X_real, y, fine), bb = batch_of(bname, init if init != "n/a" else a.new_row[0])
             line = bb.m + a.r - a.N
             A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g)).to(dev)
             for cname, chart in charts.items():
@@ -114,11 +132,17 @@ def main():
                     H = bb.phi(X_train); A_T, B_T = train_release(H, A0, bb.W0, y, bb.m, a.T, a.lr, "sgd")
                     _, _, _, _, C = traced_release(H, A0, bb.W0, y, bb.m, a.T, a.lr)
                     assert float(torch.linalg.norm(C.sum(0) - B_T) / torch.linalg.norm(B_T)) < 1e-10
-                    imp = torch.linalg.norm(C.reshape(a.N, -1), dim=1); sB = torch.linalg.svdvals(B_T)
+                    Cf = C.reshape(a.N, -1); imp = torch.linalg.norm(Cf, dim=1); sB = torch.linalg.svdvals(B_T)
+                    Cn = Cf / imp[:, None]; cos = Cn @ Cn.T; sG = torch.linalg.svdvals(Cf)          # the imprints' Gram: magnitude vs ANGLE
+                    off = cos[~torch.eye(a.N, dtype=torch.bool, device=dev)]
                     with torch.no_grad(): pred = bb.logits(X_train).argmax(0)
                     row = dict(part="new_class", batch=bname, chart=cname, setting=setting, k=k, m=bb.m, n=bb.n, N=a.N, r=a.r, T=a.T, lr=a.lr,
                                seed=a.seed, capacity_line=line, below_line=bool(k < line), backbone_test_acc=acc, y=y.tolist(), fine_labels=fine,
-                               pred_at_W0=pred.tolist(), acc_at_W0=float((pred == y).double().mean()),
+                               new_row_init=init, pred_at_W0=pred.tolist(), pred_names_at_W0=[CIFAR10_NAMES[int(v)] if int(v) < 10 else "flower" for v in pred],
+                               acc_at_W0=float((pred == y).double().mean()),
+                               imprint_gram_sigma_ratio=float(sG[-1] / sG[0]), imprint_gram_cond=float(sG[0] / sG[-1]),
+                               imprint_cos_offdiag_min=float(off.min()), imprint_cos_offdiag_max=float(off.max()), imprint_cos_offdiag_mean=float(off.mean()),
+                               imprint_cos=[[float(v) for v in row_] for row_ in cos],
                                margins=[float(v) for v in mar], margin_median=float(mar.median()), residual_W0=[float(v) for v in res0],
                                imprint_norms=[float(v) for v in imp], imprint_rel=[float(v / imp.max()) for v in imp],
                                rank_B_T=int((sB > 1e-12 * sB[0]).sum()), rank_B_T_1e8=int((sB > 1e-8 * sB[0]).sum()),
@@ -130,7 +154,7 @@ def main():
                         with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
                 for cell in a.cells:
                     r, X_hat, X_on_c = invert_cell(chart, bb, X_real, y, a, cell, dev, g, lambda s: None)
-                    r.update(part="new_class", batch=bname, chart=cname, k=k, m=bb.m, n=bb.n, N=a.N, r=a.r, T=a.T, lr=a.lr, seed=a.seed,
+                    r.update(part="new_class", batch=bname, chart=cname, new_row_init=init, k=k, m=bb.m, n=bb.n, N=a.N, r=a.r, T=a.T, lr=a.lr, seed=a.seed,
                              capacity_line=line, below_line=bool(k < line), backbone_test_acc=acc, y=y.tolist(), fine_labels=fine,
                              oracle=["near_init", "labels"], init_noise=a.init_noise, identifiability_test=True,
                              git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
@@ -138,7 +162,7 @@ def main():
                     if a.out:
                         with open(a.out, "a") as f: f.write(json.dumps(r) + "\n")
                     if a.save_dir:
-                        p = os.path.join(a.save_dir, f"{bname}_{cname}_k{k}_{cell}.pth")
+                        p = os.path.join(a.save_dir, f"{bname}_{init}_{cname}_k{k}_{cell}.pth")
                         torch.save(dict(x_real=X_real.cpu(), x_chart=X_on_c.cpu(), x_hat=X_hat.cpu(), meta=r), p); saved.append(p)
     if a.fig and saved: grid(saved, a.fig)
 
