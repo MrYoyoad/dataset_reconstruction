@@ -45,6 +45,15 @@ cell (VAE-ReLU) has a solved σ_min 3× its truth σ_min. At the truth the order
 script — `truth_spectrum.py` already does; the cell scripts get it at their next safe edit (all are under running
 jobs as of 2026-09-03 evening), and until then it is recomputed from the two truth fields, never read off `jac_cond`.
 
+**A residual normalised by a constant can be driven to zero by a degenerate candidate (2026-09-03, night).** The
+certificate-only inversion minimised `‖Cφ(ψ(w))‖²/‖A_T‖²`; a blank image sends the GELU features to zero and the
+objective with them, and the attacker's own argmin picked those "solutions" (1e-32 objective, image error ≈ 1).
+The genuineness auditor caught it from the code. Rule: normalise by a candidate-dependent scale so the objective
+is invariant to shrinking the candidate — here `‖Cφ‖/‖A_Tφ‖`, the sine of an angle — and, before trusting any
+argmin, ask what the cheapest degenerate input does to the objective. Second lesson from the same run: a hard
+constraint (`Ch = 0`) has no approximate form, so it is only usable where the truth lies on the search manifold
+(on-chart); off-chart it finds spurious exact zeros with confidence.
+
 **A cross-dataset comparison needs a matched-nuisance control before it is a finding (2026-09-03, late).** "The
 MNIST chart draws foreign digits better than MNIST" (0.32 vs 0.52) read as a surprise about the chart until the
 same MNIST digits were pushed through the foreign set's own 8-px resolution pipeline on the same basis: 0.320.

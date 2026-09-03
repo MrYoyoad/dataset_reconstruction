@@ -1597,10 +1597,17 @@ shared-label structure only, not a quality replication.
 In the imprint form `B_T ≈ Σ_i q_i (A₀h_i)ᵀ` the row space is spanned by `A₀h_i` of the *recorded* images only, so
 
 ```
-C h_i = 0  for recorded images,   C h_i ≠ 0  for invisible ones,   rank C = r − N′ .
+C h_i ≈ 0  for recorded images,   C h_i ≠ 0  for invisible ones,   rank C = r − N′ .
 ```
 
-No `η`, `T` or labels enter. So (A) `‖Cφ(x)‖` is a **recipe-free test of whether `x` was recorded**, and (B) for
+(*Exact* only at full rank: `C = P⊥A₀ + P⊥A₀ H M_T Hᵀ`, and below full rank `P⊥` keeps the invisible directions,
+multiplied by the invisible rows of `M_T` — small, not zero. Measured: recorded residuals sit at 1e-10, not
+machine precision, eight orders below the invisible ones; that gap is what a threshold buys. The scaling of
+the recorded residual — 1e-10 against invisible imprints of 1e-14 and 1e-24 — is not simply the imprint scale
+and is an open small-theory question.) No `η`, `T` or labels enter. So (A) `‖Cφ(x)‖` is a **recipe-free test of
+whether `x`'s feature vector lies in the span of the recorded examples' features** — subspace membership,
+necessary not sufficient: a linear combination passes too; tight at `N′ = 1`, a 6-dimensional subspace of ℝ¹⁰⁰⁰
+at `N′ = 6` — and (B) for
 `N′ = 1` the `r − 1` linear-in-features equations `Cφ(ψ(w)) = 0` determine the dominant image when `k < r − 1`,
 with no unrolled dynamics — a recipe-free, label-free inversion. The theory's "`CH = 0` for all N" is hypothesis
 (A4) once more: it holds exactly where every image is recorded and fails where imprints vanish (this is also
@@ -1613,10 +1620,23 @@ the near-duplicate contamination of Step 6, now with its cause). Adam releases h
 | raw | 6 | **10** | 9e-15, **0.8**, 4e-10, 6e-10, 1e-13, **0.5**, 4e-10, 8e-13 — the two O(1) entries are the two highest-margin (invisible) digits |
 | on-chart | 8 | 8 | all eight ≤ 2e-8 |
 
-Prediction confirmed on the first rows: the certificate sees exactly the recorded examples, and an attacker can
-apply it to any candidate image without knowing how the adapter was trained. Part B (certificate-only inversion
-of the dominant image from 16 random public-scale starts, `k ∈ {12, 14, 15, 16}`, certificate line `k < 15`) is
-in flight; the rows will carry `oracle = []`, `recipe_used = False`, `labels_used = False`.
+Confirmed on every batch of job 701679 (`mnist_control`, `hard1_diff`, `confident`; raw and on-chart): certificate
+residual 1e-16 … 1e-8 on every recorded image, 0.1 … 1.0 on every invisible one, `rank C = r − N′` throughout
+(10 with six recorded, 15 with one, 13 with three). The certificate is the recipe-free face of the imprint law,
+and an attacker can apply it to any candidate without knowing how the adapter was trained.
+
+**Part B, two corrections before it could be read** (its rows on 701679 are void). (i) *My design error:* on a
+raw batch the true image is not on the chart, so `Cφ(ψ(w_true)) ≠ 0` (objective 0.13–0.17 at the truth) and the
+certificate has no zero on the chart at all — it is a hard constraint with no approximate form, so off-chart it is
+useless and Part B is meaningful on-chart only. (ii) *Found by the genuineness audit:* the objective
+`‖Cφ‖²/‖A_T‖²` is normalised by a constant, so a blank image (`φ → 0` through the GELUs) reaches zero and wins the
+attacker's own argmin — the 1e-32 "solutions" at `k = 15, 16` with image error ≈ 1 were exactly that. Fixed to the
+scale-invariant `‖Cφ‖/‖A_Tφ‖` (the sine of the angle between `A_Tφ` and `row(B_T)`, Part A's own ratio). Part B
+now runs on-chart for `N′ ≤ 6` (job 703061, `k ∈ {8, 10, 12, 14, 16}`): a random public-scale start below the
+certificate line `k < r − N′` should land on *one of* the recorded images; rows record which, the fraction of
+starts that landed on any, and whether the argmin pick did; `oracle = []`, `recipe_used = False`,
+`labels_used = False`. Appending the certificate block to the full LM residual is queued for after that, and will
+be reported with and without, same starts — it cannot add information, so any gain is a landscape effect.
 
 ## Step 18, distinct-label solve cells (job 624573, 3000 iterations, `random_encoder_control.py`)
 
