@@ -1031,10 +1031,20 @@ eight are recorded, all eight residuals fall below $3\times10^{-8}$.
 Two things make this worth having beyond elegance. It is \emph{recipe-free}:
 $C$ needs no $\eta$, no $T$ and no labels, so an attacker can test any
 candidate image for membership without knowing how the adapter was trained.
-And for $N'=1$ the condition $C\varphi(\psi(w))=0$ is $r-1=15$ equations
-that are linear in the features, determining the dominant example when
-$k<r-N'$ with no unrolled dynamics at all — a far simpler landscape than the
-full residual, and the certificate line $k<r-N'$ rather than $k<m+r-N'$.
+And the condition $C\varphi(\psi(w))=0$ is linear in the features and needs
+no unrolled dynamics at all, a far simpler landscape than the full residual,
+at the certificate line $k<r-N'$ rather than $k<m+r-N'$. That line comes from
+the kernel rather than from $C$'s rank: $\ker C=\mathrm{span}\{h_i:\text{recorded}\}
+\oplus\ker A_0$ has dimension $N'+(n-r)$, so it is of codimension $r-N'$ in
+feature space, and a $k$-dimensional chart image meets it in generically
+$k-(r-N')$ dimensions. Below the line the recorded examples are isolated
+solutions and generically the only ones; above it each lies on a
+positive-dimensional family that satisfies the certificate without being the
+image. When several examples are recorded they are all equally valid
+solutions, so a search started at random reaches \emph{one} of them with no
+way to steer and no way to tell from the objective which — the $N'=1$ case is
+the one where recovering a solution and recovering \emph{the} example
+coincide.
 Two caveats belong with it. The vanishing is approximate rather than exact
 below full rank — the recorded residuals sit at $10^{-10}$, not at machine
 precision, because the invisible examples' contribution to $M_T$ does not
