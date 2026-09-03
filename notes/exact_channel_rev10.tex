@@ -730,56 +730,45 @@ throughout, so (A4) holds.
 \paragraph{Where the law stops applying: a second channel-closing
 mechanism.} Identifiability does fail below the line on a strong encoder,
 and it is the imprint law of the next paragraph acting rather than a gap in
-the theorems. $\operatorname{rank}B_T$ counts the examples recorded above the
-floor; when that count falls below $N$, hypothesis (A4) fails, $D\rho$ is
-rank-deficient, and the channel closes \emph{below its own capacity line} —
-for reasons of the model rather than the count. On the $97.9\%$ encoder that
-happens in most conditions tested:
-\begin{center}\small
-\begin{tabular}{@{}llcc@{}}\toprule
-private data & chart, labels & $\operatorname{rank}B_T$ ($N=8$) & $\sigma_{\min}$ at the truth\\ \midrule
-chart-projected & global, distinct & \textbf{8} & $5.6\times10^{-12}$\\
-chart-projected & global, two labels repeated & 6 & $7.0\times10^{-19}$\\
-chart-projected & class-local, distinct & 6 & $3.5\times10^{-19}$\\
-raw test digits & global, distinct & 6 & (not solved)\\ \bottomrule
-\end{tabular}
-\end{center}
-Three things follow. The count is $8$ only for chart-projected images with
-distinct labels: projecting an image onto a $16$-dimensional chart degrades
-it, the model becomes less certain, and \emph{more} is recorded — so the
-chart the attacker searches in also decides how much there is to find. Two
-examples sharing a label are recorded jointly rather than separately, since
-a model that fits both and labels them identically gives them imprints that
-are tiny and nearly parallel, and they leave the count together; that single
-change moves $\sigma_{\min}$ by seven orders at fixed encoder, chart, $k$ and
-seeds. And the drop does not require repeated labels: raw test digits with
-eight distinct labels also give $6$, because two of the eight are fitted
-confidently enough on their own$^\dagger$ (job 644062, the in-distribution
-control of the foreign-data paragraph below). What matters is each
-example's own confidence, which is the imprint law; the label multiset and
-the chart change it, and a strong encoder makes it common.
+the theorems: $\operatorname{rank}B_T$ counts the examples recorded above the
+floor, and when that count falls below $N$, hypothesis (A4) fails, $D\rho$
+is rank-deficient, and the channel closes \emph{below its own capacity line}
+— for reasons of the model rather than the count. On the $97.9\%$ encoder
+this happens in nine of the ten batches measured, with
+$\operatorname{rank}B_T$ between $1$ and $6$.
 
-Two mechanisms could in principle produce $\operatorname{rank}B_T<N$: some
-imprints falling below the floor, so that fewer examples are recorded at all;
-or the residual columns becoming linearly dependent, so that the rank falls
-with every imprint still present. The rows distinguish them. In all nine
-rank-deficient batches, including both repeated-label ones, the number of
-imprints above the relative floor equals $\operatorname{rank}B_T$ exactly —
-in the repeated-label cells the eight relative imprints are
-$1$, $2\!\times\!10^{-5}$, $10^{-6}$, $10^{-7}$, $6\!\times\!10^{-8}$,
-$10^{-11}$, $2\!\times\!10^{-15}$, $10^{-23}$, and the last two are the two
-that leave. This is a measurement rather than a definition: the rank of
-$B_T$ read from its own singular spectrum, the rank of the stacked imprints,
-and the count above the threshold are three separate computations, and they
-agree in all forty batches. So the count route is the one that acts, and
-collinearity at fixed count is not needed to explain any cell.\footnote{An
-earlier version quoted a single strong rung of $2.0\times10^{-15}$, the
-geometric mean of the first two rows — a value no measurement lies within
-three orders of — and attributed the rank loss to encoder quality alone. The
-median margin of a batch does not predict its rank either: the rendered
-fonts have median margin $8.9$ and rank $6$, because three individual
-glyphs sit at margins $31$--$47$, while a set of median margin $19.8$ keeps
-rank $8$. Rank counts examples, not averages.}
+What decides which examples survive is measured, and it is nothing but the
+margin. Across the nine rank-deficient batches$^\dagger$ (job 631392), the
+examples whose imprint lies below the floor are \emph{exactly} the
+highest-margin ones — a perfect match in all nine, whether two examples drop
+or seven. The floor is relative to each batch's own largest imprint, so the
+absolute cut moves between batches (below-floor margins run $30$ to $95$,
+above-floor $-35$ to $74$) while the within-batch ordering is exact. So an
+example is recorded or not according to how confidently the base model fits
+it \emph{relative to its batch-mates}, and neither its label nor any
+coupling between examples enters.
+
+That the identity is a measurement and not a definition matters here, and it
+holds: the rank of $B_T$ read from its own singular spectrum, the rank of the
+stacked imprints, and the count above the threshold are three separate
+computations, and they agree in all forty batches. In the rank-deficient
+cells the deficiency is visible in the release's own spectrum
+($\sigma_N/\sigma_1$ of $1.5\times10^{-19}$ and $1.0\times10^{-16}$), so an
+attacker sees it without the decomposition.
+
+Two earlier readings of this paragraph were wrong and are worth recording,
+because both were natural. Encoder quality alone was blamed, by quoting a
+single strong rung of $2.0\times10^{-15}$ that was the geometric mean of two
+populations seven orders apart — a value no measurement lies within three
+orders of. Then the label multiset was blamed, on the observation that the
+distinct-label draw keeps rank $8$ on-chart where the repeated-label draw
+falls to $6$. That comparison is confounded: the two draws are not the same
+images relabelled but different images, and the repeated one happens to
+contain examples of margin $46$ and $37$ against a maximum of $23$ in the
+other. On raw digits both draws give rank $6$. Chart projection is the one
+factor that genuinely moves the count, and it moves it \emph{upward} for the
+attacker: projecting onto a $16$-dimensional chart degrades the image, the
+model becomes less certain, and more is recorded.
 
 \paragraph{What the release records, per example.} The gradient in $B$ is
 $\nabla_BL=s\,D\,(AH)^{\!\top}=s\sum_i D[:,i]\,(Ah_i)^{\!\top}$, a sum of
@@ -940,9 +929,14 @@ $1,1,1,3,3,4,6,6,6,8$), and $0$ of $10$ on both the weak and the mid
 encoders ($0.021$--$0.58$ and $0.005$--$0.69$). Both \emph{ordinary} random
 draws trigger on the strong model ($2.1$ and $2.9\times10^{-5}$ raw), and
 the single non-trigger there is the batch built to contain two low-margin
-examples. So the reduction to one recorded example is not a curiosity of one
-draw: on this $97.9\%$ model it is what ordinary private data does, and it
-never happens on the weaker ones.\footnote{The test can fire for the wrong
+examples. What the test detects, though, is \emph{one dominant direction} and
+not \emph{one recorded example}, and the two are different claims: of the
+nine triggering batches the rank is $1$ in three, $3$ in two, $4$ in one,
+$6$ in three and $8$ in one — a full-rank release with
+$\sigma_2/\sigma_1=2.4\times10^{-4}$. So a single dominant imprint is what
+ordinary private data produces on this $97.9\%$ model and never on the
+weaker ones; a literal reduction to one recorded example happens in three of
+the ten.\footnote{The test can fire for the wrong
 reason. The random encoder produces one false positive
 ($\sigma_2/\sigma_1=8.7\times10^{-4}$ at full rank $8$) on a batch of eight
 $1$s, all at residual $\approx0.95$: there the spectrum reflects the near
@@ -995,17 +989,29 @@ $10^{-13}$--$10^{-15}$ after $300$ iterations — fifteen orders above the
 reproduction floor, so by the classification of \S\ref{sec:measured} these
 are search failures. Yet the median image error already equals the chart's
 own representation error to within $10^{-6}$--$10^{-3}$ at
-$k=6,10,14,16$$^\dagger$ (job 614344). So at a residual fifteen orders above the floor the picture is already as
-good as this chart can make it, which is the attacker-relevant statement: no
-tight residual is needed for the best available image. What was \emph{not}
-observed is what those last fifteen orders would do, since no cell reached
-the floor — and off-chart there is reason to think they could do harm rather
+$k=6,10,14,16$$^\dagger$ (job 614344). So on this backbone, at this budget, the median image error stood within
+$0.4\%$ of the chart's floor while the residual stood fifteen orders above
+its own — which is the attacker-relevant statement: no tight residual was
+needed for the best available image here. Three things it is not. Neither
+quantity finished: all five cells stopped at the iteration cap, so the image
+was never shown to have \emph{stopped} moving either. The gap is not a
+function of the residual, so it does not lift off this backbone — pooling
+the twenty-four cells on disk that record both, at residual
+$\approx2\times10^{-14}$ the gap runs from $4\times10^{-8}$ to
+$1.2\times10^{-3}$, five orders at matched residual, with rank correlation
+only $+0.43$; the obvious first-order model $\sqrt{\text{residual}}/
+\sigma_{\min}$ lifts that only to $+0.53$, so conditioning does not explain
+the scatter either. And what those last fifteen orders would do was not
+observed at all, since no cell reached the floor — and off-chart there is reason to think they could do harm rather
 than nothing. Driving the residual down moves the coordinates toward the
 release-optimal point, which for data not lying in the chart is not the
 representation-optimal point; continuing could therefore move the image away
 from the chart's best. That is the same distinction that organises the whole
 section, now on the convergence axis, and it is untested: one cell driven to
-the floor off-chart would settle whether an attacker should stop early. For
+the floor off-chart would settle whether an attacker should stop early, and
+recording the gap and the residual every twenty-five iterations along a
+single cell would settle the plateau question directly, without the
+cross-cell scatter. For
 locating the boundary the residual remains the right instrument, since it is
 what separates an alias from a search failure; for judging what an attacker
 obtains it is not, and the image-space gap of this section is.
