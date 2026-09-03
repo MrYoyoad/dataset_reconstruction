@@ -1440,6 +1440,34 @@ confidence, which collapsed $\|B_T\|$ by twenty-three orders, does not
 therefore protect: it makes the release numerically tiny without making it
 less identifiable, in every format with FP32's exponent range.
 
+Measured$^\dagger$ (job 753371, the headline release round-tripped through
+each format and re-attacked with the same $500$-start search). Of the eight
+images FP64 recovers: FP32 recovers five, TF32 five, and FP16 none. The three
+lost under FP32 are exactly those recorded at $7\times10^{-11}$,
+$3\times10^{-11}$ and $2\times10^{-12}$ of the strongest, and they are
+destroyed rather than merely hard --- the certificate residual at their own
+truths is $0.9$. Two things the pre-registration got wrong, both in the
+attacker's favour: a quantised file's spectrum floor sits about three orders
+\emph{below} the format's unit roundoff, so TF32 keeps five where two were
+predicted; and the attacker's truncation tolerance should be tight rather than
+matched to the noise, since noise-matching discards a recoverable image. And
+one structural observation: the aggregate basin stays between $48\%$ and
+$67\%$ across every format, so precision changes \emph{which} images are
+reachable and not how hard they are to reach.
+
+The FP16 zero is this cell's own, and must not be generalised. Two thresholds
+govern: the format's unit roundoff, which is relative, and its subnormal
+floor, which is absolute. Which binds depends on $\|B_T\|$. Here the release
+is $7.6\times10^{-18}$ and FP16's smallest subnormal is $6\times10^{-8}$, so
+the entire file underflows to zero --- a statement about a release that had
+collapsed twenty-three orders, not about FP16. For a release of order
+$10^{-6}$ to $1$, which is what data the model gets wrong produces, the floor
+does not bind and the roundoff does. So the honest form of the storage
+statement is that \emph{FP32 and TF32 preserve everything recorded above about
+$10^{-10}$ of the strongest imprint} --- ten orders of dynamic range, which is
+essentially no protection --- while FP16 protects only when the release is
+already too small to have moved the model.
+
 Two supports keep it from resting on a single cell. The per-image basin does
 not decay with $k$ once the slack is held: at $r=64$ it runs $13.8\%$,
 $28.6\%$, $11.9\%$, $8.3\%$ at $k=8,16,24,32$, and at $r=32$ it runs $10.6\%$,
