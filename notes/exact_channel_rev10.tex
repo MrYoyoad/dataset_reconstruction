@@ -754,7 +754,8 @@ are tiny and nearly parallel, and they leave the count together; that single
 change moves $\sigma_{\min}$ by seven orders at fixed encoder, chart, $k$ and
 seeds. And the drop does not require repeated labels: raw test digits with
 eight distinct labels also give $6$, because two of the eight are fitted
-confidently enough on their own$^\dagger$ (job 644062). What matters is each
+confidently enough on their own$^\dagger$ (job 644062, the in-distribution
+control of the foreign-data paragraph below). What matters is each
 example's own confidence, which is the imprint law; the label multiset and
 the chart change it, and a strong encoder makes it common.\footnote{An
 earlier version quoted a single strong rung of $2.0\times10^{-15}$, the
@@ -979,14 +980,20 @@ $10^{-13}$--$10^{-15}$ after $300$ iterations — fifteen orders above the
 reproduction floor, so by the classification of \S\ref{sec:measured} these
 are search failures. Yet the median image error already equals the chart's
 own representation error to within $10^{-6}$--$10^{-3}$ at
-$k=6,10,14,16$$^\dagger$ (job 614344). The last fifteen orders of residual
-buy nothing an attacker can see: they refine the chart coordinates far below
-the resolution at which the chart itself can draw. Two readings follow. For
-identifying the boundary, the residual remains the right instrument, because
-it is what distinguishes an alias from a search failure. For judging what an
-attacker \emph{gets}, it is the wrong one, and the image-space gap of
-\S\ref{sec:measured} is the honest measure — a cell can be a search failure
-by residual and finished by picture.
+$k=6,10,14,16$$^\dagger$ (job 614344). So at a residual fifteen orders above the floor the picture is already as
+good as this chart can make it, which is the attacker-relevant statement: no
+tight residual is needed for the best available image. What was \emph{not}
+observed is what those last fifteen orders would do, since no cell reached
+the floor — and off-chart there is reason to think they could do harm rather
+than nothing. Driving the residual down moves the coordinates toward the
+release-optimal point, which for data not lying in the chart is not the
+representation-optimal point; continuing could therefore move the image away
+from the chart's best. That is the same distinction that organises the whole
+section, now on the convergence axis, and it is untested: one cell driven to
+the floor off-chart would settle whether an attacker should stop early. For
+locating the boundary the residual remains the right instrument, since it is
+what separates an alias from a search failure; for judging what an attacker
+obtains it is not, and the image-space gap of this section is.
 
 
 
@@ -1488,10 +1495,15 @@ rate.
 \item \emph{What stops the attack today.} At $N=8$, none of $20$
   attacker-buildable starts reaches the residual floor, while from perturbed
   truth the solver recovers from $86\%$ away — so the obstruction is the
-  initialiser, not the information. But that obstruction scales with the
-  number of \emph{recorded} examples, and the model decides that number: the
-  one-recorded-example case is the attacker-realisable arm, and it is
-  running.
+  initialiser, not the information. The hypothesis under test is that this
+  obstruction scales with the number of \emph{recorded} examples rather than
+  with $N$, which would make it the model's choice: on a strong model the
+  release is often dominated by one example, and one example is a far smaller
+  search. That arm is running and unverified. It also carries a tension worth
+  owning rather than hiding: model confidence \emph{reduces} what is
+  recorded, which favours the defender, while making the little that remains
+  a smaller problem to solve, which favours the attacker. Both are true, and
+  which dominates is not yet measured.
 
 \item \emph{Open, and said in the same breath.} Global uniqueness below the
   line; how far the release-consistent set extends past it (one direction of
