@@ -140,6 +140,16 @@ degradation splits by N (the defender's variable), not by distance past the line
 N=8 stays inside tolerance sixteen units past the line, N=12/14 are outside one unit past; and every past-line
 error is a lower bound on the fibre's extent (near-init finds the nearest branch; walks stopped by budget).
 
+**16. Two arms of an experiment that differ in the factor you name may also differ in the data.** A seven-order
+difference in conditioning was attributed to the label multiset because the two arms were called "distinct" and
+"repeated" — but the arms were different image sets, not the same images relabelled, and the repeated one happened to
+contain two examples the model fitted far more confidently (margins 46 and 37 against a maximum of 23). On the raw
+arm both draws behaved identically. The label name in the config was doing the work that the images were actually
+doing. Rule: before attributing an effect to the factor an arm is named after, list what else differs between the
+arms — and prefer arms that hold the data fixed and vary only the factor (the same eight images relabelled would
+have been the real test). This is what let a clean, simpler mechanism surface underneath: in all nine rank-deficient
+batches the examples dropped are exactly the highest-margin ones, and nothing about labels enters at all.
+
 **14. Averaging across a condition can invent a rung that no measurement occupies.** The encoder-quality ladder's
 strongest rung was quoted as a geometric mean over six rows that pooled two label sets. At that encoder the two sets
 differ by SEVEN orders of magnitude — 5.6e-12 with eight distinct labels against 7.0e-19 with two repeated — so the

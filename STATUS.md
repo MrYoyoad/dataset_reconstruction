@@ -107,13 +107,28 @@ What the section establishes, in order — every label as in the .tex:
   way up. WITHDRAWN: the earlier single strong rung of †2.0e-15 was a geometric mean pooling two label sets that
   differ by SEVEN orders at fixed encoder/chart/k/seeds (distinct †5.6e-12 rank 8; two repeated †7.0e-19 rank 6) — a
   value no measurement lies within three orders of, and it mis-attributed the rank loss to encoder quality alone.
-- **WHERE (A4) ACTUALLY FAILS — a second channel-closing mechanism, model confidence.** rank B_T counts examples
-  recorded above the floor; below N it fails and Dρ is rank-deficient BELOW the capacity line. On the 97.9% encoder
-  that is most conditions tested: rank 6 with repeated labels, 6 with a class-local chart, and 6 with RAW distinct-label
-  test digits (644062) — so it does not require repeated labels; what matters is each example's own confidence, which
-  the chart and label multiset change. Chart projection HELPS the attacker (it degrades the image, the model is less
-  certain, more is recorded). Median batch margin does not predict rank: fonts at median 8.9 give rank 6 because three
-  glyphs sit at 31–47, while a set at median 19.8 keeps 8. Rank counts examples, not averages.
+- **WHERE (A4) FAILS, AND WHAT DECIDES IT — measured, and simpler than two earlier readings.** rank B_T counts the
+  examples recorded above the floor; below N, (A4) fails and Dρ is rank-deficient BELOW the capacity line. On the
+  97.9% encoder that is 9 of 10 batches, rank 1 to 6. WHAT SURVIVES: in all NINE rank-deficient batches the
+  below-floor examples are †EXACTLY the highest-margin ones — perfect match, whether two drop or seven. The floor is
+  relative to each batch's own largest imprint, so the absolute cut moves (below-floor margins 30–95, above-floor
+  −35–74) while the within-batch ordering is exact. Recording is decided by margin RELATIVE TO BATCH-MATES; labels,
+  collinearity and feature overlap do not enter. Not definitional: rank from B_T's spectrum, rank of the stacked
+  imprints, and the threshold count are three computations agreeing in all 40 batches (σ_N/σ_1 †1.5e-19 / †1.0e-16
+  in the deficient cells, so the attacker sees it without the decomposition).
+  TWO WITHDRAWN READINGS: (i) encoder quality alone — that rested on a rung averaging two populations seven orders
+  apart; (ii) the label multiset — CONFOUNDED, the "distinct" and "repeated" draws are DIFFERENT IMAGES not the same
+  images relabelled, the repeated one containing margin-46 and margin-37 examples against a max of 23 in the other,
+  and on RAW digits both give rank 6. Chart projection is the one factor that genuinely moves the count, upward for
+  the attacker (it degrades the image, the model is less certain, more is recorded).
+- **The σ₂/σ₁ trigger detects ONE DOMINANT DIRECTION, not one recorded example.** Of the nine triggering strong
+  batches the rank is 1 in three, 3 in two, 4 in one, 6 in three and 8 in one (a full-rank release at σ₂/σ₁ 2.4e-4).
+- **The residual-vs-image observation is scoped to one backbone at one budget.** On the 95.1% model the median image
+  error stood within 0.4% of the chart floor while the residual stood 15 orders above its own — but neither quantity
+  finished (all five cells hit the cap), and the gap is not a function of the residual: pooling the 24 cells that
+  record both, at matched residual ≈2e-14 it spans †4e-8 to †1.2e-3 (τ +0.43; √residual/σ_min lifts it only to
+  +0.53, so conditioning does not explain the scatter). The measurement that would generalise it is a trajectory
+  trace — gap and residual every 25 iterations along ONE cell — requested.
 - **WITHDRAWN: "richer chart costs conditioning" as a general statement.** The global/local σ_min ratio is not
   monotone in encoder quality: random 0.66× (local BETTER), weak 286× (local worse), mid 0.27× (local BETTER),
   strong 4150×. The 135× was the 78% checkpoint's, not a property of trained encoders. My within-class-compression
