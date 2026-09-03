@@ -2034,9 +2034,16 @@ dominates, but `k` is not free. **Chart/private disjointness, verified in the co
 ladder row:** the chart is `PCAChart(Xtr_t, k)` with `Xtr` from the *train* idx file (first 50,000), the
 coordinate scale from the same train images, and every private batch from `Xte_t`, the *test* idx file.
 `N′` moves with `k` (projection changes the margins), so only the per-image column is comparable across rows.
-Read across: at `r = 64` the per-image basin stays at 8–29% from `k = 8` to `k = 32` while the chart goes from
-class-only (`.11` instance id) to instance-identifying (`.94`); at `r = 32` the admissible `k` stop at 16–24.
-The mirror pair (`r = 32, k = 8` vs `r = 64, k = 40`, both seventeen below) is the remaining row.
+*Caption.* Within the `r = 64` series `k` rises as the distance below the line falls — anti-correlated by
+construction — so the declining per-image basin (13.8 → 28.6 → 11.9 → 8.3 → 5.7 → 2.6%) cannot be attributed to
+either; the attribution is carried by the fixed-`k` arm and the mirror pair, which varied one at a time, and the
+series is consistent with them, not evidence for them. What the series *does* show: **every cell in the admissible
+range finds all recorded images with the argmin correct** — from `k = 8` at 13.8% per image to `k = 48` at 2.6% —
+so at `r = 64` the entire admissible chart range is attackable and only the *cost* varies, a factor of five,
+against a fidelity that climbs from class-only (.11 instance id) to .99. There is no dimension in that range
+where the attacker is stopped, only ones where they must buy more starts. (The `k = 16` point has `N′ = 3`
+against seven or eight elsewhere — a coarse estimate, not to carry weight either way.) At `r = 32` the admissible
+`k` stop at 16–24. The mirror pair (`r = 32, k = 8` vs `r = 64, k = 40`, both ~seventeen below) is above.
 
 ### Find-some-among-twenty on the wide head (job 725918, `m = 26`, `r = 64`, `k = 8`, 10,000 random starts)
 
