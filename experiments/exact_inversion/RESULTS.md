@@ -1806,6 +1806,13 @@ on the projections — a property of the chart family and `k` alone (no adapter,
 The ladder's admissible `k` at each rank (`k < r − N′`) are marks on this curve: at `r = 16` with seven recorded
 the admissible charts (`k ≤ 8`) keep 52–68% of digits identifiable to the strong model; at `r = 64` with eight
 recorded (`k ≤ 55`) the admissible chart is at the raw accuracy. Whether the *basin* holds at those `k` is the
-ladder's question, and its first signal is a warning: at `r = 16, k = 8` (one below the line) 0 of the first 500
-random starts landed, against 51% at `k = 6` — the basin collapses toward the line, so "rank buys budget" and
-"the budget is reachable" are separate claims (job 716016, adaptive to 5,000 starts).
+ladder's question. *(A warning written here earlier — "at `r = 16, k = 8` 0 of 500 starts landed" — was wrong: that
+was the ladder job's RAW cell, `N′ = 3`, whose truth is not on the chart and which has no zero by construction. The
+on-chart `k = 8` cell, measured in the bracket below, lands 18% of starts. My own rule — check the truth before
+reading a solve — caught it one row late; the ladder and the twenty-image cell were restarted on-chart only.)*
+"Rank buys budget" and "the budget is reachable" remain separate claims; the fixed-`k` arm (`k = 8` at
+`r = 16 / 32 / 64`, run first in job 721xxx) decides whether the basin is governed by `k` or by distance below the line.
+
+**Bracket, `k = 8` (job 706721, on-chart, `N′ = 7`, line 9, one below):** 2,000 starts → 345 at the floor, 364 landed on
+a recorded image (19 landed at objective ~1e-17, converging), all seven found, argmin on a recorded image at
+3.6e-15, no spurious zero. **Basin 18% at `k = 8` against 51% at `k = 6`** — narrowing toward the line, open.

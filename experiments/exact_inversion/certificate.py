@@ -56,6 +56,7 @@ def main():
     ap.add_argument("--model", default="models/exact_inversion/mnist_mlp_strong.pth")
     ap.add_argument("--sets", nargs="*", default=["mnist_control", "hard1_diff", "confident"])
     ap.add_argument("--optdigits-path", default="data/ood_digits/optdigits.tes")
+    ap.add_argument("--settings", nargs="*", default=["raw", "on"], help="Part B is meaningful ON-CHART only (raw truths are not on the chart)")
     ap.add_argument("--ks", nargs="*", type=int, default=[12, 14, 15, 16]); ap.add_argument("--N", type=int, default=8)
     ap.add_argument("--r", type=int, default=16)
     ap.add_argument("--T", type=int, default=400); ap.add_argument("--lr", type=float, default=0.01)
@@ -104,7 +105,7 @@ def main():
             a.k = k; chart = PCAChart(Xtr_t, k, dev)
             coord_std = chart.coords_of(Xtr_t[:10000].T).std(dim=1, keepdim=True)
             W_all = chart.coords_of(X_real); X_on = chart.psi(W_all)
-            for setting, X_train in [("raw", X_real), ("on", X_on)]:
+            for setting, X_train in [(st, X) for st, X in [("raw", X_real), ("on", X_on)] if st in a.settings]:
                 g = torch.Generator().manual_seed(a.seed + 7)
                 A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g)).to(dev)
                 A_T, B_T, imp, sB, Cimp = release_and_imprints(bb, X_train, y, A0, a)
