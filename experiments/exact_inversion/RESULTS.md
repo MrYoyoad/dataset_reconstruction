@@ -2590,9 +2590,18 @@ from the 0.1-noise near start to the truth, in matched arithmetic against the fo
 against the same release. **Pre-registration:** the FP64 map responds linearly (≈ σ·δ, ~4e-6 at δ = 1e-6); the bf16
 map's response to δ = 1e-6 and to one ulp of A₀ is predicted at 1e-2 … 1e-1 (a rounding cascade over 400 steps —
 the same 12% seen as the release's deviation), i.e. the matched landscape is a ~0.1 noise floor with a single
-needle at the exact truth: then no matched *differentiable* solver exists, matched arithmetic is a verification
-oracle only, and "bf16 training: recorded, not extractable by any simulator we can build" is the honest sentence —
-an extraction cost, not an information bound (the certificate still sees the class's directions to 5–25%).
+needle at the exact truth: then no matched *gradient-based* solver exists and matched arithmetic is a verification oracle for such
+solvers — **which is not "no solver"** (yoado-ed): piecewise constant is a staircase, not noise, and a
+derivative-free search at a resolution above the step size (Nelder–Mead, CMA-ES, finite differences taken
+deliberately above the steps) is the natural next attacker, untested. The honest sentence is therefore "bf16
+training: recorded, not extractable by any *gradient-based* simulator we can build" — an extraction cost, not an
+information bound; and the certificate still resolving the class's directions to 5–25% is itself the number that
+stops "not extractable by our solvers" from sliding into "not there". *The deciding number is the coarse-scale
+trend, not the local ruggedness* (second job, 786xxx-series, `--segment-dense`): along 21 linear points from the 0.1
+start to the truth, the pointwise matched residual beside 4-point window means at radii 1e-3 and 1e-2 of the
+coordinate std. Pre-registration: a windowed mean falling monotonically toward the truth under ~0.1 local noise →
+extraction is a solver-engineering problem, the word is *cost*; a windowed mean flat until the last window → a
+needle, the word is *ruggedness*.
 Falsifier: a bf16 response ∝ δ down to 1e-4 (a smooth map at the attacker's scale) — then a matched LM (FP64
 Jacobian, bf16 residual) is feasible and is run next. fp32 is expected in between (response ~1e-6 at δ = 1e-6
 from its own rounding, then linear).
