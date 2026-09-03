@@ -101,17 +101,19 @@ What the section establishes, in order — every label as in the .tex:
   nothing. Prediction-2's cell is VOID, not evidence. The basis-free per-example object is C_i = −ηs Σ_t D_t[:,i]
   (A_t h_i)ᵀ with B_T = Σ_i C_i and ‖C_i‖ bounded by image i's accumulated error alone, no cross term — job 631392.
   Lesson: a 30-second falsifier (permute the batch and re-read) was available and not run.
-- **ENCODER QUALITY ENDS THE CHANNEL BEFORE THE COUNT DOES (jobs 625113, 626051) — the biggest result of the day.**
-  Fixed architecture (784→1000→1000→10 GELU), fixed chart, fixed k=16 (four units BELOW the line 18), 3 A0 seeds:
-  σ_min at the truth = †1.7e-5 (random weights, 8.7%) → †1.4e-7 (78.5%) → †7.1e-9 (95.1%) → †2.0e-15 (97.9%), cond
-  †3.8e5 → †6.1e15. Monotone, ten orders. AND at 97.9% hypothesis (A4) FAILS: rank X = 8 but rank B_T = 6 (global) /
-  5 (local), so rank P_T < N and Dρ is rank-deficient (210/256) four units below the line — the first loss of
-  identifiability in the study NOT caused by the count. MECHANISM (job 626051, per image): column i of P_T is the
-  accumulated error trajectory of example i, so what the adapter records scales with how wrong the base model was.
-  Base margin at W0 vs ‖P_T e_i‖: random 23× spread, weak 110×, mid 2.5e3, strong †8.8e10 — on the strong model the
-  largest-margin digits sit at 1e-11…1e-9 against ~4 for the hardest, which is why P_T loses rank. TWO CONSEQUENCES:
-  for the attacker the capacity m+r−N is an upper bound a confident model does not spend; for the DEFENDER the
-  per-example margin at initialisation is a leakage meter computable before any fine-tuning and without any attack.
+- **ENCODER QUALITY, CORRECTED AFTER AUDIT (jobs 625113, 644062).** The clean ladder is global chart + eight DISTINCT
+  labels, three A0 seeds: σ_min at the truth †7.5e-5 → †9.1e-7 → †1.3e-8 → †5.6e-12 and cond †7.5e4 → †3.4e12 across
+  random/78.5%/95.1%/97.9% — seven and eight orders, monotone, and rank B_T = 8 at EVERY rung, so (A4) holds all the
+  way up. WITHDRAWN: the earlier single strong rung of †2.0e-15 was a geometric mean pooling two label sets that
+  differ by SEVEN orders at fixed encoder/chart/k/seeds (distinct †5.6e-12 rank 8; two repeated †7.0e-19 rank 6) — a
+  value no measurement lies within three orders of, and it mis-attributed the rank loss to encoder quality alone.
+- **WHERE (A4) ACTUALLY FAILS — a second channel-closing mechanism, model confidence.** rank B_T counts examples
+  recorded above the floor; below N it fails and Dρ is rank-deficient BELOW the capacity line. On the 97.9% encoder
+  that is most conditions tested: rank 6 with repeated labels, 6 with a class-local chart, and 6 with RAW distinct-label
+  test digits (644062) — so it does not require repeated labels; what matters is each example's own confidence, which
+  the chart and label multiset change. Chart projection HELPS the attacker (it degrades the image, the model is less
+  certain, more is recorded). Median batch margin does not predict rank: fonts at median 8.9 give rank 6 because three
+  glyphs sit at 31–47, while a set at median 19.8 keeps 8. Rank counts examples, not averages.
 - **WITHDRAWN: "richer chart costs conditioning" as a general statement.** The global/local σ_min ratio is not
   monotone in encoder quality: random 0.66× (local BETTER), weak 286× (local worse), mid 0.27× (local BETTER),
   strong 4150×. The 135× was the 78% checkpoint's, not a property of trained encoders. My within-class-compression

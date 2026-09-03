@@ -135,6 +135,24 @@ degradation splits by N (the defender's variable), not by distance past the line
 N=8 stays inside tolerance sixteen units past the line, N=12/14 are outside one unit past; and every past-line
 error is a lower bound on the fibre's extent (near-init finds the nearest branch; walks stopped by budget).
 
+**14. Averaging across a condition can invent a rung that no measurement occupies.** The encoder-quality ladder's
+strongest rung was quoted as a geometric mean over six rows that pooled two label sets. At that encoder the two sets
+differ by SEVEN orders of magnitude — 5.6e-12 with eight distinct labels against 7.0e-19 with two repeated — so the
+quoted 2.0e-15 was a value no measurement lay within three orders of, and it carried a false attribution with it: the
+identifiability failure was ascribed to encoder quality alone when the rank drop needs each example to be confidently
+fitted, which the label multiset and the chart both change. Two rules. Before averaging over a nuisance factor, check
+that the factor is a nuisance — plot or tabulate the split first. And when a rung of a monotone ladder is the one
+carrying a qualitative claim ("here the law stops applying"), it deserves its own table rather than a cell in someone
+else's.
+
+**15. When a plotted relation contains its own axis, the correlation is not the evidence.** The imprint law was
+presented as a log-log proportionality between an example's imprint and its accumulated error — but the imprint is
+*defined* as a sum of terms each containing that error, so a slope-one line is largely forced by the algebra and a
+referee would say so. The real content is elsewhere and stronger: that the RATIO is tight (the per-step terms do not
+cancel across 400 steps, a dynamical fact) and that the rank of the release equals the count of examples above the
+floor (an identity verified in all 40 batches). The figure is now labelled an illustration of the first, not the
+argument for it. Ask of any scatter plot: could this shape have been produced by the definition alone?
+
 **13. A per-example reading of a factored quantity needs a permutation test before it is believed.** We read column
 i of the adapter's coefficient matrix as "what was recorded about example i" and built three claims on it — a
 margin/leakage table, a feature-Gram coupling between batch-mates, and a defender-side meter. Expanding the release
