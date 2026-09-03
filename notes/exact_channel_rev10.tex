@@ -1150,19 +1150,60 @@ $\hat w$. Projection is deterministic, so this identifies the source among
 $10^4$ candidates at every $k$ tested, $k=2$ included. The requirement is not
 fidelity but recovery --- $k$ below the line and inside the basin --- so the
 blurriness of the reconstruction is no defence against the membership
-question, which is the one most privacy regimes actually ask. One caveat
-belongs with it and is untested: the identification is exact because the
-recovery is exact to $10^{-15}$, and at small $k$ the projected candidates are
-densely packed, so it should degrade under any noise in $\hat w$ --- from
-quantisation, or from a recovery that stops short of the floor. The curve of
-membership accuracy against perturbation size at each $k$ is the honest
-version of this claim and has not been run. The attacker needs the
+question, which is the one most privacy regimes actually ask. The obvious objection --- that this rests
+on machine precision, since at small $k$ ten thousand projected candidates are
+densely packed --- does not survive measurement (job 723107). Perturbing the
+recovered coordinates by $\varepsilon$ times their standard deviation and
+retrieving again, the source stays top-$1$ for \emph{every} start at
+$\varepsilon\le3\times10^{-2}$ for all $k\ge8$, and at $96$--$100\%$ for
+$\varepsilon=0.1$; only $k=2$ is fragile, holding $95\%$ at
+$3\times10^{-3}$ and falling to $63\%$ at $10^{-2}$. Since solves land at
+$10^{-15}$, a recovery that stops short of the floor by ten orders still
+identifies its source. Membership is therefore the disclosure that survives
+everything this section otherwise limits: it needs no fidelity, no recipe, no
+labels, and no precision to speak of. The attacker needs the
 release, the public base model, and a chart; that is all, and in particular
 none of $(\eta,s,T)$, the labels, $N$, or a starting point near the answer.
 And the price of needing nothing is the lower line: $k<r-N'$ here rather than
 $k<m+r-N'$, six coordinates per image rather than twenty-two. The bracket at
 $k=8$ (below the line) and $k=10$ (above it) is running and is what will say
 whether the basin narrows toward the boundary.
+
+\paragraph{A second cap: the certificate needs $N'\le m-1$.} The line
+$k<r-N'$ is necessary but not sufficient, and the missing condition comes
+from the same simplex constraint that supplies the $-1$ in
+Proposition~\ref{prop:simplex}. By \eqref{eq:imprint}, $B_T=\sum_i
+q_i(A_0h_i)^{\!\top}$ with each $q_i$ carrying the softmax's zero column sum,
+so at most $m-1$ of the $q_i$ are independent and
+$\operatorname{rank}B_T\le\min(m-1,r,N')$. When $N'>m-1$ the row space is a
+proper subspace of the recorded examples' feature span, aligned with none of
+them individually, and $Ch_i$ vanishes for \emph{no} recorded example ---
+the certificate fails for all of them at once rather than degrading.
+Measured$^\dagger$ (the twenty-image cell, $10$-class head): twenty digits all
+with $O(1)$ imprints give $\operatorname{rank}B_T=9$ with a clean spectral gap
+($1$, $0.8$, $0.3$, $0.2$, $0.1$, $0.09$, $0.03$, $0.01$, $0.005$,
+$3\times10^{-16}$) and certificate residuals of $10^{-2}$ to $0.5$ for every
+one of the twenty in FP64. The head width therefore bounds the certificate
+channel twice over --- it caps how many examples can be recorded in a
+recoverable way, and $m$ is the defender's architecture rather than the
+attacker's choice.
+
+\paragraph{Precision of the release is a privacy parameter.} Because the
+certificate's reach is set by which directions are numerically inside
+$\mathrm{row}(B_T)$, and the imprint spectrum falls steeply, rounding the
+released tensors removes the examples whose imprints fall below the rounding
+noise. Measured$^\dagger$ (job 722663, counting images with
+$\|Ch_i\|/\|A_Th_i\|<10^{-3}$) on a batch whose $B_T$ spectrum runs
+$1$, $2\times10^{-4}$, $10^{-5}$, $9\times10^{-9}$, $4\times10^{-9}$,
+$10^{-11}$, $2\times10^{-16}$: FP64 recovers $6$, FP32 $3$, and TF32, FP16 and
+bfloat16 none; across four batches the counts fall monotonically with the
+mantissa. Quantisation noise is $3\times10^{-8}$ at FP32 and
+$10^{-3}$--$2\times10^{-3}$ at bfloat16, which is what sets the cut. This is a
+defender-side lever already in wide use for unrelated reasons: a quantised
+adapter is not merely smaller, it records fewer examples recoverably. The
+scope is the certificate channel; the full-residual channel at low precision
+is a separate measurement, and the count is threshold-relative in a way
+\S\ref{sec:opens} records.
 
 Two caveats belong with it. The vanishing is approximate rather than exact
 below full rank — the recorded residuals sit at $10^{-10}$, not at machine
