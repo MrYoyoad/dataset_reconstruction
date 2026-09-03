@@ -1257,6 +1257,19 @@ basin of $5.7\%$ against $r=32$ with $k=8$ ($17$ below) at $10.6\%$, so
 thirty-two additional unknowns cost about a factor of two. Distance dominates,
 $k$ is not free, and the honest form of the claim needs both halves.
 
+One confound runs through the whole ladder and belongs with it. In the
+on-chart construction the chart does not merely bound the attacker's search:
+it \emph{defines} the private data, since the adapter is trained on the
+projections. Raising $k$ therefore makes the projections more faithful, which
+makes the base model more certain about them, which lowers what the release
+records --- the same mechanism as the confident batches above, now running
+along $k$ on a fixed batch. It is visible in a control batch whose $\|B_T\|$
+falls from $3.7\times10^{-2}$ at $k=16$ to $1.7\times10^{-6}$ by $k=24$, with
+$N'$ going $8\to7\to6$. So $k$ moves three things at once --- the dimension of
+the search, the fidelity of what is recovered, and how much there is to
+recover --- which is why $N'$ and the line are read per cell, and why no
+single-$k$ comparison across batches means anything without them.
+
 This makes the rank a leakage dial in two independent ways, which is the
 sentence to carry: raising $r$ raises the admissible $k$, so the attacker may
 use a richer chart and recover a sharper image; and at any fixed $k$ it
