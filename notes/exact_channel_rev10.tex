@@ -1498,8 +1498,39 @@ the certificate residuals at the truths rise to $10^{-4}$--$3\times10^{-3}$,
 because four hundred steps of accumulated rounding act on a \emph{moving}
 adapter --- the opposite regime from the confident cell, where a frozen
 adapter made FP32 exact. At a noise-matched tolerance that recovers six of
-eight; the tight-tolerance search is running and is what will say whether the
-canonical case survives realistic training arithmetic intact.
+eight; the tight-tolerance search is running.
+
+At $k=16$ the qualification is already gone$^\dagger$. On the same letters,
+with the release both \emph{trained and stored} in FP32 --- ordinary
+arithmetic throughout --- $82.6\%$ of $500$ random starts land on a private
+letter and \emph{all eight are recovered}, at residuals of $2\times10^{-5}$ to
+$6\times10^{-4}$. The FP64 run of the same cell finds seven of eight, and the
+eighth is missing for a reason worth separating: its certificate residual at
+its own truth is $2.5\times10^{-14}$, so it is perfectly identifiable and
+simply received no start in $500$ --- a sampling null, not a precision one,
+and the FP32 run happens to sample it. The chart error there is $0.32$, so
+this is the class-level statement: on the canonical fine-tuning task, in the
+arithmetic everyone uses, every private example is recoverable from random
+starts with no recipe, no labels and no knowledge of the batch. Whether the
+same holds at the instance-level $k=32$ is the one open row. The result does
+not depend on how the new head row is initialised: with a random row instead
+of a zero one the margins are still negative throughout at $t=1$, the release
+is $0.95$, and FP64 recovers eight of eight at the same $38.4\%$.
+
+\paragraph{Half-precision \emph{training} defeats this attacker, and that is
+not the same as protecting the data.} Trained in bfloat16 or FP16, the letter
+release keeps its norm (within $12\%$ and $3\%$), its rank ($8$), and its
+effect --- the model still learns the class, margins $+4$ to $+14$. What it
+loses is \emph{direction}: four hundred steps of accumulated half-precision
+rounding move the row space by $2$ to $25\%$ per letter, the certificate
+residuals at the truths rise to $0.01$--$0.25$, and the search finds none of
+the eight. The certificate route needs the released directions to about
+$10^{-3}$, which FP32 supplies and half precision does not. But the release
+still \emph{records} all eight --- full rank, order-one imprints, a class the
+model demonstrably learned --- so the correct statement is which attacker was
+run, not that the data is safe. A route that uses more of the release than the
+row space alone is not excluded by any of this, and the recipe route against
+these same half-precision releases is the cell that would say so.
 
 Two supports keep it from resting on a single cell. The per-image basin does
 not decay with $k$ once the slack is held: at $r=64$ it runs $13.8\%$,
