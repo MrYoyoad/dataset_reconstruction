@@ -1122,7 +1122,41 @@ of the model. \emph{The LoRA rank is a leakage dial}, and it is the knob
 raised for utility. Note that the private batch's own $6$ of $8$ at $k=6$ sits
 twenty points above the held-out $52\%$: the batch is the illustration, the
 curve is the number, and quoting the first for the second would have
-overstated the case. The attacker needs the
+overstated the case.
+
+\paragraph{Three disclosures, three thresholds.} ``Recognisable'' conceals
+three different statements, and measuring them apart (job 721003, nearest
+neighbour among the full $10^4$-digit raw test pool) is what makes the channel
+interpretable.
+
+\emph{Instance} --- is \emph{this} handwriting identifiable, rather than some
+member of its class? Self top-$1$ retrieval by $k$: $0.001$, $0.01$, $0.04$,
+$0.11$, $0.21$, $0.33$, $0.57$, $0.73$, $0.84$, $0.94$ at
+$k=2,\dots,32$, reaching $0.99$ by $k=48$. \emph{Class} --- is the digit's
+identity there? $0.52$ at $k=6$ and $0.68$ at $k=8$, as above. The two come
+apart exactly where the rank-$16$ certificate lives: at $k=6$--$8$ the
+projection reads as the right class half to two-thirds of the time while
+identifying the specific digit only $4$--$11\%$ of the time, and retrieves a
+\emph{different} member of the same class more often than its own ($0.53$ and
+$0.58$). ``There was a $4$'', not ``this $4$''. By $k\ge32$, admissible at
+$r=64$, both survive at $0.94$--$0.99$. So the rank does not merely sharpen
+the picture; it moves the release across the boundary between a class
+disclosure and an instance disclosure.
+
+\emph{Membership} is the third and it has no threshold in $k$ at all. An
+attacker holding a candidate pool need not render an image: they project each
+candidate through the same chart and compare coordinates with the recovered
+$\hat w$. Projection is deterministic, so this identifies the source among
+$10^4$ candidates at every $k$ tested, $k=2$ included. The requirement is not
+fidelity but recovery --- $k$ below the line and inside the basin --- so the
+blurriness of the reconstruction is no defence against the membership
+question, which is the one most privacy regimes actually ask. One caveat
+belongs with it and is untested: the identification is exact because the
+recovery is exact to $10^{-15}$, and at small $k$ the projected candidates are
+densely packed, so it should degrade under any noise in $\hat w$ --- from
+quantisation, or from a recovery that stops short of the floor. The curve of
+membership accuracy against perturbation size at each $k$ is the honest
+version of this claim and has not been run. The attacker needs the
 release, the public base model, and a chart; that is all, and in particular
 none of $(\eta,s,T)$, the labels, $N$, or a starting point near the answer.
 And the price of needing nothing is the lower line: $k<r-N'$ here rather than
