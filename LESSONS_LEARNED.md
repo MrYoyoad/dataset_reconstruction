@@ -59,6 +59,25 @@ public and no private data enters. The inferred wording would have made a clean,
 circular — the opposite of its point. Before stating what an experiment assumes, read the lines that build
 its inputs.
 
+**6. A dagger number typed from a summary is not a dagger number.** Four σ_min values in the synthetic
+capacity table (8.8e-19, 2.5e-20, 2.3e-19, 1.7e-7) were typed from a conversation summary and were wrong
+against the jsonl; the executor's line-by-line audit caught them, and a "8 of 11 past-line cells" count was
+stale by two later jobs (9 of 13). The document's own convention says "nothing with a † was typed" — and I
+typed them. Every † in a typeset document must be read from the row at typesetting time (a script, not a
+memory), and every count must be recomputed over all files on disk.
+
+**7. "Complement of a proper analytic subset is connected" is false in the real-analytic category.** A
+real-analytic hypersurface disconnects (a plane cuts R³). The identity-theorem dichotomy "full rank a.e. or
+nowhere" therefore holds per connected component of {rank H(w) = N}, and a single witness serves globally
+only if the rank-deficiency locus has real codimension ≥ 2 — generic for n ≥ N+1, not verified. Caught by
+the derivation auditor; Theorem 7 is now stated per component. (Complex-analytic intuition does not transfer.)
+
+**8. Local LaTeX on WEXAC works with a static musl tectonic.** The `~/.local/bin/tectonic` binary needs
+GLIBC 2.35 and fails; the `rec` env's `pdflatex` is a bare binary with no TeX tree. But the statically linked
+`tectonic-0.15.0-x86_64-unknown-linux-musl` release runs on the login node and fetches its bundle over the
+network. Build script: `scripts/rev10_figs/build_pdf.sh`. Page rendering for a visual check: PyMuPDF
+(`python3 -m pip install --user pymupdf`), since `pdftoppm` is absent.
+
 ---
 
 ## `k` is a property of the chart, not of the data — do not read a dimension bound as a privacy bound (2026-09-03)
