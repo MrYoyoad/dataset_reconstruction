@@ -86,7 +86,10 @@ def main():
     ap.add_argument("--T", type=int, default=400); ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--random-starts", type=int, default=500); ap.add_argument("--iters", type=int, default=300)
-    ap.add_argument("--max-np", type=int, default=10)
+    ap.add_argument("--max-np", type=int, default=11)
+    ap.add_argument("--partb-tol", type=float, default=None, help="certificate tolerance for the Part-B search from a non-fp64 release; default = "
+                    "noise-matched 10*eps (job 760909/760912); pass 1e-12 for the tight tolerance (the noise rank), which storage job 753371 "
+                    "showed recovers MORE images")
     ap.add_argument("--n-fit", type=int, default=50000)
     ap.add_argument("--data-root", default="dataset_reconstruction/data")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -161,7 +164,7 @@ def main():
             emit(rowA)
             # ---- Part B: random-start certificate search from THIS release (certificate.py's objective, starts, threshold)
             if cell in a.partb_cells and dname in a.partb_dtypes and nB > 0:
-                tol = tol_nm if dname != "fp64" else 1e-12
+                tol = (a.partb_tol if a.partb_tol is not None else tol_nm) if dname != "fp64" else 1e-12
                 Cc, Np, _ = certificate(A_T, B_T, tol)
                 if Np > a.max_np: emit(dict(part="B", set=sname, k=k, train_dtype=dname, skipped=f"N'={Np} > max-np")); continue
                 def fun(w):
