@@ -449,9 +449,9 @@ exact, any other head & $k<m+r-N+1$ & $k\le mr/N$\\ \bottomrule
 \begin{proof}
 For $N\le r$ replace $\mathcal B$ by the rank-$N$ matrices in
 $\mathbb R^{m\times r}$ (dimension $N(m+r-N)$) when there is no column-sum
-constraint. For $N\ge r$, $B_T=P_T(A_0H)^{\!\top}$ has rank $r$ and ranges
-over all of $\mathbb R^{m\times r}$ (or its $(m-1)r$-dimensional
-column-sum-zero subspace), while Corollary~\ref{cor:seed} still reduces the
+constraint. For $N\ge r$ and $m\ge r$ (so that $\operatorname{rank}B_T=\min(\operatorname{rank}P_T,r)$
+can reach $r$), $B_T=P_T(A_0H)^{\!\top}$ lies in $\mathbb R^{m\times r}$
+(or in its $(m-1)r$-dimensional column-sum-zero subspace), while Corollary~\ref{cor:seed} still reduces the
 seed to $X\in\mathbb R^{r\times N}$; the count is $mr+rN\ge Nk+rN$
 (resp.\ $(m-1)r+rN\ge Nk+rN$). The two regimes agree at $N=r$.
 \end{proof}
@@ -468,12 +468,18 @@ the coefficients depend on $X$ only through the Gram $S:=X^{\!\top}X\in
 \eqref{eq:rho} solves for $X$ outright: $X=A_TU_c(w)\,\Omega(w,S)^{-1}$
 wherever $\Omega$ is invertible. Substituting into the first block and
 adding the consistency condition $X^{\!\top}X=S$ leaves unknowns
-$(w,S)\in\mathbb R^{Nk}\times\mathrm{Sym}_N$ — $Nk+N(N+1)/2$ numbers, $36$
+$(w,S)\in\mathbb R^{Nk}\times\mathrm{Sym}^+_N$ ($S$ is a Gram matrix, so it
+lies in the positive-semidefinite cone, whose boundary
+$\operatorname{rank}X<N$ is where the parametrisation degenerates) — $Nk+N(N+1)/2$ numbers, $36$
 in place of $rN=128$ at $N=8$, $r=16$ — against $\dim\mathcal B+N(N+1)/2$
 equations: the same capacity, a search space smaller by $rN-N(N+1)/2$. Since
 \S\ref{sec:opens} finds the initialiser, not the information, to be what
-stops the attack, this is the first thing to implement; it is derived here
-and not yet run.
+stops the attack, this is the first thing to implement for efficiency. Two caveats: the
+count transfers but the reduced problem's local identifiability near
+$\partial\mathrm{Sym}^+_N$ is untested, and a matched cell measured no basin
+widening \textnormal{[VERIFIED†]} (job 605718: $(w,X)$ recovers $0$ of $3$ at
+a $1.5\times$ perturbation against $1$ of $3$ for the $(w,S)$ form, both $0$
+of $3$ beyond), so it is a smaller search space, not a bigger basin.
 
 %----------------------------------------------------------------------------
 \subsection{What was measured}
@@ -636,7 +642,11 @@ agrees with the repository's model class to $3.7\times10^{-14}$, job
 adapter ($r=16$, $B_0=0$, plain SGD, $T=400$, $\eta=0.01$) is trained on
 $N=8$ digits from the \emph{test} split — unseen by the backbone and by the
 chart — with their real labels; the chart is the PCA of the train split.
-Line $k<18$.
+Line $k<18$. The eight digits carry repeated labels
+($[0,3,0,3,5,0,1,9]$: five distinct classes), so (A4)'s requirement of $N$
+independent accumulated residual trajectories is not automatic here; it was
+checked rather than assumed, through the full column rank of $D\rho$ at the
+truth reported in the table (a rank-deficient $P_T$ would show there).
 \begin{center}\small
 \begin{tabular}{@{}cccccc@{}}\toprule
 $k$ & $\sigma_{\min}$ at the truth & full rank & residual (80 it.) & residual (300 it.) & error vs.\ chart / vs.\ digit\\ \midrule
@@ -661,11 +671,15 @@ $k=10$ in $31$ iterations, $k=14$ in $282$, the count tracking the
 conditioning — so they are search failures at one budget and recoveries at
 another, as at $(14,21)$ synthetically; only $k=18$ is an alias. A trained
 encoder does not move the capacity line; it makes the line progressively
-harder to reach, three orders of magnitude by $k=17$. \emph{The picture is
-the chart's}: the error against the real digit never falls below $0.73$
-because the PCA chart's own representation error of these digits at $k=17$
-is $0.42$ — the previous paragraph's result reproducing itself on a trained
-backbone. The backbone is learned but weak (these checkpoints are trained on
+harder to reach, three orders of magnitude by $k=17$. \emph{The picture is the chart's}, and the converged cells show it exactly:
+at $k=6$, $10$ and $14$ the coordinates are recovered to
+$10^{-13}$--$10^{-11}$ and the error against the real digit is then
+$0.87$, $0.76$, $0.76$ — in each case the PCA chart's own representation
+error at that $k$ ($0.53$, $0.48$, $0.46$), to two figures. A perfect
+inversion returns the chart's best picture and nothing sharper. (At $k=16$
+and $17$ the chart floor is $0.42$ while the achieved error is $0.73$; those
+two cells had not converged when this was written, so they are not evidence
+for the claim — the converged ones are.) The backbone is learned but weak (these checkpoints are trained on
 small balanced subsets for the reconstruction setting); a strong encoder is
 a different checkpoint and a separate run (\S\ref{sec:opens}).
 Figure~\ref{fig:cond} puts the two encoders side by side.
@@ -710,9 +724,16 @@ real digit the three differ by thirteen orders. The boundary is therefore a
 statement about the chart coordinates, not about the images. Below it the
 coordinates $w$ are locally identifiable and the attack returns
 $\psi(\hat w)$; how close that is to the private image depends entirely on
-whether the chart can represent it. The capacity law bounds the
-\emph{dimension of the search}, not the fraction of the image an attacker
-can reach, and it cannot be read as a leakage bound: nothing constrains the
+whether the chart can represent it. The right reading is a capacity one, and it is chart-\emph{independent}:
+the release exposes exactly $m+r-N$ independent coordinates per example, in
+any basis whatever. Reconstruction then factorises as
+\emph{capacity} $\times$ \emph{chart quality} — this law fixes the first
+exactly, and a prior supplies the second. Equivalently, and this is the
+honest conditional form: exact reconstruction holds if and only if the
+private data lies in an attacker-buildable chart of dimension below
+$m+r-N$; the capacity is proved, and building that chart is the open
+problem. What the law does not bound is the fraction of the image an
+attacker can reach, so it is not a leakage bound: nothing constrains the
 attacker's chart to be data-agnostic, and the oracle-built chart — which
 spans the private images and so has $k=N=8$, far below the line — returns
 them at $10^{-14}$ (last rows); an attacker does not have that chart, and
