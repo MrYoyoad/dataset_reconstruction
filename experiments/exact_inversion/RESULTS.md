@@ -1460,6 +1460,14 @@ fits leaves no fingerprint; what leaks is what the model had to learn. The defen
 per-example accumulated residual during their own fine-tuning, which they compute anyway. Nothing about labels,
 feature overlap, or batch-mates enters.
 
+**Additivity measured by perturbation, not decomposition (job 710597).** Every imprint measurement above
+*decomposes* a release into the `C_i` and reads their sizes, which assumes the sum has no cross term. The batch
+swap tests the assumption from the other side: exchange one member of the recorded set for an invisible one and
+re-run the recipe — the release moves by **that member's own imprint and by nothing else**, tracking over five
+orders across cells (1.1e-11, 6.2e-10, 5.7e-8, 1.3e-8, 1.4e-6 relative; the `N′ = 1` cell gives 1.0 because the
+record *is* that example and the swap replaces it). A perturbation equals the removed term only if the sum is
+additive with no cross term — which is the imprint law, measured from a direction the decomposition cannot take.
+
 **The margin-order rule (verified on job 631392, all nine rank-deficient batches).** In every batch where
 `rank B_T < 8` on the strong model — ranks 1, 1, 1, 3, 3, 4, 6, 6, 6 — the examples whose imprint sits below the
 floor are *exactly* the `8 − rank` highest-margin examples of that batch, whether two drop or seven (checked
