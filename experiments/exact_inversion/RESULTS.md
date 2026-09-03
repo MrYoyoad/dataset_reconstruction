@@ -953,3 +953,52 @@ digits returns them exactly — and does so at `k = 8`, far under the line.
    generative-prior direction a **consequence of the counting** rather than a hope, and it is the honest
    answer to "is the boundary a real privacy limit": no — it limits the search space, and the search space
    is the attacker's to choose.
+
+
+## Step 12 — the law's own prediction: the reach is LINEAR in the head width (jobs 589810, 593146)
+
+`k < m + r − N` says the per-image budget grows one-for-one with the head width `m`. Every earlier sweep
+moved `N` or `r`; `m` had never been varied, so this was the law's sharpest untested claim. Fixed `r = 16`,
+`N = 8`, sweeping `m` and straddling each width's *own* line:
+
+| m | line `m+r−N` | last identifiable k (`σ_min`) | first collapsed k (`σ_min`) |
+|---|---|---|---|
+| 10 | 18 | 17 (2.15e-5) | **18** (9.25e-18) |
+| 12 | 20 | 19 (2.45e-6) | **20** (9.30e-18) |
+| 16 | 24 | 23 (1.42e-6) | **24** (1.48e-18) |
+| 20 | 28 | 27 (1.53e-7) | **28** (6.43e-19) |
+| 28 | 36 | 35 (6.65e-7) | **36** (8.81e-20) |
+
+Sharp to one unit of `k` at all five widths, across a 2.8× range in `m`. **The reach is linear in the head
+width**: at fixed adapter rank, each extra class in the head buys the attacker exactly one more degree of
+freedom per image.
+
+### A confound in the testbed, found from this sweep, and fixed
+
+The `m = 28` row initially collapsed at `k = 33`, three units *below* its line of 36 — the only cell in the
+whole study to break the prediction. The cause was mine, not the law's: the generator
+`ψ(w) = tanh(W₂ tanh(W₁w) + b)` had `W₁` of shape `32 × k`, so it factors through a **32-unit bottleneck**
+and the manifold dimension is capped at `min(k, 32)` however large `k` is asked for. Every cell with
+`k > 32` was therefore probing the generator, not the release.
+
+It confounds exactly two places, and nothing else:
+- the `m = 28` row (line 36, past the cap), and
+- the `N = 4` row of the synthetic capacity table, whose line at 32 **coincides with the cap** — so its
+  original bracket (30 ok / 34 collapsed) could not distinguish the law from the bottleneck.
+
+Everything else is clean: `N = 8, 12, 14`, the widths `m = 10, 12, 16, 20`, and all of MNIST (a *linear*
+chart of rank `k`, no bottleneck). Re-running both confounded cells with the generator widened to 128 and
+the image space to 256 (job 593146):
+
+| cell | line | last identifiable | first collapsed | verdict |
+|---|---|---|---|---|
+| `m=28, N=8` | 36 | 35 (6.65e-7) | 36 (8.81e-20) | law confirmed; the `k=33` collapse was the generator |
+| `N=4, m=20` | 32 | 31 (1.32e-5) | 32 (8.01e-18) | law confirmed, now unconfounded |
+| control `N=8, m=20` | 28 | 27 (2.22e-6) | 28 (1.74e-18) | boundary unchanged by the widening |
+
+The control matters: widening the generator changes the world (so `σ_min` values differ) but moves the
+boundary not at all, which is what rules out the widening itself having produced the agreement.
+
+`World` now takes `gen_hidden` (default 32, so every earlier run reproduces byte-for-byte) and the script
+**warns** when the requested `k` approaches it. This defect was not found by any of the three audits; it
+surfaced because the law made a prediction sharp enough that one anomalous row was visibly wrong.
