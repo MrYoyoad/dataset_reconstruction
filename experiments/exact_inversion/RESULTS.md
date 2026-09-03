@@ -1753,7 +1753,7 @@ higher-rank adapter opens a proportionally richer recipe-free channel (untested;
 (iii) Which recorded image a start lands on is chosen by the start, not the attacker. Bracket rows (`k = 8`
 below, `k = 10` above; `hard1_diff`) follow.
 
-**Pre-registered for the rank cell (job 716xxx, `r ∈ {16, 32, 64}`, on-chart, 500 → 5,000 adaptive starts).** Two
+**Pre-registered for the rank cell (job 716016, `r ∈ {16, 32, 64}`, on-chart, 500 → 5,000 adaptive starts).** Two
 claims, kept apart by a fixed-`k` ladder (`k = 8` at every `r`): *rank buys budget* — the certificate line
 `k < r − N′` moves up with `r`, so a richer chart is admissible — is the scientific claim; *rank buys basin* — at
 fixed `k` more slack below the line makes the search easier — is a separate, weaker effect. The deliverable's
