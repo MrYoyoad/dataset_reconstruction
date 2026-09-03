@@ -600,11 +600,12 @@ $N=8$ real digits with their real labels, $m=10$ classes, a fixed public
 random $\tanh$ encoder $784\to128\to96$, and the chart $\psi(w)=\mu+V_kw$
 with $V_k$ the top-$k$ principal directions of $10^4$ training digits (the
 private digits projected onto it, so they lie on the chart exactly); $T=400$,
-$\eta=0.01$, plain SGD. The eight private digits are drawn at random from
-the same $10^4$ images that fit the chart, so the chart has seen them as
-eight of ten thousand; nothing else has, since no component is trained.
-(The trained-backbone cell of \S\ref{sec:opens} draws its digits from the
-test split.) The line $k<m+r-N$ moves with $r$ as
+$\eta=0.01$, plain SGD. The chart was fitted on $10^4$ train images \emph{including} the eight
+private ones (drawn at random from the same array), so its principal
+directions were computed with them contributing; nothing is trained on
+them, since no component is trained, and any rerun excludes the private
+indices from the fit. (The trained-backbone cell below draws its digits from
+the test split and fits the chart on the train split only.) The line $k<m+r-N$ moves with $r$ as
 Theorem~\ref{thm:cap} says:
 \begin{center}\small
 \begin{tabular}{@{}cccc@{}}\toprule
