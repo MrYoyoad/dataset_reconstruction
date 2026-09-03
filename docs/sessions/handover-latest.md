@@ -81,6 +81,11 @@ bracket. Next step 1 below is DONE; continue from step 2.
   is ~3 orders below the unit roundoff — predict from the measured spectrum. k=10 bracket (706721) closed: floor and
   recorded fractions separate 6x AT the line. Flowers corrected design (656205): identifiable near the truth,
   search failure from random starts; mixed batches rerunning (762253, save-path bug fixed a18893a).
+- **Step 25 (760909/760912/763805, RESULTS):** the LEAD result — letters as a new class, all 8 from random starts at
+  FP64 (k=32, release 1.0, adapter moving 43%); fp32 training: 8/8 at k=16, 6/8 at k=32 (10ε tol; tight-tol job
+  764976 pending — if 8/8 the sentence for Gal is unqualified); bf16/fp16 TRAINING keep the norm, degrade directions
+  2–25%, certificate finds 0. Headline cell: fp32 exact, mismatch 6e-32 (signal). Landing error ≈ 5× residual at truth.
+  Figure: figures/exact_inversion/letters_recovery_k32_760909.png.
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget

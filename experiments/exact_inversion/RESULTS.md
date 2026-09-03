@@ -2458,3 +2458,38 @@ N′ a *near*-blank (small φ aligned with a noise direction) can still be a spu
 the tight-tolerance rows: a letter "not found" at a residual near the bar is a *degraded recovery*, not a miss —
 `train_precision.py` now reports the closest approach per recorded image (`min_err_per_recorded_image`) so the
 image error is stated directly (future runs; 764976 started before the field).
+
+### Step 25 continued (760909 complete, 763805 random-init arm, 753371 ninth cell)
+
+| cell | format of TRAINING | ‖B_T‖ (rel. dev.) | residuals at the truths (tight tol) | search: on a letter / found |
+|---|---|---|---|---|
+| letters k = 32, zero row | fp64 | 1.00 | 2e-13 … 7e-12 | 38.4% / **8 of 8** |
+| | fp32 | 1.00 (4e-7) | 3e-7 … 1e-5 | 16.2% / 6 of 8 at 10ε (tight tol pending, 764976) |
+| | bf16 | 0.89 (0.12) | 0.04 … 0.23 | — (not run; residuals say none) |
+| | fp16 | 0.98 (0.03) | 0.014 … 0.17 | **0% / 0 of 8** (N′ 4 at 10ε; residuals 0.04 … 0.25) |
+| letters k = 16, zero row | fp64 | 0.975 | 2e-14 … 8e-13 | 82.4% / 7 of 8 (letter 5: residual 2.5e-14, zero landings in 500 — a *sampling* null) |
+| | fp32 | 0.975 (4e-7) | 2e-7 … 4e-6 | **82.6% / 8 of 8** at 10ε (residuals 2e-5 … 6e-4) |
+| | bf16 | 0.86 (0.12) | 0.04 … 0.24 | — |
+| | fp16 | 0.96 (0.03) | 0.017 … 0.16 | 0% / 0 |
+| letters k = 32, **random row** | fp64 | 0.95 | 4e-13 … 5e-12 | 38.4% / **8 of 8** |
+| | fp32 | 0.95 (5e-7) | 3e-7 … 5e-6 | 16.8% / 6 of 8 at 10ε (letters 0, 1: residuals 3.1e-3, 2.7e-3) |
+| | bf16 / fp16 | 0.85 / 0.93 | 0.05 … 0.23 / 0.02 … 0.19 | — / 0 |
+
+Random-row margins at t = 1: −10.5 … −0.41 — none chance-correct (the two nearest zero, letters 4 and 6, carry the
+lowest imprints .072/.070 against .14–.28, as pre-registered: imprint follows the residual, and a residual of 0.6
+is still an O(1) recording). Every arm: margins at t = 1 negative for every letter at both k, imprints O(1), the
+adapter moving the logits by 33–44%.
+
+**Reads.** (i) **Training precision for the lead cell:** fp32 keeps the release to 4e-7 and the certificate route
+recovers 8 of 8 at k = 16 and 6 of 8 (10ε tolerance) at k = 32; **half-precision training keeps the release's
+norm (bf16 −12%, fp16 −3%) but not its directions** — 400 accumulated roundings in an 8- or 11-bit mantissa move
+the row space by 2–25% per image, the certificate residuals at the truths become 0.01–0.25, and the search finds
+nothing (0 of 8 from the fp16-trained release at both k). The disclosure is still *recorded* in a bf16/fp16-trained
+adapter (O(1) release, rank 8); the *certificate* route needs the recording's directions to ~1e-3, which ordinary
+fp32 training gives and half precision does not. (ii) The k = 16 letters from an fp32-trained release, all eight,
+82.6% of starts: "trained and stored in ordinary arithmetic, on the canonical fine-tuning task, every private
+example recoverable from random starts with no recipe and no labels" holds at k = 16 (chart error .32, class-level
+fidelity); at k = 32 (instance-level) it is six of eight pending the tight tolerance. (iii) The random-row arm
+reproduces the zero-row arm in every number (8/8 fp64, 6/8 fp32, the same two letters missing) — the result does
+not depend on how the new head row is initialised. (iv) The bf16-storage ninth cell (tol 0.08, N′ = 2): found only
+image 5 (81 landings); image 1 at residual 2.4e-3 straddled the bar — the scatter, as read above.
