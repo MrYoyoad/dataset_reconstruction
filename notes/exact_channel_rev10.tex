@@ -704,6 +704,27 @@ cells reaching the residual floor at $80$ iterations, and those needing
 $300$).}\label{fig:cond}
 \end{figure}
 
+\paragraph{A richer chart is not harder to invert.} Since the count caps the
+chart's dimension and not its quality, the natural worry is that a chart
+which draws better is harder to invert — that expressiveness is paid for in
+conditioning. It is not, within a family. Varying only the $\beta$ of a VAE
+at fixed latent dimension, architecture and training data$^\dagger$ (job
+626565, weak encoder): $\beta=0.25$ represents the private digits markedly
+better than $\beta=1$ (error $0.222$ against $0.339$) at the same
+conditioning ($\sigma_{\min}$ at the truth $1.15\times10^{-11}$ against
+$1.13\times10^{-11}$; three $A_0$ draws span $0.99$--$1.28\times10^{-11}$).
+Across \emph{families} the differences are large — a VAE chart is
+${\sim}2000\times$ worse conditioned than a PCA chart on this encoder — but
+that is accounted for by the decoder's own Jacobian (condition number
+${\sim}830$ against exactly $1$ for a linear chart), not by what the chart
+can draw. An ordering across four charts that appeared monotone in richness
+was withdrawn on this evidence: it does not survive a within-family sweep,
+and the linear pair inverts on two of the four encoders. The practical
+reading is favourable to the attacker and to the defender's
+threat model alike: \emph{spend the $k$ coordinates on the best chart
+available}, because richness is free in conditioning terms provided the
+decoder itself is well conditioned.
+
 \paragraph{Encoder quality, and where the law stops applying.} Holding the
 architecture fixed ($784\to1000\to1000\to10$ GELU) and varying only how well
 it was trained — random weights at the trained layer norms ($8.7\%$ test
@@ -1125,9 +1146,17 @@ re-derivation, and each is itemised in the repository's lessons log.
 \item \textbf{LoRA on more than one layer.} Adapting the first layer moves
   its own successors' inputs, so (A1) fails downstream: the closure of
   Theorem~\ref{thm:traj} does not hold, several adapters are released, and
-  neither the count nor identifiability is derived. Running as an empirical
-  cell (job 608693, two arms: seeds known as an oracle, seeds unknown as the
-  honest attack); whatever it shows, it stays outside the theorems.
+  neither the count nor identifiability is derived. Measured as an empirical
+  cell$^\dagger$ (job 626564, all three layers): with the seeds \emph{known}
+  as an oracle ($112$ unknowns) the solver reaches residual
+  $2.2\times10^{-8}$; with them unknown ($22{,}384$ unknowns),
+  $7.7\times10^{-7}$ — both twenty orders off the floor, and the oracle arm
+  nearly as bad as the attack. The obstruction at this budget is the
+  three-layer unroll itself, not the unknown seeds, so the cell supports no
+  identifiability statement in either direction; the fact that more numbers
+  are released than are unknown ($38{,}352$ against $22{,}384$) is not
+  evidence, for the reasons of Remark~\ref{rem:attribution}. It stays outside
+  the theorems.
 \item \textbf{What stops the attack today is neither line.} Inside the
   capacity region, LM from perturbed-truth starts recovers up to $86\%$ start
   error, with one budget-limited failure at $81\%$ (residual $8\times10^{-5}$
