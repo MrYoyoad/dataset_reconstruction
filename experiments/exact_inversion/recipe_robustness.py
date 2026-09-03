@@ -38,42 +38,44 @@ def build(a, dev):
     return world, g, W_true, X_img, H, y, W0, A0, A_T, B_T
 
 
-def make_residual(world, A_T, B_T, W0, y, a, sim_release, sim_T, sim_lr):
-    """Residual under an ASSUMED recipe (sim_*), which may differ from the true one."""
+def make_resvec(world, A_T, B_T, W0, y, a, sim_release, sim_T, sim_lr, fit_eta=False):
+    """Residual VECTOR under an ASSUMED recipe (sim_*), which may differ from the true one.
+       If fit_eta, the last coordinate of the parameter vector is log(eta) and is solved for."""
     nB = torch.linalg.norm(B_T); nA = torch.linalg.norm(A_T)
+    k, N, r = a.k, a.N, a.r
+    aux_shape = (r, N) if sim_release == "sgd" else (r, a.n)
+    nW = k * N; nAux = aux_shape[0] * aux_shape[1]
 
-    def res(W, aux, lr_override=None):
-        lr = sim_lr if lr_override is None else lr_override
+    def res(v):
+        W = v[:nW].reshape(k, N); aux = v[nW:nW + nAux].reshape(aux_shape)
+        lr = torch.exp(v[nW + nAux]) if fit_eta else sim_lr
         Hc = world.features_from_latents(W)
         if sim_release == "sgd":
             Bs, Xis, Uc = simulate_sgd_reduced(Hc, aux, W0, y, a.m, sim_T, lr, a.wd)
-            return (torch.linalg.norm(Bs - B_T) / nB) ** 2 + (torch.linalg.norm(Xis - A_T @ Uc) / nA) ** 2
+            return torch.cat([((Bs - B_T) / nB).reshape(-1), ((Xis - A_T @ Uc) / nA).reshape(-1)])
         As_, Bs = simulate_adam_full(Hc, aux, W0, y, a.m, sim_T, lr, a.wd)
-        return (torch.linalg.norm(Bs - B_T) / nB) ** 2 + (torch.linalg.norm(As_ - A_T) / nA) ** 2
-    return res
+        return torch.cat([((Bs - B_T) / nB).reshape(-1), ((As_ - A_T) / nA).reshape(-1)])
+    return res, nW, nAux
 
 
-def lbfgs_solve(res, W, aux, extra=None, iters=60, outer=40):
-    """LBFGS over (W, aux) and optionally a scalar log-eta.  LBFGS rather than LM so the extra scalar
-       needs no Jacobian-shape surgery; the comparison across hypotheses is like-for-like."""
-    params = [W.requires_grad_(True), aux.requires_grad_(True)]
-    if extra is not None: params.append(extra.requires_grad_(True))
-    opt = torch.optim.LBFGS(params, lr=1.0, max_iter=iters, history_size=50, line_search_fn="strong_wolfe",
-                            tolerance_grad=1e-16, tolerance_change=1e-18)
-    prev = float("inf")
-    for _ in range(outer):
-        def closure():
-            opt.zero_grad()
-            f = res(W, aux, torch.exp(extra) if extra is not None else None)
-            f.backward(); return f
-        opt.step(closure)
-        with torch.no_grad():
-            cur = float(res(W, aux, torch.exp(extra) if extra is not None else None))
-        if cur < 1e-28 or abs(prev - cur) <= 1e-4 * cur: break
-        prev = cur
-    with torch.no_grad():
-        cur = float(res(W, aux, torch.exp(extra) if extra is not None else None))
-    return cur
+def lm_solve(res, v, iters=80, lam=1e-2):
+    """Levenberg-Marquardt with an autograd Jacobian -- the SAME solver the rest of the study uses.
+       Returns (final sum-of-squares, final parameter vector)."""
+    import torch.func as tf
+    F = res(v); f = float(F @ F); stall = 0
+    for _ in range(iters):
+        J = tf.jacfwd(res)(v).detach()
+        JtJ = J.T @ J; JtF = J.T @ F
+        accepted = False
+        for _ in range(12):
+            step = torch.linalg.solve(JtJ + lam * torch.eye(JtJ.shape[0], device=v.device), JtF)
+            vn = v - step; Fn = res(vn)
+            if float(Fn @ Fn) < f:
+                v, F, f = vn, Fn, float(Fn @ Fn); lam = max(lam / 3, 1e-15); accepted = True; break
+            lam *= 5
+        stall = 0 if accepted else stall + 1
+        if f < 1e-30 or stall >= 2 or lam > 1e12: break
+    return f, v
 
 
 def main():
@@ -86,7 +88,7 @@ def main():
     ap.add_argument("--wd", type=float, default=0.0); ap.add_argument("--sigma0", type=float, default=None)
     ap.add_argument("--release", default="sgd"); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--init-noise", type=float, default=0.10)
-    ap.add_argument("--outer", type=int, default=40); ap.add_argument("--lbfgs-iter", type=int, default=60)
+    ap.add_argument("--lm-iters", type=int, default=80)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
@@ -126,10 +128,12 @@ def main():
             if rel == "sgd" and a.release == "adam":
                 with torch.no_grad():
                     Uc, _ = qr_canon(world.features_from_latents(W)); aux = (A_T @ Uc).clone()
-            res = make_residual(world, A_T, B_T, W0, y, a, rel, T_, lr_)
-            t0 = time.time(); f = lbfgs_solve(res, W, aux, None, a.lbfgs_iter, a.outer)
+            res, nW, nAux = make_resvec(world, A_T, B_T, W0, y, a, rel, T_, lr_)
+            v = torch.cat([W.reshape(-1), aux.reshape(-1)]).detach()
+            t0 = time.time(); f, v = lm_solve(res, v, a.lm_iters)
             with torch.no_grad():
-                err = (torch.linalg.norm(world.psi(W.detach()) - X_img, dim=0) / torch.linalg.norm(X_img, dim=0))
+                W = v[:nW].reshape(a.k, a.N)
+                err = (torch.linalg.norm(world.psi(W) - X_img, dim=0) / torch.linalg.norm(X_img, dim=0))
             emit(dict(hypothesis=name, sim_release=rel, sim_T=T_, sim_lr=lr_, residual=f,
                       final_err_max=float(err.max()), final_err_median=float(err.median()),
                       reached_floor=bool(f < 1e-24), seconds=time.time() - t0))
@@ -137,12 +141,14 @@ def main():
     elif a.arm == "R2":
         for start_scale in (1.0, 2.0, 0.5):
             W, aux = start()
-            extra = torch.tensor(math.log(a.lr * start_scale), device=dev)
-            res = make_residual(world, A_T, B_T, W0, y, a, a.release, a.T, a.lr)
-            t0 = time.time(); f = lbfgs_solve(res, W, aux, extra, a.lbfgs_iter, a.outer)
+            res, nW, nAux = make_resvec(world, A_T, B_T, W0, y, a, a.release, a.T, a.lr, fit_eta=True)
+            v = torch.cat([W.reshape(-1), aux.reshape(-1),
+                           torch.tensor([math.log(a.lr * start_scale)], device=dev)]).detach()
+            t0 = time.time(); f, v = lm_solve(res, v, a.lm_iters)
             with torch.no_grad():
-                err = (torch.linalg.norm(world.psi(W.detach()) - X_img, dim=0) / torch.linalg.norm(X_img, dim=0))
-                eta_hat = float(torch.exp(extra.detach()))
+                W = v[:nW].reshape(a.k, a.N)
+                err = (torch.linalg.norm(world.psi(W) - X_img, dim=0) / torch.linalg.norm(X_img, dim=0))
+                eta_hat = float(torch.exp(v[nW + nAux]))
             emit(dict(eta_start=a.lr * start_scale, eta_fitted=eta_hat, eta_true=a.lr,
                       eta_rel_err=abs(eta_hat - a.lr) / a.lr, residual=f, final_err_max=float(err.max()),
                       reached_floor=bool(f < 1e-24), seconds=time.time() - t0,
@@ -154,10 +160,12 @@ def main():
         for T_ in (a.T // 4, a.T // 2, a.T, a.T * 2):
             lr_ = prod / T_
             W, aux = start()
-            res = make_residual(world, A_T, B_T, W0, y, a, a.release, T_, lr_)
-            f = lbfgs_solve(res, W, aux, None, a.lbfgs_iter, a.outer)
+            res, nW, nAux = make_resvec(world, A_T, B_T, W0, y, a, a.release, T_, lr_)
+            v = torch.cat([W.reshape(-1), aux.reshape(-1)]).detach()
+            f, v = lm_solve(res, v, a.lm_iters)
             with torch.no_grad():
-                err = (torch.linalg.norm(world.psi(W.detach()) - X_img, dim=0) / torch.linalg.norm(X_img, dim=0))
+                W = v[:nW].reshape(a.k, a.N)
+                err = (torch.linalg.norm(world.psi(W) - X_img, dim=0) / torch.linalg.norm(X_img, dim=0))
             emit(dict(test="eta_T_product", sim_T=T_, sim_lr=lr_, eta_T=lr_ * T_, residual=f,
                       final_err_max=float(err.max()), reached_floor=bool(f < 1e-24)))
         # Are the LABELS identifiable?  Try a few wrong assignments (swap two, cyclic shift).
@@ -166,8 +174,9 @@ def main():
                            ("cyclic shift", [(i + 1) % a.N for i in range(a.N)])]:
             y_alt = y[torch.tensor(perm, device=dev)]
             W, aux = start()
-            res = make_residual(world, A_T, B_T, W0, y_alt, a, a.release, a.T, a.lr)
-            f = lbfgs_solve(res, W, aux, None, a.lbfgs_iter, a.outer)
+            res, nW, nAux = make_resvec(world, A_T, B_T, W0, y_alt, a, a.release, a.T, a.lr)
+            v = torch.cat([W.reshape(-1), aux.reshape(-1)]).detach()
+            f, v = lm_solve(res, v, a.lm_iters)
             emit(dict(test="labels", labels=name, residual=f, reached_floor=bool(f < 1e-24)))
 
 

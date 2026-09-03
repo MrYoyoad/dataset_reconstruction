@@ -706,7 +706,65 @@ wrong learning rates, wrong step counts and the wrong optimizer); R2, can the re
 capacity line, `k < m + r − N − p/N`); R3, is the `η·T` degeneracy exact or broken by finite step size, and
 are the labels identifiable the same way.
 
-**The arm is invalid as first run, and the fault is ours.** R1's control — the *correct* recipe — reached
+**R1 — a wrong recipe cannot reach the residual floor, and the residual is the attacker's own instrument.**
+Rerun on LM (job 484255); the control is the first row and it now reaches the floor, so the readout is
+valid. Cell `k=12, N=8, T=400, η=0.01`:
+
+| assumed recipe | error in the recipe | residual | at floor? | image error |
+|---|---|---|---|---|
+| **correct (control)** | 0 | **5.34e-31** | **yes** | 2.84e-15 |
+| T + 1 step (401 of 400) | 0.25% | 6.04e-8 | no | 4.10e-3 |
+| η × 1.01 | 1% | 9.09e-7 | no | 1.77e-2 |
+| T + 25% | 25% | 1.55e-4 | no | 0.299 |
+| T − 25% | 25% | 2.87e-3 | no | 0.398 |
+| η × 2 | 100% | 1.59e-3 | no | 0.535 |
+| η / 2 | 50% | 3.35e-2 | no | 0.460 |
+| **wrong optimizer** (invert an SGD release as Adam) | family | **4.90** | no | 0.255 |
+
+The true recipe is the unique floor-reacher, and it is separated from the nearest wrong hypothesis — a
+step count off by **one step in four hundred** — by **twenty-three orders of magnitude**. The ordering is
+monotone in the size of the recipe error, so the residual is not merely a detector but a graded objective
+one could minimise over candidate recipes.
+
+**Why this is usable by an attacker, which is the whole point.** The image-error column is *not observable*
+to an attacker — they do not have the private images, and every reconstruction number in this file is a
+diagnostic available only to the experimenter. The **residual is** observable: it is computed from the
+released factors and the candidate alone. It is a Cauchy-type criterion — it certifies convergence without
+any reference to the limit — and it is therefore a legitimate recipe *selection* rule rather than a
+post-hoc diagnostic. Any claim built on reconstruction quality would not be.
+
+## Step 9 — the recipe can be MEASURED, not assumed (job 485912)
+
+Proposed by the user: the attacker holds the released adapter and can keep training it on data of *their
+own* choosing. Under a scalar-linear update one further step gives exactly `ΔB = −η·gB` with
+`gB = D(A_T H′)ᵀ`, and the attacker knows the released factors, their own probe features `H′` and their own
+labels, hence knows `gB`. So `η` is a one-dimensional least squares, using **no private data at all**.
+
+| true recipe | true η | estimated η | relative error | `cos(ΔB, −gB)` | passes the parallelism test? |
+|---|---|---|---|---|---|
+| SGD, T=400 | 0.01 | 0.0100000000 | 1.7e-16 | 1.0000000000 | yes |
+| SGD, T=1500 | 0.01 | 0.0100000000 | 1.4e-15 | 1.0000000000 | yes |
+| SGD, T=400 | 0.003 | 0.0030000000 | 1.0e-15 | 1.0000000000 | yes |
+| SGD, T=1500 | 0.003 | 0.0030000000 | 2.6e-15 | 1.0000000000 | yes |
+| SGD, T=400 | 0.05 | 0.0500000000 | 0 | 1.0000000000 | yes |
+| SGD, T=1500 | 0.05 | 0.0500000000 | 5.6e-16 | 1.0000000000 | yes |
+| SGD + weight decay 1e-3 | 0.01 | 0.0100031008 | 3.1e-4 | 0.9999986835 | **no** (correctly) |
+| **Adam**, T=200 | 0.003 | 0.0068650879 | 1.3 | **0.4346** | **no** (correctly) |
+
+**The learning rate is recovered to machine precision**, at every rate and horizon tested, from a single
+probe step. And the same probe **identifies the optimizer family**: the cosine between the observed step
+and the gradient is exactly 1 under plain SGD, drops to 0.435 under Adam, and dips just below 1 under
+weight decay — correctly flagging that an extra term is present rather than silently absorbing it into a
+wrong `η`.
+
+**What this does and does not settle.** It converts "the attacker knows the recipe" from an assumption into
+a *measurement* for the update rule and the learning rate, at zero cost in private data. It does **not**
+recover `T`, the number of steps taken before the release: the continuation reveals the rule, not the
+history. Under Adam a single probe identifies the family but not the recipe, since the moment buffers at
+the release point are unknown. And it assumes the attacker can evaluate the same head and loss, which they
+can here (`W₀` and `φ` are public and the probe labels are theirs to choose).
+
+**Earlier attempt, invalidated.** A first pass at R1-R3 (job 480679) is void: the fault is ours. R1's control — the *correct* recipe — reached
 residual `7.2e-8` with `reached_floor = False`. The cause is that these arms were built on the LBFGS solver
 rather than the Levenberg-Marquardt one the rest of the study uses, and LBFGS does not drive this residual
 to `1e-30` even when the recipe is exactly right. Since the claim under test is "only the correct recipe
