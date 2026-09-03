@@ -45,6 +45,13 @@ cell (VAE-ReLU) has a solved σ_min 3× its truth σ_min. At the truth the order
 script — `truth_spectrum.py` already does; the cell scripts get it at their next safe edit (all are under running
 jobs as of 2026-09-03 evening), and until then it is recomputed from the two truth fields, never read off `jac_cond`.
 
+**A number format is exponent range AND mantissa; attribute a difference to the right one (2026-09-03, night).**
+I wrote "FP16, the smallest mantissa here, keeps least" — FP16 has ten mantissa bits to bfloat16's seven; what it
+lacks is exponent range (five bits vs eight, normals stop near 6e-5), so it UNDERFLOWS the small imprints that
+bfloat16 keeps coarsely. That inverts the practical advice (bfloat16, the deployment format, is the most revealing
+low-precision format). Rule: before attributing a precision effect, write down mantissa bits and exponent range
+for each format and ask which one the data's dynamic range meets first.
+
 **Three from the certificate night (2026-09-03).** (1) *A structural cap found by a cell that "failed":* the
 twenty-image cell was built to give 190 pairs for a correlation; it gave rank 9 and no certificate-recoverable
 image, because the accumulated error vectors live on the softmax simplex and at most `m − 1` of them are
