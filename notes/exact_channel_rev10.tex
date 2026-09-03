@@ -753,7 +753,11 @@ example's \emph{rank within its batch}, not by any threshold on its own
 confidence — which is both more surprising than a threshold and more
 consequential, since it means a defender cannot secure an example by making
 the model confident about it in isolation. Neither its label nor any
-coupling between examples enters the ordering.
+coupling between examples enters the ordering, and same-label batches settle
+that directly: eight images sharing one label give full rank $8$ when the
+model is wrong about all of them (the new-class cells) and rank $1$ when it
+is wrong about one and confident about seven. Identical label multiset,
+opposite outcomes, distinguished only by the margins.
 
 One caution before that is read as a defence. The floor is relative to each
 batch's largest imprint, so a badly fit example added to a batch demotes the
