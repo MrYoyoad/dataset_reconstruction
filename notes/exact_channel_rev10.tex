@@ -5,7 +5,7 @@
 %  Self-contained. Either \input this file into the Plan of Record, or compile
 %  standalone with:
 %     \documentclass[11pt]{article}
-%     \usepackage{amsmath,amssymb,amsthm,graphicx,booktabs,hyperref}
+%     \usepackage{amsmath,amssymb,amsthm,graphicx,booktabs,array,hyperref}
 %     \newtheorem{theorem}{Theorem}\newtheorem{proposition}[theorem]{Proposition}
 %     \newtheorem{corollary}[theorem]{Corollary}\newtheorem{lemma}[theorem]{Lemma}
 %     \theoremstyle{definition}\newtheorem{definition}[theorem]{Definition}
@@ -403,7 +403,7 @@ Theorem~\ref{thm:suff}.
 \end{proof}
 
 \begin{center}\small
-\begin{tabular}{@{}p{0.2\linewidth}p{0.27\linewidth}p{0.13\linewidth}p{0.32\linewidth}@{}}\toprule
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.2\linewidth}>{\raggedright\arraybackslash}p{0.27\linewidth}>{\raggedright\arraybackslash}p{0.13\linewidth}>{\raggedright\arraybackslash}p{0.32\linewidth}@{}}\toprule
  & reads & equations per image & needs\\ \midrule
 certificate (Thm~\ref{thm:quot}) & $\operatorname{row}(B_T)$; $\Pi_{\operatorname{row}(B_T)}A_T$ & $r-N$ & (A1)--(A5)\\
 exact (Thms~\ref{thm:cap}, \ref{thm:suff}) & all of $B_T$; $A_TU_c(w)$ & $(m-1)+r-N$ & (A1)--(A3), (A6); the recipe, checked or fitted (\S\ref{sec:measured}); a solver and a start\\ \bottomrule
@@ -747,7 +747,7 @@ headline. The withdrawals are in the repository's lessons log.
 \subsection{Additions to the status ledger (Rev~9 \S15)}
 \label{sec:ledger}
 \begin{center}\small
-\begin{tabular}{@{}p{0.13\linewidth}p{0.47\linewidth}p{0.34\linewidth}@{}}\toprule
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.13\linewidth}>{\raggedright\arraybackslash}p{0.47\linewidth}>{\raggedright\arraybackslash}p{0.34\linewidth}@{}}\toprule
 level & content & status\\ \midrule
 2$'$. Seed & $(B_T,A_TU)$ depend on $A_0$ only through $X$; $Y$ released verbatim (Cor.~\ref{cor:seed}) & Theorem under (A1)--(A3)\\
 3$'$. Capacity & $k<m+r-N$, strict, from $\dim\mathcal B$ (Thm~\ref{thm:cap}, Prop.~\ref{prop:simplex}) & Theorem; sharp$^\dagger$ at $N=8,14$ synthetic and at $r=8,16,32$ on MNIST; exact identifiability of the chart coordinates\\
