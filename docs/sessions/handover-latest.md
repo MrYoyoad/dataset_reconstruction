@@ -1,91 +1,81 @@
-# Handover — 2026-09-03 02:31
+# Handover — 2026-09-03 17:15
 
 ## State
-Branch `step1-activation-rescore-retrieval`. The **exact-inversion thread is COMPLETE** — every arm that was
-listed as RUNNING in the previous note has landed, and the session produced a new headline that reframes the
-whole thread: **the simulation channel has its own capacity law, `k < m + r − N`.** Authoritative write-up is
-`experiments/exact_inversion/RESULTS.md` (read it first; it is more detailed than STATUS); disagreements with the
-external bundle in `experiments/exact_inversion/NOTES.md`. STATUS.md's top section has been rewritten to match.
-The bundle PDFs (`framework_rev10.pdf` / `results_rev9.pdf` / `audit_rev9.pdf`) are still Mac-only, not in `papers/`.
-Every number is provisional (†).
+Branch `step1-activation-rescore-retrieval`. My lane this session was the **document**, not the compute:
+`notes/exact_channel_rev10.tex` (~21 pp) is a self-contained, theorem-first Rev 10 delta section for the
+Plan of Record, rebuilt from a prose draft into Definition → Lemma → hypotheses → Theorem → proof form and
+audited by three independent sessions. It builds locally to `notes/exact_channel_rev10.pdf` via
+`bash scripts/rev10_figs/build_pdf.sh` (static musl tectonic; the PDF is gitignored, the .tex is not).
+The exact-inversion **experiments are owned by another session** (executor, currently `yoado-f4`; the
+lineage rotated twice today: yoado-6c → yoado-b7 → yoado-f4). Ten of its jobs are still running.
 
 ## Done this session
-- **NEW HEADLINE — a capacity law, CONFIRMED (jobs 467914, 469120).** The released `B_T = P_T Xᵀ` is `m × r` but
-  has rank `N`, so it carries only `N(m+r−N)` independent numbers; per image the budget is `m + r − N`. Confirmed
-  at `N = 4, 8, 12` with predicted thresholds 32 / 28 / 24, each bracketed by its own last success and first
-  failure, and **the brackets are disjoint** (`N=12` collapsed at `k=26` while `N=4` is healthy at `k=30`), which
-  rules out a fixed-`k` explanation. `σ_min(J)` at the truth falls 13–14 orders across one step of the sweep.
-  Past the line the failures are **genuine non-identifiability** — residual at the reproduction floor (~1e-30)
-  with the wrong image — the **only true aliases found anywhere in this session**.
-  Figure `figures/exact_inversion/capacity_law.png`.
-  Framing: certificate channel `k < r − N` vs simulation channel `k < m + r − N`; simulation buys
-  `(m+r−N)/(r−N) = 3.5×` at `N=8`, and the **released head width `m`** is what buys it. Falsifiable prediction,
-  UNTESTED: widening `m` widens reach **linearly** at fixed rank.
-- **It also scopes the 49/49 grid.** With `k < 36 − N`, the grid's worst corner (`N=14`) has ceiling `k<22` while
-  the grid only reaches `k=14` — the whole grid lies **strictly inside** the capacity region and could not have
-  found this boundary. 49/49 stands, as an existence result scoped to that regime.
-- **Initialiser arms COMPLETE — †1 of 20, and this is the binding constraint on the attack** (release-only starts,
-  `k=12, N=8, T=1500`, 5 seeds × 4 arms, jobs 408560-63). random 0/5, spananchor 0/5, cert 0/5; span 1/5 (seed 3,
-  image error 9.2e-3 at residual 9.1e-7 — inside tolerance but still converging, not finished). The **cert-anchor
-  failure is the clean demonstration**: its pre-solve reaches `‖Cφ(ψ(w))‖` of 1.1e-6 and 5.0e-8 and those points
-  sit **1.0–1.2 away** in image error, because at `k=12 > r−N=8` the certificate-consistent set is a 4-dimensional
-  manifold per image. Against perturbed-truth starts recovering from 0.86, the basin is strongly **anisotropic** —
-  wide along truth-directions, **not attacker-reachable**. Measured confirmation that a learned/population prior
-  must supply the initializer.
-- **Basin post-fix (job 459111, `restarts=1`): 16 of 17 recover, worst-case start error 0.86.** The single failure
-  hit the 80-iteration cap **still descending** at residual 8.0e-5 — a budget limit; **the edge was NOT located.**
-  The old "24% / first failure at 36% / restarts are the currency" table is withdrawn (pre-fix QR-seam artefact).
-- **Adam (jobs 466915, 467622, 452904): identifiable at the truth at every scale tested, including the full-size
-  `n=96` release** (gate `‖res(truth)‖` exactly 0.0, full column rank). Solution conditioning is worse than SGD's
-  and worsens with size: ~10–20× at `n=32`, ~400× at `n=96` (8.0e5 vs 2.0e3). Preconditioning does **not** fix it
-  (Marquardt `diag(JᵀJ)` scaling is worse than unscaled damping). So Adam gives the defender **two moderate
-  obstacles at scale — a conditioning penalty and a much smaller basin — not non-identifiability.** Whether either
-  is erodable by better optimisation is UNTESTED.
-- **Near-duplication (jobs 471272, 473055, 474132).** A numerically-degenerate-but-genuinely-distinct pair
-  **contaminates the certificate**: `‖CH‖` peaks at 7.8e-7 where `rank B_T` collapses (six orders above clean) and
-  returns to ~1e-15 at exact duplication — a non-monotone band with clean endpoints. `σ_N(B_T)/σ_1(B_T)` is the
-  graded detector; `‖CH‖` is fragile. But the simulation channel's apparent threshold near separation 0.2 is a
-  **SOLVER FLOOR, not an information boundary**: the same failing cell recovers to 1.8e-14 at residual 8.9e-31
-  with 10× the budget. A defender **cannot** buy privacy by perturbing-and-copying a record — it costs the
-  attacker compute, not access. The only fundamental alias is **exact** duplication.
-- **Withdrawn during the session, do not resurrect:** the false non-reproduction of `results_rev9.pdf` §3b; the
-  "15 cells needed restarts" caveat; "Adam defends by conditioning"; "only the basin differs"; the vacuous "blend"
-  diagnostic; and the near-duplicate "cliff" (a sampling artefact). Each traced either to the one QR-seam defect
-  in our own code or to reading a diagnostic at the wrong point. That is why the current numbers are trustworthy,
-  not a reason to distrust them.
+- Rewrote the mathematical core as theorems with proofs; every hypothesis (A1)–(A6) stated as a formula
+  where it is used. Added Corollary (general adapted layer: `k < m+r−N+1` without softmax, `k ≤ mr/N` for
+  `N ≥ r`) and the Q-parametrisation (seed unknowns `N(N+1)/2` instead of `rN`), both derived-not-run.
+- **Theorem I (capacity)** `k < m+r−N`: strict form DERIVED from the softmax simplex constraint
+  (`1ᵀB_t = 0`), measured sharp at N=4,8,14, at five head widths, three ranks on MNIST, and on a TRAINED
+  784→1000→1000→10 MLP with unseen test digits.
+- **Theorem II (imprint)** `B_T = Σ_i C_i`, `C_i = −ηs Σ_t D_t[:,i](A_t h_i)ᵀ`: what the release records per
+  example is bounded by that example's own accumulated error. Figure `figures/rev10/fig_imprint.png`.
+- Wrote up, with scoping: encoder-quality ladder; where (A4) fails; out-of-distribution data; the
+  attacker-side rank trigger and its prevalence; chart-dependence and chart-richness; new-class (CIFAR).
+- **Four retractions of my own claims**, all caught by peer audit and all logged in LESSONS_LEARNED
+  (items 10–15): per-example P_T columns (basis/order-dependent); the feature-Gram "coupling"; the
+  "richer chart costs conditioning" trade-off; the averaged encoder rung (2.0e-15 — a value no measurement
+  lies within three orders of).
+- Restructured §measured into four labelled groups and rewrote §"What to say to Gal" as a two-theorem
+  pitch (the last supervisor meeting failed on "correlations, no tool").
 
 ## Next step(s)
-1. **Test the capacity law's falsifiable prediction**: widening `m` should widen the attack's reach **linearly**
-   at fixed rank. Same sweep shape as job 469120, holding `r` and `N` fixed and scanning `m`; read `σ_min(J)` at
-   the truth for the collapse, not `frac_recovered` (the aliases sit *under* the 1e-2 tolerance).
-2. **Settle whether Adam's small basin is solver-fixable**: the Adam analogue of the SGD basin sweep (job 459111's
-   shape) plus at least one **trust-region** attempt (or Gauss-Newton with line search, or reformulating so the
-   Adam moment buffers are not differentiated through).
-3. **Locate the SGD basin edge** with a higher iteration cap — the 17th run was still descending at the cap, so
-   the edge is unmeasured and must not be reported as "just past 0.86".
-4. **The real-data step**: frozen DINO/CLIP features with an adapter head. The original task spec explicitly
-   scoped this as a **separate task**.
-5. **rsync the three bundle PDFs** from the Mac into `papers/`.
+1. **The matched control for the EMNIST new-class cell (job 658575) has not landed.** Two `batch=new` rows
+   are in: on the 98.2% MNIST model an 11th class (EMNIST 'a') gives `rank_B_T = 8` with all imprints within
+   ~3.7× and imprint-Gram σ_N/σ_1 ≈ 0.092 (present and aligned). The pre-registered prediction is that the
+   quality ladder FLATTENS for a new class where ordinary data loses rank — i.e. "how good the model is" and
+   "has it seen this category" are independent axes of exposure. **Do not write that up until the
+   same-job control (MNIST digits on the extended head, same chart and k) is in**, because at the strong
+   encoder ordinary digits give rank 8 on-chart/distinct and rank 6 raw/distinct, so the comparison must be
+   matched within the job.
+2. The attacker-realisable arm (job 650890, `most_leaking.py`) is the first cell that starts from random
+   public-scale coordinates rather than near the truth. Headline must be the **selection** — does
+   `argmin_residual` pick the right label and image — not the success rate. `k ∈ {24,25,26}` tests the
+   one-image line `k < m+r−1 = 25` in the only arm an attacker could occupy.
+3. Job 652786 is the negative control that matters: act on a trigger that fires for the WRONG reason
+   (random encoder, eight 1s, collinear features). If the argmin pick is wrong there, the .tex footnote on
+   the trigger becomes a measured caveat instead of a caution.
+4. Still open in §opens: global uniqueness; the fibre's extent past the line (one direction of forty walked,
+   one cell still rising); the accuracy at which (A4) begins to fail; multi-layer LoRA (measured, but both
+   arms 20 orders off the floor with the ORACLE arm nearly as bad, so no identifiability statement);
+   Adam's predicted one-unit-higher line; the schedule family under weights-only release.
 
-## Open threads and gotchas
-- **`set +u` before `conda activate`** in any job script here, or the job dies in 9 s with a near-empty stdout
-  (`ADDR2LINE: unbound variable`).
-- **Never edit a script under a running multi-cell job** — the runner re-launches python per cell.
-- The **session scratchpad is not visible from compute nodes**; submit inline scripts via `bsub` stdin.
-- **A pre-fix failure is not a result.** Anything measured at `12fa60d` / `38fec3b` that FAILED is void (QR sign
-  discontinuity, fixed at `5762045`).
-- **Always read the residual** to tell a search failure from a true alias: residual at the reproduction floor
-  (~1e-30) with a wrong image = alias; residual far above the floor = the solver simply did not get there.
-- `figures/exact_inversion/` and `experiments/exact_inversion/` are owned by the user; a doc-only session must
-  not edit them.
-- Pre-existing uncommitted `figures/recon_showcase/*.png` + `results/recon_showcase_sweep.csv` predate this thread.
+## Open threads / gotchas
+- **Running jobs**: 614344 (strong/mid sweep), 624463 (chart budget rerun at 3000 iters), 624465 (β-VAE),
+  624573 (labels/random-encoder), 634238 + 644064 (subset & OOD inversions), 650890 (most-leaking),
+  652786 (negative control), 656205 (CIFAR new class), 658575 (MNIST/EMNIST new class).
+- **Three peer sessions in play**: executor `yoado-f4`; theory auditor `yoado-77`; claims auditor `yoado-36`.
+  They have both offered further passes. Names rotate — use `ListAgents` and re-identify rather than
+  assuming a handle.
+- **The tooling failure that bit three times today**: a Python patch script that applies several edits in
+  memory and writes once at the end silently DISCARDS everything if a later assert fails — and it once
+  produced a commit whose message claimed edits the file did not contain. Write after each edit, and verify
+  target strings in the file rather than trusting the script's own "ok" lines.
+- **Never read `jac_sigma_min` or `jac_cond`** — those are at the point the solver stopped. The theorems are
+  about the Jacobian at the truth: use `jac_sigma_min_truth`, and compute cond as
+  `jac_sigma_max_truth / jac_sigma_min_truth`. This substitution produced three separate wrong readings.
+- **Never read the jsonl `verdict` field** into a document: it thresholds on image error alone and calls a
+  9e-7-residual run "recovered".
+- The `labels` field in `step51`/`step58` is the STRING "distinct"/"repeated", not a list — classifying by
+  `len(set(...))` silently mis-splits every group.
+- All MNIST/trained cells start from truth + 10% noise (`--init near`) and are identifiability tests, not
+  attacks; the .tex says so. The only exception is 650890.
 
 ## Pointers
-- Authoritative write-up `experiments/exact_inversion/RESULTS.md`; retraction/open questions `NOTES.md`; theory
-  `notes/exact_lora_inversion_framework.md`.
-- Figures: `capacity_law.png`, `phase_diagram_comparison.png`, `phase_diagram_exact.png`, `basin_curve.png`
-  (all under `figures/exact_inversion/`).
-- Analyze: `python experiments/exact_inversion/analyze_exact_inversion.py` (CPU, globs all
-  `results/exact_inversion/*.jsonl`; each line carries seed, git hash, command line, host).
-- Submit: `bsub -q long-gpu -gpu "num=1" -R "rusage[mem=8192] select[ngpus>0]" -J ei_x -o scripts/wexac_logs/ei_x_%J.out -e scripts/wexac_logs/ei_x_%J.err bash scripts/run_exact_inversion_wexac.sh <stage> [arg]`
-- Solver flags: `--lm-scale {identity,marquardt}`, `--stage-x N`, `--solver {lm,lbfgs}`, `--jac-at-truth`.
+- Deliverable: `notes/exact_channel_rev10.tex` (+ wrapper `notes/exact_channel_rev10_main.tex`); build with
+  `bash scripts/rev10_figs/build_pdf.sh`; figures `figures/rev10/` from `scripts/rev10_figs/fig_*.py`
+  (CPU-only, read committed jsonl). Rev 9 source is Mac-only, so the .tex carries a MERGE NOTE mapping every
+  Rev 9 number it uses — the user merges on Overleaf.
+- Executor's authoritative write-up: `experiments/exact_inversion/RESULTS.md` (retracted claims are stamped
+  in place, not deleted). Durable record: `STATUS.md` top section; pitfalls `LESSONS_LEARNED.md` items 10–15.
+- Memory: `project_exact_inversion_capacity_law` carries the corrected framing — the law bounds the CHART
+  COORDINATES, never say "wrong image" or "recognisable", and reconstruction factorises as
+  capacity × chart quality.
