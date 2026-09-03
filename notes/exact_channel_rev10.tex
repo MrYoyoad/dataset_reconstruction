@@ -757,7 +757,22 @@ eight distinct labels also give $6$, because two of the eight are fitted
 confidently enough on their own$^\dagger$ (job 644062, the in-distribution
 control of the foreign-data paragraph below). What matters is each
 example's own confidence, which is the imprint law; the label multiset and
-the chart change it, and a strong encoder makes it common.\footnote{An
+the chart change it, and a strong encoder makes it common.
+
+Two mechanisms could in principle produce $\operatorname{rank}B_T<N$: some
+imprints falling below the floor, so that fewer examples are recorded at all;
+or the residual columns becoming linearly dependent, so that the rank falls
+with every imprint still present. The rows distinguish them. In all nine
+rank-deficient batches, including both repeated-label ones, the number of
+imprints above the relative floor equals $\operatorname{rank}B_T$ exactly —
+in the repeated-label cells the eight relative imprints are
+$1$, $2\!\times\!10^{-5}$, $10^{-6}$, $10^{-7}$, $6\!\times\!10^{-8}$,
+$10^{-11}$, $2\!\times\!10^{-15}$, $10^{-23}$, and the last two are the two
+that leave. This is a measurement rather than a definition: the rank of
+$B_T$ read from its own singular spectrum, the rank of the stacked imprints,
+and the count above the threshold are three separate computations, and they
+agree in all forty batches. So the count route is the one that acts, and
+collinearity at fixed count is not needed to explain any cell.\footnote{An
 earlier version quoted a single strong rung of $2.0\times10^{-15}$, the
 geometric mean of the first two rows — a value no measurement lies within
 three orders of — and attributed the rank loss to encoder quality alone. The
