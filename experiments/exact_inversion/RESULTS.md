@@ -2101,7 +2101,12 @@ the recorded floor level: from a near start the solver drives the residual to 3.
 candidate far off its start (image error 0.85; the other two stay at their 0.064 start error) — a candidate drifting
 toward what does explain the release, not a floor. Three levels in one cell: recorded subset 1.1e-16, one-swapped
 2.1e-10, confident-only 3.2e-4 (twelve orders): the achievable residual orders the candidate subsets by how much
-of the release they contain.
+of the release they contain. *At N′ = 6 (same job, later rows) the levels no longer separate:* the recorded
+six-image subset (predicted floor 1.6e-31) and the one-swapped subset (3.8e-19, the swapped-in image's imprint
+being 1e-19 of the release) both stall at 4–5e-17 with image error 0.10 (σ_min at the truth 1e-14 … 1e-20,
+rank-deficient) — both predicted floors lie below the solver's reach, so the swap of an image the release barely
+contains is undetectable, which is the same statement from the other side: the level orders subsets exactly as
+far as the release distinguishes them.
 
 ### Closures from the older jobs
 - **The alias form did not appear (job 614344, 98% model, repeated draw, `k = 6 … 18`):** `σ_min` at the truth is
