@@ -1608,16 +1608,31 @@ demonstrated rather than argued; its price to the attacker is a floor of
 $2\times10^{-2}$ in image error where FP64 gives $10^{-15}$.
 
 That price is set by the mantissa, and it orders as one would then expect:
-median image error $3\%$ from a bfloat16-trained release, $1\%$ from an
+median image error $3.0\%$ from a bfloat16-trained release, $0.97\%$ from an
 FP16-trained one (its $A_0$ floor is $2.05\times10^{-3}$ against bfloat16's
-$0.0231$, a third of the unexplained fraction), $2\times10^{-6}$ from FP32 and
-$10^{-15}$ from FP64. Note that this reverses the ordering of the storage
+$0.0231$, a third of the unexplained fraction), $3.0\times10^{-7}$ from FP32
+and $2\times10^{-15}$ from FP64 --- the same start, the same solver, the same
+release but for the arithmetic it was trained in. Note that this reverses the ordering of the storage
 result above, and for a reason worth stating: reconstructing $A_0$ inside a
 matched simulator is limited by \emph{precision}, so FP16's ten mantissa bits
 beat bfloat16's seven, while reading a stored release through the certificate
 is limited by \emph{range}, so bfloat16's eight exponent bits beat FP16's
 five. The same two formats swap places depending on which of the two the
 attacker is up against.
+
+One further mechanism governs how much an arithmetic mismatch costs, and it is
+the chart's conditioning rather than the mismatch's size. The same $2.8\%$
+mismatch --- an FP64 simulator against an FP16-trained release --- displaces
+the solution by $0.074$ at $k=16$ and by $0.47$ at $k=32$, where
+$\sigma_{\min}$ of the pull-back is $10^{-5}$. A richer chart buys fidelity in
+exact arithmetic and pays for it by amplifying every arithmetic error into a
+displacement, so under imperfect arithmetic the attacker's best $k$ is bounded
+by conditioning and not only by the line. Whether the matched attacker's
+$1$--$3\%$ survives at $k=32$ is therefore not a foregone extension of the
+$k=16$ column: scaling those errors by the same amplification predicts roughly
+$6\%$ for FP16 and $19\%$ for bfloat16, which would still be a recovery but a
+visibly degraded one. Those rows are running, and the prediction is recorded
+here so that a better outcome is a finding rather than a relief.
 
 \emph{The three attackers on this one release are the clearest lesson in the
 section.} The certificate recovers none of the eight. The recipe route with an
