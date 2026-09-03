@@ -96,6 +96,9 @@ bracket. Next step 1 below is DONE; continue from step 2.
   (32.8%); the unqualified sentence holds at the instance-identifying chart. **Step 26 (771329) k=16 so far:** recipe
   route recovers fp32-trained letters to 2e-6; on bf16-trained it lands on an ALIAS (residual 240× below the truth's
   floor, wrong images) — recorded, recoverable by neither route we ran, an open; fp16 and k=32 rows pending.
+- **779207 (Step 26 addendum):** matched-arithmetic landscape of the bf16/fp16/fp32 letter releases (response to
+  perturbations; residual along start→truth). Pre-registered: bf16 map responds 1e-2…1e-1 to a 1e-6 perturbation →
+  no differentiable matched solver exists (verification oracle only); falsifier: linear response → run a matched LM.
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
