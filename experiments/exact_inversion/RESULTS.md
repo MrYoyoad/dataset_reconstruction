@@ -1540,6 +1540,10 @@ angles) are different causes of a poor `σ_min(J)`, and this is the field that s
    imprint norms, imprint-Gram `σ_N/σ_1`, `rank B_T`, `σ_min(J)` at the truth — to be filled from 658575's `old_ext`
    and `new` rows.
 
+Data note: EMNIST's 'letters' split merges cases, so class 'a' contains both lowercase a and uppercase A (5 of 8
+private letters are 'a', 3 are 'A'; orientation verified visually after the transpose); the public-'a' chart is
+fitted on the same mixture, so the new class is bimodal by construction, not mismatched.
+
 Scoping fixed in advance: near-truth starts, labels given (`oracle = [near_init, labels]`); under the zero row the
 new class's negative margin is set by the initialisation, not learned — margin claims ride on the random-row arm;
 the CIFAR MLP is a weak encoder (53% best-test-epoch checkpoint) and that domain isolates the new-class /
