@@ -1191,7 +1191,8 @@ $k<m+r-N'$, six coordinates per image rather than twenty-two. At $k=8$, one unit
 basin falls to $18\%$ --- which raises the question of what the basin depends
 on, and the answer decides whether the channel is practically narrow or not.
 
-\paragraph{The basin is governed by distance below the line, not by $k$.}
+\paragraph{The basin is governed mostly by distance below the line, and only
+weakly by $k$.}
 Holding the chart, the images, $k=8$ and the $500$ starts fixed and moving
 only the rank$^\dagger$ (job 721391, confident batch on-chart, $N'=7$): at
 $r=16$, where $k=8$ sits one unit below the line, $16.6\%$ of starts land on a
@@ -1201,9 +1202,13 @@ $\operatorname{argmin}$ on a private image; and at $r=64$, forty-nine units
 below, $96.4\%$. A control batch runs $4\%$ (at its line), $73.4\%$, $89.0\%$
 over the same three ranks. The basin therefore rises monotonically with the
 slack and saturates. Neither below-line cell has a spurious zero.
-The number of unknowns is identical in the two, so it is the slack below the
-line and not the dimension of the search that sets how findable the recorded
-examples are.
+The number of unknowns is identical in the two, so the slack below the line
+and not the dimension of the search is what moves the basin over that range.
+The mirror experiment bounds the other side: holding the slack roughly fixed
+and varying $k$ instead, $r=64$ with $k=40$ ($16$ below) gives a per-image
+basin of $5.7\%$ against $r=32$ with $k=8$ ($17$ below) at $10.6\%$, so
+thirty-two additional unknowns cost about a factor of two. Distance dominates,
+$k$ is not free, and the honest form of the claim needs both halves.
 
 This makes the rank a leakage dial in two independent ways, which is the
 sentence to carry: raising $r$ raises the admissible $k$, so the attacker may
@@ -1226,11 +1231,18 @@ eight of eight, $\operatorname{argmin}$ correct). At this $k$ the base model
 reads all eight projections as their own digit and the representation error
 is $0.400$.
 
-So on a $98\%$ MNIST model, from a released rank-$64$ adapter and nothing
-else --- no recipe, no labels, no batch size, no starting point near the
-answer --- an attacker recovers every recorded private example, and at that
-chart dimension the recovered object identifies its source rather than merely
-its class. That is the claim the whole construction was built to test, and it
+The chart is public: PCA on the first $5\times10^4$ images of the train
+split, while every private batch is drawn from the test split --- two disjoint
+index files, verified in the code path that produced these rows, not inferred
+from convention. The per-image best errors are $10^{-14}$ for five of the
+eight digits and $10^{-5}$ to $9\times10^{-5}$ for the other three, the latter
+still converging at the $300$-iteration cap.
+
+So on a $98\%$ MNIST model, from the released rank-$64$ adapter, the public
+base model and a public chart --- and no recipe, no labels, no batch size and
+no starting point near the answer --- an attacker recovers every recorded
+private example, and at that chart dimension the recovered object identifies
+its source rather than merely its class. That is the claim the whole construction was built to test, and it
 is the one to put in front of a supervisor.
 
 Two supports keep it from resting on a single cell. The per-image basin does
