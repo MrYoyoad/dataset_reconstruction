@@ -93,6 +93,13 @@ degradation splits by N (the defender's variable), not by distance past the line
 N=8 stays inside tolerance sixteen units past the line, N=12/14 are outside one unit past; and every past-line
 error is a lower bound on the fibre's extent (near-init finds the nearest branch; walks stopped by budget).
 
+**10. State the access model with every result.** The recipe probe (R4) was internally valid — no private data,
+every regressor public — and still presupposed an access model the release does not give: the attacker must
+observe the *victim's* optimizer take a step on attacker-chosen data (a checkpoint with optimizer/scheduler state,
+or a fine-tuning service). An attacker who runs the step themselves sets η and learns nothing. Under weights-only
+release only R1–R3 apply; the schedule and T are not recovered. Caught by the user on reading the PDF, not by any of
+the four audits, all of which checked the numbers against the rows and none of which asked who takes the step.
+
 ---
 
 ## `k` is a property of the chart, not of the data — do not read a dimension bound as a privacy bound (2026-09-03)

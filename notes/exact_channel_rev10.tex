@@ -40,7 +40,10 @@
 \label{sec:exact-channel}
 
 A released LoRA adapter is a deterministic function of the private data, the
-public recipe and the random initialisation. This section writes that
+public recipe and the random initialisation. Throughout, $k$ is the
+dimension of the chart the attacker searches in — the coordinates $w$ of
+Definition~\ref{def:setup} — not an intrinsic dimension of the images; every
+count below is a count of those coordinates. This section writes that
 function out (Theorem~\ref{thm:traj}), shows that the initialisation enters
 it only through $rN$ numbers (Corollary~\ref{cor:seed}), and then reads the
 same function in two ways: projecting the initialisation away gives Rev~9's
@@ -428,6 +431,50 @@ of Definition~\ref{def:setup}: the unknown is $w$, the theorems pin $w$, and
 the attack returns $\psi(\hat w)$. Nothing in them constrains the chart
 $\psi$, which is the attacker's to choose.
 
+\begin{corollary}[the count for a general adapted layer]\label{cor:general}
+The proof of Theorem~\ref{thm:cap} uses only that the simulated $B_T$ has
+rank at most $\min(N,r)$ and, under a softmax head, zero column sums; it
+does not use what the layer computes downstream. Hence, with $m$ the output
+width of the adapted layer, the necessary condition on the chart dimension
+reads
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}\toprule
+channel & $N\le r$ & $N\ge r$\\ \midrule
+certificate (Theorem~\ref{thm:quot}) & $k<r-N$ & — (no certificate)\\
+exact, softmax head & $k<m+r-N$ & $k\le (m-1)r/N$\\
+exact, any other head & $k<m+r-N+1$ & $k\le mr/N$\\ \bottomrule
+\end{tabular}
+\end{center}
+\end{corollary}
+\begin{proof}
+For $N\le r$ replace $\mathcal B$ by the rank-$N$ matrices in
+$\mathbb R^{m\times r}$ (dimension $N(m+r-N)$) when there is no column-sum
+constraint. For $N\ge r$, $B_T=P_T(A_0H)^{\!\top}$ has rank $r$ and ranges
+over all of $\mathbb R^{m\times r}$ (or its $(m-1)r$-dimensional
+column-sum-zero subspace), while Corollary~\ref{cor:seed} still reduces the
+seed to $X\in\mathbb R^{r\times N}$; the count is $mr+rN\ge Nk+rN$
+(resp.\ $(m-1)r+rN\ge Nk+rN$). The two regimes agree at $N=r$.
+\end{proof}
+This is the realistic picture for a transformer: the first adapted
+projection has $m$ equal to the layer's output width, hundreds to thousands
+of coordinates per representation, against $r-N$ for the certificate; and
+once $N$ exceeds $r$ — tokens, not images — the budget per representation is
+$mr/N$. The $N\ge r$ regime is derived here and untested; every measurement
+in \S\ref{sec:measured} has $N<r$.
+
+\paragraph{Eliminating the seed in closed form.} By Corollary~\ref{cor:seed}
+the coefficients depend on $X$ only through the Gram $S:=X^{\!\top}X\in
+\mathrm{Sym}^+_N$, so $\Omega=\Omega(w,S)$, and the second block of
+\eqref{eq:rho} solves for $X$ outright: $X=A_TU_c(w)\,\Omega(w,S)^{-1}$
+wherever $\Omega$ is invertible. Substituting into the first block and
+adding the consistency condition $X^{\!\top}X=S$ leaves unknowns
+$(w,S)\in\mathbb R^{Nk}\times\mathrm{Sym}_N$ — $Nk+N(N+1)/2$ numbers, $36$
+in place of $rN=128$ at $N=8$, $r=16$ — against $\dim\mathcal B+N(N+1)/2$
+equations: the same capacity, a search space smaller by $rN-N(N+1)/2$. Since
+\S\ref{sec:opens} finds the initialiser, not the information, to be what
+stops the attack, this is the first thing to implement; it is derived here
+and not yet run.
+
 %----------------------------------------------------------------------------
 \subsection{What was measured}
 \label{sec:measured}
@@ -451,7 +498,8 @@ $5.3\times10^{-16}$--$1.8\times10^{-15}$\textsuperscript{$\dagger$} ($B$ and $A$
 $54$ rows; jobs 395496, 396214, 396216--21). Every number
 below rests on this one.
 
-\paragraph{The line of Theorem~\ref{thm:cap} is sharp to one unit of $k$.}
+\paragraph{The line of Theorem~\ref{thm:cap}: sharp to one unit of $k$ at
+$N=8,14$, bracketed to two at $N=4,12$.}
 \begin{center}\small
 \begin{tabular}{@{}rcccc@{}}\toprule
 $N$ & $k^\star=m+r-N$ & last $k$ identifiable ($\sigma_{\min}$) & first $k$ collapsed ($\sigma_{\min}$) & jobs\\ \midrule
@@ -463,7 +511,9 @@ $N$ & $k^\star=m+r-N$ & last $k$ identifiable ($\sigma_{\min}$) & first $k$ coll
 \end{center}
 At $N=8$ and $N=14$ the transition is one unit of $k$, on the outcome
 (recovered at $k^\star-1$, alias at $k^\star$) and on $\sigma_{\min}$, which
-drops eleven to twelve orders across that unit; it lands on $k=m+r-N$, the strict form
+drops eleven to twelve orders across that unit; at $N=4$ and $N=12$ the
+tested cells straddle $k^\star$ by two on each side, so the line is
+bracketed there, not resolved; it lands on $k=m+r-N$, the strict form
 that Proposition~\ref{prop:simplex} derives.\footnote{At the collapsed cells
 $\sigma_{\min}\approx10^{-19}$ against $\sigma_{\max}\sim1$ is the FP64
 floor: the measurement shows the smallest singular value falling to the
@@ -533,19 +583,20 @@ which the next paragraph shows is the whole question.
 \paragraph{The boundary is about the chart, not the image.} Same digits,
 same $N=8$, $m=10$, $r=16$, line $k<18$; three charts at matched $k$\textsuperscript{$\dagger$}
 (job 574169): the principal subspace (PCA), the same subspace under a
-non-linear warp, and a chart built to contain the eight private digits
-exactly. Two predictions of Theorems~\ref{thm:cap}--\ref{thm:suff} come
+non-linear warp, and an \emph{oracle-built} chart constructed from the eight
+private digits themselves so that it contains them exactly — a control on
+what the count can and cannot see, not an attack. Two predictions of Theorems~\ref{thm:cap}--\ref{thm:suff} come
 apart:
 \begin{center}\small
 \begin{tabular}{@{}llccc@{}}\toprule
 $k$ & chart & $\sigma_{\min}$ & error vs.\ own image & error vs.\ real digit\\ \midrule
 17 (below) & PCA & $2.2\times10^{-5}$ & $7.2\times10^{-14}$ & $0.510$\\
            & warped & $2.2\times10^{-5}$ & $5.9\times10^{-14}$ & $0.510$\\
-           & contains the digits & $5.7\times10^{-5}$ & $5.7\times10^{-14}$ & $5.7\times10^{-14}$\\
+           & oracle-built (spans the digits) & $5.7\times10^{-5}$ & $5.7\times10^{-14}$ & $5.7\times10^{-14}$\\
 18 (at)    & PCA & $5.6\times10^{-18}$ & $2.9\times10^{-2}$ & $0.500$\\
            & warped & $5.3\times10^{-18}$ & $2.9\times10^{-2}$ & $0.500$\\
-           & contains the digits & $5.7\times10^{-18}$ & $1.8\times10^{-2}$ & $1.8\times10^{-2}$\\
-8 (far below) & contains the digits & $6.2\times10^{-4}$ & --- & $9.5\times10^{-15}$\\
+           & oracle-built (spans the digits) & $5.7\times10^{-18}$ & $1.8\times10^{-2}$ & $1.8\times10^{-2}$\\
+8 (far below) & oracle-built (spans the digits) & $6.2\times10^{-4}$ & --- & $9.5\times10^{-15}$\\
            & PCA & $2.0\times10^{-4}$ & --- & $0.617$\\ \bottomrule
 \end{tabular}
 \end{center}
@@ -561,9 +612,11 @@ $\psi(\hat w)$; how close that is to the private image depends entirely on
 whether the chart can represent it. The capacity law bounds the
 \emph{dimension of the search}, not the fraction of the image an attacker
 can reach, and it cannot be read as a leakage bound: nothing constrains the
-attacker's chart to be data-agnostic, and one spanning the private images
-plus filler has $k=N=8$, sits far below the line, and returns them at
-$10^{-14}$ (last rows). What the boundary limits is the search space, and
+attacker's chart to be data-agnostic, and the oracle-built chart — which
+spans the private images and so has $k=N=8$, far below the line — returns
+them at $10^{-14}$ (last rows); an attacker does not have that chart, and
+what the row shows is what a chart that happened to contain the images would
+give. What the boundary limits is the search space, and
 the search space is the attacker's to choose — which is the counting
 argument handing the generative-prior direction of Rev~9 its role: a prior
 is a chart-builder (Figure~\ref{fig:chart}).
@@ -573,8 +626,8 @@ is a chart-builder (Figure~\ref{fig:chart}).
 \caption{Chart dependence at $k=17$, one unit below the line (job 574169).
 Rows: the real digit; what each chart can represent at all; what the attack
 returned, with the error against the real digit. Every chart is recovered
-exactly in its own coordinates; only the chart that contains the digits
-returns the digits.}\label{fig:chart}
+exactly in its own coordinates; only the oracle-built chart, constructed
+from the digits, returns the digits.}\label{fig:chart}
 \end{figure}
 
 \paragraph{Past the line: what the alternative point is.} On the synthetic
@@ -665,10 +718,14 @@ read block by block. The Adam spectrum is $\sim\!400\times$ wider at equal
 shape: worse conditioning, not lost identifiability.}\label{fig:spectrum}
 \end{figure}
 
-\paragraph{The recipe need not be handed to the attacker.} Definition~\ref{def:rho}
-takes $(\eta,s,T)$ and the labels as known. Four measurements$^\dagger$ at
-$k=12$, $N=8$, $T=400$, $\eta=0.01$ (job 484255) show that they can be
-checked, fitted, and in part read off instead.
+\paragraph{How much of the recipe the release itself gives up.}
+Definition~\ref{def:rho} takes $(\eta,s,T)$ and the labels as known. Under a
+\emph{weights-only} release — the attacker has $(A_T,B_T)$, $W_0$, $\varphi$,
+$\psi$ and nothing else — three measurements$^\dagger$ at $k=12$, $N=8$,
+$T=400$, $\eta=0.01$ (job 484255) show that a wrong recipe is detected (R1)
+and that $\eta$, the $(\eta,T)$ split and the labels are fitted from the
+release alone (R2, R3). A fourth (R4) needs more access and is scoped as
+such.
 
 \emph{(R1) None of seven wrong recipes reached the floor.} With the control first:
 \begin{center}\small
@@ -709,12 +766,18 @@ $0.1$--$0.7\%$. Labels: the true assignment reaches the floor
 ($7.2\times10^{-31}$); swapping two examples ($2.5\times10^{-3}$) or shifting
 all of them ($7.5\times10^{-6}$) does not.
 
-\emph{(R4) A decaying schedule leaks the step count that a constant one
-hides.} The \emph{probe}: the attacker continues training the released
-adapter on a batch of their own choosing, $H_p=\varphi(\psi(W_p))$ with
-labels they choose, so every regressor is computable from $(A_T,B_T)$ and the
-public $W_0$ and no private data enters. One step under decoupled weight
-decay is $\Delta B=-\eta\nabla_BL-\eta\,\mathrm{wd}\,B_T$, linear in
+\emph{(R4) With continued-training access, a decaying schedule leaks the
+step count that a constant one hides.} This result assumes an access model
+the others do not: the attacker submits a batch of their own choosing,
+$H_p=\varphi(\psi(W_p))$ with labels they choose, and observes the
+\emph{victim's} training process take one more step on it with its hidden
+$\eta$, weight decay and scheduler state — a checkpoint that includes
+optimiser and scheduler state, or a fine-tuning service that continues the
+job. An attacker who runs the step themselves sets $\eta$ and learns nothing;
+under weights-only release (R4) does not apply, and neither the schedule nor
+$T$ is recoverable by it. Within that access model no private data enters:
+every regressor is computable from $(A_T,B_T)$, $W_0$ and the probe batch.
+One step under decoupled weight decay is $\Delta B=-\eta\nabla_BL-\eta\,\mathrm{wd}\,B_T$, linear in
 $(\eta,\eta\,\mathrm{wd})$: the two-parameter least squares returns $\eta$ to
 $5\times10^{-16}$ and $\mathrm{wd}=10^{-3},10^{-2}$ to $10^{-11}$ relative
 (job 487290), and
@@ -726,7 +789,9 @@ global fit of $(\text{base},T_{\max},T)$ to six probe steps (eliminate the
 base by ratios, grid the two integers, solve the base in closed form) returns
 all three exactly — $T=400$, $T_{\max}=1000$, base $0.0100$ — and identically
 from windows of $20$, $60$ and $150$ steps (the probed values are job
-488314's). A schedule encodes position on its own curve.\footnote{A gradient
+488314's). A schedule encodes position on its own curve — and with checkpoint access
+$T$ is usually in the metadata anyway, so the content of (R4) is the
+fine-tuning-service case.\footnote{A gradient
 fit of the same three parameters had landed $30$--$40\%$ off and was
 retracted; it was a local minimum of a multimodal objective, not a
 degeneracy. The global fit is a re-analysis of the saved probe values,
@@ -758,10 +823,12 @@ re-derivation, and each is itemised in the repository's lessons log.
   \emph{without} the private images — a population prior — and how far below
   the line it lands; that is the generative-prior direction, now with a
   precise specification.
-\item \textbf{The recipe family.} What \S\ref{sec:measured} leaves open is
-  the \emph{family}: the schedule fit assumes cosine, and choosing among
-  families is model selection, which the floor test of (R1) would presumably
-  rank but which has not been run. The count \eqref{eq:cap} bounds the recipe
+\item \textbf{The recipe family, and the access model.} What
+  \S\ref{sec:measured} leaves open is the \emph{family}: the schedule fit
+  assumes cosine, and choosing among families is model selection, which the
+  floor test of (R1) would presumably rank but which has not been run; and
+  (R4) holds only under continued-training access — under weights-only
+  release the schedule and $T$ are not recovered by anything here. The count \eqref{eq:cap} bounds the recipe
   as it bounds the data: $p$ unknown recipe scalars are identifiable only if
   $p\le N\bigl((m-1)+r-N\bigr)-Nk$, which is $120$ at the standard cell. A
   parametric schedule ($p=2$--$4$) sits far inside; a free per-step sequence
@@ -811,11 +878,11 @@ re-derivation, and each is itemised in the repository's lessons log.
 level & content & status\\ \midrule
 2$'$. Seed & $(B_T,A_TU)$ depend on $A_0$ only through $X$; $Y$ released verbatim (Cor.~\ref{cor:seed}) & Theorem under (A1)--(A3)\\
 3$'$. Capacity & $k<m+r-N$, strict, from $\dim\mathcal B$ (Thm~\ref{thm:cap}, Prop.~\ref{prop:simplex}) & Theorem; sharp$^\dagger$ at $N=8,14$ synthetic and at $r=8,16,32$ on MNIST; exact identifiability of the chart coordinates\\
-3$'''$. Chart & boundary chart-independent; fidelity chart-dependent ($0.51$ vs $5.7\times10^{-14}$ at $k=17$); a chart containing the digits recovers them at $k=N$ & Verified$^\dagger$ (job 574169); not a leakage bound\\
+3$'''$. Chart & boundary chart-independent; fidelity chart-dependent ($0.51$ vs $5.7\times10^{-14}$ at $k=17$); an oracle-built chart spanning the digits recovers them at $k=N$ & Verified$^\dagger$ (job 574169); not a leakage bound\\
 3$''$. Sufficiency & $D\rho$ full column rank a.e.\ below the line, per connected component (Thm~\ref{thm:suff}) & Theorem given a witness in the component; witness measured$^\dagger$ at $T=1$; $T>1$ rests on measured $T$-independence, not on a proof\\
 5$'$. Past the line & a walkable manifold of exact reproductions; alternatives at $0.2$--$1.7\%$ (synthetic, chart contains the truth), $2$--$7\%$ on real digits, growing with distance past the line; $\le3.8\%$ along one walked direction & Verified$^\dagger$; recognisability not assessed; extent and global uniqueness open\\
 7$'$. Adam & identifiable; seed $rn$; $\kappa\uparrow$; basin$\downarrow$; simplex constraint broken & Verified$^\dagger$; one-unit-higher line predicted, untested\\
-8$'$. Recipe & none of seven wrong recipes at the floor (one cell, one seed); $\eta$ fitted jointly; $\eta T$ split identifiable; labels identifiable; cosine schedule leaks $T$ & Verified$^\dagger$ (jobs 484255, 485912, 487290, 488314) except the schedule fit, whose script is not yet committed; family selection open\\ \bottomrule
+8$'$. Recipe & weights-only: none of seven wrong recipes at the floor (one cell, one seed); $\eta$ fitted jointly; $\eta T$ split identifiable; labels identifiable. Continued-training access only: cosine schedule leaks $T$ & Verified$^\dagger$ (jobs 484255, 485912, 487290, 488314) except the schedule fit, whose script is not yet committed; family selection open\\ \bottomrule
 \end{tabular}
 \end{center}
 
@@ -827,8 +894,9 @@ In this order: the law, because it is a theorem with a derivation and a sharp
 measurement, on synthetic data and on digits; the chart, because it is what
 the law means; the walk, because it turns the law into a set one can move
 along; the initialiser, because it is what stops the attack today; the
-recipe, because ``the attacker must be handed it'' did not survive
-measurement. Not the $49/49$ grid first: it lies inside the capacity
+recipe, because under weights-only release $\eta$, the $(\eta,T)$ split and
+the labels are fitted from the release and a wrong recipe is detected, while
+the schedule needs continued-training access. Not the $49/49$ grid first: it lies inside the capacity
 region and measures existence, not rate.
 \begin{enumerate}\itemsep2pt
 \item \emph{The chain.} Theorem~\ref{thm:traj} writes the adapter's
@@ -841,14 +909,15 @@ region and measures existence, not rate.
   — and $A_TU_c$ pays exactly for $X$. So $k<m+r-N$ (Theorem~\ref{thm:cap}),
   $m-1$ per image above the certificate, and the difference is precisely the
   coefficient matrix the certificate projects away (Corollary~\ref{cor:two}).
-  Measured sharp to one unit of $k$ at two values of $N$ synthetically and
-  at three ranks on real digits; both terms of the cap attained by the block
+  Measured sharp to one unit of $k$ at $N=8,14$ synthetically (bracketed to
+  two at $N=4,12$) and at three ranks on real digits; both terms of the cap attained by the block
   ranks.
 \item \emph{The chart.} The theorems pin the coordinates $w$; the attack
   returns $\psi(\hat w)$. At the same $k=17$, three charts each recover their
   own image to $10^{-14}$ and differ by thirteen orders against the real
-  digit; a chart containing the digits recovers them at $k=N$, far below the
-  line. The law bounds the dimension of the search, not the image reached,
+  digit; an oracle-built chart spanning the digits recovers them at $k=N$,
+  far below the line. The law bounds the dimension of the search, not the
+  image reached,
   and the search space is the attacker's to choose: the counting gives the
   generative prior its job.
 \item \emph{The walk.} Past the line the truth is not isolated
@@ -866,14 +935,14 @@ region and measures existence, not rate.
 \item \emph{What stops the attack.} Not information: the initialiser
   (none of $20$ attacker-buildable starts reaches the floor; from perturbed
   truth the solver recovers up to $86\%$ away).
-\item \emph{The recipe.} None of seven wrong recipes reached the floor —
-  one step in four hundred is twenty-three orders away — so the residual
-  checks it;
+\item \emph{The recipe.} Under weights-only release: none of seven wrong
+  recipes reached the floor — one step in four hundred is twenty-three orders
+  away — so the residual checks it;
   $\eta$ fits jointly with the data to machine precision; $\eta T$ is not a
-  degeneracy of discrete steps; labels are identifiable; and a decaying
-  schedule of known family hands over $T$ from six probe steps on the
-  attacker's own data. What the count leaves the defender is a free per-step
-  schedule with $T>120$.
+  degeneracy of discrete steps; labels are identifiable. Only with continued-training access (a checkpoint
+  with optimiser state, or a fine-tuning service) does a decaying schedule of
+  known family hand over $T$ from six probe steps. What the count leaves the
+  defender is a free per-step schedule with $T>120$.
 \item \emph{Open.} The schedule family (model selection, not run); global
   uniqueness; direction dependence of the manifold's extent; Adam, which keeps
   identifiability, loses the $rN$ reduction, destroys the certificate, and is

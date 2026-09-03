@@ -27,6 +27,12 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
+- **User read of the PDF applied:** (R4) rescoped to CONTINUED-TRAINING ACCESS (checkpoint with optimizer state or a
+  fine-tuning service) — under weights-only release only R1–R3 hold and the schedule/T are not recovered; "sharp to one
+  unit" scoped to N=8,14 (bracketed to two at N=4,12); k stated everywhere as the dimension of the attacker's search
+  chart; the digit-spanning chart labelled ORACLE-BUILT; two derived-untested additions: Corollary (count for a general
+  adapted layer: k < m+r−N+1 without softmax, k ≤ mr/N for N ≥ r) and the Q-parametrisation (seed unknowns
+  N(N+1)/2 = 36 instead of rN = 128, same capacity).
 - **Subagent audit applied:** the R1 residual is NOT monotone in recipe error (η×2 < η/2; T+25% is 18× below T−25%) — 'graded
   objective' withdrawn; (14,21) reached the floor by a 300-iteration budget (137 used, 1 restart), not by six restarts;
   every capacity/alias/recipe cell is one seed from truth+10% noise and the .tex now says so; the schedule global fit
