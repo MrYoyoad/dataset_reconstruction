@@ -1124,23 +1124,35 @@ predictor in the batch supplying thirteen of the seventeen cells and does not
 carry to the second. The two families are
 nearly uncorrelated with each other ($+0.10$ and $-0.05$) while the imprint
 and the margin agree at $+0.96$, confirming those two were one quantity
-throughout. So \emph{presence} is the release's and \emph{search cost} is the
-chart's: which examples are recorded follows \eqref{eq:imprint}, and how
-cheaply each is found does not.
+throughout. So \emph{presence} follows \eqref{eq:imprint} and search cost does not.
 
 Two reservations keep this a strong lead rather than a result. The seventeen
 cells come from three batches across several ranks and are not independent, so
 the pooled $z$ of about five is inflated. Per batch there are only two
 informative units --- the third contributes a single cell with at most one
 landing per image --- so the $14$ of $17$ rests on two batches and is
-dominated by one. And a norm predictor has an alternative
-explanation that this design cannot exclude: starts are drawn at a fixed
-public scale, so a target whose norm is nearer that scale may simply be nearer
-the starts, which would make the correlation a property of the start
-distribution rather than of the chart. Re-drawing one cell's starts at half
-and twice the scale would separate them --- and if the start distribution is
-what governs, an attacker who varies it covers targets that a single scale
-misses, which is actionable rather than merely explanatory.
+dominated by one. And the norm predictors had an alternative
+explanation --- starts are drawn at a fixed public scale, so a target whose
+norm sits nearer that scale is nearer the starts --- which redrawing the
+starts at half and twice that scale was run to exclude, and did not$^\dagger$
+(job 737516). Three findings came back. The \emph{aggregate} yield is
+scale-insensitive: $69.4$, $65.6$, $71.2$ per cent at $0.5\times$, $1\times$,
+$2\times$ in one cell and $71.6$, $74.4$, $67.0$ in the other, so the public
+scale is not privileged and sweeping it buys no extra recoveries. The
+\emph{distribution} over targets is not: at $0.5\times$ the landings
+concentrate on the dominant image and two of seven recorded images receive
+none at all, while $2\times$ flattens the skew about fivefold and finds all
+seven. And the feature-norm ordering is itself not scale-invariant --- $16$,
+$23$, $18$ of $28$ concordant pairs at the three scales --- so the $+0.43$
+above is a statement at one scale and not a property of the chart alone.
+
+The honest form is therefore narrower than the pooled table suggests. The
+\emph{dominant} target is the same at every scale, and that much is the
+chart's; the ordering of the remainder moves with the start distribution,
+which is the attacker's to choose. That converts the earlier
+coupon-collection caveat into a technique rather than a limit: sweeping the
+start scale does not raise the yield, but it raises the \emph{coverage}, and
+a single scale can leave recorded images with no landings at all.
 
 Three scopings, all of which matter, and the first is severe. The batch is
 \emph{on-chart}: the adapter was trained on the $k=6$ projections, so those
