@@ -1834,3 +1834,37 @@ reading a solve — caught it one row late; the ladder and the twenty-image cell
 **Bracket, `k = 8` (job 706721, on-chart, `N′ = 7`, line 9, one below):** 2,000 starts → 345 at the floor, 364 landed on
 a recorded image (19 landed at objective ~1e-17, converging), all seven found, argmin on a recorded image at
 3.6e-15, no spurious zero. **Basin 18% at `k = 8` against 51% at `k = 6`** — narrowing toward the line, open.
+
+### Step 22 — the precision of the released adapter is a privacy parameter (job 722663, `precision_check.py`)
+
+Releases already measured, rounded to FP32 / TF32 / FP16 / bfloat16 and back; `rank B_T`, `rank C` and the
+per-image certificate residual re-read with the SVD tolerance at 10× the dtype's epsilon (a fixed tolerance would
+read rounding noise as *extra* rank). Strong model, `r = 16`, `k = 16`, eight images:
+
+| cell | `B_T` spectrum (rel., FP64) | recoverable by the certificate (`‖Ch_i‖/‖A_Th_i‖ < 1e-3`): FP64 → FP32 → TF32 → FP16 → bf16 |
+|---|---|---|
+| repeated, on-chart | 1, 2e-4, 1e-5, 9e-9, 4e-9, 1e-11, 2e-16, 1e-16 | 6 → 3 → 0 → 0 → 0 |
+| repeated, raw | (rank 6) | 6 → 1 → 1 → 1 → 0 |
+| confident, on-chart | (rank 3) | 3 → 2 → 1 → 1 → 0 |
+| hard1_diff, on-chart | (rank 4) | 4 → 2 → 2 → 2 → 0 |
+
+Quantisation noise (relative): FP32 3e-8, TF32/FP16 2e-4–7e-4, bf16 1e-3–2e-3. The mechanism is the spectrum: the
+release's singular values fall steeply (second direction at 2e-4 of the first), so every direction below the
+quantisation noise is erased — FP32 keeps the directions above 3e-8 (three of six here), bfloat16 keeps one. **A
+bfloat16 adapter does not merely compress the release; it removes most of what an FP64 release exposes to the
+recipe-free channel.** Stated with its tolerance rule (10× epsilon) and its scope (the certificate channel; the
+full-residual channel at FP32 was not re-measured here).
+
+### Step 22 — a second cap on the certificate: at most `m − 1` images (found by the twenty-image cell)
+
+The twenty-image cell (`optdigits`, `N = 20`, `r = 64`, strong model, on-chart) gave `rank B_T = 9` with a clean
+gap (spectrum 1, .8, .3, .2, .1, .09, .03, .01, .005, **3e-16**) while all twenty imprints are `O(1)` — and the
+certificate residual is 1e-2 … 0.5 for *every* image, even in FP64: **no image is individually in `row(B_T)`.**
+Cause: `B_T = Σ_i q_i (A₀h_i)ᵀ` with the accumulated error vectors `q_i ∈ ℝᵐ` on the softmax simplex, so at most
+`m − 1 = 9` of them are independent; with twenty recorded images `row(B_T)` is a 9-dimensional subspace of the
+20-dimensional span of their feature directions, aligned with none of them. The certificate line is therefore
+`k < r − N′` **and** `N′ ≤ m − 1`; past `m − 1` recorded images the recipe-free channel mixes them and recovers
+none individually (the full-residual channel is a different question). This is the same `m − 1` as in the
+capacity count `N(m − 1 + r − N)`, met from the certificate side. Consequences: the twenty-image basin-ordering
+design cannot run on a 10-class head (its Part B was stopped, job 721393); it needs a head with `m ≥ 21`
+(EMNIST letters, 26 classes, is on disk). The eight-image cells (`N′ ≤ 7 < 9`) are unaffected.

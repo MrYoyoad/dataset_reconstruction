@@ -302,6 +302,13 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   floor is itself the proof; 2,000 starts per cell running there (706721). Two audit catches folded: a blank
   image drove the constant-normalised objective to zero (fixed: `‖Cφ‖/‖A_Tφ‖`), and off-chart the certificate has
   no zero at all (Part B on-chart only).
+- **Precision is a privacy parameter (722663):** quantising the release erases every direction of `B_T` below the
+  rounding noise — certificate-recoverable images 6 → 3 → 0 → 0 → 0 across FP64 → FP32 → TF32 → FP16 → bf16 on the
+  repeated draw (spectrum 1, 2e-4, 1e-5, 9e-9 …); a bfloat16 adapter keeps one direction. Tolerance rule 10×eps.
+- **Second cap on the certificate: `N′ ≤ m − 1`.** Error vectors live on the softmax simplex, so at most `m − 1`
+  images can be individually in `row(B_T)`; with 20 recorded optdigits on a 10-class head, rank saturates at 9 and
+  no image satisfies the certificate (residuals 1e-2–0.5 even in FP64). The twenty-image cell was stopped; a
+  26-class (EMNIST letters) head would be needed. Eight-image cells unaffected.
 - **Fidelity axis, standalone (719793/721003, 2,000 held-out digits):** class survival of a k-dim PCA projection
   (strong-model accuracy) .52/.68/.88/.95/.97/.98 at k=6/8/16/24/32/56; instance survival (nearest-neighbour
   self-identification among 10k raw digits) .04/.11/.57/.84/.94/.99 at the same k. At rank 16 the certificate's
