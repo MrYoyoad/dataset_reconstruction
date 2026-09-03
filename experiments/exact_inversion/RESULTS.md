@@ -1785,7 +1785,16 @@ its pixel norm `‖x_on‖` (+0.40, 15 of 17), and only weakly by the imprint (+
 Imprint and −margin are one latent (pairwise +0.96) and nearly independent of the geometry predictors (+0.10,
 −0.05). So: **presence is the release's (the imprint law); search cost is the chart's geometry** — a candidate
 with a larger feature norm has a wider basin. Caveat on the z-values: the 17 cells come from three batches across
-ranks and are not independent; the sign consistency across cells is the evidence, not the z.
+ranks and are not independent; the sign consistency across cells is the evidence, not the z. **Pooled per batch
+(the independent units):** `confident` (13 cells, 232 pairs) feature norm +0.44, pixel norm +0.55, imprint +0.22;
+`mnist_control` (3 cells, 84 pairs) feature norm +0.50, pixel norm +0.17, imprint +0.12; `hard1_diff` (1 cell,
+15 pairs, landings 0–1 — barely informative) −0.07 / −0.60 / +0.07. Two batches positive, the third a single
+near-empty cell: the evidence rests on two independent units, dominated by one. **Open confound, one cell
+running (job 736737):** starts are drawn at a fixed public scale, so a target whose norm sits nearer that scale
+is nearer the starts — `‖x_on‖` could be a property of the *start distribution*, not the chart. Re-drawing the
+same batch's starts at 0.5× and 2× the public scale (`--start-scale`) separates them: if the landing order
+survives, it is chart geometry; if it tracks the scale, an attacker who varies the start scale covers targets a
+single scale misses — which would turn the basin skew from a limitation into a technique.
 
 *Identity, not just pixels (job 719106):* the base model reads 6 of the 8 `k = 6` projections as their true digit
 (the 4 → 9, the 5 → 8; 5 of the 7 recorded). That is the illustration, not the number: the classifiability of a
