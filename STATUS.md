@@ -354,6 +354,9 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   images can be individually in `row(B_T)`; with 20 recorded optdigits on a 10-class head, rank saturates at 9 and
   no image satisfies the certificate (residuals 1e-2–0.5 even in FP64). The twenty-image cell was stopped; a
   26-class (EMNIST letters) head would be needed. Eight-image cells unaffected.
+- **At r = 64 the entire admissible chart range is attackable (721391):** every cell from k = 8 to k = 48 finds
+  all recorded images with the argmin correct; only the cost varies — 13.8% → 2.6% of starts per image (5×) — while
+  fidelity climbs from class-only to .99 instance identification. Nowhere in the range is the attacker stopped.
 - **What orders basin size (734584, 17 cells, 331 pairs, pooled per cell):** the image's feature norm (τ +0.43,
   positive in 14/17 cells) and pixel norm (+0.40), not its imprint (+0.18) or margin (+0.15) — presence is the
   release's, search cost is the chart's geometry. Cells share batches; sign consistency is the evidence.
