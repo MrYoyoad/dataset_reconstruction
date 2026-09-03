@@ -656,3 +656,61 @@ wrong. That would be the more defense-favourable finding, so it is the one to wa
 The `err_to_self ≈ err_to_other ≈ featsep/2` fingerprint already observed (`0.074/2 ≈ 0.037` against the
 measured `3.8e-2`) is the signature of a **midpoint blend**, consistent with (1). The `α` blend coefficients recorded in the tight band are meaningless there (the
 line through the two originals degenerates as they coincide) — use `err_to_other` instead, as above.
+
+
+## Step 7 — how far does the release-consistent set actually extend? (null-direction traverse, job 482338)
+
+Asked for by an independent audit, and it is the experiment that decides whether "alias" is the right word
+past the capacity line. Every past-line cell in Step 4/5 was started **adjacent to the truth**, so the
+solver drifts along the flat direction only as far as LM happens to take it; the `1e-3`-`1e-2` errors
+reported there are a **lower bound on the fibre, not its diameter**.
+
+Method (`null_traverse.py`): compute `Dρ` at the truth, take the right singular vector at `σ_min`, step
+along it, then **retract** back onto the release-consistent set with a few LM steps, re-aiming each step
+because the fibre curves. A point only counts if its residual is at the reproduction floor.
+
+| cell | vs line | null dims | steps | all at floor? | max image error at the floor |
+|---|---|---|---|---|---|
+| N=8, k=32 | past (line 28) | 40 | 25 | yes, 25/25 | **1.43e-2**, rises ~20 steps then flat in 1.0-1.4e-2 |
+| N=14, k=22 | at (line 22) | 14 | 17 | yes, 17/17 | **3.45e-2**, still rising at the end of the run |
+| N=8, k=26 | below (line 28) | — | — | **CONTROL, PENDING** | traversal must be *obstructed* |
+
+**What is established.** Past the line the truth is not isolated and the release-consistent set is a real,
+walkable continuum: every step reproduces the release to `~1e-30` while the reconstruction moves away.
+That is the direct check that the fibre is positive-dimensional, rather than an inference from a
+rank-deficient Jacobian.
+
+**What is not.** Three limits, all of which must travel with the numbers.
+1. **One direction of forty.** The continuation follows a single path through a 40-dimensional null space.
+   The maxima above bound the extent **from below**; they are not the fibre's diameter.
+2. **The plateau is not a property of the fibre.** The `k=32` path flattens at `1.4e-2`; the at-line path
+   shows no plateau at all and is still climbing at `3.45e-2` when its run ends. The two differ by more
+   than a factor of two, so extent is cell-dependent and neither run bounded it.
+3. **The control has not reported.** If the continuation walks as freely *below* the line, it is finding
+   release-consistent points everywhere and this entire section says nothing about the boundary. That is
+   the kill condition, and it is still open.
+
+**The reading, hedged to what is measured.** The capacity boundary marks where **exact** recovery stops,
+not where **recognisable** recovery stops: on the paths measured the alternative solutions are still
+recognisable reconstructions at 1.4%-3.5% relative error. Whether the fibre reaches unrecognisable points
+is **not established**, and one cell was still rising when its run ended — at 3.5% the degradation is
+visible rather than a rounding difference, so this should not be read as "the alternatives are always
+near-perfect".
+
+## Step 8 — recipe robustness: DESIGNED, RUN, CONTROL FAILED, BEING RERUN
+
+The user asked directly whether the recipe must be known. Three arms were built (`recipe_robustness.py`):
+R1, is a wrong recipe self-detecting (does only the true recipe reach the residual floor, across a menu of
+wrong learning rates, wrong step counts and the wrong optimizer); R2, can the recipe scalars be fitted
+**jointly** with the data (recipe scalars add to *demand*, so this is affordable only with slack below the
+capacity line, `k < m + r − N − p/N`); R3, is the `η·T` degeneracy exact or broken by finite step size, and
+are the labels identifiable the same way.
+
+**The arm is invalid as first run, and the fault is ours.** R1's control — the *correct* recipe — reached
+residual `7.2e-8` with `reached_floor = False`. The cause is that these arms were built on the LBFGS solver
+rather than the Levenberg-Marquardt one the rest of the study uses, and LBFGS does not drive this residual
+to `1e-30` even when the recipe is exactly right. Since the claim under test is "only the correct recipe
+reaches the floor", a control that cannot reach the floor makes the readout uninformative. Rerunning all
+three arms on LM. Not edited mid-flight, per the standing rule.
+
+Nothing about recipes should be concluded from this yet, in either direction.
