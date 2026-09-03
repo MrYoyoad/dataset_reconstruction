@@ -9,7 +9,7 @@ import numpy as np
 rows = [json.loads(l) for l in open("results/exact_inversion/step58_imprint_631392.jsonl") if l.strip()]
 COL = {"random": "#1f77b4", "weak": "#2ca02c", "mid": "#ff7f0e", "strong": "#d62728"}
 ACC = {"random": "8.7%", "weak": "78.5%", "mid": "95.1%", "strong": "97.9%"}
-FLOOR = 1e-30
+FLOOR = 1e-43   # below the smallest measured value, so nothing is clipped
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6.2), dpi=200)
 
 for e in ("random", "weak", "mid", "strong"):
@@ -34,7 +34,7 @@ ax1.grid(alpha=0.3); ax1.legend(fontsize=9.5, loc="lower right"); ax1.tick_param
 
 ax2.set_yscale("log")
 ax2.axhspan(FLOOR, 1e-23, color="gray", alpha=0.15)
-ax2.text(2, 3e-27, "release numerically empty\n(a batch the model already fits)", fontsize=10, color="#555")
+ax2.text(2, 1e-33, "release numerically empty\n(a batch the model already fits)", fontsize=10, color="#555")
 ax2.set_xlabel(r"margin of example $i$ under the base model at $W_0$", fontsize=12.5)
 ax2.set_ylabel(r"imprint $\|C_i\|$", fontsize=12.5)
 ax2.set_title("What leaks is what the model had to learn\n"
