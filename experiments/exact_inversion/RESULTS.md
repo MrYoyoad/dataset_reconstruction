@@ -1387,7 +1387,7 @@ and to own-label mates, next to the `P_T` column norms; all batches of the previ
   nowhere. What *does* order them in the lifted batch (`hard1_diff`, on-chart, rank 4) is each image's **own
   step-0 residual: 20 of 21 pairs** — while the magnitudes sit far above those residuals (a margin-71 digit with
   residual ~1e-31 has a column of 5e-3).
-- **Reading, now to be measured rather than argued (job 628xxx, `step56_traj`):** the order is preserved and
+- **Reading, now to be measured rather than argued (job 628731, `step56_traj`):** the order is preserved and
   the magnitudes are lifted uniformly, which is what happens if training on the hard example *shifts every
   image's margin* by a similar amount — the adapter is shared, and a residual-O(1) example drives O(1) updates
   for 400 steps. The step-0 residual is the right predictor only when training does not disturb the example.
