@@ -12,15 +12,18 @@ B. A DIFFERENT DISTRIBUTION.  Fine-tune on digits unlike the training set: rende
    and the UCI optdigits scans (8x8, other writers, upscaled).  The mechanism predicts LOW margins -> strongly
    recorded; the attacker's MNIST chart predicts they are poorly drawable.  Per image: margin, residual, P_T
    column; rank B_T; then cells (a) on-chart and (b) off-chart with the MNIST PCA chart, against the chart's
-   own best.  Image grids saved under figures/exact_inversion/.
+   own best.  A RANDOM MNIST draw runs through the same pipeline as the in-distribution control (the Part-A
+   batches are margin-picked and must not serve as that).  Margins are reported FIRST: an OOD set whose margins
+   are not below the MNIST control's is a failed manipulation, not a result.  The single number is rank B_T at
+   fixed N, with the chart representation error beside it as the separable fidelity axis.  Grids saved.
 
   python -m experiments.exact_inversion.subset_and_ood --part A B
 """
-import argparse, glob, json, math, os, socket, sys, time
+import argparse, glob, itertools, json, math, os, socket, sys, time
 import numpy as np, torch
 from PIL import Image, ImageDraw, ImageFont
 
-from experiments.exact_inversion.lora_exact_inversion import train_release, qr_canon, invert_lm, git_hash
+from experiments.exact_inversion.lora_exact_inversion import train_release, simulate_sgd_reduced, qr_canon, invert_lm, git_hash
 from experiments.exact_inversion.trained_backbone import TrainedBackbone, PCAChart, read_idx
 from experiments.exact_inversion.vae_chart import invert_cell
 from experiments.exact_inversion.margin_check import traced_release
@@ -61,7 +64,7 @@ def release_and_columns(bb, X_train, y, A0, a):
     _, B_tr, _, _, C = traced_release(H, A0, bb.W0, y, bb.m, a.T, a.lr)
     assert float(torch.linalg.norm(C.sum(0) - B_T) / torch.linalg.norm(B_T)) < 1e-10
     sB = torch.linalg.svdvals(B_T)
-    return A_T, B_T, torch.linalg.norm(C.reshape(C.shape[0], -1), dim=1), sB
+    return A_T, B_T, torch.linalg.norm(C.reshape(C.shape[0], -1), dim=1), sB, C
 
 
 def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda s: None):
@@ -81,9 +84,31 @@ def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda 
     t0 = time.time()
     W_hat, aux, resid, sec, nrs, diag = invert_lm(Adapter, A_T, B_T, bb.W0, y_sub, args, W_init, Xinit, log)
     X_hat = chart.psi(W_hat)
+    with torch.no_grad():                                          # the residual per block (different floors)
+        Bs, Xis, Uc = simulate_sgd_reduced(bb.phi(X_hat), aux, bb.W0, y_sub, bb.m, a.T, a.lr, 0.0)
+        res_B = float(torch.linalg.norm(Bs - B_T) ** 2 / torch.linalg.norm(B_T) ** 2)
+        res_A = float(torch.linalg.norm(Xis - A_T @ Uc) ** 2 / torch.linalg.norm(A_T) ** 2)
     e = torch.linalg.norm(X_hat - X_sub_true, dim=0) / torch.linalg.norm(X_sub_true, dim=0)
-    return dict(residual=float(resid), err_max=float(e.max()), err_median=float(e.median()),
+    return dict(residual=float(resid), residual_B=res_B, residual_A=res_A, err_max=float(e.max()), err_median=float(e.median()),
                 err_per_image=[float(v) for v in e], seconds=time.time() - t0, lm_iters_used=diag.get("lm_iters_used")), X_hat
+
+
+def floor_pred(C, B_T, subset):
+    """What an N'-image model can at best leave: the omitted images' summed imprint, relative (B-block)."""
+    omitted = [j for j in range(C.shape[0]) if j not in subset]
+    if not omitted: return 0.0
+    return float(torch.linalg.norm(C[omitted].sum(0)) ** 2 / torch.linalg.norm(B_T) ** 2)
+
+
+def label_search(chart, bb, A_T, B_T, X_sub_true, a, dev, budget):
+    """All 10^N' labelings, reduced budget; returns the ranking by residual (the attacker's procedure)."""
+    Np = X_sub_true.shape[1]; out = []
+    b = argparse.Namespace(**vars(a)); b.lm_iters = budget; b.restarts = 1
+    for combo in itertools.product(range(10), repeat=Np):
+        r, _ = invert_subset(chart, bb, A_T, B_T, X_sub_true, torch.tensor(combo, device=dev), b, dev,
+                             torch.Generator().manual_seed(a.seed + 11))
+        out.append(dict(labels=list(combo), residual=r["residual"], residual_B=r["residual_B"], err_max=r["err_max"]))
+    return sorted(out, key=lambda d: d["residual"])
 
 
 def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
@@ -95,47 +120,50 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
         W_all = chart.coords_of(X_real); X_on = chart.psi(W_all)
         X_train = X_on if setting == "on" else X_real
         A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g)).to(dev)
-        A_T, B_T, colP, sB = release_and_columns(bb, X_train, y, A0, a)
+        A_T, B_T, imp, sB, C = release_and_columns(bb, X_train, y, A0, a)
         mar, res0 = margins_of(bb, X_train, y)
-        Np = int((sB > 1e-12 * sB[0]).sum())                       # what the attacker reads off the release
-        order = torch.argsort(colP, descending=True)                 # evaluation only: which images ARE recorded (by imprint)
-        rec = order[:Np]
+        spectrum = [float(v / sB[0]) for v in sB]
+        order = torch.argsort(imp, descending=True).tolist()         # evaluation only: who IS recorded (by imprint)
+        n12 = int((sB > 1e-12 * sB[0]).sum()); n8 = int((sB > 1e-8 * sB[0]).sum())
         print(f"##### A: batch={mode} setting={setting} y={y.tolist()} margins={[round(float(v),1) for v in mar]} "
-              f"|imprint|={[f'{float(v):.1e}' for v in colP]}  rank(B_T)@1e-12 = {Np}  recorded idx={rec.tolist()}", flush=True)
+              f"|imprint|={[f'{float(v):.1e}' for v in imp]}  rank(B_T) 1e-12/1e-8 = {n12}/{n8}  spectrum={[f'{v:.1e}' for v in spectrum]}", flush=True)
         base = dict(part="A", batch=mode, setting=setting, y=y.tolist(), margins=[float(v) for v in mar],
-                    imprint_norms=[float(v) for v in colP], rank_B_T=Np, rank_B_T_1e8=int((sB > 1e-8 * sB[0]).sum()),
-                    B_T_sigma_ratio=float(sB[a.N - 1] / sB[0]), recorded_idx=rec.tolist(), k=a.k, N=a.N, r=a.r, m=bb.m,
-                    T=a.T, lr=a.lr, seed=a.seed, budget_line_full=bb.m + a.r - a.N, budget_line_subset=bb.m + a.r - Np)
-        # the chart's truth for the recorded subset (on-chart: exact; raw: the chart's projection of the raw digit)
-        X_sub_true = X_on[:, rec]; y_sub = y[rec]
-        if Np == 1:                                                   # label SEARCH: the attacker does not know y
-            search = []
-            for c in range(10):
-                r_c, _ = invert_subset(chart, bb, A_T, B_T, X_sub_true, torch.tensor([c], device=dev), a, dev,
-                                       torch.Generator().manual_seed(a.seed + 11))
-                search.append(dict(label=c, residual=r_c["residual"], err_max=r_c["err_max"]))
-                print(f"      label {c}: residual {r_c['residual']:.3e}  err {r_c['err_max']:.3e}", flush=True)
-            best = min(search, key=lambda d: d["residual"])
-            row = dict(base, subset="N'=1, label searched", n_prime=1, labels_oracle=False, label_search=search,
-                       label_found=best["label"], label_true=int(y_sub[0]), label_correct=bool(best["label"] == int(y_sub[0])),
-                       residual=best["residual"], err_vs_chart_max=best["err_max"])
-            e_real = float(torch.linalg.norm(chart.psi(chart.coords_of(X_sub_true)) - X_real[:, rec], dim=0).max() /
-                           torch.linalg.norm(X_real[:, rec], dim=0).max())
-            row.update(chart_best_vs_REAL=e_real)
-        else:
-            r_sub, X_hat = invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, torch.Generator().manual_seed(a.seed + 11))
-            row = dict(base, subset=f"N'={Np}, labels given", n_prime=Np, labels_oracle=True, **r_sub)
-            row.update(err_vs_chart_max=r_sub["err_max"])
-            if save_dir:
-                torch.save(dict(x_real=X_real[:, rec].cpu(), x_chart=X_sub_true.cpu(), x_hat=X_hat.cpu(), meta=row),
-                           os.path.join(save_dir, f"A_{mode}_{setting}_subset.pth"))
-        print(json.dumps(row), flush=True); rows.append(row)
-        # control: "find all" on the same release
+                    imprint_norms=[float(v) for v in imp], imprint_order=order, B_T_spectrum_rel=spectrum,
+                    rank_B_T_1e12=n12, rank_B_T_1e8=n8, k=a.k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed,
+                    budget_line_full=bb.m + a.r - a.N)
+        for Np in sorted(set([n12, n8])):
+            rec = order[:Np]
+            swapped = sorted(rec[:-1] + [order[Np]]) if Np < a.N else None           # weakest recorded -> strongest invisible
+            confident_only = order[-Np:] if Np < a.N else None
+            for sname, sub in [("recorded", rec), ("one_swapped", swapped), ("confident_only", confident_only)]:
+                if sub is None: continue
+                sub = sorted(sub); sub_t = torch.tensor(sub, device=dev)
+                X_sub_true = X_on[:, sub_t]; y_sub = y[sub_t]
+                fl = floor_pred(C, B_T, sub)
+                row = dict(base, subset=sname, subset_idx=sub, n_prime=Np, residual_floor_pred=fl,
+                           budget_line_subset=bb.m + a.r - Np, oracle=["subset_identity", "near_init"])
+                if sname == "recorded" and Np <= 2:                    # the attacker's label procedure
+                    ranked = label_search(chart, bb, A_T, B_T, X_sub_true, a, dev, budget=300)
+                    found = ranked[0]["labels"]; y_run = torch.tensor(found, device=dev)
+                    row.update(label_search_top5=ranked[:5], label_found=found, label_true=y_sub.tolist(),
+                               label_correct=bool(found == y_sub.tolist()), labels_oracle=False)
+                else:
+                    y_run = y_sub; row.update(labels_oracle=True); row["oracle"] = row["oracle"] + ["labels"]
+                r_sub, X_hat = invert_subset(chart, bb, A_T, B_T, X_sub_true, y_run, a, dev, torch.Generator().manual_seed(a.seed + 11))
+                row.update(**r_sub, err_vs_chart_max=r_sub["err_max"],
+                           residual_over_floor=(r_sub["residual_B"] / fl if fl > 0 else None))
+                print(json.dumps(row), flush=True); rows.append(row)
+                if save_dir:
+                    torch.save(dict(x_real=X_real[:, sub_t].cpu(), x_chart=X_sub_true.cpu(), x_hat=X_hat.cpu(), meta=row),
+                               os.path.join(save_dir, f"A_{mode}_{setting}_N{Np}_{sname}.pth"))
+        # control: "find all" on the same release (floor 0)
         r_all, X_hat_all = invert_subset(chart, bb, A_T, B_T, X_on, y, a, dev, torch.Generator().manual_seed(a.seed + 11))
-        row_all = dict(base, subset="N'=N (find all, control)", n_prime=a.N, labels_oracle=True, **r_all)
+        rec = order[:n12]
+        row_all = dict(base, subset="all (control)", subset_idx=list(range(a.N)), n_prime=a.N, residual_floor_pred=0.0,
+                       oracle=["near_init", "labels"], labels_oracle=True, **r_all)
         row_all.update(err_vs_chart_max=r_all["err_max"],
-                       err_recorded_max=float(max(r_all["err_per_image"][i] for i in rec.tolist())),
-                       err_invisible_max=float(max([r_all["err_per_image"][i] for i in range(a.N) if i not in rec.tolist()] or [float("nan")])))
+                       err_recorded_max=float(max(r_all["err_per_image"][i] for i in rec)),
+                       err_invisible_max=float(max([r_all["err_per_image"][i] for i in range(a.N) if i not in rec] or [float("nan")])))
         print(json.dumps(row_all), flush=True); rows.append(row_all)
         if save_dir:
             torch.save(dict(x_real=X_real.cpu(), x_chart=X_on.cpu(), x_hat=X_hat_all.cpu(), meta=row_all),
@@ -190,12 +218,20 @@ def optdigits(labels, path, seed):
     return torch.stack(X, 1)
 
 
-def part_B(a, backbones, chart, dev, out, save_dir):
+def part_B(a, backbones, chart, dev, out, save_dir, perm):
     labels = [0, 3, 5, 1, 9, 6, 7, 4]                                   # the distinct draw's label set
-    sets = {"font": font_digits(labels, a.seed)[0].to(dev), "optdigits": optdigits(labels, a.optdigits, a.seed).to(dev)}
-    y = torch.tensor(labels, device=dev)
+    # in-distribution CONTROL: the distinct-label random draw from the test split (NOT a margin-picked batch)
+    idx, seen = [], set()
+    for i in perm.tolist():
+        if int(a.yte_t[i]) not in seen: idx.append(i); seen.add(int(a.yte_t[i]))
+        if len(idx) == a.N: break
+    X_mn = a.Xte_t[torch.tensor(idx, device=dev)].T.contiguous(); y_mn = a.yte_t[torch.tensor(idx, device=dev)]
+    sets = {"mnist_control": (X_mn, y_mn),
+            "font": (font_digits(labels, a.seed)[0].to(dev), torch.tensor(labels, device=dev)),
+            "optdigits": (optdigits(labels, a.optdigits, a.seed).to(dev), torch.tensor(labels, device=dev))}
     rows = []
-    for sname, X_ood in sets.items():
+    for sname, (X_ood, y) in sets.items():
+        labels = y.tolist()
         W = chart.coords_of(X_ood); X_on = chart.psi(W)
         repr_err = (torch.linalg.norm(X_on - X_ood, dim=0) / torch.linalg.norm(X_ood, dim=0))
         for ename, bb in backbones.items():
@@ -206,11 +242,13 @@ def part_B(a, backbones, chart, dev, out, save_dir):
             A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g)).to(dev)
             for setting, X_train in [("raw", X_ood), ("on", X_on)]:
                 mar, res0 = margins_of(bb, X_train, y)
-                A_T, B_T, colP, sB = release_and_columns(bb, X_train, y, A0, a)
+                A_T, B_T, colP, sB, _ = release_and_columns(bb, X_train, y, A0, a)
                 row = dict(part="B", ood_set=sname, encoder=ename, backbone_test_acc=acc, setting=setting, y=labels,
                            ood_pred_at_W0=pred.tolist(), ood_acc_at_W0=float((pred == y).double().mean()),
-                           margins=[float(v) for v in mar], residual_W0=[float(v) for v in res0],
+                           margins=[float(v) for v in mar], margin_median=float(mar.median()),
+                           residual_W0=[float(v) for v in res0],
                            imprint_norms=[float(v) for v in colP], rank_B_T=int((sB > 1e-12 * sB[0]).sum()),
+                           rank_B_T_1e8=int((sB > 1e-8 * sB[0]).sum()), B_T_spectrum_rel=[float(v / sB[0]) for v in sB],
                            B_T_sigma_ratio=float(sB[a.N - 1] / sB[0]),
                            chart_repr_err_median=float(repr_err.median()), chart_repr_err_max=float(repr_err.max()),
                            k=a.k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed)
@@ -219,6 +257,7 @@ def part_B(a, backbones, chart, dev, out, save_dir):
             for cell in ("a", "b"):
                 r, X_hat, X_on_c = invert_cell(chart, bb, X_ood, y, a, cell, dev, g, lambda s: None)
                 r.update(part="B", ood_set=sname, encoder=ename, backbone_test_acc=acc, chart="mnist_pca", y=labels,
+                         oracle=["near_init", "labels"],
                          k=a.k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed)
                 print(json.dumps(r), flush=True); rows.append(r)
                 if save_dir:
@@ -272,7 +311,7 @@ def main():
     print(f"# subset_and_ood  parts={a.part}  k={a.k} N={a.N} r={a.r} T={a.T} lr={a.lr}  git={git_hash()}", flush=True)
     rows = []
     if "A" in a.part: rows += part_A(a, strong, strong, chart, a.Xte_t, a.yte_t, perm, dev, a.out, a.save_dir)
-    if "B" in a.part: rows += part_B(a, {"weak": weak, "mid": mid, "strong": strong}, chart, dev, a.out, a.save_dir)
+    if "B" in a.part: rows += part_B(a, {"weak": weak, "mid": mid, "strong": strong}, chart, dev, a.out, a.save_dir, perm)
     for row in rows:
         row.update(git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
         if a.out:
