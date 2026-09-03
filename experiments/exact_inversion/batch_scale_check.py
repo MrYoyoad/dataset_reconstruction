@@ -45,12 +45,22 @@ def main():
             sub = torch.tensor(rec, device=dev)
             dB_scaled, dA_scaled = rel(*train_release(H[:, sub], A0, bb.W0, y[sub], bb.m, a.T, a.lr * Np / a.N, "sgd"))
             dB_unscaled, dA_unscaled = rel(*train_release(H[:, sub], A0, bb.W0, y[sub], bb.m, a.T, a.lr, "sgd"))
-            gr = torch.Generator().manual_seed(a.seed + 99); rnd = torch.randperm(a.N, generator=gr)[:Np].to(dev)
-            dB_random, dA_random = rel(*train_release(H[:, rnd], A0, bb.W0, y[rnd], bb.m, a.T, a.lr * Np / a.N, "sgd"))
+            # controls whose membership DIFFERS by construction (a random N'-subset shares most members at large N'):
+            # one_swapped = recorded set with its weakest member replaced by the strongest invisible one;
+            # complement_heavy = all invisible members, filled up to N' with the weakest recorded ones
+            inv = [i for i in range(a.N) if i not in rec]
+            by_imp = sorted(rec, key=lambda i: float(imp[i])); inv_by_imp = sorted(inv, key=lambda i: -float(imp[i]))
+            swapped = sorted(by_imp[1:] + inv_by_imp[:1])
+            comp = sorted((inv_by_imp + by_imp)[:Np])
+            def ctrl(sub):
+                t = torch.tensor(sub, device=dev)
+                return rel(*train_release(H[:, t], A0, bb.W0, y[t], bb.m, a.T, a.lr * Np / a.N, "sgd"))[0]
             row = dict(set=sname, setting=setting, N=a.N, n_prime=Np, recorded=rec, omitted_imprint_rel=omitted_rel,
                        recorded_at_scaled_step_dB=dB_scaled, recorded_at_scaled_step_dA=dA_scaled,
-                       recorded_at_UNscaled_step_dB=dB_unscaled, random_subset_at_scaled_step_dB=dB_random,
-                       random_subset=rnd.tolist(), git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
+                       recorded_at_UNscaled_step_dB=dB_unscaled,
+                       one_swapped_subset=swapped, one_swapped_overlap=len(set(swapped) & set(rec)), one_swapped_at_scaled_step_dB=ctrl(swapped),
+                       complement_heavy_subset=comp, complement_heavy_overlap=len(set(comp) & set(rec)), complement_heavy_at_scaled_step_dB=ctrl(comp),
+                       git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
             print(json.dumps(row), flush=True)
             if a.out:
                 with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
