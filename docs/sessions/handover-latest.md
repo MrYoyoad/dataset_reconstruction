@@ -55,6 +55,8 @@ bracket. Next step 1 below is DONE; continue from step 2.
 - Diagnostic scripts must be inlined in the bsub heredoc: compute nodes cannot see the session scratchpad (/tmp is
   node-local); job 747682 died on "No such file".
 
+- Auditor ask (yoado-6e): when 749362's rows land, read ‖B_T‖ and rank from THAT job's saved release tensors under `results/exact_inversion/step69_ctrl_749362_r64/` (not from the CPU diagnostic) before writing the collapse-along-k finding beside its Part B rows.
+
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
    (line 56, 24 below), basin (saturating with distance) and fidelity (instance id .94 at k=32). If random
