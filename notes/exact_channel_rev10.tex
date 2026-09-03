@@ -774,9 +774,14 @@ therefore
   C_i=-\eta s\sum_{t<T} D_t[:,i]\,(A_th_i)^{\!\top},\qquad
   \|C_i\|\;\le\;\eta s\max_t\|A_th_i\|\;\sum_{t<T}\bigl\|D_t[:,i]\bigr\|,
 \end{equation}
-so what the adapter carries about example $i$ is bounded by that example's
-own error accumulated along the trajectory, with no term involving any other
-example. Since $B_0=0$ starts the trajectory at $W_0$, an example the base
+The split is additive with one term per example and no cross-index term —
+exactly what the retracted reading of $P_T$ was not. Within the bound, the
+error factor $\sum_t\|D_t[:,i]\|$ involves example $i$ alone, while the
+scale factor $\max_t\|A_th_i\|$ contains the shared adapter and so depends
+on the whole batch through the trajectory. That is not a caveat but the
+content: the measurement below finds that common factor near-constant across
+examples and batches, and its constancy is what earns the per-example
+reading. Since $B_0=0$ starts the trajectory at $W_0$, an example the base
 model already classifies with margin $M$ enters at the scale of its softmax
 error there, $\mathrm e^{-M}$.
 
@@ -793,7 +798,8 @@ have cancelled to any degree; that they do not, uniformly across encoders
 and batches, is a dynamical fact and not an algebraic one.
 
 The rank correlation between $\|C_i\|$ and $\sum_t\|D_t[:,i]\|$ is then
-$971$ of $1120$ pairs, but it should be read per encoder rather than pooled,
+$971$ of $1120$ concordant pairs (Kendall $\tau\approx0.73$), but it should
+be read per encoder rather than pooled,
 because one population contributes nothing:
 \begin{center}\small
 \begin{tabular}{@{}lccc@{}}\toprule
@@ -929,8 +935,7 @@ spectral gap is evidence about the release, not automatically about the
 margins, and a negative control that acts on a non-triggered read is what
 makes the test load-bearing.}
 
-\paragraph{Private data from a different distribution is more exposed, on
-both axes.} The mechanism predicts that data unlike anything the base model
+\paragraph{On two foreign sets, both axes happen to favour the attacker.} The mechanism predicts that data unlike anything the base model
 has seen is recorded in full, since the model gets it wrong; the chart
 argument predicts it is drawn badly, since the attacker's prior is built
 from the model's own domain. On two foreign sets the first prediction holds
@@ -945,8 +950,12 @@ rendered fonts & $8/8$ & $8.9$ & $6$ ($4$ at $10^{-8}$) & $0.383$\\
 UCI optdigits scans & $4/8$ & $-2.0$ & \textbf{8} & $\mathbf{0.317}$\\ \bottomrule
 \end{tabular}
 \end{center}
-The scanned digits are misclassified half the time by a $97.9\%$ model, so
-every one of the eight leaves an imprint of order one — five within a decade
+The chain runs through the margin, not through foreignness as such: the
+rendered fonts are foreign and yet classified $8/8$ correctly, and their rank
+is $6$ rather than full, because three bold glyphs are recognised with
+margins $31$--$47$ and leave imprints of $10^{-11}$ or less. It is the
+scanned digits, misclassified half the time by a $97.9\%$ model, that reach
+full rank: every one of the eight leaves an imprint of order one — five within a decade
 of the largest — and the release has full rank $8$, where the
 in-distribution control has rank $6$ and is dominated by a single example
 (relative imprints $1$, then $2\times10^{-5}$ and below). Foreign data is
@@ -1444,7 +1453,7 @@ rate.
   $B_T=\sum_iC_i$ with $\|C_i\|$ bounded by \emph{that example's own}
   accumulated error and no cross term (\eqref{eq:imprint}). Measured on
   $320$ example-batch pairs across four encoders: one proportional line over
-  forty orders of magnitude, rank correlation $971$ of $1120$ pairs,
+  forty orders of magnitude, $971$ of $1120$ concordant pairs,
   and $\operatorname{rank}B_T$ equal to the number of examples recorded above
   the floor in all forty batches (Figure~\ref{fig:imprint}).
 
