@@ -1697,3 +1697,16 @@ is given (`D = R/N`), so an N′-image simulation at the original `lr` runs a *d
 the omitted images contribute zero gradient — what "invisible" means; the attacker sees only the single
 effective rate `lr/N` (fittable, Step 9); `N` is taken as known here and flagged (`oracle` gains `N_known`).
 634238's rows are void; 706597 reruns Part A with rows written as produced.
+
+### (R5) — the batch size is not identifiable from the release (corollary, yoado-ed; falsifier job 709507)
+
+In the recurrences the step, the adapter scale and the batch size enter only through the single product `η·s/N`
+(the `1/N` from the loss being a mean). Consequences: (i) the subset simulation at `lr·N′/N` is forced, not
+chosen; (ii) **the attacker never needed `N`** — they fit the one scalar `η/N`, which R2 already measured succeeding
+to 5e-16, so the "N known" flag has been dropped from the subset rows; (iii) **`N` cannot be recovered from the
+release at all, only `N′` through `rank B_T`** — a batch of eight with two invisible members gives the same release
+as its six recorded members at a proportionally smaller step, up to the omitted imprints. Exception: decoupled
+weight decay contributes `−η·wd·B_t`, so the release then determines two combinations, `η/N` and `η·wd`, and a
+published nonzero weight decay publishes the batch size. Derived, not yet measured; `batch_scale_check.py`
+compares the full-batch release with the recorded subset at the scaled step (prediction: agreement at the omitted
+imprints' scale), against the same subset at the unscaled step and a random subset at the scaled step (both O(1)).
