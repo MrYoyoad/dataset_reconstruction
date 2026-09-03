@@ -21,6 +21,7 @@ import torch, torch.func as tf
 from experiments.exact_inversion.lora_exact_inversion import simulate_sgd_reduced, qr_canon, invert_lm, git_hash
 from experiments.exact_inversion.trained_backbone import TrainedBackbone, PCAChart, read_idx
 from experiments.exact_inversion.subset_and_ood import pick_batch, release_and_imprints, margins_of, floor_pred
+from experiments.exact_inversion.random_encoder_control import RandomBackbone
 
 torch.set_default_dtype(torch.float64)
 
@@ -60,7 +61,8 @@ def one_image_truth_spectrum(chart, bb, A_T, B_T, x_true, y1, A0, a):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--encoder", choices=["weak", "mid", "strong"], default="strong")
+    ap.add_argument("--encoder", choices=["weak", "mid", "strong", "random"], default="strong")
+    ap.add_argument("--encoder-seed", type=int, default=101)
     ap.add_argument("--strong", default="models/exact_inversion/mnist_mlp_strong.pth")
     ap.add_argument("--mid", default="models/exact_inversion/mnist_mlp_mid.pth")
     ap.add_argument("--weak", default="dataset_reconstruction/models/weights-mnist10_gelu.pth")
@@ -83,8 +85,11 @@ def main():
     dev = torch.device(a.device)
     Xtr, _ = read_idx(a.data_root, "train"); Xte, yte = read_idx(a.data_root, "test")
     Xtr_t = torch.tensor(Xtr[:a.n_fit], device=dev); Xte_t = torch.tensor(Xte, device=dev); yte_t = torch.tensor(yte, device=dev)
-    path = dict(strong=a.strong, mid=a.mid, weak=a.weak)[a.encoder]
-    bb = TrainedBackbone(path, dev, "gelu"); ref = TrainedBackbone(a.strong, dev, "gelu")   # batches picked under the strong model
+    ref = TrainedBackbone(a.strong, dev, "gelu")                                        # batches picked under the strong model
+    if a.encoder == "random":                                                             # negative control: a trigger that fires for the wrong reason
+        bb = RandomBackbone(TrainedBackbone(a.weak, dev, "gelu"), dev, a.encoder_seed)
+    else:
+        bb = TrainedBackbone(dict(strong=a.strong, mid=a.mid, weak=a.weak)[a.encoder], dev, "gelu")
     if a.sigma0 is None: a.sigma0 = 1.0 / math.sqrt(bb.n)
     chart = PCAChart(Xtr_t, a.k, dev)
     coord_std = chart.coords_of(Xtr_t[:10000].T).std(dim=1, keepdim=True)              # PUBLIC scale of the chart's coordinates
@@ -98,6 +103,11 @@ def main():
             for i in perm.tolist():
                 if int(yte[i]) not in seen: idx.append(i); seen.add(int(yte[i]))
                 if len(idx) == a.N: break
+        elif sname == "hard1_same":
+            mar_all, _ = margins_of(ref, Xte_t.T, yte_t); mar_all = mar_all.cpu()
+            hard = int(torch.argmin(mar_all)); c = int(yte[hard])
+            cand = sorted([(float(mar_all[i]), i) for i in range(len(mar_all)) if int(yte[i]) == c and i != hard], reverse=True)
+            idx = [hard] + [i for _, i in cand[:a.N - 1]]
         else:
             idx = pick_batch(sname, ref, Xte_t, yte_t, a.N, perm)
         idx = torch.tensor(idx, device=dev); X_real = Xte_t[idx].T.contiguous(); y = yte_t[idx]
@@ -110,6 +120,11 @@ def main():
             mar, _ = margins_of(bb, X_train, y)
             spectrum = [float(v / sB[0]) for v in sB]
             one_image = bool(spectrum[1] < a.tau)                                  # the attacker's read
+            with torch.no_grad():                                                   # is the gap from one IMPRINT or from collinear FEATURES?
+                Hn = bb.phi(X_train); Hn = Hn / torch.linalg.norm(Hn, dim=0, keepdim=True)
+                sG = torch.linalg.svdvals(Hn.T @ Hn)
+            gram = dict(feat_gram_sigma2_over_1=float(sG[1] / sG[0]), feat_gram_cond=float(sG[0] / sG[-1]),
+                        feat_gram_spectrum_rel=[float(v / sG[0]) for v in sG])
             top = int(torch.argmax(imp))                                            # evaluation only
             fl = floor_pred(C, B_T, [top])
             t0 = time.time()
@@ -146,7 +161,7 @@ def main():
             _, _, res_near, it_near = solve_one(chart, bb, A_T, B_T, y[top:top + 1], W_near, a, a.polish_iters, 1)
             row = dict(part="most_leaking", encoder=a.encoder, backbone_test_acc=None, set=sname, setting=setting, y=y.tolist(),
                        margins=[float(v) for v in mar], imprint_rel=[float(v / imp.max()) for v in imp], B_T_spectrum_rel=spectrum,
-                       tau=a.tau, attacker_reads_one_image=one_image, top_image_eval=top, top_label_eval=int(y[top]),
+                       tau=a.tau, attacker_reads_one_image=one_image, **gram, top_image_eval=top, top_label_eval=int(y[top]),
                        residual_floor_pred=fl, oracle=[], start="random (public coordinate scale)", random_starts=a.random_starts,
                        search_iters=a.search_iters, polish_iters=a.polish_iters,
                        search_best_per_label=[min(d["residual"] for d in search if d["label"] == c) for c in range(10)],
