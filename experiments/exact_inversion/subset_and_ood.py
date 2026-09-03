@@ -122,7 +122,7 @@ def invert_subset(chart, bb, A_T, B_T, X_sub_true, y_sub, a, dev, g, log=lambda 
     e = torch.linalg.norm(X_hat - X_sub_true, dim=0) / torch.linalg.norm(X_sub_true, dim=0)
     return dict(residual=float(resid), residual_B=res_B, residual_A=res_A, err_max=float(e.max()), err_median=float(e.median()),
                 err_per_image=[float(v) for v in e], start_err_median=float(e0.median()), start_err_max=float(e0.max()),
-                init_noise=a.init_noise, identifiability_test=True, lr_eff=lr_eff, n_full_known=bool(n_full), **truth,
+                init_noise=a.init_noise, identifiability_test=True, lr_eff=lr_eff, **truth,
                 seconds=time.time() - t0, lm_iters_used=diag.get("lm_iters_used")), X_hat
 
 
@@ -180,7 +180,9 @@ def part_A(a, bb, ref, chart, Xte_t, yte_t, perm, dev, out, save_dir):
                 X_sub_true = X_on[:, sub_t]; y_sub = y[sub_t]
                 fl = floor_pred(C, B_T, sub)
                 row = dict(base, subset=sname, subset_idx=sub, n_prime=Np, residual_floor_pred=fl,
-                           budget_line_subset=bb.m + a.r - Np, oracle=["subset_identity", "near_init", "N_known"],
+                           budget_line_subset=bb.m + a.r - Np, oracle=["subset_identity", "near_init"],
+                           effective_rate_note="the trajectory sees only lr/N; the subset is simulated at lr*N'/N, i.e. the same effective rate -- "
+                                               "an attacker fits that one scalar (R2) and never needs N; N itself is not identifiable from the release",
                            subset_identity="oracle (imprint)", n_prime_source="rank(B_T) read off the release")
                 if sname == "recorded" and Np <= 2:                    # the attacker's label procedure
                     ranked = label_search(chart, bb, A_T, B_T, X_sub_true, a, dev, budget=300)
