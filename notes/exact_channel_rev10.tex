@@ -584,15 +584,19 @@ paragraph — the aliases of the sharpness table sit at image error
 $1.7\times10^{-3}$ ($N=4$, $k=34,38$), $2.6$--$9.3\times10^{-3}$ ($N=8$,
 $k=28$ to $44$), $1.2$--$1.7\times10^{-2}$ ($N=12$, $k=26,30$) and
 $6.4\times10^{-3}$--$1.4\times10^{-2}$ ($N=14$, $k=22$--$24$). The error
-grows with distance past the line at every $N$; $9$ of the $13$ cells have
-every image inside the study's $10^{-2}$ tolerance, and the four outside it
-are the cells furthest past the line. On real digits (job 568095) the same
-rows are worse: the past-line aliases at $r=16$ and $r=32$ — residual at the
-floor — sit at $2.3$--$6.8\times10^{-2}$, again growing with distance
-($r=16$: $2.7$, $5.4$, $6.8\times10^{-2}$ at $k=18,22,26$), and five of the
-eight past-line cells have no image inside tolerance; the three $r=8$
-past-line rows stop at residuals $10^{-15}$--$10^{-16}$, search failures
-rather than aliases, at $3.5$--$10\times10^{-2}$. The continuum of
+increases overall with distance past the line at every $N$, not
+monotonically ($N=8$: $5.7\times10^{-3}$ at $k=30$, $5.3\times10^{-3}$ at
+$k=32$); $9$ of the $13$ cells have every image inside the study's $10^{-2}$
+tolerance, and the four outside it are all at $N=12$ and $N=14$ — at $N=8$
+even the cell sixteen units past the line stays inside. The split is by
+$N$, the defender's variable, not by $k$, the attacker's. On real digits
+(job 568095) the same rows are worse: the past-line aliases at $r=16$ and
+$r=32$ — residual at the floor — sit at $2.3$--$6.8\times10^{-2}$,
+increasing with distance ($r=16$: $2.7$, $5.4$, $6.8\times10^{-2}$ at
+$k=18,22,26$), and five of the eight past-line cells have no image inside
+tolerance; the three $r=8$ past-line rows stop at residuals
+$10^{-16}$--$9\times10^{-15}$, search failures rather than aliases, at
+$3.5$--$10\times10^{-2}$. The continuum of
 Theorem~\ref{thm:cap} was then walked$^\dagger$ (job 482338): from the truth,
 step along the right singular vector of $\sigma_{\min}(D\rho)$, retract onto
 $\rho^{-1}(0)$ by a few LM steps, repeat (Figure~\ref{fig:quadrant}).
@@ -619,12 +623,13 @@ contains them; $3.8\%$ is a visible degradation, and whether the images
 remain recognisable was not assessed. Hence $k<m+r-N$ is the boundary of
 \emph{exact} identifiability of the chart coordinates, and it is not a
 leakage bound: below it the image reached is only as good as the chart, and
-past it the release-consistent alternative lies within a few percent of the
-truth on the evidence measured — sub-percent to $1.7\%$ in the synthetic
-chart that contains the truth, $2$--$7\%$ on real digits — with the error
-growing with distance past the line in both. Whether the alternatives stay
-recognisable further out is not established, and the trend with distance
-does not favour it.
+past it the alternatives \emph{found so far} lie a few percent from the
+truth — sub-percent to $1.7\%$ in the synthetic chart that contains the
+truth, $2$--$7\%$ on real digits, worse at larger $N$ — and every such
+figure is a lower bound on the fibre's extent, not a ceiling: the cells
+start next to the truth and find the nearest branch, and both walks were
+stopped by budget along one direction. Whether the alternatives stay
+recognisable further out is not established.
 
 \begin{figure}[htbp]\centering
 \includegraphics[width=0.92\linewidth]{fig_counting_plane.png}
@@ -643,7 +648,8 @@ runs (floor residual, machine-precision error) all lie below the line;
 aliases (floor residual, a different point; synthetic test-bed, $0.2$--$1.7\%$
 error) all lie above it; search failures have residual above the floor. Triangles: the
 continuation of job 482338 past and at the line, the manifold of
-Theorem~\ref{thm:cap} drawn as a line from the truth into the alias band.
+Theorem~\ref{thm:cap} drawn as a line from the truth through the alias band
+and past it (to $3.8\%$).
 Diamonds: the same continuation below the line, pinned at machine precision.
 No alias was observed below the line in the cells tested; the below-line
 region is sampled at a few $k$ per $N$.}\label{fig:quadrant}
