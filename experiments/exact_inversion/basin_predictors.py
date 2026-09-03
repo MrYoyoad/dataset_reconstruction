@@ -94,11 +94,13 @@ def main():
         print(json.dumps(row), flush=True); per_cell.append(row)
         if a.out:
             with open(a.out, "a") as fo: fo.write(json.dumps(row) + "\n")
-    if per_cell:
-        print("# pooled per-cell taus (weighted by pairs):")
+    keep = [c for c in per_cell if c["landings_max"] > 0 and len(set(c["landings"].values())) > 1]   # a cell with no landings has tau = -1 by construction
+    if keep:
+        print(f"# pooled per-cell taus (weighted by pairs) over {len(keep)} of {len(per_cell)} cells with landings; cells share batches, so z overstates independence:")
         for n in ["imprint", "neg_margin", "A_T_phi_norm", "x_on_norm"]:
-            w = [c["n_prime"] * (c["n_prime"] - 1) / 2 for c in per_cell]; t = [c[f"tau_{n}"] for c in per_cell]
-            print(f"   {n:>13}: tau = {sum(wi * ti for wi, ti in zip(w, t)) / sum(w):+.3f} over {len(per_cell)} cells, {int(sum(w))} pairs")
+            w = [c["n_prime"] * (c["n_prime"] - 1) / 2 for c in keep]; t = [c[f"tau_{n}"] for c in keep]
+            pooled = sum(wi * ti for wi, ti in zip(w, t)) / sum(w); sd = (sum((wi * c["tau_null_sd"]) ** 2 for wi, c in zip(w, keep)) ** 0.5) / sum(w)
+            print(f"   {n:>13}: tau = {pooled:+.3f}  (null sd {sd:.3f}, z = {pooled / sd:+.1f})  positive in {sum(x > 0 for x in t)}/{len(t)} cells, {int(sum(w))} pairs")
 
 
 if __name__ == "__main__":

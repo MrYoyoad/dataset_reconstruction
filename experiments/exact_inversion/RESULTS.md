@@ -1775,10 +1775,17 @@ independent of them (12/21) and orders the landings as well. Under the null, Ken
 deviation 0.32, so 17/21 (τ = 0.62) is under two of them and, as the maximum over four correlated candidates, is
 what nothing looks like; and among the three largest imprints — where noise on `‖C_i‖` is negligible — the
 ordering inverts (imprint 0.59 → 63 landings, 0.20 → 383). **The null is the result:** presence is the release's
-(the imprint law); search cost is not ordered by it on this cell. The limiting resource is recorded images per
-cell, not starts: job 717588 runs one cell with twenty recorded images (strong model, `r = 64`, 20 optdigits — all
-recorded per Step 19 — on-chart, 2,000 starts, `k ∈ {8, 16, 24, 32}`), 190 pairs in one run, and doubles as
-"find some among twenty". Across ladder cells the per-cell taus are pooled, never the raw (image, landings) pairs.
+(the imprint law); search cost is not ordered by it on this cell. Across ladder cells the per-cell taus are pooled,
+never the raw (image, landings) pairs.
+
+**Pooled over the ladder (job 734584, `basin_predictors.py`; 17 on-chart cells with landings, 331 pairs; cells
+with no landings contribute τ = −1 by construction and are excluded):** landings per recorded image are ordered
+by the image's **feature norm** `‖A_Tφ(x_on)‖` — pooled τ **+0.43** (null sd 0.08, positive in 14 of 17 cells) — and
+its pixel norm `‖x_on‖` (+0.40, 15 of 17), and only weakly by the imprint (+0.18, 13 of 17) or −margin (+0.15).
+Imprint and −margin are one latent (pairwise +0.96) and nearly independent of the geometry predictors (+0.10,
+−0.05). So: **presence is the release's (the imprint law); search cost is the chart's geometry** — a candidate
+with a larger feature norm has a wider basin. Caveat on the z-values: the 17 cells come from three batches across
+ranks and are not independent; the sign consistency across cells is the evidence, not the z.
 
 *Identity, not just pixels (job 719106):* the base model reads 6 of the 8 `k = 6` projections as their true digit
 (the 4 → 9, the 5 → 8; 5 of the 7 recorded). That is the illustration, not the number: the classifiability of a

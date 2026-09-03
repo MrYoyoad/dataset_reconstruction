@@ -354,6 +354,9 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   images can be individually in `row(B_T)`; with 20 recorded optdigits on a 10-class head, rank saturates at 9 and
   no image satisfies the certificate (residuals 1e-2–0.5 even in FP64). The twenty-image cell was stopped; a
   26-class (EMNIST letters) head would be needed. Eight-image cells unaffected.
+- **What orders basin size (734584, 17 cells, 331 pairs, pooled per cell):** the image's feature norm (τ +0.43,
+  positive in 14/17 cells) and pixel norm (+0.40), not its imprint (+0.18) or margin (+0.15) — presence is the
+  release's, search cost is the chart's geometry. Cells share batches; sign consistency is the evidence.
 - **Rank buys reachability, not only budget (721391, fixed-k arm):** at the same k = 8, the certificate basin is
   16.6% of random starts at r = 16 (one below its line) and **74.4% at r = 32** (seventeen below); second batch 4%
   (at its line) → 73.4% → 89.0%; first batch 16.6 → 74.4 → **96.4%** at r = 16 / 32 / 64 (1 / 17 / 49 below the
