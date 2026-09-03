@@ -2,8 +2,11 @@
 """The fidelity axis of the certificate ladder, computed standalone: does a PCA chart at dimension k preserve
 class identity?  A property of the chart family and k alone -- no adapter, release, rank or search enters -- so
 it is one forward-pass job over a LARGE held-out set (the private batch of 7-8 would move in steps of 1/7).
-Per k: base-model accuracy on the k-projections of n_eval test digits (strong / mid / weak models), the median
-representation error, and the accuracy on the raw digits for reference.  The ladder's admissible k at each r
+Per k: base-model accuracy on the k-projections of n_eval test digits (strong / mid / weak models) -- CLASS
+survival -- and INSTANCE survival: does the projection retrieve its own source image by nearest neighbour from
+the full 10k test pool (top-1 / top-5), or another member of its class (an archetype)?  Retrieval is done both
+against the raw pool and against the pool projected on the same chart (the attacker can project the pool).
+"There was a 4 in the batch" and "here is the specific 4" are different disclosures; the ladder needs both.  The ladder's admissible k at each r
 (k < r - N') are then vertical marks on this curve.
 
   python -m experiments.exact_inversion.chart_fidelity --ks 2 4 6 8 10 12 16 20 24 32 40 48 56 64
@@ -30,15 +33,24 @@ def main():
     Xtr_t = torch.tensor(Xtr[:a.n_fit], device=dev); Xev = torch.tensor(Xte[:a.n_eval], device=dev).T.contiguous(); yev = torch.tensor(yte[:a.n_eval], device=dev)
     models = {spec.split("=")[0]: TrainedBackbone(spec.split("=", 1)[1], dev, "gelu") for spec in a.models}
     print(f"# chart_fidelity  n_eval={a.n_eval}  ks={a.ks}  git={git_hash()}", flush=True)
+    Xpool = torch.tensor(Xte, device=dev).T.contiguous(); ypool = torch.tensor(yte, device=dev)     # the full test pool (n_eval are its first columns)
     with torch.no_grad():
         raw_acc = {n: float((m.logits(Xev).argmax(0) == yev).double().mean()) for n, m in models.items()}
         for k in a.ks:
-            chart = PCAChart(Xtr_t, k, dev); Xon = chart.psi(chart.coords_of(Xev))
+            chart = PCAChart(Xtr_t, k, dev); Xon = chart.psi(chart.coords_of(Xev)); Pon = chart.psi(chart.coords_of(Xpool))
             err = torch.linalg.norm(Xon - Xev, dim=0) / torch.linalg.norm(Xev, dim=0)
-            row = dict(part="chart_fidelity", k=k, n_eval=a.n_eval, chart="mnist_pca_train50k",
+            ident = {}
+            for name, pool in (("raw_pool", Xpool), ("projected_pool", Pon)):
+                D = torch.cdist(Xon.T, pool.T)                                # n_eval x 10k
+                top = D.topk(5, largest=False).indices                        # nearest pool members
+                self_idx = torch.arange(a.n_eval, device=dev)
+                top1 = float((top[:, 0] == self_idx).double().mean()); top5 = float((top == self_idx[:, None]).any(1).double().mean())
+                same_class_other = float(((top[:, 0] != self_idx) & (ypool[top[:, 0]] == yev)).double().mean())
+                ident[name] = dict(self_top1=top1, self_top5=top5, other_of_same_class_top1=same_class_other)
+            row = dict(part="chart_fidelity", k=k, n_eval=a.n_eval, pool=int(Xpool.shape[1]), chart="mnist_pca_train50k",
                        chart_repr_err_median=float(err.median()), chart_repr_err_p90=float(err.kthvalue(int(0.9 * a.n_eval)).values),
                        raw_acc=raw_acc, proj_acc={n: float((m.logits(Xon).argmax(0) == yev).double().mean()) for n, m in models.items()},
-                       git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
+                       instance_identification=ident, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
             print(json.dumps(row), flush=True)
             if a.out:
                 with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
