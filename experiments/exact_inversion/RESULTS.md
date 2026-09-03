@@ -2102,8 +2102,9 @@ which is a search over subsets the attacker can run without knowing which images
   residual never reaches the floor (7e-18 … 1e-12 at the cap, still descending, image error 5–15%) — the strong
   model's below-line failure manifests as non-convergence on a rank-deficient problem, not as a floor reached
   with wrong digits. Search failure throughout; no alias.
-- Certificate k=6 replicates on a second batch (`hard1_diff`, seven recorded): 44.6% of 2,000 starts, all seven,
-  floor fraction = recorded fraction, argmin exact (job 706721).
+- Certificate k=6 and k=8 replicate on a second batch (`hard1_diff`, seven recorded, line 9): 44.6% and 18.9% of
+  2,000 starts land on a recorded image (confident batch: 51% and 18.2%), all seven found at both k, floor fraction
+  ≈ recorded fraction (.446/.446, .179/.189), argmin exact (7.5e-15 at k=8) (job 706721).
 - Wide head, `k = 16` (job 725918): 62.5% of 10,000 starts on a private digit, 15 of 20 found (17 recorded).
 - The ladder job (721391) exited on an assertion after its `mnist_control r = 64, k = 16` row (88.8%, 8 of 8); all
   `confident` rows and the `mnist_control` k = 8 rows at every rank were already on disk.
