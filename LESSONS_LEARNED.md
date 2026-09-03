@@ -30,6 +30,11 @@ decomposition of a released matrix, write the release as an explicit sum over it
 recovered coefficient matrix that depends on an orthonormalisation is suspect the moment it depends on ordering
 — permute the batch and re-read it (a 30-second falsifier that would have caught this on the first row);
 (3) rank statements survive such errors, per-column statements do not — separate them in the write-up.
+(4) **A retraction is a number change: grep for it.** After the withdrawal I added a CORRECTION section but left
+the withdrawn statements standing in three earlier paragraphs of the same file, which the .tex names as
+authoritative; a sibling's grep found them. Apply the data-freshness rule to claims exactly as to values: after
+any withdrawal, `grep -n` every phrase of the withdrawn claim across RESULTS/STATUS/notes/tex and stamp each
+survivor in place (keep the record, mark it withdrawn) before reporting the retraction as complete.
 
 **Solved-point vs at-truth fields — the third bite.** Rows carry `jac_sigma_min` / `jac_cond` (at the *stopped*
 point) and `jac_sigma_min_truth` / `jac_sigma_max_truth` (at the truth). Substituting the first for the second
