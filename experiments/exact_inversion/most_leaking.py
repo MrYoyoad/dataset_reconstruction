@@ -26,7 +26,9 @@ torch.set_default_dtype(torch.float64)
 
 
 def solve_one(chart, bb, A_T, B_T, y1, W_init, a, budget, restarts):
-    """One-image inversion of the full release from an explicit start.  Returns the solution and the residual."""
+    """One-image inversion of the full release from an explicit start.  Returns the solution and the residual.
+       NB invert_lm's `restarts` is the number of ATTEMPTS (the first from W_init, later ones re-seeded): 1 = one
+       attempt from the given start, which is what an attacker-fair search and polish both need."""
     with torch.no_grad():
         Uc, _ = qr_canon(bb.phi(chart.psi(W_init))); Xinit = A_T @ Uc          # 'span' seed start, attacker-available
 
@@ -119,7 +121,7 @@ def main():
             for c in range(10):
                 for s in range(a.random_starts):
                     W0_ = (torch.randn(a.k, 1, generator=gs).to(dev) * coord_std)
-                    W_hat, aux, resid, iters = solve_one(chart, bb, A_T, B_T, torch.tensor([c], device=dev), W0_, a, a.search_iters, 0)
+                    W_hat, aux, resid, iters = solve_one(chart, bb, A_T, B_T, torch.tensor([c], device=dev), W0_, a, a.search_iters, 1)
                     search.append(dict(label=c, start=s, residual=resid, iters=iters, W=W_hat.detach()))
                 best_c = min((d for d in search if d["label"] == c), key=lambda d: d["residual"])
                 print(f"      label {c}: best residual over {a.random_starts} random starts {best_c['residual']:.3e}", flush=True)
