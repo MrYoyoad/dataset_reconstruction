@@ -2562,7 +2562,14 @@ better with *different* images: endpoint errors .09 … .77 against the on-chart
 non-identifiability for the FP64-simulating attacker, not a search failure. Per letter, the least-moved row-space
 directions recover best (letter 2: perturbation .045 → error .087; letter 5: .054 → .18) and the most-moved worst
 (letter 4: .20 → .77; letter 7: .22 → .69), but not monotonically (letters 1 and 6: perturbation .08/.055 → errors
-.50/.44) — the boundary is not a clean per-letter threshold. So at bf16 training: recorded (norm, rank, learned
+.50/.44). The non-monotonicity is the alias's signature, not a complication (yoado-6e): the LM solves for all
+eight latents *jointly*, so the mismatch is redistributed across images and a little-moved letter can be dragged
+off by the joint fit — per-image degraded recovery would be monotone in the per-image perturbation; a wrong joint
+solution is not. **Three-way reading to keep distinct:** *leak demonstrated* — fp64/fp32 training (both routes
+recover, letters 8 of 8) and bf16/fp16 storage of an O(1)-scale release (the certificate finds ≥ 2 of the
+headline's images from bf16 storage); *extraction gap, an open* — bf16 training (certificate 0, simulator alias;
+information present, matched-arithmetic attacker unrun; "not protection" is principled here, not demonstrated);
+*destroyed by range* — fp16 storage of the 7.6e-18 release only. So at bf16 training: recorded (norm, rank, learned
 margins, O(1) imprints), recoverable by neither route we ran; **an open, not a boundary** — the matched-arithmetic
 attacker, who simulates in bf16 and has no mismatch floor, is strictly stronger and was not run (autograd through
 a rounded loop is not meaningful with our solver). fp16 and the k = 32 rows pending.
