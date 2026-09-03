@@ -2685,3 +2685,36 @@ floor with O(1) image error and Z absorbing the mismatch.
 5e-15 — the Z-parametrised A₀ candidate and the surrogate-Jacobian solver reproduce the recipe route's exact
 recovery; the objective trace falls 0.109 → 8e-3 → 7.6e-4 → … → 1e-30 monotonically. The bf16, fp16 and fp32 rows
 are running against this gate.
+
+### Step 26 result (782682, letters k = 16, bf16-trained release, matched-arithmetic recipe route): recovered to 3%
+
+| quantity | value |
+|---|---|
+| determinism gate (true A₀, bf16 simulation vs the release) | 0 |
+| matched residual at the truth (W_true, Z_ls) = the A₀ floor | **0.0231** (pre-registered 1e-3 … 1e-2: above the band) |
+| A₀ left unexplained by Z_ls at the truth (rel.) | 0.0205 (the bf16-rounded part of ΔA outside the feature span) |
+| FP64 simulator's residual at the same truth | 0.173 |
+| start (near, noise 0.1) → endpoint residual | 0.29 → **0.0141** in 20 iterations, then no accepted step (at the floor) |
+| image error vs the on-chart truths, per letter | .044 .028 .022 .030 .069 .031 .049 .030 — **median .030, max .069** |
+| image error vs the raw letters (chart floor .316) | median **.317** |
+| Z error (rel.) | 0.131 |
+
+**Reads.** (i) **Outcome (a): the matched attacker recovers the class from the bf16-trained adapter.** Median
+image error 3.0% (max 6.9%) against the on-chart letters, raw error exactly at the chart's floor — the letters
+recovered as well as the chart allows, to within 3%; against the FP64 simulator's alias on the same release
+(median .44) and the certificate's nothing. The verdict key holds: residual at the floor (0.014 against the
+truth's 0.023 — 1.6×, not 240×), image error small, Z error moderate (0.13, absorbing part of the mismatch but not
+the images). Not a joint alias. (ii) The floor is the A₀ reconstruction, as pre-registered in mechanism though
+not in magnitude: 2.3e-2, set by the 2% of A₀ that the bf16-rounded updates leave outside the feature span
+(one ulp on A₀ gave 1e-2; the accumulated rounding is twice that). The image error is ~1.3–3× the residual —
+the same order as the certificate's 4–5× law. (iii) **So half-precision training is not protection —
+demonstrated, not principled:** the release keeps the class (norm, rank, learned margins), the certificate cannot
+read it (directions moved 5–25%), the FP64 simulator aliases (mismatch 0.17), and the attacker who simulates in
+the training's own arithmetic gets every letter back to 3%. What bf16 training costs the attacker is the A₀
+floor: 1e-15 → 2e-2 in image error. fp16, fp32 and the k = 32 rows are running.
+
+**Precision, the whole picture for the lead cell (letters, k = 16 / 32):** FP64 — 8 of 8 from random starts, exact.
+fp32 training — 8 of 8 from random starts (certificate, tight tolerance), recipe route exact to 2e-6. bf16
+training — certificate 0, FP64 simulator alias, **matched simulator 3%** (k = 16). fp16 training — certificate 0,
+FP64 simulator alias at a quarter of bf16's (pending matched). fp16 storage of an O(1) release — not tested here
+(the 7.6e-18 headline release underflows; the letters' would not).

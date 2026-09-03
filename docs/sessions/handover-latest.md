@@ -104,6 +104,9 @@ bracket. Next step 1 below is DONE; continue from step 2.
   matched-arithmetic recipe route is running (782682: `matched_lm`, Z-parametrised A₀ candidate, FP64 Jacobian
   surrogate, bf16 residual). Pre-registered: recovery to ≲5e-2 → "not protection" demonstrated; falsifier: alias
   persists (A₀ floor). Control ladder complete; ladder figure has the control cells. bf16 k=58: 0 of 5,000, near-miss 7.8%.
+- **Step 26 RESULT (782682, bf16-trained letters k=16, matched-arithmetic route): recovered to 3% median image
+  error (max 6.9%), raw error at the chart floor; residual 0.014 vs the truth's A₀ floor 0.023; Z error 0.13 —
+  not protection, DEMONSTRATED. fp16/fp32 and k=32 rows pending.**
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
