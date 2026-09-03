@@ -65,6 +65,17 @@ What the section establishes, in order — every label as in the .tex:
   574169 measured the boundary chart-INdependent). ReLU decoder ≈ GELU (†1.59e-11 vs †1.82e-11) ⇒ analyticity looks
   like a proof convenience, not observably load-bearing. Off-chart (realistic) cells: global PCA err-vs-REAL 1.45,
   VAE 0.728 — unreadable until the residual at the chart's projected point is measured.
+- **BATCH COMPOSITION (job 627166) — a batch the base model already fits leaves NO fingerprint.** Eight confident
+  digits (margins 56–95 under the strong model): every P_T column †5e-26…1e-23, rank B_T = 3 of 8. The SAME eight
+  digits through the random/weak/mid encoders give rank 8 with columns of order 1 — so it is the model, not the
+  digits. On-chart (projection lowers margins) one column rises to 0.41 but rank stays 3: what confident images then
+  carry is a hard image's residual spread collinearly, so RANK, not column size, is the witness.
+- **AND: overlapping FEATURES, not a shared label, is the coupling — my prediction came out with the opposite sign.**
+  A misclassified 1 beside the seven largest-margin 1s leaves them at the floor (rank B_T = 1); the same hard 1
+  beside confident digits of seven OTHER classes lifts every column above 5e-3 (rank 4). Reason: an example is
+  misclassified precisely because its features are atypical of its label, so its Gram overlap with confident members
+  of its own class is small. Caveats in the .tex: the different-class batch has two further low-margin images, and
+  columns at 1e-14–1e-16 beside one of order 5 are at the P_T-recovery floor. Feature-Gram correlation = job 627574.
 - **ENCODER QUALITY ENDS THE CHANNEL BEFORE THE COUNT DOES (jobs 625113, 626051) — the biggest result of the day.**
   Fixed architecture (784→1000→1000→10 GELU), fixed chart, fixed k=16 (four units BELOW the line 18), 3 A0 seeds:
   σ_min at the truth = †1.7e-5 (random weights, 8.7%) → †1.4e-7 (78.5%) → †7.1e-9 (95.1%) → †2.0e-15 (97.9%), cond
