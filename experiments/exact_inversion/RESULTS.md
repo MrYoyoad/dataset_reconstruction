@@ -2597,7 +2597,7 @@ deliberately above the steps) is the natural next attacker, untested. The honest
 training: recorded, not extractable by any *gradient-based* simulator we can build" — an extraction cost, not an
 information bound; and the certificate still resolving the class's directions to 5–25% is itself the number that
 stops "not extractable by our solvers" from sliding into "not there". *The deciding number is the coarse-scale
-trend, not the local ruggedness* (second job, 786xxx-series, `--segment-dense`): along 21 linear points from the 0.1
+trend, not the local ruggedness* (second job, 779969, `--segment-dense`): along 21 linear points from the 0.1
 start to the truth, the pointwise matched residual beside 4-point window means at radii 1e-3 and 1e-2 of the
 coordinate std. Pre-registration: a windowed mean falling monotonically toward the truth under ~0.1 local noise →
 extraction is a solver-engineering problem, the word is *cost*; a windowed mean flat until the last window → a
