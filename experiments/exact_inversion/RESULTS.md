@@ -2764,3 +2764,12 @@ has no single answer. (ii) **The control ladder qualifies "every admissible k is
 seven at k = 24 … 56 — attackable across most of the range, with recorded images going *unsampled* at a fixed
 budget within a few units of the line as the basin shrinks: a sampling limit, not an identifiability one, but the
 attacker's limit all the same.
+
+*Matched route, fp32-trained letters k = 16 (782682):* A₀ floor 1.26e-7 (A₀ unexplained 1.4e-6), endpoint residual
+1.07e-7 in 30 iterations, image error median 3.0e-7 / max 1.2e-6, Z error 8e-7 — recovered; the fp32 point of the
+scaling sits at 2.5× ε. The k = 16 column is complete: **bf16 3.0% / fp16 0.97% / fp32 3e-7 / fp64 2e-15**, each
+from the same near start, the same solver, the same release except for the arithmetic it was trained in.
+*FP64-simulator recipe route, fp16-trained letters k = 32 (771329, last row):* alias, residual 6.9e-5 against the
+truth's 0.028, image errors .16 … .86 (median .47) — against .074 at k = 16 from the same mismatch: the worse-
+conditioned k = 32 chart (σ_min 1e-5) turns a 2.8% mismatch into a 47% displacement. The four k = 32 matched rows
+decide whether the matched attacker's 1–3% survives that conditioning.
