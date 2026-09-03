@@ -1811,7 +1811,7 @@ was the ladder job's RAW cell, `N′ = 3`, whose truth is not on the chart and w
 on-chart `k = 8` cell, measured in the bracket below, lands 18% of starts. My own rule — check the truth before
 reading a solve — caught it one row late; the ladder and the twenty-image cell were restarted on-chart only.)*
 "Rank buys budget" and "the budget is reachable" remain separate claims; the fixed-`k` arm (`k = 8` at
-`r = 16 / 32 / 64`, run first in job 721xxx) decides whether the basin is governed by `k` or by distance below the line.
+`r = 16 / 32 / 64`, run first in job 721391) decides whether the basin is governed by `k` or by distance below the line.
 
 **Bracket, `k = 8` (job 706721, on-chart, `N′ = 7`, line 9, one below):** 2,000 starts → 345 at the floor, 364 landed on
 a recorded image (19 landed at objective ~1e-17, converging), all seven found, argmin on a recorded image at
