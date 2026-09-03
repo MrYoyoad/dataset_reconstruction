@@ -96,6 +96,12 @@ control through the foreign set's nuisance transform (resolution, blur, contrast
 same basis; if the gap closes, the claim was never tested. Cost: one CPU job, minutes. Cost of skipping it: a
 withdrawn paragraph.
 
+**A `str.replace` with no assert is a silent no-op — verify the file's bytes, not the script's exit (2026-09-03,
+night).** A `--start-scale` argument was "added" by a replace anchored on a line that lives in a different file;
+the uses of the argument went in, the definition did not, and the job died on `unrecognized arguments`. Twice.
+Rule: every patch asserts its anchor is present, and the check after is against the artefact (`--help | grep`,
+`grep -c`), never the patch script's own success message.
+
 **Submission gotcha.** New modules under `experiments/exact_inversion/` import
 `experiments.exact_inversion.<module>`, so they must be launched as `python -u -m experiments.exact_inversion.x`;
 `python -u experiments/exact_inversion/x.py` dies in 5 s with `ModuleNotFoundError: experiments`. Two jobs lost

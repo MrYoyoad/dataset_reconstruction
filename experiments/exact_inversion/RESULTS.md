@@ -1789,7 +1789,11 @@ ranks and are not independent; the sign consistency across cells is the evidence
 (the independent units):** `confident` (13 cells, 232 pairs) feature norm +0.44, pixel norm +0.55, imprint +0.22;
 `mnist_control` (3 cells, 84 pairs) feature norm +0.50, pixel norm +0.17, imprint +0.12; `hard1_diff` (1 cell,
 15 pairs, landings 0–1 — barely informative) −0.07 / −0.60 / +0.07. Two batches positive, the third a single
-near-empty cell: the evidence rests on two independent units, dominated by one. **Open confound, one cell
+near-empty cell: the evidence rests on two independent units, dominated by one. **The per-batch split also
+discriminates the two geometry predictors:** the feature norm `‖A_Tφ(x)‖` *replicates* (+0.44, +0.50) while the
+pixel norm does not carry (+0.55 in the batch supplying 13 of 17 cells, +0.17 in the other — the shape of a
+single-batch artefact that the pooled +0.40 concealed). The sentence names the feature norm: the basin is set by
+how the *adapter* sees the candidate (through the released `A_T`), not by how large the image is in pixel space. **Open confound, one cell
 running (job 736737):** starts are drawn at a fixed public scale, so a target whose norm sits nearer that scale
 is nearer the starts — `‖x_on‖` could be a property of the *start distribution*, not the chart. Re-drawing the
 same batch's starts at 0.5× and 2× the public scale (`--start-scale`) separates them: if the landing order
@@ -2022,6 +2026,7 @@ raw-digit case has no certificate zero — Step 22), Adam (no certificate), or a
 | 64 | 32 | 8 | 56 | 24 | 66.0% | 8.3% | 8/8 | .97 | .94 |
 
 | 64 | 40 | 8 | 56 | 16 | 45.2% | 5.7% | 8/8 | .97 | .97 |
+| 64 | 48 | 8 | 56 | 8 | 20.6% | 2.6% | 8/8 | .975 | .99 |
 
 **The mirror pair (equal slack, different `k`):** `r = 32, k = 8` (17 below) has a per-image basin of 10.6%;
 `r = 64, k = 40` (16 below) 5.7%. So at held distance, 32 more unknowns cost about 2× in basin — distance
