@@ -109,8 +109,12 @@ def main():
                     if a.out:
                         with open(a.out, "a") as f: f.write(json.dumps(rowA) + "\n")
                 if "B" in a.part and Np <= a.max_np:                           # certificate-only inversion: land on a RECORDED image
-                    nA = torch.linalg.norm(A_T)
-                    fun = lambda w: (C @ bb.phi(chart.psi(w.reshape(k, 1)))).reshape(-1) / nA
+                    # scale-INVARIANT objective: ||C phi|| / ||A_T phi|| = sine of the angle between A_T phi and row(B_T).
+                    # Normalising by the constant ||A_T|| let a blank image (phi -> 0 through the GELUs) reach zero
+                    # objective and win the attacker's own argmin -- found by audit (yoado-6e) on job 701679.
+                    def fun(w):
+                        f = bb.phi(chart.psi(w.reshape(k, 1)))
+                        return (C @ f).reshape(-1) / torch.linalg.norm(A_T @ f)
                     gs = torch.Generator().manual_seed(a.seed + 31); t0 = time.time(); runs = []
                     for s in range(a.random_starts):
                         w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
