@@ -2095,6 +2095,13 @@ warned it might; **what discriminates is the level of the floor**, six orders ap
 the attacker sees that level as the achievable residual of each candidate subset. "Find some" therefore reads:
 *minimise the residual over the choice of subset* — the recorded subset is the one whose residual can go lowest —
 which is a search over subsets the attacker can run without knowing which images are recorded.
+*Confident-only control (same job, later row):* the subset of the three *invisible* images (imprints 3e-10, 4e-20,
+2e-16; predicted floor 1.0 — the whole of `B_T` unexplained; residual at that subset's truth 1.0) does **not** reach
+the recorded floor level: from a near start the solver drives the residual to 3.2e-4 (B-block 1e-5) by moving *one*
+candidate far off its start (image error 0.85; the other two stay at their 0.064 start error) — a candidate drifting
+toward what does explain the release, not a floor. Three levels in one cell: recorded subset 1.1e-16, one-swapped
+2.1e-10, confident-only 3.2e-4 (twelve orders): the achievable residual orders the candidate subsets by how much
+of the release they contain.
 
 ### Closures from the older jobs
 - **The alias form did not appear (job 614344, 98% model, repeated draw, `k = 6 … 18`):** `σ_min` at the truth is
