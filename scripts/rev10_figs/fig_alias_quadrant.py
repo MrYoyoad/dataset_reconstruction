@@ -37,7 +37,7 @@ blue,orange,green,red="#1f77b4","#ff7f0e","#2ca02c","#d62728"
 fig, ax = plt.subplots(figsize=(10,8.6),dpi=200)
 for c,(col,mk,lab) in {
   "recovered":(green,"o","RECOVERED — floor residual, err at machine precision (all below the line)"),
-  "alias":(red,"X","ALIAS — floor residual, a DIFFERENT point at 0.2–1.2% image error, σ_min collapsed (all above the line)"),
+  "alias":(red,"X","ALIAS — floor residual, a DIFFERENT point at 0.2–1.7% image error, σ_min collapsed (all above the line)"),
   "search":(blue,"s","SEARCH FAILURE — residual not at floor (attacker-start / Adam runs; (14,21) at 1 restart — recovered at 6)"),
 }.items():
     q=[(x,y) for x,y,sd,cc in pts if cc==c]
@@ -63,7 +63,7 @@ ax.set_xscale("log"); ax.set_yscale("log")
 ax.set_xlim(1e-33,10); ax.set_ylim(1e-17,10)
 ax.axvline(1e-25,color="gray",lw=1,ls=":"); ax.axhline(1e-8,color="gray",lw=1,ls=":")
 ax.text(3e-27,1e-15,"RECOVERED\n(release reproduced,\ntruth found)",fontsize=10.5,color=green,fontweight="bold")
-ax.text(3e-33,2e-2,"ALIAS quadrant\n(release reproduced by a\nDIFFERENT point — image\nerror 0.2–1.2%, sub-percent)\nempty below the line\n(cells tested), populated above",fontsize=10.5,color=red,fontweight="bold")
+ax.text(3e-33,2e-2,"ALIAS quadrant\n(release reproduced by a\nDIFFERENT point — image\nerror 0.2–1.7%; synthetic)\nempty below the line\n(cells tested), populated above",fontsize=10.5,color=red,fontweight="bold")
 ax.text(1e-12,2e-2,"SEARCH FAILURE\n(release NOT reproduced)",fontsize=10.5,color=blue,fontweight="bold")
 ax.set_xlabel("final residual  ‖Recipe_T(ŵ, X̂) − release‖²   (floor ≈ 1e-30)",fontsize=12.5)
 ax.set_ylabel("max relative image error",fontsize=12.5)

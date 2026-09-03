@@ -34,7 +34,7 @@ ax.plot(Nl,cert,color=blue,lw=2.2,label="certificate boundary  k = r − N   (Th
 ax.plot(Nl,inv,color=orange,lw=2.4,ls="--",label="capacity boundary  k = m + r − N   (Theorem 6; measured sharp)")
 ax.scatter([c[0] for c in gridrec],[c[1] for c in gridrec],s=60,color=green,edgecolor="k",lw=0.5,zorder=5,label="recovered — 49-cell grid")
 ax.scatter([c[0] for c in caprec],[c[1] for c in caprec],s=95,color=green,marker="D",edgecolor="k",lw=0.7,zorder=6,label="recovered — capacity sweep")
-ax.scatter([c[0] for c in capali],[c[1] for c in capali],s=120,color=red,marker="X",edgecolor="k",lw=0.6,zorder=6,label="ALIAS — floor residual, a DIFFERENT point (image error 0.2–1.2%)")
+ax.scatter([c[0] for c in capali],[c[1] for c in capali],s=120,color=red,marker="X",edgecolor="k",lw=0.6,zorder=6,label="ALIAS — floor residual, a DIFFERENT point (image error 0.2–1.7%)")
 if capsrch: ax.scatter([c[0] for c in capsrch],[c[1] for c in capsrch],s=110,facecolor="none",edgecolor=blue,marker="s",lw=2,zorder=7,label="identifiable (σ_min not collapsed) but the run search-failed")
 # bracket text per N
 for N,dx,dy in ((4,10,6),(8,14,-30),(12,10,6)):

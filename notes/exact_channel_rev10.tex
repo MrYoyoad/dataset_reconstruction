@@ -429,7 +429,8 @@ residual above the floor.
 
 \paragraph{The map reproduces the release.} Fed the true $(w,X)$, the
 simulator of \eqref{eq:rho} reproduces the released factors to relative error
-$7.4$--$8.5\times10^{-16}$$^\dagger$ (jobs 395496, 396214--21). Every number
+$5.3\times10^{-16}$--$1.8\times10^{-15}$$^\dagger$ ($B$ and $A$ factors over
+$54$ rows; jobs 395496, 396214--21). Every number
 below rests on this one.
 
 \paragraph{The line of Theorem~\ref{thm:cap} is sharp to one unit of $k$.}
@@ -456,7 +457,7 @@ single-restart run stalled at residual $5\times10^{-18}$ with
 $\sigma_{\min}=1.7\times10^{-7}$ intact; six restarts reach the floor
 ($9.5\times10^{-31}$, error $2.8\times10^{-12}$, job 481079). Identifiable
 and solvable are different properties; that cell shows both.} The $49$-cell
-grid $N,k\in\{2,\dots,14\}$ (jobs 396214--21, 456630) lies inside the region
+grid $N,k\in\{2,4,\dots,14\}$ (jobs 396214--21, 456630) lies inside the region
 $k<m+r-N$ and recovers in every cell while crossing $k=r-N$ throughout
 (Figure~\ref{fig:plane}).
 
@@ -516,7 +517,7 @@ apart:
 $k$ & chart & $\sigma_{\min}$ & error vs.\ own image & error vs.\ real digit\\ \midrule
 17 (below) & PCA & $2.2\times10^{-5}$ & $7.2\times10^{-14}$ & $0.510$\\
            & warped & $2.2\times10^{-5}$ & $5.9\times10^{-14}$ & $0.510$\\
-           & contains the digits & $5.7\times10^{-5}$ & $5.8\times10^{-14}$ & $5.8\times10^{-14}$\\
+           & contains the digits & $5.7\times10^{-5}$ & $5.7\times10^{-14}$ & $5.7\times10^{-14}$\\
 18 (at)    & PCA & $5.6\times10^{-18}$ & $2.9\times10^{-2}$ & $0.500$\\
            & warped & $5.3\times10^{-18}$ & $2.9\times10^{-2}$ & $0.500$\\
            & contains the digits & $5.7\times10^{-18}$ & $1.8\times10^{-2}$ & $1.8\times10^{-2}$\\
@@ -552,12 +553,22 @@ exactly in its own coordinates; only the chart that contains the digits
 returns the digits.}\label{fig:chart}
 \end{figure}
 
-\paragraph{Past the line the release is reproduced by a point that is close to
-the truth.} The aliases of the table sit at image error $1.7\times10^{-3}$
-($N=4$), $2.6$--$9.3\times10^{-3}$ ($N=8$), $6.4\times10^{-3}$ ($N=14$),
-$1.2\times10^{-2}$ ($N=12$); in $9$ of the $13$ past-line cells every image
-lies inside the study's own $10^{-2}$ recovery tolerance, and the four
-exceptions are $1.0$--$1.7\times10^{-2}$, just outside it. The continuum of
+\paragraph{Past the line: what the alternative point is.} On the synthetic
+test-bed — whose chart $\psi$ is the generator that produced the images, so
+it contains the truth exactly, the most favourable case of the previous
+paragraph — the aliases of the sharpness table sit at image error
+$1.7\times10^{-3}$ ($N=4$, $k=34,38$), $2.6$--$9.3\times10^{-3}$ ($N=8$,
+$k=28$ to $44$), $1.2$--$1.7\times10^{-2}$ ($N=12$, $k=26,30$) and
+$6.4\times10^{-3}$--$1.4\times10^{-2}$ ($N=14$, $k=22$--$24$). The error
+grows with distance past the line at every $N$; $9$ of the $13$ cells have
+every image inside the study's $10^{-2}$ tolerance, and the four outside it
+are the cells furthest past the line. On real digits (job 568095) the same
+rows are worse: the past-line aliases at $r=16$ and $r=32$ — residual at the
+floor — sit at $2.3$--$6.8\times10^{-2}$, again growing with distance
+($r=16$: $2.7$, $5.4$, $6.8\times10^{-2}$ at $k=18,22,26$), and five of the
+eight past-line cells have no image inside tolerance; the three $r=8$
+past-line rows stop at residuals $10^{-15}$--$10^{-16}$, search failures
+rather than aliases, at $3.5$--$10\times10^{-2}$. The continuum of
 Theorem~\ref{thm:cap} was then walked$^\dagger$ (job 482338): from the truth,
 step along the right singular vector of $\sigma_{\min}(D\rho)$, retract onto
 $\rho^{-1}(0)$ by a few LM steps, repeat (Figure~\ref{fig:quadrant}).
@@ -575,14 +586,18 @@ This is Theorem~\ref{thm:cap} and Theorem~\ref{thm:suff} as a single
 experiment: the set of exact reproductions is a point below the line and a
 walkable manifold at and past it. Each walk follows one null direction
 (of $14$ and $40$), so the errors reached bound the extent from below; the
-at-line walk had not stopped rising. On the paths measured, the alternative
-solutions are recognisable reconstructions of the private images, and
-$3.8\%$ is a visible degradation. Hence $k<m+r-N$ is the boundary of
+at-line walk had not stopped rising. On the paths measured the alternative
+solutions lie within $1.4$--$3.8\%$ of the private images, in a chart that
+contains them; $3.8\%$ is a visible degradation, and whether the images
+remain recognisable was not assessed. Hence $k<m+r-N$ is the boundary of
 \emph{exact} identifiability of the chart coordinates, and it is not a
-boundary of leakage in either direction: past it the alternatives are
-recognisable, and below it the image reached is only as good as the chart.
-Whether some direction through the fibre reaches unrecognisable points is
-open.
+leakage bound: below it the image reached is only as good as the chart, and
+past it the release-consistent alternative lies within a few percent of the
+truth on the evidence measured — sub-percent to $1.7\%$ in the synthetic
+chart that contains the truth, $2$--$7\%$ on real digits — with the error
+growing with distance past the line in both. Whether the alternatives stay
+recognisable further out is not established, and the trend with distance
+does not favour it.
 
 \begin{figure}[htbp]\centering
 \includegraphics[width=0.92\linewidth]{fig_counting_plane.png}
@@ -597,8 +612,8 @@ dashed line. The arrow is the $N(m-1)$ of Corollary~\ref{cor:two} per image.}\la
 \includegraphics[width=0.92\linewidth]{fig_alias_quadrant.png}
 \caption{Residual against worst-image error, every run classified. Recovered
 runs (floor residual, machine-precision error) all lie below the line;
-aliases (floor residual, a different point at $0.2$--$1.2\%$ error) all lie
-above it; search failures have residual above the floor. Triangles: the
+aliases (floor residual, a different point; synthetic test-bed, $0.2$--$1.7\%$
+error) all lie above it; search failures have residual above the floor. Triangles: the
 continuation of job 482338 past and at the line, the manifold of
 Theorem~\ref{thm:cap} drawn as a line from the truth into the alias band.
 Diamonds: the same continuation below the line, pinned at machine precision.
@@ -735,12 +750,18 @@ headline. The withdrawals are in the repository's lessons log.
   (Figure~\ref{fig:spectrum}). Rendering its leading directions as image
   edits is the natural next object.
 \item \textbf{What stops the attack today is neither line.} Inside the
-  capacity region, LM from perturbed-truth starts recovers at $65\%$ start
-  error with no edge found$^\dagger$ (job 459111); from starts an attacker can
-  build from the release alone it reaches the floor in $1$ of $20$
-  runs$^\dagger$ (jobs 408560--63). The binding constraint is the initialiser
-  — the slot the framework reserves for a learned or population prior — not
-  the information in the release.
+  capacity region, LM from perturbed-truth starts recovers up to $86\%$ start
+  error, with one budget-limited failure at $81\%$ (residual $8\times10^{-5}$
+  at the iteration cap, still descending) bracketed by successes at $77\%$
+  and $86\%$$^\dagger$ (job 459111). From the $20$ starts an attacker can build
+  from the release alone (random, span, certificate, span-anchor; jobs
+  408560--63) it reaches the floor in \emph{none}: one run ends inside the
+  $10^{-2}$ image tolerance at residual $9\times10^{-7}$ with its restart
+  budget exhausted — by the classification above a search failure that
+  happened to land near the truth — and the other nineteen end at residuals
+  $5\times10^{-3}$ to $0.4$. The binding constraint is the initialiser — the
+  slot the framework reserves for a learned or population prior — not the
+  information in the release.
 \end{enumerate}
 
 %----------------------------------------------------------------------------
@@ -753,7 +774,7 @@ level & content & status\\ \midrule
 3$'$. Capacity & $k<m+r-N$, strict, from $\dim\mathcal B$ (Thm~\ref{thm:cap}, Prop.~\ref{prop:simplex}) & Theorem; sharp$^\dagger$ at $N=8,14$ synthetic and at $r=8,16,32$ on MNIST; exact identifiability of the chart coordinates\\
 3$'''$. Chart & boundary chart-independent; fidelity chart-dependent ($0.51$ vs $5.7\times10^{-14}$ at $k=17$); a chart containing the digits recovers them at $k=N$ & Verified$^\dagger$ (job 574169); not a leakage bound\\
 3$''$. Sufficiency & $D\rho$ full column rank a.e.\ below the line, per connected component (Thm~\ref{thm:suff}) & Theorem given a witness in the component; witness measured$^\dagger$ at $T=1$; $T>1$ rests on measured $T$-independence, not on a proof\\
-5$'$. Past the line & a walkable manifold of exact reproductions, $\le3.8\%$ image error on paths measured & Verified$^\dagger$; extent and global uniqueness open\\
+5$'$. Past the line & a walkable manifold of exact reproductions; alternatives at $0.2$--$1.7\%$ (synthetic, chart contains the truth), $2$--$7\%$ on real digits, growing with distance past the line; $\le3.8\%$ along one walked direction & Verified$^\dagger$; recognisability not assessed; extent and global uniqueness open\\
 7$'$. Adam & identifiable; seed $rn$; $\kappa\uparrow$; basin$\downarrow$; simplex constraint broken & Verified$^\dagger$; one-unit-higher line predicted, untested\\
 8$'$. Recipe & wrong recipe never at the floor; $\eta$ fitted jointly; $\eta T$ split identifiable; labels identifiable; schedule leaks $T$ & Verified$^\dagger$ (jobs 484255, 485912, 487290, 488314); family selection open\\ \bottomrule
 \end{tabular}
@@ -794,15 +815,18 @@ region and measures existence, not rate.
 \item \emph{The walk.} Past the line the truth is not isolated
   (Theorem~\ref{thm:cap}); one continuation procedure moves the image by
   $10^{-14}$ below the line and by $1.4$--$3.8\%$ at and past it, at the
-  residual floor throughout. The alternatives are recognisable images. So the
-  line bounds \emph{exact} identifiability, and on this evidence not leakage;
-  how far the manifold reaches is open, one direction of forty was walked,
-  and one cell was still rising.
+  residual floor throughout. Where the solver lands past the line, the
+  alternative is within $1.7\%$ in the synthetic chart that contains the
+  truth and $2$--$7\%$ on real digits, growing with distance; recognisability
+  is not assessed. So the line bounds \emph{exact} identifiability and is
+  not a leakage bound; how far the manifold reaches is open — one direction
+  of forty was walked, and one cell was still rising.
 \item \emph{The theorem behind the sharpness.} Below the line $D\rho$ is
   full column rank almost everywhere or nowhere (Theorem~\ref{thm:suff});
   the $T=1$ closed form \eqref{eq:T1} is the witness.
 \item \emph{What stops the attack.} Not information: the initialiser
-  ($1$ of $20$ attacker-buildable starts; basin beyond $65\%$ from the truth).
+  (none of $20$ attacker-buildable starts reaches the floor; from perturbed
+  truth the solver recovers up to $86\%$ away).
 \item \emph{The recipe.} A wrong recipe never reaches the floor — one step
   in four hundred is twenty-three orders away — so the residual checks it;
   $\eta$ fits jointly with the data to machine precision; $\eta T$ is not a

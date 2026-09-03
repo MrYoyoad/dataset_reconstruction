@@ -27,6 +27,13 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
+- **Claims audit (yoado-51) applied:** (i) NO attacker-buildable start reaches the floor — the one "1 of 20" run sat at
+  residual †9.1e-7, err 9.2e-3, restart budget exhausted (a search failure by the doc's own taxonomy); (ii) MNIST
+  past-line aliases at r=16/32 sit at †2.3–6.8% with 5 of 8 past-line cells having no image inside tolerance, and the
+  synthetic past-line error grows with distance past the line at every N — "the alternatives are recognisable" is
+  withdrawn; the law is stated as not a leakage bound, with recognisability NOT assessed; (iii) fwd_check range is
+  †5.3e-16–1.8e-15 (54 rows); basin recovers up to †86% start error with one budget-limited failure at 81% bracketed
+  by successes; the 49-cell grid is the even values {2,…,14}.
 - **Real images + chart dependence in the .tex (executor's jobs 568095, 574169):** the line k<m+r−N holds on MNIST
   (N=8, m=10) at r=8/16/32 — last full-rank k = 9/17/33, first collapsed 10/18/34, ~13 orders per unit — with the
   last-ok cells solver-degraded (err ~1e-2, residual 1e-13..1e-14) and clean deeper below. Chart dependence at
