@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A quantised release's usable rank is set by its measured spectrum floor, not by the format's unit roundoff (2026-09-03)
+
+- **Presented as:** the pre-registered "band rule" (images recoverable = singular directions above the format's roundoff ε) predicted 2–3 found from a tf32 release of the headline cell; 5 were found at a tight certificate tolerance (job 753371).
+- **Cause:** rounding each entry of a rank-few matrix to ε relative precision does not bury the spectrum at ε·σ₁; the measured floor sat ~3 orders lower (fp32: 1e-10…3e-9 vs ε = 1.2e-7; tf32: 6e-7…2e-5 vs 9.8e-4), so directions at 9e-4, 2e-4 and 6e-7 of σ₁ survived tf32.
+- **Consequences:** (a) predict from the *quantised* spectrum, not from ε; (b) the "noise-matched" tolerance 10ε was the wrong recommendation — it throws away recoverable images (fp32: 4 found at 10ε vs 5 at 1e-12; tf32: 2 vs 5). The attacker's tolerance should be tight (use the noise rank): on-chart the search still lands within 1e-2 of the truth through an approximately-contained direction. (c) fp16's damage is range: the 7.6e-18 file rounds to exactly zero.
+
 ## A label with a slash in it becomes a directory in a save path (2026-09-03)
 
 - **Presented as:** job 656205 (flowers on CIFAR) died with `RuntimeError: Parent directory results/.../cifar10_m10_n does not exist` right after its first old-head cell, losing the mixed-batch cells the job existed for.

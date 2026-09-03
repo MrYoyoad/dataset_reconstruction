@@ -2291,3 +2291,49 @@ stay negative at every k and their imprints of order one. If the fp64 rows show 
 confirmed by the case that escapes it. The fork it decides for the write-up: letters at k = 32 with O(1) imprints
 = one cell that is both robust to arithmetic and instance-identifying (lead of the measured section); letters
 collapsing as the projections sharpen = robust-but-coarse beside sharp-but-cornered.
+
+### Step 24 results (job 753371, seven of nine cells; bf16 pending): the headline cell from a quantised release
+
+Same cell as Step 23 (confident, on-chart, r = 64, k = 32, 500 random starts). "found" is out of the eight FP64-recorded
+images; `σ_rel` is the quantised release's spectrum; residual = certificate residual at each truth.
+
+| release | tol | N′ (line) | on a recorded image | found | which lost (σ_rel of the lost) | residual at lost truths | residual at found truths |
+|---|---|---|---|---|---|---|---|
+| fp64 | 1e-12 | 8 (56) | 65.6% (42% at floor) | **8** | — | — | 5e-15 … 2e-5 |
+| fp32 | 1e-12 | 10 = m, noise rank (54) | 54.2% (0 at floor) | **5** | 0, 3, 4 (7e-11, 3e-11, 2e-12) | 0.9, 0.9, 0.9 | 2e-8 … 4e-8 |
+| fp32 | 1.2e-6 | 4 (60) | 66.6% | **4** | + 7 (6e-7) | 0.9 | 4e-8 … 2e-4 |
+| tf32 | 1e-12 | 10 (54) | 54.0% | **5** | 0, 3, 4 | 0.8–0.9 | 2e-4 … 3e-4 |
+| tf32 | 1e-2 | 2 (62) | 48.2% | **2** (images 1, 5) | all but the two strong | ~1 | 2e-4, 3e-4 |
+| fp16 | both | 0 — **‖B_T‖ = 0, the file underflowed** | 0 | **0** | all | — | — |
+
+The fp64 row reproduces Step 23 exactly (landings 34, 34, 30, 58, 26, 19, 103, 24). Quantised spectra: fp32
+1, .9, 9e-4, 2e-4, 6e-7, **3e-9, 1e-10, 6e-11**; tf32 1, .9, 9e-4, 2e-4, **2e-5, 1e-6, 7e-7, 6e-7** — the three weakest
+directions are replaced by a noise floor.
+
+**Reads against the pre-registration.** (i) **fp16: 0 found, the whole release rounds to zero** — as revised
+(range, not mantissa). (ii) **fp32: 5 found** — the imprint and spectrum predictions (4–5) hold; the three lost
+images have residual 0.9 at their truths (their directions left the row space — destroyed, not under-sampled;
+guard (c)). (iii) **tf32 at the tight tolerance: 5 found, not the predicted 2–3.** The band rule keyed the count to
+σ_i/σ_1 *above the unit roundoff*; the quantised spectrum's actual noise floor sits ~3 orders below the roundoff
+(fp32: 1e-10 … 3e-9 against ε = 1.2e-7; tf32: 6e-7 … 2e-5 against 9.8e-4), so the 9e-4, 2e-4 and even the 6e-7
+directions survive tf32 and are found (residuals 2e-4 … 3e-4 at their truths, landings within 1e-2 of the images).
+The σ-primary framing stands but its threshold is the *measured* spectrum floor of the quantised file, not ε.
+(iv) **The tolerance knob cuts the other way from "noise-matched":** at fp32, tol 1.2e-6 (= 10ε) drops N′ to 4 and
+loses image 7 (σ 6e-7), which tol 1e-12 recovers; at tf32, tol 1e-2 leaves N′ = 2 and finds exactly the two strong
+images that tol 1e-12 finds five of. The attacker should use the *noise rank* (a tight tolerance): the certificate's
+null space then includes the weak directions approximately, and on-chart the search still lands within 1e-2.
+"Noise-matched" was the wrong recommendation — recorded as a lesson. (v) The aggregate basin barely moves
+(54–67% against 65.6%) — what precision removes is *which* images are reachable, not how many starts land.
+
+**Headline sentence, precision-scoped (pending bf16):** from the FP64 release all eight; from the same adapter
+stored in fp32 or tf32, five of eight (the three recorded at 1e-11 … 1e-12 of the strongest are gone); stored in
+fp16, none — the file is zero.
+
+### Flowers on CIFAR, corrected design (job 656205; old-head and mixed batches rerun as 762253 after a save-path crash)
+
+Eight flowers (new class, m = 11) and eight CIFAR digits on the extended head, both charts (flower PCA / CIFAR PCA,
+k = 16), both head inits, r = 16, N = 8: every *near-start* cell (a) reaches residual ~1e-30 with chart error
+≤ 1e-12 (σ_min at the truth 1e-6 … 2e-5 — identifiable, rank 8 in every release, imprints O(1)); every *random-start*
+cell (b, 2 restarts, 600 iterations) stops at residual 5e-5 … 5e-3 with chart error 0.07 … 0.59 — search failure
+(residual not zero), no alias. Chart ceilings vs the raw images: .31/.38 (flowers), .24/.26 (CIFAR). Same picture as
+the first flowers job: recorded and identifiable, not reachable by the recipe route from random starts at k = 16.
