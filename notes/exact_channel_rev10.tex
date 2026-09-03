@@ -727,38 +727,43 @@ at a fixed architecture, chart and $k$ inside the capacity region. The
 private data is identifiable at every rung: $\operatorname{rank}B_T=8$
 throughout, so (A4) holds.
 
-\paragraph{Where the law stops applying, and it needs two conditions.}
-Identifiability does fail below the line, but not on encoder quality alone.
-Holding the same encoder and varying only what is asked of it$^\dagger$
-(same job, same seeds, same $k$):
+\paragraph{Where the law stops applying: a second channel-closing
+mechanism.} Identifiability does fail below the line on a strong encoder,
+and it is the imprint law of the next paragraph acting rather than a gap in
+the theorems. $\operatorname{rank}B_T$ counts the examples recorded above the
+floor; when that count falls below $N$, hypothesis (A4) fails, $D\rho$ is
+rank-deficient, and the channel closes \emph{below its own capacity line} —
+for reasons of the model rather than the count. On the $97.9\%$ encoder that
+happens in most conditions tested:
 \begin{center}\small
-\begin{tabular}{@{}llccc@{}}\toprule
-encoder & chart, labels & $\sigma_{\min}$ at the truth & $\operatorname{cond}$ & $\operatorname{rank}B_T$\\ \midrule
-strong & global, distinct & $5.6\times10^{-12}$ & $3.4\times10^{12}$ & \textbf{8}\\
-strong & global, two labels repeated & $7.0\times10^{-19}$ & $1.1\times10^{19}$ & \textbf{6}\\
-strong & class-local, distinct & $3.5\times10^{-19}$ & $6.1\times10^{19}$ & \textbf{6}\\
-strong & class-local, repeated & $6.5\times10^{-19}$ & $4.7\times10^{19}$ & \textbf{5}\\
-mid & global, two labels repeated & $3.9\times10^{-9}$ & --- & 8\\ \bottomrule
+\begin{tabular}{@{}llcc@{}}\toprule
+private data & chart, labels & $\operatorname{rank}B_T$ ($N=8$) & $\sigma_{\min}$ at the truth\\ \midrule
+chart-projected & global, distinct & \textbf{8} & $5.6\times10^{-12}$\\
+chart-projected & global, two labels repeated & 6 & $7.0\times10^{-19}$\\
+chart-projected & class-local, distinct & 6 & $3.5\times10^{-19}$\\
+raw test digits & global, distinct & 6 & (not solved)\\ \bottomrule
 \end{tabular}
 \end{center}
-Seven orders separate the first two rows — same encoder, same chart, same
-$k$, same seeds, only the label multiset differing. So $\operatorname{rank}
-P_T<N$, and with it the failure of (A4) and a rank-deficient $D\rho$ two
-units \emph{below} the capacity line, requires a strong encoder
-\emph{and} something that makes it more confident still: either two examples
-sharing a label, or a class-local chart that moves each example toward its
-own class mean. Neither condition alone suffices — the mid encoder with
-repeated labels keeps rank $8$ at $3.9\times10^{-9}$, and the strong encoder
-with distinct labels keeps rank $8$ at $5.6\times10^{-12}$.
-
-This is the imprint law of the next paragraph rather than a separate
-phenomenon: anything that raises the model's confidence on a private example
-shrinks what the release records about it, and two examples the model fits
-\emph{and} labels identically have imprints that are both tiny and nearly
-parallel, so they leave the rank together. The earlier version of this
-section attributed the rank loss to encoder quality alone, by averaging the
-two label sets into one rung — a geometric mean of $2.0\times10^{-15}$ that
-no measurement lies within three orders of.
+Three things follow. The count is $8$ only for chart-projected images with
+distinct labels: projecting an image onto a $16$-dimensional chart degrades
+it, the model becomes less certain, and \emph{more} is recorded — so the
+chart the attacker searches in also decides how much there is to find. Two
+examples sharing a label are recorded jointly rather than separately, since
+a model that fits both and labels them identically gives them imprints that
+are tiny and nearly parallel, and they leave the count together; that single
+change moves $\sigma_{\min}$ by seven orders at fixed encoder, chart, $k$ and
+seeds. And the drop does not require repeated labels: raw test digits with
+eight distinct labels also give $6$, because two of the eight are fitted
+confidently enough on their own$^\dagger$ (job 644062). What matters is each
+example's own confidence, which is the imprint law; the label multiset and
+the chart change it, and a strong encoder makes it common.\footnote{An
+earlier version quoted a single strong rung of $2.0\times10^{-15}$, the
+geometric mean of the first two rows — a value no measurement lies within
+three orders of — and attributed the rank loss to encoder quality alone. The
+median margin of a batch does not predict its rank either: the rendered
+fonts have median margin $8.9$ and rank $6$, because three individual
+glyphs sit at margins $31$--$47$, while a set of median margin $19.8$ keeps
+rank $8$. Rank counts examples, not averages.}
 
 \paragraph{What the release records, per example.} The gradient in $B$ is
 $\nabla_BL=s\,D\,(AH)^{\!\top}=s\sum_i D[:,i]\,(Ah_i)^{\!\top}$, a sum of
