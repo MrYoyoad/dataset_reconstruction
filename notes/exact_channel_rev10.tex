@@ -1562,8 +1562,34 @@ So the half-precision statement is: the release records all eight, and neither
 of the two routes we ran reads it --- one because it needs directions the
 arithmetic destroyed, the other because its forward model is the wrong
 arithmetic. An attacker who simulates in the same precision as the defender
-trained has not been run, and until it has, this is an open and not a
-defence.
+trained had not been run, and measuring the landscape it would have to descend
+settles most of the question$^\dagger$ (jobs 779207, 779969).
+
+The bfloat16 training map is not the rugged one its rounding suggests. It
+responds to a $10^{-6}$ perturbation of the latents with $4.4\times10^{-6}$
+(FP64: $1.25\times10^{-6}$), to $10^{-4}$ with $4.4\times10^{-3}$, and to
+$10^{-2}$ with $1.6\times10^{-2}$: smooth above a rounding floor of $2$--$4
+\times10^{-3}$ and linear beyond it. The release's $12\%$ deviation from FP64
+is a systematic bias shared by nearby inputs, not noise. And along the segment
+from a $0.1$ start to the truth the \emph{matched} residual falls
+monotonically --- $0.19$, $0.022$, $5.9\times10^{-3}$,
+$2.3\times10^{-3}$, and exactly zero at the truth --- with the windowed means
+of a twenty-one-point scan monotone at every radius tested. There is no flat
+region and no needle: a descent path exists. So the honest word for
+half-precision training is \emph{cost}, not ruggedness, and the earlier
+prediction of a noise floor is withdrawn.
+
+What remains is a genuine floor of a different kind. The attacker must
+reconstruct $A_0$ from the released $A_T$, and one unit in the last place on
+every entry moves a bfloat16 release by $10^{-2}$, so the achievable residual
+is bounded by how well $A_0$ can be recovered --- predicted at $10^{-3}$ to
+$10^{-2}$, against the mismatched FP64 simulator's $0.138$. A matched solver
+against that floor is running. Its outcome decides only how degraded the
+recovery is, not whether one exists: a descent that stops at the arithmetic's
+own floor still returns the private image to within that floor, which is a
+disclosure and not a defence. The claim to avoid, in either outcome, is that
+half-precision training protects the data --- it raises the price, and the
+price has now been measured rather than assumed.
 
 Two supports keep it from resting on a single cell. The per-image basin does
 not decay with $k$ once the slack is held: at $r=64$ it runs $13.8\%$,
