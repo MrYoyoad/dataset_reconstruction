@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## 2026-09-03 — WEXAC compute nodes cannot see the session scratchpad (`/tmp` is node-local)
+
+- **Presented as:** a `bsub -q short` diagnostic died in 6 s with `python: can't open file '/tmp/claude-.../scratchpad/x.py': No such file or directory` (job 747682).
+- **Cause:** the scratchpad lives under `/tmp` on the submit host; `/tmp` is not shared with compute nodes. Only the home tree (`/home/projects/galvardi/yoado`) is.
+- **Fix:** inline one-off diagnostics in the job script as a `python -u - <<'PY' ... PY` heredoc (job 748065), or write them under the shared tree and delete afterwards. The `rec` env is activated with `source /apps/easybd/programs/miniconda/24.11_environmentally/etc/profile.d/conda.sh; conda activate /home/projects/galvardi/yoado/.conda/envs/rec` (a path, not a name), after `set +u`.
+
 ## A fidelity ranking is only a ranking if every arm reached the floor (2026-09-03)
 
 Four charts at the same `k` came back ordered by image error (0.73 → 0.62 → 0.57 → 0.55) and I reported the
