@@ -413,6 +413,7 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   prediction came out with the opposite sign (same-class 1s not lifted; different-class on-chart batch lifted):
   the coupling follows **feature overlap**, not label — Gram measurement in flight (`step55_gram`).
 - **In flight:** feature-Gram measurement; chart budget reruns (624463); β = 4, 16 (624465); random-encoder
+- 753886: bf16 vs fp64 release ABOVE the FP64 certificate line (k=58, 60; does quantisation widen the line while narrowing the channel?) — pre-registered under Step 24.
 - 753371: the headline cell (r=64, k=32) from a QUANTISED release, fp64/fp32/tf32/fp16/bf16 × tolerance {1e-12, noise-matched} — pre-registered in RESULTS Step 24 (band rule: 8 / 4–5 / 2–3 / 2–3 / 2 found of eight). 752500 (short CPU): ‖B_T‖, rank, imprints, W0 margins against k for the confident and control batches (the 'window' question).
 - 749362: the five `mnist_control r=64` ladder cells (k = 24…56) that job 721391 lost to the imprint-sum assertion (a relative check on a release that had shrunk to 1e-6; floored at roundoff in bc0f907 — RESULTS "Why the ladder job stopped").
   ladder (624573); strong sweep (614344) — where the alias form (wrong confident digits at the residual floor)

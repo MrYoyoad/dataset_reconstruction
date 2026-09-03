@@ -2151,3 +2151,21 @@ not only the null space). The landing threshold stays 1e-2 on-chart image error 
 
 *Table note for the ladder (Step 23):* the 28.6% per-image basin at r = 64, k = 16 is the N′ = 3 dip cell (the other
 five imprints are ~1e-29 there): three targets, coarse normalisation — not a peak.
+
+**Two additions before any row is read (yoado-ed).** (i) *Spectrum prediction beside the imprint one.* The wide-head
+twentieth image (Step 22) had imprint 3e-7 but singular value 6e-14 — seven orders of collinearity — and the singular
+value decided. So the second predictor is `σ_i/σ_1` of `B_T` against each format's roundoff; the headline rows do
+not carry the spectrum (field added only now), so it is being recomputed (job 752500) and the spectrum-based
+counts will be written here before the first quantised row lands. If the two predictions coincide the cell is a
+precision result; if the spectrum wins, "direction, not magnitude" is shown in a second, independent setting.
+(ii) *Quantisation may widen the line while narrowing the channel.* If bf16 takes N′ from 8 to 2, the line moves
+from 56 to 62: fewer images exposed, but each survivor may be recoverable through a richer chart. Job 753886 runs
+the confident cell at **k = 58 and 60** — above the FP64 line — from the bf16 release (tol 8e-2) and, as control,
+from the FP64 release (tol 1e-12). Prediction: FP64 at k = 58/60 has N′ = 7–8 (line 56–57), so it sits at or above
+the line: spurious zeros dense, argmin unreliable; bf16 has N′ = 2 (line 62), so k = 58/60 is below: the two
+strongly recorded images should be found from random starts with a basin comparable to the r = 64, k = 48–56
+FP64 cells (same slack), at chart fidelity .99 — the defender's quantisation then trades the number exposed
+against the sharpness of what remains. Falsifier: zero landings at bf16 k = 58/60 (the basin has collapsed;
+quantisation wins outright). Note the private data at k = 58/60 is the projection at that k, so the release is
+retrained there: "the two survivors" are the two strongly recorded images of that cell, not literally those of
+k = 32.
