@@ -145,6 +145,73 @@ def landscape(chart, bb, X_real, X_on, y, A0, a, dev, dname, B_rel, B_ref, g):
     return out
 
 
+def sim_full(H, A0, W0, y, m, T, lr, dtype):
+    """release_in's loop without the tracing -- the same operations in the same order, so that in `dtype` it rounds
+       identically to the training (gated: at the truth it must reproduce the release to zero)."""
+    dev = H.device; N = H.shape[1]
+    H = H.to(dtype); A = A0.to(dtype); W0 = W0.to(dtype); lr_ = torch.tensor(lr, dtype=dtype, device=dev)
+    Y = torch.eye(m, device=dev, dtype=dtype)[y].T; B = torch.zeros(m, A.shape[0], device=dev, dtype=dtype)
+    for t in range(T):
+        AH = A @ H
+        BAH = B @ AH
+        z = W0 @ H + BAH
+        R = torch.softmax(z, dim=0) - Y
+        D = R / N
+        gB = D @ AH.T
+        gA = B.T @ D @ H.T
+        B, A = B - lr_ * gB, A - lr_ * gA
+    return A.double(), B.double()
+
+
+def matched_lm(chart, bb, X_real, X_on, y, A0, A_rel, B_rel, a, dev, dtype, g):
+    """The MATCHED-arithmetic recipe route (Step 26, falsifier fired: the bf16 map is smooth to ~2e-3 at the attacker's
+       scale). Unknowns: latents W (k x N) and Z (r x N) with the candidate initialisation A0_c = A_T - Z Hc^T (the learned
+       part of A lies in the span of the candidate features up to the format's rounding; the attacker has only A_T).
+       Residual: the FULL loop simulated in `dtype` -- [(B_sim - B_rel)/||B_rel||, (A_sim Hc - A_rel Hc)/||A_rel Hc||] --
+       against the release trained in `dtype`; Jacobian from the same map in FP64 (surrogate descent), acceptance on the
+       matched residual (Levenberg-Marquardt as certificate.lm_cert). Also reports the matched residual at the truth
+       (W_true, Z_ls) = the floor the attacker's A0 reconstruction leaves, beside the FP64 simulator's floor there."""
+    k, N, r = a.k, a.N, a.r; nW = k * N
+    H_true = bb.phi(X_on); W_true = chart.coords_of(X_real); std = float(W_true.std())
+    nB = torch.linalg.norm(B_rel)
+
+    def res_in(v, dt):
+        Wc = v[:nW].reshape(k, N); Z = v[nW:].reshape(r, N); Hc = bb.phi(chart.psi(Wc)); A0c = A_rel - Z @ Hc.T
+        A_s, B_s = sim_full(Hc, A0c, bb.W0, y, bb.m, a.T, a.lr, dt)
+        AH_ref = A_rel @ Hc
+        return torch.cat([((B_s - B_rel) / nB).reshape(-1), ((A_s @ Hc - AH_ref) / torch.linalg.norm(AH_ref)).reshape(-1)])
+    res_m = lambda v: res_in(v, dtype); res_f = lambda v: res_in(v, torch.float64)
+    Z_true = (A_rel - A0) @ H_true @ torch.linalg.inv(H_true.T @ H_true)                 # least-squares Z at the truth
+    v_true = torch.cat([W_true.reshape(-1), Z_true.reshape(-1)])
+    with torch.no_grad():
+        res_truth_matched = float(torch.linalg.norm(res_m(v_true))); res_truth_fp64 = float(torch.linalg.norm(res_f(v_true)))
+        A0_recon_rel = float(torch.linalg.norm(A_rel - Z_true @ H_true.T - A0) / torch.linalg.norm(A0))
+        gate = float(torch.linalg.norm(sim_full(H_true, A0, bb.W0, y, bb.m, a.T, a.lr, dtype)[1] - B_rel) / nB)   # true A0: must be 0
+    W_init = W_true + a.init_noise * torch.randn(k, N, generator=g).to(dev) * std
+    v = torch.cat([W_init.reshape(-1), torch.zeros(r * N, device=dev)])                   # attacker-available: A0_c = A_T
+    with torch.no_grad(): f = res_m(v); obj = float(f @ f); obj0 = obj
+    lam = 1e-2; t0 = time.time(); used = 0; trace = [obj]
+    for it in range(a.lm_iters):
+        J = tf.jacfwd(res_f)(v).detach()
+        accepted = False
+        for _ in range(12):
+            step = torch.linalg.solve(J.T @ J + lam * torch.eye(J.shape[1], device=dev), -(J.T @ f))
+            with torch.no_grad(): f_new = res_m(v + step); obj_new = float(f_new @ f_new)
+            if obj_new < obj: v, f, obj = v + step, f_new, obj_new; lam = max(lam / 3, 1e-15); accepted = True; break
+            lam *= 4
+        used = it + 1; trace.append(obj)
+        if not accepted or obj < 1e-30: break
+    W_hat = v[:nW].reshape(k, N); X_hat = chart.psi(W_hat)
+    e_chart = torch.linalg.norm(X_hat - X_on, dim=0) / torch.linalg.norm(X_on, dim=0)
+    e_real = torch.linalg.norm(X_hat - X_real, dim=0) / torch.linalg.norm(X_real, dim=0)
+    Z_hat = v[nW:].reshape(r, N)
+    return dict(gate_true_A0=gate, res_at_truth_matched=res_truth_matched, res_at_truth_fp64_sim=res_truth_fp64, A0_recon_rel_at_truth=A0_recon_rel,
+                start_objective=obj0, residual=obj ** 0.5, objective=obj, lm_iters_used=used, stopped=("converged" if obj < 1e-30 else ("no_accept" if used < a.lm_iters else "cap")),
+                err_vs_chart_per_image=[float(x) for x in e_chart], err_vs_chart_median=float(e_chart.median()), err_vs_chart_max=float(e_chart.max()),
+                err_vs_REAL_median=float(e_real.median()), Z_err_rel=float(torch.linalg.norm(Z_hat - Z_true) / torch.linalg.norm(Z_true)),
+                objective_trace=[float(x) for x in trace[:: max(1, len(trace) // 20)]], seconds=time.time() - t0), X_hat
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="models/exact_inversion/mnist_mlp_strong.pth")
@@ -163,6 +230,7 @@ def main():
                     "noise-matched 10*eps (job 760909/760912); pass 1e-12 for the tight tolerance (the noise rank), which storage job 753371 "
                     "showed recovers MORE images")
     ap.add_argument("--segment-dense", action="store_true", help="with --landscape-cells: 21 linear points start->truth, each with 4-point windows at 1e-3 and 1e-2 (coarse-scale trend)")
+    ap.add_argument("--matched-cells", nargs="*", default=[], help="run the MATCHED-arithmetic recipe route (full loop simulated in the training format) against the release")
     ap.add_argument("--landscape-cells", nargs="*", default=[], help="measure the matched-arithmetic map's response and the residual along start->truth")
     ap.add_argument("--recipe-cells", nargs="*", default=[], help="run the RECIPE route (FP64 simulator, near start) against the release trained in each format")
     ap.add_argument("--init-noise", type=float, default=0.10); ap.add_argument("--restarts", type=int, default=1); ap.add_argument("--lm-iters", type=int, default=600)
@@ -243,6 +311,15 @@ def main():
                 L = landscape(chart, bb, X_real, X_on, y, A0, a, dev, dname, B_T, B_ref, torch.Generator().manual_seed(a.seed + 13))
                 emit(dict(part="L", set=sname, k=k, N=a.N, r=a.r, seed=a.seed, train_dtype=dname, unit_roundoff=eps, B_T_rel_dev_from_fp64=rel_to_fp64, **L,
                           git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
+            if cell in a.matched_cells and nB > 0:
+                a.k = k
+                mm, X_hat = matched_lm(chart, bb, X_real, X_on, y, A0, A_T, B_T, a, dev, dtype, torch.Generator().manual_seed(a.seed + 11))
+                rowM = dict(part="M", set=sname, chart=chart_name, k=k, N=a.N, r=a.r, m=bb.m, seed=a.seed, train_dtype=dname, simulator=dname,
+                            B_T_rel_dev_from_fp64=rel_to_fp64, **mm, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
+                emit(rowM)
+                if a.save_dir:
+                    torch.save(dict(x_real=X_real.cpu(), x_chart=X_on.cpu(), x_hat=X_hat.detach().cpu(), meta=rowM),
+                               os.path.join(a.save_dir, f"matched_{sname}_k{k}_{dname}.pth"))
             if cell in a.recipe_cells and nB > 0:                         # ---- recipe route against THIS release (yoado-6e's probe)
                 a.k = k
                 rr, X_hat = recipe_route(chart, bb, X_real, X_on, y, A0, A_T, B_T, a, dev, torch.Generator().manual_seed(a.seed + 11))
