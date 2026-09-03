@@ -365,7 +365,8 @@ and $\Pi_{\operatorname{row}(B_T)}A_T$, imposes $N(r-N)$ equations on $Nk$
 unknowns, and needs (A4), (A5) but no recipe. Reading it by
 Definition~\ref{def:rho} uses all of $B_T\in\mathcal B$ and $A_TU_c$,
 imposes $N(r-N)+N(m-1)+rN$ equations on $Nk+rN$ unknowns, and needs (A6),
-the recipe and a solver. The $rN$ equations of the second block pay exactly
+a solver, and the recipe — which \S\ref{sec:measured} shows can be checked
+against the floor, fitted jointly, or probed. The $rN$ equations of the second block pay exactly
 for the $rN$ unknowns of $X$; the difference between the channels is the
 $N(m-1)$ coefficients of $P_T$ in a basis of $\operatorname{row}(B_T)$, which
 the projection in \eqref{eq:C} removes and which \eqref{eq:rho} keeps:
@@ -382,7 +383,7 @@ Theorem~\ref{thm:suff}.
 \begin{tabular}{@{}llll@{}}\toprule
  & reads & equations per image & needs\\ \midrule
 certificate (Thm~\ref{thm:quot}) & $\operatorname{row}(B_T)$; $\Pi_{\operatorname{row}(B_T)}A_T$ & $r-N$ & (A1)--(A5)\\
-exact (Thms~\ref{thm:cap}, \ref{thm:suff}) & all of $B_T$; $A_TU_c(w)$ & $(m-1)+r-N$ & (A1)--(A3), (A6), recipe, solver, a start\\ \bottomrule
+exact (Thms~\ref{thm:cap}, \ref{thm:suff}) & all of $B_T$; $A_TU_c(w)$ & $(m-1)+r-N$ & (A1)--(A3), (A6), recipe (checked or fitted, \S\ref{sec:measured}), solver, a start\\ \bottomrule
 \end{tabular}
 \end{center}
 
@@ -507,6 +508,70 @@ read block by block. The Adam spectrum is $\sim\!400\times$ wider at equal
 shape: worse conditioning, not lost identifiability.}\label{fig:spectrum}
 \end{figure}
 
+\paragraph{The recipe need not be handed to the attacker.} Definition~\ref{def:rho}
+takes $(\eta,s,T)$ and the labels as known. Four measurements$^\dagger$ at
+$k=12$, $N=8$, $T=400$, $\eta=0.01$ (job 484255) show that they can be
+checked, fitted, and in part read off instead.
+
+\emph{(R1) A wrong recipe cannot reach the floor.} With the control first:
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}\toprule
+hypothesis simulated & residual & image error\\ \midrule
+correct (control) & $5.3\times10^{-31}$, at the floor & $2.8\times10^{-15}$\\
+$T+1$ step ($401$ of $400$) & $6.0\times10^{-8}$ & $4.1\times10^{-3}$\\
+$\eta\times1.01$ & $9.1\times10^{-7}$ & $1.8\times10^{-2}$\\
+$T+25\%$ \;/\; $T-25\%$ & $1.6\times10^{-4}$ \;/\; $2.9\times10^{-3}$ & $0.30$ \;/\; $0.40$\\
+$\eta\times2$ \;/\; $\eta/2$ & $1.6\times10^{-3}$ \;/\; $3.4\times10^{-2}$ & $0.54$ \;/\; $0.46$\\
+wrong optimiser (SGD release inverted as Adam) & $4.9$ & $0.26$\\ \bottomrule
+\end{tabular}
+\end{center}
+The true recipe is the unique floor-reacher, separated from the nearest
+wrong hypothesis — one step in four hundred — by twenty-three orders; the
+residual is monotone in the size of the recipe error, so it is a graded
+objective and not only a detector, and it is computed from the release and
+the candidate alone, never from the private images.
+
+\emph{(R2) The learning rate can be fitted jointly with the data.} Carrying
+$\eta$ as a free unknown beside $(w,X)$ from starts at $1\times$, $2\times$,
+$0.5\times$ the truth, the fit returns $\eta$ to relative error
+$5.2\times10^{-16}$ and the images to $3\times10^{-15}$ at the floor in all
+three cases — one extra unknown against a slack of $120$ in \eqref{eq:cap}.
+
+\emph{(R3) $\eta T$ is not a degeneracy of discrete SGD, and labels are
+identifiable.} Holding $\eta T=4$ and varying the split, $(T,\eta)=(100,0.04)$,
+$(200,0.02)$, $(800,0.005)$ stop at residuals $3.1\times10^{-7}$,
+$3.5\times10^{-8}$, $8.8\times10^{-9}$ while the true $(400,0.01)$ reaches
+$6.4\times10^{-31}$: the product does not determine the release, so $\eta$ and
+$T$ are separately identifiable — the degeneracy is a gradient-flow statement
+that finite steps break, and this is the weakest separation in the study
+(twenty-two orders), as it should be if the degeneracy is approached in the
+small-step limit. The wrong splits still return images within
+$0.1$--$0.7\%$. Labels: the true assignment reaches the floor
+($7.2\times10^{-31}$); swapping two examples ($2.5\times10^{-3}$) or shifting
+all of them ($7.5\times10^{-6}$) does not.
+
+\emph{(R4) A decaying schedule leaks the step count that a constant one
+hides.} The \emph{probe}: the attacker continues training the released
+adapter on a batch of their own choosing, $H_p=\varphi(\psi(W_p))$ with
+labels they choose, so every regressor is computable from $(A_T,B_T)$ and the
+public $W_0$ and no private data enters. One step under decoupled weight
+decay is $\Delta B=-\eta\nabla_BL-\eta\,\mathrm{wd}\,B_T$, linear in
+$(\eta,\eta\,\mathrm{wd})$: the two-parameter least squares returns $\eta$ to
+$5\times10^{-16}$ and $\mathrm{wd}=10^{-3},10^{-2}$ exactly (job 487290), and
+$\cos(\Delta B,-\nabla_BL)=1$ under SGD against $0.43$ under Adam separates
+the optimiser family (job 485912). The same probe returns the per-step $\eta$ at the continuation steps
+to $10^{-15}$ (jobs 487290, 488314). Under a constant rate that is all it
+returns, and $T$ stays hidden. Under a cosine schedule of known family, a
+global fit of $(\text{base},T_{\max},T)$ to six probe steps (eliminate the
+base by ratios, grid the two integers, solve the base in closed form) returns
+all three exactly — $T=400$, $T_{\max}=1000$, base $0.0100$ — and identically
+from windows of $20$, $60$ and $150$ steps. A schedule encodes position on
+its own curve.\footnote{A gradient fit of the same three parameters had
+landed $30$--$40\%$ off and was retracted; it was a local minimum of a
+multimodal objective, not a degeneracy. The global fit is a re-analysis of
+the saved probe output, not a new run.} The family is assumed known;
+selecting it is a model-selection problem not run here.
+
 \paragraph{Provenance.} This section was written by one executing session
 and two auditing sessions reading each other adversarially. Six claims made
 during the day were withdrawn, every one by a follow-up measurement, three of
@@ -526,42 +591,17 @@ headline. The withdrawals are in the repository's lessons log.
   extent is direction-dependent, has not been run — and the at-line cell was
   still rising when its budget ended. ``Recognisable'' is measured to $3.8\%$
   and no further.
-\item \textbf{The recipe as parameters.} Definition~\ref{def:rho} takes
-  $(\eta,s,T)$ and the labels as known, the standard assumption of the
-  KKT-reconstruction line. Unknown recipe scalars enlarge the domain by $p$
-  and the count \eqref{eq:cap} by $p$. Three claims are to be measured:
-  (i) a wrong recipe cannot reach the residual floor; (ii) a few recipe
-  scalars can be fitted jointly with $(w,X)$; (iii) exactly degenerate
-  combinations such as $\eta T$ in the small-step regime are harmless. A
-  first attempt (job 480679) was invalid by its own control — the correct
-  recipe stopped at residual $7.2\times10^{-8}$ because those arms used an
-  L-BFGS solver rather than LM — and is rerunning on LM (job 484255). Until
-  it reports, nothing here is evidence for or against (i)--(iii). Two facts
-  about the recipe are already in hand, and neither uses private data.
-  First, a \emph{probe}: the attacker continues training the released adapter
-  on a batch of their own choosing, $H_p=\varphi(\psi(W_p))$ with labels they
-  choose, so they know $H_p$ and can compute $\nabla_BL$ on that batch from
-  $(A_T,B_T)$ and the public $W_0$. One step under decoupled weight decay is
-  $\Delta B=-\eta\,\nabla_BL-\eta\,\mathrm{wd}\,B_T$, linear in
-  $(\eta,\eta\,\mathrm{wd})$ with both regressors computable; the
-  two-parameter least squares returns$^\dagger$ $\eta$ to $5\times10^{-16}$
-  and $\mathrm{wd}=10^{-3},10^{-2}$ exactly, residual $10^{-14}$ (job
-  487290). The same probe step separates optimiser families$^\dagger$:
-  $\cos(\Delta B,-\nabla_BL)=1$ under SGD and $0.43$ under Adam (job 485912).
-  Per-step values of $\eta$ along a schedule are recovered the same way to
-  $10^{-15}$ (job 487290). Whether the \emph{parameters} of a schedule, or
-  $T$ itself, are recoverable from those values is not claimed: the one fit
-  attempted returned its own initialisation, and a refit with its
-  conditioning reported is running (job 488314), since over a short window a
-  cosine schedule may be genuinely near-degenerate in
-  $(\text{base},T_{\max},t)$. Second, the count
-  \eqref{eq:cap} bounds the recipe too: $p$ unknown recipe scalars are
-  identifiable only if $p\le N\bigl((m-1)+r-N\bigr)-Nk$, which is $120$ at
-  the standard cell ($N=8$, $k=12$). A parametric schedule ($p=2$--$4$) sits
-  far inside; a free per-step sequence ($p=T$) is identifiable only for
-  $T\le120$ and not at $T=400$. The certificate remains the recipe-free
-  channel at the price $k<r-N$; Rev~9 \S3.6--3.8's curvature mixture remains
-  the recipe-unknown approximation.
+\item \textbf{The recipe family.} What \S\ref{sec:measured} leaves open is
+  the \emph{family}: the schedule fit assumes cosine, and choosing among
+  families is model selection, which the floor test of (R1) would presumably
+  rank but which has not been run. The count \eqref{eq:cap} bounds the recipe
+  as it bounds the data: $p$ unknown recipe scalars are identifiable only if
+  $p\le N\bigl((m-1)+r-N\bigr)-Nk$, which is $120$ at the standard cell. A
+  parametric schedule ($p=2$--$4$) sits far inside; a free per-step sequence
+  ($p=T$) is identifiable only for $T\le120$ and not at $T=400$ — a defence
+  that works by counting, not by obscurity. The certificate remains the
+  recipe-free channel at the price $k<r-N$; Rev~9 \S3.6--3.8's curvature
+  mixture remains the recipe-unknown approximation.
 \item \textbf{Adam.} Its entrywise normalisation is not of the form in
   (A3): Theorem~\ref{thm:traj} does not hold, Corollary~\ref{cor:seed} does
   not reduce the seed to $X$, and the unknown seed is all of $A_0$ —
@@ -600,7 +640,8 @@ level & content & status\\ \midrule
 3$'$. Capacity & $k<m+r-N$, strict, from $\dim\mathcal B$ (Thm~\ref{thm:cap}, Prop.~\ref{prop:simplex}) & Theorem; sharp$^\dagger$ at $N=8,14$; exact identifiability, not leakage\\
 3$''$. Sufficiency & $D\rho$ full column rank a.e.\ below the line (Thm~\ref{thm:suff}) & Theorem given one witness; witness$^\dagger$ at $T=1$\\
 5$'$. Past the line & a walkable manifold of exact reproductions, $\le3.8\%$ image error on paths measured & Verified$^\dagger$; extent and global uniqueness open\\
-7$'$. Adam & identifiable; seed $rn$; $\kappa\uparrow$; basin$\downarrow$; simplex constraint broken & Verified$^\dagger$; one-unit-higher line predicted, untested\\ \bottomrule
+7$'$. Adam & identifiable; seed $rn$; $\kappa\uparrow$; basin$\downarrow$; simplex constraint broken & Verified$^\dagger$; one-unit-higher line predicted, untested\\
+8$'$. Recipe & wrong recipe never at the floor; $\eta$ fitted jointly; $\eta T$ split identifiable; labels identifiable; schedule leaks $T$ & Verified$^\dagger$ (jobs 484255, 485912, 487290, 488314); family selection open\\ \bottomrule
 \end{tabular}
 \end{center}
 
@@ -611,7 +652,8 @@ level & content & status\\ \midrule
 In this order: the law, because it is a theorem with a derivation and a sharp
 measurement; the walk, because it turns the law into a set one can move
 along; the initialiser, because it is what stops the attack today; the
-recipe, openly open. Not the $49/49$ grid first: it lies inside the capacity
+recipe, because ``the attacker must be handed it'' did not survive
+measurement. Not the $49/49$ grid first: it lies inside the capacity
 region and measures existence, not rate.
 \begin{enumerate}\itemsep2pt
 \item \emph{The chain.} Theorem~\ref{thm:traj} writes the adapter's
@@ -638,9 +680,15 @@ region and measures existence, not rate.
   the $T=1$ closed form \eqref{eq:T1} is the witness.
 \item \emph{What stops the attack.} Not information: the initialiser
   ($1$ of $20$ attacker-buildable starts; basin beyond $65\%$ from the truth).
-\item \emph{Open.} The recipe as parameters (arms designed, first run
-  invalidated by its own control, rerunning); global uniqueness;
-  direction-dependence of the manifold's extent; Adam, which keeps
+\item \emph{The recipe.} A wrong recipe never reaches the floor — one step
+  in four hundred is twenty-three orders away — so the residual checks it;
+  $\eta$ fits jointly with the data to machine precision; $\eta T$ is not a
+  degeneracy of discrete steps; labels are identifiable; and a decaying
+  schedule of known family hands over $T$ from six probe steps on the
+  attacker's own data. What the count leaves the defender is a free per-step
+  schedule with $T>120$.
+\item \emph{Open.} The schedule family (model selection, not run); global
+  uniqueness; direction-dependence of the manifold's extent; Adam, which keeps
   identifiability, loses the $rN$ reduction, destroys the certificate, and is
   predicted to sit one unit higher on the capacity line.
 \end{enumerate}

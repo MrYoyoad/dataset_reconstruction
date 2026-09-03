@@ -35,7 +35,14 @@ What the section establishes, in order — every label as in the .tex:
   values recoverable to †1e-15 (job 487290 — its schedule-parameter columns are BROKEN, do not use); schedule
   parameters / T NOT claimed (refit with conditioning = job 488314, pending). Counting bound for recipe unknowns: p ≤ N(m−1+r−N) − Nk = 120 at (8,12), so a
   free per-step schedule is identifiable only for T ≤ 120.
-- **Recipe-robustness arms R1–R3 (job 480679) — first attempt INVALID by its own control:** the correct-recipe
+- **Recipe arms R1–R3 on LM (job 484255) — ALL FOUR CLAIMS SURVIVE, control at the floor (†5.3e-31):** R1 no wrong recipe
+  reaches the floor (nearest: T+1 step, †6.0e-8, 23 orders off; residual monotone in recipe error; wrong optimiser 4.9);
+  R2 η fitted jointly from 0.5×/2× starts to †5.2e-16 rel, images 3e-15; R3 ηT split identifiable (only (400,0.01) at
+  floor; the others 1e-7..1e-9, images still 0.1–0.7%); labels identifiable (swap 2.5e-3, shift 7.5e-6). R4 schedule:
+  per-step η to †1e-15 and a GLOBAL fit of (base, T_max, T) from 6 probe steps is exact (400/1000/0.0100; the earlier
+  30–40%-off gradient fit was a local minimum, not a degeneracy) — a decaying schedule LEAKS the step count a constant
+  one hides (family assumed known). Written into the .tex as §measured (R1)–(R4); the recipe is no longer an open item.
+- **(superseded) Recipe-robustness arms R1–R3 (job 480679) — first attempt INVALID by its own control:** the correct-recipe
   hypothesis stopped at residual †7.2e-8 (not the floor) because the arms were built on L-BFGS rather than the LM
   solver used everywhere else; the readout is uninformative about recipes. Rerun on LM queued after 480679 ends.
   The .tex keeps the recipe claims [EMPIRICAL — pending] and says why.
