@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A large deviation between two arithmetics is not a rugged landscape — bias is shared by nearby inputs, noise is not (2026-09-03)
+
+- **Presented as:** the pre-registration predicted that a bf16 training loop, whose release deviates 12% from FP64's, would respond at 1e-2 … 1e-1 to a 1e-6 perturbation (a rounding cascade → a needle landscape, no matched solver possible). Measured (779207/779969): response 4.4e-6, a rounding floor of 2–4e-3 at δ ≈ 1e-4, linear beyond, and a monotone residual from a 0.1 start to the truth at every window size.
+- **Cause:** the 12% is a *systematic bias* of low-precision accumulation (the same roundings for nearby inputs), not a decorrelating noise; only the ~2e-3 part decorrelates. Deviation-from-a-reference says nothing about smoothness.
+- **Rule:** before declaring a map non-navigable, measure its response to small perturbations and the trend along a segment; a falsifier that fires toward the attacker must be followed by the solver it pre-committed to (782682).
+
 ## Two lower-bound qualifiers every leakage count carries (2026-09-03, from yoado-ed)
 
 - **The attacker's own tolerance.** Two private letters were absent from a count purely because the certificate tolerance was set to "noise-matched" (10ε); at 1e-12 they are found at residuals 5e-6 (jobs 760909 → 764976). So every count here bounds not only the weakest attacker we ran but an attacker who did not tune their own threshold — report counts with the tolerance, and sweep it before calling an image absent.

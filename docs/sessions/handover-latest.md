@@ -99,6 +99,11 @@ bracket. Next step 1 below is DONE; continue from step 2.
 - **779207 (Step 26 addendum):** matched-arithmetic landscape of the bf16/fp16/fp32 letter releases (response to
   perturbations; residual along start→truth). Pre-registered: bf16 map responds 1e-2…1e-1 to a 1e-6 perturbation →
   no differentiable matched solver exists (verification oracle only); falsifier: linear response → run a matched LM.
+- **Landscape (779207/779969) FALSIFIED the needle prediction toward the attacker:** the bf16 training map is smooth
+  (response 4.4e-6 to δ=1e-6; rounding floor 2–4e-3; monotone start→truth at every window). The pre-committed
+  matched-arithmetic recipe route is running (782682: `matched_lm`, Z-parametrised A₀ candidate, FP64 Jacobian
+  surrogate, bf16 residual). Pre-registered: recovery to ≲5e-2 → "not protection" demonstrated; falsifier: alias
+  persists (A₀ floor). Control ladder complete; ladder figure has the control cells. bf16 k=58: 0 of 5,000, near-miss 7.8%.
 
 ## Next step(s)
 1. ~~**Read job 728592**~~ (done — see Update) (`step76_r64k32_728592.jsonl`): r=64, k=32, confident on-chart — the cell combining budget
