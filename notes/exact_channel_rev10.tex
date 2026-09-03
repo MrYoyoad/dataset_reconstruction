@@ -1413,22 +1413,32 @@ numbers stand. But they were obtained from a release that is numerically
 nothing, and that has a consequence the file's storage precision does not
 capture.
 
-An imprint is an accumulated residual $1-p_y\approx e^{-\text{margin}}$, and
-in arithmetic of unit roundoff $\varepsilon$ that residual is \emph{exactly}
-zero once $e^{-\text{margin}}<\varepsilon$: above margin $\approx16.6$ in
-FP32, $\approx7.6$ in FP16, $\approx5.5$ in bfloat16. The headline batch's
-projections at $k=32$ carry margins of $42$ to $60$. So had the same
-fine-tuning been run in FP32 --- as essentially all fine-tuning is --- its
-release would have been exactly zero and there would have been nothing to
-recover. The honest headline is therefore sharper than a statement about
-storage: \emph{from an FP64-trained release all eight are recovered; the same
-batch trained in FP32 leaves no release at all, because the model was certain
-of every projection.} The control batch, whose weakest projections keep
-margins of $11$ to $15$ at every $k$, plateaus at $\|B_T\|\sim10^{-6}$ to
-$10^{-4}$ and stays recorded under FP32 training --- so the channel is not
-closed by realistic arithmetic, it is closed by \emph{confidence}, which is
-the same finding as \eqref{eq:imprint} arriving through the floating-point
-format instead of through the mathematics.
+What that collapse does \emph{not} do is close the channel, and the reason is
+worth following because the obvious argument gets it backwards. An imprint is
+an accumulated residual $1-p_y\approx e^{-\text{margin}}$, and at margin $42$
+that is $5.7\times10^{-19}$ --- far below FP32's unit roundoff, so
+$p_y$ rounds to exactly $1$ and the own-class entry of $D$ is identically
+zero. But $D$'s other entries are the off-class probabilities themselves,
+$e^{z_j-z_y}/Z$, represented directly rather than as a difference from one,
+and those survive to the format's \emph{subnormal floor}: $1.4\times10^{-45}$
+in FP32 and $1.2\times10^{-38}$ in bfloat16. Unit roundoff zeroes one row of
+the imprint; the rest is intact. So a release of norm $7.6\times10^{-18}$ is
+produced, and stored, by FP32 or bfloat16 training without difficulty, and
+since the certificate is an angle rather than a magnitude it is exactly as
+informative as a release of norm one. Only FP16 erases it, and by range rather
+than precision --- its smallest subnormal is $6\times10^{-8}$, so both the
+residuals during training and the released file underflow to zero.
+
+Two things follow that are stronger than the storage question. At this scale
+the adapter never feeds back: $10^{-18}$ against logits of order $40$ is below
+the last place even in FP64, so $A_T=A_0$ and $B_T$ is $T$ times the one-step
+gradient in closed form. \emph{The fine-tune changed nothing about the model
+and recorded every private example anyway} --- leakage is not conditional on
+the update having had an effect, which is the opposite of the intuition that a
+fine-tune too small to matter is a fine-tune too small to leak. And
+confidence, which collapsed $\|B_T\|$ by twenty-three orders, does not
+therefore protect: it makes the release numerically tiny without making it
+less identifiable, in every format with FP32's exponent range.
 
 Two supports keep it from resting on a single cell. The per-image basin does
 not decay with $k$ once the slack is held: at $r=64$ it runs $13.8\%$,
