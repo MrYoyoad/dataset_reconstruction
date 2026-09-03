@@ -1763,6 +1763,20 @@ so the release determines the two combinations $\eta s/N$ and
 $\eta\,\mathrm{wd}$; a defender whose weight decay is nonzero \emph{and}
 published thereby publishes their batch size.
 
+\emph{(R6) Which subset was recorded is read off the level of the residual
+floor, not off reaching it.} The natural test --- simulate a candidate subset
+and see whether it reaches the floor --- does not discriminate, because a
+wrong subset reaches \emph{its own} floor just as exactly. Measured$^\dagger$
+(job 706597, three recorded of a repeated batch): the true recorded subset has
+a predicted floor of $1.1\times10^{-16}$ and achieves it (over-floor $1.03$),
+while a subset with one member swapped has a predicted floor of
+$2.1\times10^{-10}$, sits at $2.1\times10^{-10}$ at its own truth, and
+achieves $2.1\times10^{-10}$ (over-floor $1.00$). Both are exact; they differ
+by six orders in \emph{where} exactness lies, because the floor is set by the
+imprints the subset omits. So the selection rule is to minimise the achievable
+residual over candidate subsets, and it is available to an attacker, who
+observes each candidate's achievable residual without knowing any truth.
+
 \emph{(R4) With continued-training access, a decaying schedule leaks the
 step count that a constant one hides.} This result assumes an access model
 the others do not: the attacker submits a batch of their own choosing,
