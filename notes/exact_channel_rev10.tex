@@ -671,15 +671,17 @@ $k=10$ in $31$ iterations, $k=14$ in $282$, the count tracking the
 conditioning — so they are search failures at one budget and recoveries at
 another, as at $(14,21)$ synthetically; only $k=18$ is an alias. A trained
 encoder does not move the capacity line; it makes the line progressively
-harder to reach, three orders of magnitude by $k=17$. \emph{The picture is the chart's}, and the converged cells show it exactly:
-at $k=6$, $10$ and $14$ the coordinates are recovered to
-$10^{-13}$--$10^{-11}$ and the error against the real digit is then
-$0.87$, $0.76$, $0.76$ — in each case the PCA chart's own representation
-error at that $k$ ($0.53$, $0.48$, $0.46$), to two figures. A perfect
-inversion returns the chart's best picture and nothing sharper. (At $k=16$
-and $17$ the chart floor is $0.42$ while the achieved error is $0.73$; those
-two cells had not converged when this was written, so they are not evidence
-for the claim — the converged ones are.) The backbone is learned but weak (these checkpoints are trained on
+harder to reach, three orders of magnitude by $k=17$. \emph{The picture is the chart's}, and on the converged cells the identity is
+exact. At $k=6$, $10$ and $14$ the coordinates are recovered to
+$10^{-13}$--$10^{-11}$, so the returned image is the chart point the adapter
+was trained on; its \emph{median} error against the real digits is then
+$0.5305$, $0.4794$, $0.4598$, equal to the chart's own representation error
+at that $k$ to machine precision ($0$, $6\times10^{-17}$, $0$). The attack
+returns the chart's picture and nothing sharper; the worst-digit error is
+larger ($0.87$, $0.76$, $0.76$) because that digit is the one the chart
+represents worst, not because the inversion is worse there. (At $k=16$ and
+$17$ the cells had not converged when this was written and are not evidence
+for the claim.) The backbone is learned but weak (these checkpoints are trained on
 small balanced subsets for the reconstruction setting); a strong encoder is
 a different checkpoint and a separate run (\S\ref{sec:opens}).
 Figure~\ref{fig:cond} puts the two encoders side by side.

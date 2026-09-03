@@ -114,6 +114,18 @@ degradation splits by N (the defender's variable), not by distance past the line
 N=8 stays inside tolerance sixteen units past the line, N=12/14 are outside one unit past; and every past-line
 error is a lower bound on the fibre's extent (near-init finds the nearest branch; walks stopped by budget).
 
+**11. Two statistic-substitutions that have each bitten this project repeatedly.** (a) *Solved-point versus
+at-truth.* The jsonl carries `jac_sigma_min` / `jac_cond` (spectrum at the point the solver returned) beside
+`jac_sigma_min_truth` (at the true coordinates). The theorems are statements about the Jacobian at the truth;
+the solved-point values are a property of where the search stopped. Substituting one for the other has now
+produced three separate wrong readings — four values in the capacity table, a footnote, and a claim that the
+chart ordering was non-monotone in the condition number (it is monotone at the truth; the apparent inversion
+was one under-converged cell whose solved σ_min was 3× its truth σ_min). Compute cond as
+`jac_sigma_max_truth / jac_sigma_min_truth`, never from the `jac_cond` field. (b) *Max versus median.* The
+claim "the recovered image error equals the chart's representation error" was written with the MAX image
+error (0.87) against a MEDIAN chart floor (0.53) and was therefore false as stated; on the median the identity
+is exact to machine precision. When a row offers both, check which statistic the comparison quantity is.
+
 **10. State the access model with every result.** The recipe probe (R4) was internally valid — no private data,
 every regressor public — and still presupposed an access model the release does not give: the attacker must
 observe the *victim's* optimizer take a step on attacker-chosen data (a checkpoint with optimizer/scheduler state,

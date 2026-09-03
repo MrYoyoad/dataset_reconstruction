@@ -32,13 +32,15 @@ What the section establishes, in order — every label as in the .tex:
   higher than SGD's at the same `(m,r,N)`.
 - **PRELIMINARY (jobs 611033/611339/612643) — across the four charts tried, better representation came with worse
   conditioning.** At k=16 on the trained backbone, cell (a): global PCA σ_min †2.33e-8 / repr err 0.421; label-local
-  PCA †1.72e-10 / 0.364; VAE-GELU †1.82e-11 / 0.339; VAE-ReLU †1.59e-11 / 0.327 — ordering monotone in σ_min, ~1400× across the range —
-  but NOT in cond, the parameterisation-invariant quantity (3.03e8 / 6.36e10 / 3.63e11 / 1.48e11: the richest chart,
-  VAE-ReLU, is BETTER conditioned than the VAE). And an accidental replicate sets a noise floor: two jobs ran the
+  PCA †1.72e-10 / 0.364; VAE-GELU †1.82e-11 / 0.339; VAE-ReLU †1.59e-11 / 0.327 — ordering monotone in σ_min, ~1400× across the range,
+  AND monotone in the at-truth condition number (2.75e8 / 5.68e10 / 3.76e11 / 4.39e11). CAUTION RECORDED: the `jac_cond`
+  field is the SOLVED-point condition number, not the at-truth one (`jac_cond_truth` is absent from these rows); using
+  it made the ordering look non-monotone, because VAE-ReLU is the least converged of the four (its solved σ_min is 3×
+  its truth σ_min). Always compute cond as jac_sigma_max_truth / jac_sigma_min_truth here. And an accidental replicate sets a noise floor: two jobs ran the
   identical global-PCA chart (repr_err equal to 16 digits, same k/N/r/m/T/lr/seed) differing only in the A0 draw, and
   got σ_min within 1.06× but σ_max within 1.64× and cond within 1.64×. So: global→local (135× σ_min, 210× cond) is far
-  above noise and real; local→VAE (9.5× / 5.7×) is probably real; VAE→VAE-ReLU (1.15× / 0.41×) is at or below noise and
-  changes sign between the two metrics — not resolved. Multiple A0 seeds per chart are needed before any ordering
+  above noise and real; local→VAE (9.5× / 5.7×) is probably real; VAE→VAE-ReLU (1.15× in σ_min, 1.17× in at-truth cond — same
+  direction, but against a replicate spread of 1.06× / 1.56×) is not resolved at one draw. Multiple A0 seeds per chart are needed before any ordering
   finer than global-vs-local is quoted. NOT a graded mechanism on this evidence: the response is wildly non-uniform (within PCA 135× for Δrepr 0.057;
   within VAE 1.1× for Δrepr 0.013; between families 9.5× for Δrepr 0.025), i.e. four points in two families. The
   graded test that would settle it is a β-VAE sweep at FIXED k=16 (β ∈ {0.25,1,4,16}: richness varies, nothing else),
