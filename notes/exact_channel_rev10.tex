@@ -481,7 +481,14 @@ and not yet run.
 
 Test-bed: FP64, $m=20$, $r=16$, $n=96$, $\tanh$ generator $\psi$ to a $64$-d
 image, $\tanh$ encoder $\varphi$, softmax head, plain SGD; the attack is
-Levenberg--Marquardt on \eqref{eq:rho} with an autograd Jacobian. Every run is
+Levenberg--Marquardt on \eqref{eq:rho} with an autograd Jacobian. No
+component is pretrained: $W_0$, the encoder $\varphi$ and the generator
+$\psi$ are fixed random matrices (seeded), and the only training anywhere is
+the adapter's $T$ steps on the $N$ private examples. The same holds for the
+MNIST cells below, whose encoder is a fixed random network; the private
+digits are ``unseen'' in the trivial sense that nothing was trained on
+anything before the adapter. Whether the results transfer to an adapter on
+a \emph{pretrained} backbone is untested here (\S\ref{sec:opens}). Every run is
 classified by two numbers, the final residual $\|\rho\|^2$ and the worst
 image error: \emph{recovered} — residual at the $10^{-30}$ floor and error at
 machine precision; \emph{alias} — residual at the floor at a point other than
@@ -889,6 +896,13 @@ re-derivation, and each is itemised in the repository's lessons log.
   whose valley widths are one-dimensional slices of the ellipsoid
   (Figure~\ref{fig:spectrum}). Rendering its leading directions as image
   edits is the natural next object.
+\item \textbf{A pretrained backbone.} Every measurement uses a random
+  frozen $W_0$ and a random frozen encoder. The theorems do not use anything
+  about $W_0$ or $\varphi$ beyond (A1) — they are fixed maps — so a
+  pretrained backbone changes nothing in \S\S\ref{sec:objects}--\ref{sec:read};
+  what it changes is the conditioning of $D\rho$, the chart an attacker can
+  build from public data, and the realism of $m$. The real-data step —
+  frozen DINO/CLIP features with an adapted head — has not been run.
 \item \textbf{What stops the attack today is neither line.} Inside the
   capacity region, LM from perturbed-truth starts recovers up to $86\%$ start
   error, with one budget-limited failure at $81\%$ (residual $8\times10^{-5}$
