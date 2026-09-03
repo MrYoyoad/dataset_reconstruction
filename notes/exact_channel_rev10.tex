@@ -1210,6 +1210,24 @@ channel twice over --- it caps how many examples can be recorded in a
 recoverable way, and $m$ is the defender's architecture rather than the
 attacker's choice.
 
+The cap was then tested where it predicts the channel switches back
+\emph{on}, which is the stronger direction$^\dagger$ (job 725918). The same
+network was retrained on the same MNIST data with a padded $26$-logit head,
+sixteen logits never targets, reaching $98.28\%$ against the ten-logit model's
+$97.9$--$98.2\%$: only $m$ changed, and data, encoder, batch, rank and chart
+were held fixed. On the identical twenty digits at $k=8$, $r=64$,
+$\operatorname{rank}B_T$ goes from $9$ to $19$ and $\operatorname{rank}C$ from
+$55$ to $45$, and the per-image certificate residuals fall from $0.3$--$0.5$
+for all twenty to between $2.5\times10^{-8}$ and $4.3\times10^{-3}$ for
+nineteen of them. The twentieth, whose imprint is $3\times10^{-7}$ of the
+largest, stays at $0.23$ --- which is why the counts are $19$ and $45$ rather
+than the predicted $20$ and $44$. That single deviation is the
+imprint-versus-rank divergence appearing again with one image sitting on the
+boundary, and whether the boundary is the release's own precision or the
+tolerance at which $\mathrm{row}(B_T)$ is truncated is not yet separated: the
+truncation tolerance is the attacker's to choose, and a tighter one may return
+the twentieth image. Recorded as open.
+
 \paragraph{Precision of the release is a privacy parameter.} Because the
 certificate's reach is set by which directions are numerically inside
 $\mathrm{row}(B_T)$, and the imprint spectrum falls steeply, rounding the
