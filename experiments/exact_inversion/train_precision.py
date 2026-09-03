@@ -112,6 +112,30 @@ def recipe_route(chart, bb, X_real, X_on, y, A0, A_T, B_T, a, dev, g):
                 seconds=time.time() - t0, **diag), X_hat
 
 
+def landscape(chart, bb, X_real, X_on, y, A0, a, dev, dname, B_rel, B_ref, g):
+    """Is the MATCHED-arithmetic map navigable? (yoado-ed: run the matched attacker rather than leave it as an open.)
+       The recipe route needs a differentiable simulator; a low-precision loop is piecewise constant at the scale of its
+       roundings, so before building a matched solver we measure (1) the response of the `dname` map to relative
+       perturbations of the latents (1e-6 … 1e-2) and to a one-ulp perturbation of A0, against the FP64 map's response,
+       and (2) the residual along the segment from the near start (noise 0.1) to the truth, in `dname` arithmetic against
+       the `dname` release (the matched attacker's landscape) and in FP64 against the same release (the mismatched one)."""
+    dtype, eps = FORMATS[dname]; k = a.k; N = a.N
+    W_true = chart.coords_of(X_real); std = float(W_true.std()); nB = float(torch.linalg.norm(B_rel)); nBf = float(torch.linalg.norm(B_ref))
+    out = dict(response={}, response_fp64={}, segment_matched=[], segment_fp64_sim=[], segment_s=[])
+    for rel in [1e-6, 1e-4, 1e-2]:
+        dW = torch.randn(k, N, generator=g).to(dev) * std * rel; Hp = bb.phi(chart.psi(W_true + dW))
+        Bp = release_in(Hp, A0, bb.W0, y, bb.m, a.T, a.lr, dtype)[1]; Bf = release_in(Hp, A0, bb.W0, y, bb.m, a.T, a.lr, torch.float64)[1]
+        out["response"][str(rel)] = float(torch.linalg.norm(Bp - B_rel) / nB); out["response_fp64"][str(rel)] = float(torch.linalg.norm(Bf - B_ref) / nBf)
+    A0u = (A0.to(dtype) * (1 + eps * torch.sign(torch.randn_like(A0)))).double() if dname != "fp64" else A0            # one ulp on every entry
+    out["response_A0_one_ulp"] = float(torch.linalg.norm(release_in(bb.phi(X_on), A0u, bb.W0, y, bb.m, a.T, a.lr, dtype)[1] - B_rel) / nB)
+    W_start = W_true + 0.1 * torch.randn(k, N, generator=g).to(dev) * std
+    for sfrac in [0.0, 1e-4, 1e-3, 1e-2, 0.03, 0.1, 0.3, 0.6, 1.0]:
+        Ws = W_true + sfrac * (W_start - W_true); Hs = bb.phi(chart.psi(Ws))
+        Bm = release_in(Hs, A0, bb.W0, y, bb.m, a.T, a.lr, dtype)[1]; Bf = release_in(Hs, A0, bb.W0, y, bb.m, a.T, a.lr, torch.float64)[1]
+        out["segment_s"].append(sfrac); out["segment_matched"].append(float(torch.linalg.norm(Bm - B_rel) / nB)); out["segment_fp64_sim"].append(float(torch.linalg.norm(Bf - B_rel) / nB))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="models/exact_inversion/mnist_mlp_strong.pth")
@@ -129,6 +153,7 @@ def main():
     ap.add_argument("--partb-tol", type=float, default=None, help="certificate tolerance for the Part-B search from a non-fp64 release; default = "
                     "noise-matched 10*eps (job 760909/760912); pass 1e-12 for the tight tolerance (the noise rank), which storage job 753371 "
                     "showed recovers MORE images")
+    ap.add_argument("--landscape-cells", nargs="*", default=[], help="measure the matched-arithmetic map's response and the residual along start->truth")
     ap.add_argument("--recipe-cells", nargs="*", default=[], help="run the RECIPE route (FP64 simulator, near start) against the release trained in each format")
     ap.add_argument("--init-noise", type=float, default=0.10); ap.add_argument("--restarts", type=int, default=1); ap.add_argument("--lm-iters", type=int, default=600)
     ap.add_argument("--n-fit", type=int, default=50000)
@@ -203,6 +228,11 @@ def main():
                 res = torch.linalg.norm(Cc @ H, dim=0) / torch.linalg.norm(A_T @ H, dim=0)
                 rowA[f"Np_{tname}"] = Np; rowA[f"cert_line_{tname}"] = a.r - Np; rowA[f"cert_residual_{tname}"] = [float(v) for v in res]
             emit(rowA)
+            if cell in a.landscape_cells and nB > 0:
+                a.k = k
+                L = landscape(chart, bb, X_real, X_on, y, A0, a, dev, dname, B_T, B_ref, torch.Generator().manual_seed(a.seed + 13))
+                emit(dict(part="L", set=sname, k=k, N=a.N, r=a.r, seed=a.seed, train_dtype=dname, unit_roundoff=eps, B_T_rel_dev_from_fp64=rel_to_fp64, **L,
+                          git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
             if cell in a.recipe_cells and nB > 0:                         # ---- recipe route against THIS release (yoado-6e's probe)
                 a.k = k
                 rr, X_hat = recipe_route(chart, bb, X_real, X_on, y, A0, A_T, B_T, a, dev, torch.Generator().manual_seed(a.seed + 11))
