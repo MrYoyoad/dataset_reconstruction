@@ -1803,6 +1803,24 @@ on the projections — a property of the chart family and `k` alone (no adapter,
 | weak 78% | .23 | .32 | .47 | .58 | .60 | .63 | .69 | .73 | .76 | .79 | .79 | .79 | .79 | .79 | .784 |
 | repr. err (median) | .73 | .69 | .64 | .62 | .59 | .56 | .52 | .49 | .46 | .41 | .38 | .34 | .32 | .29 | — |
 
+**Instance survival, the privacy axis (job 721003, same 2,000 digits, nearest neighbour among the full 10,000-digit
+raw test pool):** does the `k`-projection retrieve *its own source* (self, top-1) or *another member of its
+class* (an archetype)?
+
+| k | 2 | 4 | 6 | 8 | 10 | 12 | 16 | 20 | 24 | 32 | 40 | 48 | 56 | 64 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| self, top-1 | .001 | .01 | **.04** | **.11** | .21 | .33 | .57 | .73 | .84 | .94 | .97 | .99 | .99 | .99 |
+| self, top-5 | .006 | .03 | .12 | .26 | .43 | .57 | .79 | .90 | .94 | .99 | .995 | .996 | .997 | .999 |
+| another of the same class, top-1 | .30 | .44 | .53 | .58 | .57 | .49 | .35 | .23 | .15 | .06 | .03 | .01 | .01 | .01 |
+
+Class survival and instance survival come apart exactly in the certificate's `r = 16` regime: at `k = 6–8` the
+projection reads as the right class for 52–68% of digits but identifies the *specific* digit for only 4–11%,
+retrieving a different digit of the same class more than half the time — "there was a 4 in the batch", not "this
+4". At `k ≥ 32` (admissible at `r = 64`) both survive: 94–99% self-identification. Caveat on the other control:
+against a pool of *projected* candidates the projection identifies its source with certainty at every `k` (top-1
+1.000 even at `k = 2`), since projection is deterministic — a membership-style identification that needs the
+candidate pool, stated as such and not as fidelity.
+
 The ladder's admissible `k` at each rank (`k < r − N′`) are marks on this curve: at `r = 16` with seven recorded
 the admissible charts (`k ≤ 8`) keep 52–68% of digits identifiable to the strong model; at `r = 64` with eight
 recorded (`k ≤ 55`) the admissible chart is at the raw accuracy. Whether the *basin* holds at those `k` is the

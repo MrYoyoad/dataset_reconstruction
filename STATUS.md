@@ -302,6 +302,12 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   floor is itself the proof; 2,000 starts per cell running there (706721). Two audit catches folded: a blank
   image drove the constant-normalised objective to zero (fixed: `‖Cφ‖/‖A_Tφ‖`), and off-chart the certificate has
   no zero at all (Part B on-chart only).
+- **Fidelity axis, standalone (719793/721003, 2,000 held-out digits):** class survival of a k-dim PCA projection
+  (strong-model accuracy) .52/.68/.88/.95/.97/.98 at k=6/8/16/24/32/56; instance survival (nearest-neighbour
+  self-identification among 10k raw digits) .04/.11/.57/.84/.94/.99 at the same k. At rank 16 the certificate's
+  admissible charts (k ≤ 8) reveal the class but rarely the specific digit; at rank 64 (k ≤ 55) both. Bracket:
+  basin 51% at k=6, 18% at k=8, 0 spurious zeros below the line; a "0/500 at k=8" warning was a raw-cell artefact
+  and is withdrawn.
 - **FIRST FROM-NOTHING RECOVERY (job 706721, RESULTS Step 22 Part B):** certificate-only inversion, on-chart,
   `k = 6` with seven recorded images (line `r − N′ = 9`): **51% of 2,000 random public-scale starts land exactly on a
   private image** (5.5e-15), all seven found, no spurious zero (floor fraction = recorded fraction), argmin pick is
