@@ -153,6 +153,7 @@ def main():
                            feat_cos_max_other=float(max(G[i, j] for j in range(a.N) if j != i)),
                            feat_cos_same_label_max=float(max([G[i, j] for j in range(a.N) if j != i and int(y[j]) == int(y[i])] or [float("nan")])),
                            rank_B_T=int((sB > 1e-12 * sB[0]).sum()), B_T_sigma_ratio=float(sB[a.N - 1] / sB[0]),
+                           B_T_spectrum_rel=[float(v / sB[0]) for v in sB], B_T_sigma2_over_1=float(sB[1] / sB[0]),
                            on_chart=a.on_chart, k=a.k, N=a.N, r=a.r, m=bb.m, n=bb.n, T=a.T, lr=a.lr, seed=a.seed, a0_seed=a.a0_seed,
                            git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv))
                 print(json.dumps(row), flush=True)
