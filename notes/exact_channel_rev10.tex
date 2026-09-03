@@ -417,10 +417,12 @@ every image to sub-percent accuracy. The fibre is, however, traversable: the
 continuation of \S\ref{sec:counting} moves the image along it to $1.4\%$
 (past the line) and $3.5\%$ (at the line) error with the residual at the
 floor throughout, along one null direction of forty and of fourteen
-respectively, in neither case bounded by the run. On the paths measured the
-alternative solutions are still recognisable reconstructions; whether the
-fibre reaches unrecognisable points is not established, and one cell is still
-rising at the end of its run. The capacity boundary marks where \emph{exact}
+respectively, in neither case bounded by the run. The extent is
+cell-dependent — the two cells differ by more than a factor of two — and
+$3.5\%$ is a visible degradation, not a rounding difference. On the paths
+measured the alternative solutions are still recognisable reconstructions,
+not near-perfect ones; whether the fibre reaches unrecognisable points is not
+established, and one cell is still rising at the end of its run. The capacity boundary marks where \emph{exact}
 recovery stops; whether it marks anything about recognisable recovery is the
 open question that decides whether the line has any privacy meaning at all.
 The $49$-cell grid
@@ -489,10 +491,17 @@ is a true statement about the quotient and a false one about the leakage.
   assumption of the KKT-reconstruction line. Unknown recipe parameters enlarge
   the domain of $F$ by $p$ scalars; the cap becomes
   $N(m+r-N)+rN\ge Nk+rN+p$, still a dimension statement. Three claims are
-  \textnormal{[EMPIRICAL — running, jobs step14+]}: (i) misspecification is
+  \textnormal{[EMPIRICAL — pending]}: (i) misspecification is
   self-detecting (a wrong recipe cannot reach the floor); (ii) a handful of
   recipe scalars can be fitted jointly with $(w,X)$; (iii) non-identifiable
-  combinations such as $\eta T$ (small-step regime) are harmless. The
+  combinations such as $\eta T$ (small-step regime) are harmless. A first
+  attempt (job 480679, arms R1--R3) is \emph{invalid by our own control}: the
+  correct-recipe hypothesis itself stopped at residual $7.2\times10^{-8}$,
+  not the floor, because the arms were built on an L-BFGS solver rather than
+  the Levenberg--Marquardt solver used everywhere else in this study; a
+  readout whose control cannot reach the floor says nothing about recipes.
+  The arms are being rerun on LM. Nothing here is evidence for or against
+  (i)--(iii). The
   certificate is the recipe-\emph{free} channel, at the price of the cap
   $r-N$; the curvature/KKT mixture of Rev~9 \S3.6--3.8 remains the
   recipe-\emph{unknown} approximate route.
@@ -593,8 +602,9 @@ open item — all four are mathematics.
   breath what that point is: within $0.2$--$1.2\%$ of the true images where
   the solver lands, and a continuation along the release-consistent set
   reaches $1.4$--$3.5\%$ along a single null direction — a lower bound on the
-  extent, one cell still rising. Non-isolation is established; on the paths
-  measured the alternative solutions are still recognisable reconstructions;
+  extent, cell-dependent, one cell still rising. Non-isolation is
+  established; on the paths measured the alternative solutions are still
+  recognisable reconstructions (not near-perfect: $3.5\%$ is visible);
   whether the fibre reaches unrecognisable points is not established. The
   line marks where exact recovery stops — that much is a theorem — and what
   it means for recognisable recovery is open. This is a boundary

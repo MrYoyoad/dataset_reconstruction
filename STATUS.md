@@ -27,8 +27,12 @@ What the section establishes, in order — every label as in the .tex:
 - **Adam:** identifiable, nuisance `rn`, `κ ≈ 8e5` vs `2e3`; breaks the simplex constraint (†`2.6–2.7` vs `1e-15`)
   so its B-block saturates the *plain* cap 224. **PREDICTION (untested as a boundary):** Adam's line is one unit
   higher than SGD's at the same `(m,r,N)`.
-- **Pending in the .tex as placeholders:** recipe-robustness arms R1–R3 (job 480679, running); the traverse's
-  final extent + the below-line control (job 482338).
+- **Recipe-robustness arms R1–R3 (job 480679) — first attempt INVALID by its own control:** the correct-recipe
+  hypothesis stopped at residual †7.2e-8 (not the floor) because the arms were built on L-BFGS rather than the LM
+  solver used everywhere else; the readout is uninformative about recipes. Rerun on LM queued after 480679 ends.
+  The .tex keeps the recipe claims [EMPIRICAL — pending] and says why.
+- **Still pending:** the at-line traverse's final extent (†3.5% at 17 steps, rising) and the below-line control
+  (job 482338) — the control is the traverse paragraph's stated kill condition.
 
 ## Exact LoRA inversion (framework Rev 10) — **A CAPACITY LAW: the simulation channel inverts iff `k < m + r − N`**, confirmed at N=4/8/12 (2026-09-03; jobs 469120 · 467914 · 466915/467622 · 459111 · 456630 · 452904 · 471272/473055/474132 · 408560-63; thread COMPLETE, all arms landed)
 
