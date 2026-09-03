@@ -1429,3 +1429,26 @@ the rank of the stacked imprints. Prediction: Kendall(‖C_i‖, accumulated res
 defender-side quantity is then simply **the per-example accumulated residual during their own fine-tuning**.
 Job 630308 (subset/OOD) was killed before producing rows because it used the flawed column to name the recorded
 images; resubmitted as 631393 on the imprint.
+
+### Step 18 resolved — the per-image imprint is proportional to the accumulated residual, and rank counts the recorded images (job 631392)
+
+`margin_check.py` with the basis-free imprint `C_i` (`B_T = Σ_i C_i`, gated to 4e-12), all 40 batches (4 encoders ×
+{3 picks + 2 draws} × {raw, on-chart}):
+
+- **Kendall(‖C_i‖, Σ_t ‖res_t,i‖) = 28/28 in every strong-model batch but one (27/28), 24–28/28 on the weak and
+  mid models; 971/1120 overall.** On the random encoder it is at chance (10–14/28) because all eight residuals
+  are 0.93–0.97 — there is nothing to order — and there the *ratio* ‖C_i‖/acc_i is constant to ±0.3 decades. In
+  every batch the ratio spans < 1 decade: `‖C_i‖ ≈ lr · ‖A h_i‖ · Σ_t ‖res_t,i‖`, **no coupling term.**
+- **`rank B_T` = rank of the stacked imprints = number of images with `‖C_i‖/max > 1e-12`, in all 40 batches.**
+  The rank loss is exactly the count of images whose accumulated residual is negligible.
+- Strong model, `hard1_diff` on-chart (rank 4): the four images with margins −3.9, 4.1, 15.6, 17.7 have relative
+  imprints 1, 7.6e-2, 8.2e-7, 4.8e-8; the four with margins ≥ 39 sit at 3e-17 … 1e-30. All-confident batch: every
+  imprint ≤ 1.5e-24 absolute, rank 3 only because the three least-confident of them (margins 56–74) clear the
+  1e-12 *relative* threshold against a maximum that is itself 1e-24.
+
+**Standing statement (final form).** The LoRA release records each private example as a rank-one piece whose
+size is the model's accumulated softmax residual on that example during fine-tuning — `e^{−margin}` if the
+model already fits it — and `rank B_T` counts the examples recorded above the floor. A batch the model already
+fits leaves no fingerprint; what leaks is what the model had to learn. The defender's leakage meter is the
+per-example accumulated residual during their own fine-tuning, which they compute anyway. Nothing about labels,
+feature overlap, or batch-mates enters.

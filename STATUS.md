@@ -210,6 +210,11 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
 - **Multi-layer LoRA (job 626564, after the grad fix): optimisation failure in BOTH arms** — seeds known (112
   unknowns) residual 2.2e-8, 3/8 images; seeds unknown (22,384) 7.7e-7, 1/8. Gate 0.0. The three-layer unroll is
   the obstruction at this budget, not the seeds. Empirical, outside the theorems; no identifiability statement.
+- **RESOLVED (job 631392): the per-image imprint `‖C_i‖` is proportional to the accumulated residual — Kendall
+  28/28 in every strong-model batch (971/1120 over all 40), ratio within one decade, and `rank B_T` = number of
+  images with non-negligible imprint in all 40 batches.** Final form: the release records each example as a
+  rank-one piece of size `e^{−margin}`-ish; rank counts what was learned; the defender's meter is the per-example
+  accumulated residual during their own fine-tuning. No labels, features or batch-mates involved.
 - **CORRECTION (job 628731): the "coupling through features" is WITHDRAWN** — it was an artefact of reading the
   per-image column off `B_T X(XᵀX)⁻¹`, whose QR factor makes column `i` collect the residuals of every image
   *after* `i` in batch order (matches the data exactly). Confident images' margins do not move during training.
