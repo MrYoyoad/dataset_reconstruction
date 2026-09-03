@@ -1757,6 +1757,13 @@ cell, not starts: job 717588 runs one cell with twenty recorded images (strong m
 recorded per Step 19 — on-chart, 2,000 starts, `k ∈ {8, 16, 24, 32}`), 190 pairs in one run, and doubles as
 "find some among twenty". Across ladder cells the per-cell taus are pooled, never the raw (image, landings) pairs.
 
+*Identity, not just pixels (job 719106):* the base model reads 6 of the 8 `k = 6` projections as their true digit
+(the 4 → 9, the 5 → 8; 5 of the 7 recorded). That is the illustration, not the number: the classifiability of a
+`k`-dimensional chart is a property of the chart family and `k` alone, so it is measured standalone over 2,000
+held-out digits per `k` (`chart_fidelity.py`, job 719793) and the ladder's admissible `k` at each `r` are marks
+on that curve. Figure re-rendered as two rows — real digit / chart projection with the per-image recovery error,
+landings, and the model's reading printed under each — since the attack's output coincides with the projection.
+
 This is the first recovery in the study that begins from nothing, and it is exact. Its scope: (i) *on-chart* —
 the fine-tuning images lie on the `k = 6` chart, so what is recovered is those chart images, which at six PCA
 components are blurs (the figure shows it); off-chart the certificate has no zero. (ii) The certificate budget is
