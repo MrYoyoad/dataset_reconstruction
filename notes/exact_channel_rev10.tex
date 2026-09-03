@@ -1114,7 +1114,14 @@ pairs, weighted by pairs; the seven at- and above-line cells with no landings
 are excluded rather than counted as $\tau=-1$). The chart-geometry
 predictors lead --- the feature norm $\|A_T\varphi(x)\|$ at $+0.43$, positive
 in $14$ of $17$ cells, and the chart-space norm at $+0.40$, positive in $15$
---- against the release-side pair at $+0.18$ and $+0.15$. The two families are
+--- against the release-side pair at $+0.18$ and $+0.15$. Pooling per batch
+first, which is the honest unit since cells within a batch share their images,
+separates the two geometry predictors: the feature norm holds at $+0.44$ and
+$+0.50$ across the two informative batches, while the chart-space norm is
+$+0.55$ in the larger and $+0.17$ in the other. The feature norm is the one
+that replicates and the one to name; the chart-space norm is the stronger
+predictor in the batch supplying thirteen of the seventeen cells and does not
+carry to the second. The two families are
 nearly uncorrelated with each other ($+0.10$ and $-0.05$) while the imprint
 and the margin agree at $+0.96$, confirming those two were one quantity
 throughout. So \emph{presence} is the release's and \emph{search cost} is the
@@ -1123,9 +1130,10 @@ cheaply each is found does not.
 
 Two reservations keep this a strong lead rather than a result. The seventeen
 cells come from three batches across several ranks and are not independent, so
-the pooled $z$ of about five is inflated and the evidence is the sign
-consistency; pooling per batch first, giving three independent units, is the
-honest test and has not been done. And a norm predictor has an alternative
+the pooled $z$ of about five is inflated. Per batch there are only two
+informative units --- the third contributes a single cell with at most one
+landing per image --- so the $14$ of $17$ rests on two batches and is
+dominated by one. And a norm predictor has an alternative
 explanation that this design cannot exclude: starts are drawn at a fixed
 public scale, so a target whose norm is nearer that scale may simply be nearer
 the starts, which would make the correlation a property of the start
