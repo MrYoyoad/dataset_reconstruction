@@ -77,7 +77,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="models/exact_inversion/mnist_mlp_strong.pth")
     ap.add_argument("--cells", nargs="*", default=["letters_a:32", "confident:32", "mnist_control:32", "confident:8"], help="set:k; sets: confident, "
-                    "mnist_control (first digit of each class in the seed permutation), letters_<x> (EMNIST letter x as an 11th class, zero row)")
+                    "mnist_control (first digit of each class in the seed permutation), letters_<x> (EMNIST letter x as an 11th class, zero head row), "
+                    "letters_<x>_random (the same with a Gaussian head row at the RMS norm of the digit rows -- the robustness arm)")
     ap.add_argument("--dtypes", nargs="*", default=["fp64", "fp32", "bf16", "fp16"])
     ap.add_argument("--partb-dtypes", nargs="*", default=["fp64", "fp32", "fp16"], help="run the random-start certificate search from these releases")
     ap.add_argument("--partb-cells", nargs="*", default=["letters_a:32", "confident:32", "mnist_control:32"])
@@ -107,10 +108,11 @@ def main():
     for cell in a.cells:
         sname, k = cell.split(":"); k = int(k)
         if sname.startswith("letters_"):
-            fl = load_emnist_letters(a.data_root, sname[-1])
+            init = "random" if sname.endswith("_random") else "zero"; letter = sname.split("_")[1][0]
+            fl = load_emnist_letters(a.data_root, letter)
             Ftr_t = torch.tensor(fl["train"][0], device=dev); Fte_t = torch.tensor(fl["test"][0], device=dev)
             g = torch.Generator().manual_seed(a.seed + 7); pf = torch.randperm(Fte_t.shape[0], generator=g)[:a.N]
-            X_real = Fte_t[pf].T.contiguous(); y = torch.full((a.N,), 10, device=dev); bb = ExtendedHead(base, "zero", a.seed)
+            X_real = Fte_t[pf].T.contiguous(); y = torch.full((a.N,), 10, device=dev); bb = ExtendedHead(base, init, a.seed)
             chart = PCAChart(Ftr_t, k, dev); chart_name = "new_pca"; public = Ftr_t
         else:
             if sname == "mnist_control":
@@ -141,7 +143,7 @@ def main():
             sB = torch.linalg.svdvals(B_T) if nB > 0 else torch.zeros(min(B_T.shape), device=dev)
             rank10 = int((sB > 1e-10 * sB[0]).sum()) if nB > 0 else 0; rank6 = int((sB > 1e-6 * sB[0]).sum()) if nB > 0 else 0
             rel_to_fp64 = float(torch.linalg.norm(B_T - B_ref) / nBref) if nBref > 0 else float("nan")
-            rowA = dict(part="A", set=sname, chart=chart_name, k=k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed, y=y.tolist(), train_dtype=dname,
+            rowA = dict(part="A", set=sname, chart=chart_name, head_init=(bb.new_row_init if hasattr(bb, "new_row_init") else "n/a"), k=k, N=a.N, r=a.r, m=bb.m, T=a.T, lr=a.lr, seed=a.seed, y=y.tolist(), train_dtype=dname,
                         unit_roundoff=eps, B_T_norm=nB, B_T_norm_fp64=nBref, B_T_rel_dev_from_fp64=rel_to_fp64, B_T_sigma=[float(v) for v in sB],
                         rank_B_T_1e10=rank10, rank_B_T_1e6=rank6, imprint_abs=[float(v) for v in imp],
                         imprint_rel=[float(v / imp.max()) if float(imp.max()) > 0 else 0.0 for v in imp],

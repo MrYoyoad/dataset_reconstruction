@@ -2342,3 +2342,19 @@ k = 16), both head inits, r = 16, N = 8: every *near-start* cell (a) reaches res
 cell (b, 2 restarts, 600 iterations) stops at residual 5e-5 … 5e-3 with chart error 0.07 … 0.59 — search failure
 (residual not zero), no alias. Chart ceilings vs the raw images: .31/.38 (flowers), .24/.26 (CIFAR). Same picture as
 the first flowers job: recorded and identifiable, not reachable by the recipe route from random starts at k = 16.
+
+**Caption for the Step 24 table (yoado-ed):** two thresholds govern what a format keeps — the unit roundoff, which
+is *relative*, and the subnormal floor, which is *absolute* — and which binds depends on ‖B_T‖. **fp32 and tf32
+preserve every image recorded above roughly 1e-10 of the strongest imprint**; ten orders of dynamic range is not a
+privacy mechanism. **The fp16 zero is a property of this cell's release (7.6e-18 against fp16's smallest subnormal
+6e-8), not of the format**: for releases of 1e-6 … 1 — what data the model gets wrong produces — the floor does not
+bind and fp16 keeps whatever sits above ~1e-6 of the strongest; fp16 protects only what had already collapsed
+twenty-three orders, i.e. what did not need protecting. The structural line: the aggregate basin holds at 48–67% in
+every format — precision changes *which* images are reachable, not how hard they are to reach.
+
+*Random-init letter arm, pre-registered before it runs (job below):* the eleventh head row drawn Gaussian at the RMS
+norm of the digit rows gives the letters margins of ordinary spread rather than −10.8 by construction; a few
+letters may be chance-correct at t = 1 (positive margin) and show lower imprints, the rest stay negative with O(1)
+imprints; the release survives every format, with only a chance-correct letter of margin > ~16.6 (unlikely at
+ordinary spread) dropping out under fp16 training. The zero-init arm remains primary (the honest model of a class
+the network does not have).
