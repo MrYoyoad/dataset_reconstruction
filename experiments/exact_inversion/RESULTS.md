@@ -2111,7 +2111,12 @@ of the release they contain.
   with wrong digits. Search failure throughout; no alias.
 - Certificate k=6 and k=8 replicate on a second batch (`hard1_diff`, seven recorded, line 9): 44.6% and 18.9% of
   2,000 starts land on a recorded image (confident batch: 51% and 18.2%), all seven found at both k, floor fraction
-  ≈ recorded fraction (.446/.446, .179/.189), argmin exact (7.5e-15 at k=8) (job 706721).
+  ≈ recorded fraction (.446/.446, .179/.189), argmin exact (7.5e-15 at k=8) (job 706721). **The k = 10 bracket (same job, pre-registered: floor and recorded
+  fractions must come apart AT the line):** confident k = 10 has N′ = 5, line 11, one below → 13.4% on a recorded
+  image and 12.9% at the floor (together), argmin on a recorded image; `hard1_diff` k = 10 has N′ = 6, line 10, **at
+  the line** → 4.75% on a recorded image but **30.0% at the floor** (spurious zeros dense), argmin NOT on a recorded
+  image (error 0.49), 5 of 6 still found among the 2,000. The two fractions coincide one step below the line and
+  separate by 6× at it — the certificate line is sharp on both batches.
 - Wide head (job 725918), the k ladder on the twenty-digit batch (m = 26, r = 64): k = 8 → 18 of 20 found (N′ 19);
   k = 16 → 62.5% of 10,000 starts, 15 of 20 (N′ 17); **k = 24 → 46.9% of 10,000, 13 of 20 (N′ 16, line 48)**, landings
   per image 0 / 57 / 1,765 (min / median / max), no start at the 1e-20 floor because the certificate residual at the
