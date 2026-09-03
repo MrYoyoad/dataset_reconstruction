@@ -264,6 +264,17 @@ What the section establishes, in order — every label as in the .tex:
   against †1.43e-2 past the line (8,32, 25 steps) and †3.84e-2 at the line (14,22, 25 steps, final). Same procedure,
   only the side of the boundary changes, twelve orders apart: the direct experimental form of the capacity law.
 
+## HEADLINE (2026-09-03 night, jobs 728592/721391, RESULTS Step 23): private images recovered from RANDOM starts, no recipe, no labels
+
+Strong 98% MNIST model, LoRA r = 64, eight private digits it was confident about, 32-component public PCA chart:
+the certificate-only inversion from 500 random public-scale starts lands on a private digit **66% of the time,
+finds all eight** (19–103 landings each, argmin correct at 2e-14), with no spurious zero — reproduced in two jobs —
+and at k = 32 the chart identifies the *specific* digit among 10,000 (.94), not just its class. Every ingredient
+was measured separately first (budget `k < r − N′`, basin vs distance below the line, fidelity vs k) and the
+combination holds. Scope: on-chart, SGD release, head wider than N′. Also: 18 of 20 private digits recovered
+from 10,000 random starts on a 26-logit head (725918); the same twenty on a 10-logit head give nothing (cap
+`N′ ≤ m − 1`). Figure `figures/exact_inversion/certificate_recovery_r64_k32_728592.png`.
+
 ## Trained backbone · chart families · encoder quality · a genuineness audit (2026-09-03; jobs 607896, 610020, 605718, 611033, 611339, 612643, 614344; in flight 624463, 624465, 624573, 608693)
 
 Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Every number provisional (†).

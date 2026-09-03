@@ -1965,3 +1965,59 @@ The sharper statement, from the twentieth image: what decides individual recover
 **independent direction** an example contributes, not the size of its imprint — and the two can differ by orders. *Survey across
 `k` (job 722950):* `rank B_T = 9` and `rank C = 55` at every `k ∈ {8, 12, 16, 20, 24, 32, 40}`, all twenty imprints
 present, certificate residual 0.3–0.5 throughout — the cap is `m − 1` exactly and independent of the chart.
+
+## Step 23 — HEADLINE: instance-identifying private images from random starts, no recipe, no labels (jobs 728592 and 721391)
+
+Strong 98% MNIST model, LoRA `r = 64`, eight private test digits (`confident` batch — the ones the model was
+*most* sure about at `r = 16`; on-chart at `k = 32` all eight are recorded), chart = 32-component PCA of the public
+train split. Certificate-only inversion `‖Cφ(ψ(w))‖/‖A_Tφ(ψ(w))‖ → 0` from **500 random starts at the public
+coordinate scale**, 300 LM iterations each, no unrolled recipe, no labels, nothing from the truth:
+
+| job | starts on a private digit | per image | found | landings per digit | argmin pick | at the floor |
+|---|---|---|---|---|---|---|
+| 728592 (dedicated) | **65.6%** | 8.2% | **8 of 8** | 19, 24, 26, 30, 34, 34, 58, 103 | on a private digit, err 2.2e-14 | 42% |
+| 721391 (ladder, same cell) | **66.0%** | 8.3% | 8 of 8 | — | on a private digit | 42% |
+
+Per-image best landing errors 1e-14 … 9e-5 (five at machine precision, three at 1e-5 … 1e-4 — converging at the
+300-iteration cap; the 1e-2 landing criterion does no work). No degenerate starts, no spurious zeros. And at
+`k = 32` the chart is instance-identifying: the base model reads all eight projections as their own digit, and on
+the held-out curve a 32-component projection retrieves *its own source* among 10,000 candidates 94% of the time
+(Step 22). Figure `figures/exact_inversion/certificate_recovery_r64_k32_728592.png` — real digit / `k = 32`
+projection / the recovered panel for each of the eight.
+
+**What this is:** every ingredient measured separately in Step 22 — budget from the line (`k < r − N′ = 56`),
+basin from the distance below it (24), fidelity from the chart at `k = 32` — combined in one cell, and it
+holds. A rank-64 adapter of a strong model, fine-tuned on digits it was confident about, yields the specific
+private digits from random starts with the release, the public model and a public chart, and nothing else.
+**What it is not:** off-chart (the fine-tuning images here lie on the 32-component chart by construction; the
+raw-digit case has no certificate zero — Step 22), Adam (no certificate), or a head narrower than `N′ + 1`.
+
+### The per-rank sweeps (job 721391, `confident` on-chart, 500 starts each; per-image basin = aggregate / N′)
+
+| r | k | N′ | line | below by | aggregate | **per image** | found | chart's class acc. (curve) | instance id (curve) |
+|---|---|---|---|---|---|---|---|---|---|
+| 16 | 8 | 7 | 9 | 1 | 16.6% | 2.4% | 6/7 | .68 | .11 |
+| 32 | 8 | 7 | 25 | 17 | 74.4% | 10.6% | 7/7 | .68 | .11 |
+| 32 | 12 | 4 | 28 | 16 | 63.0% | 15.8% | 4/4 | .83 | .33 |
+| 32 | 16 | 3 | 29 | 13 | 37.2% | 12.4% | 3/3 | .88 | .57 |
+| 64 | 8 | 7 | 57 | 49 | 96.4% | 13.8% | 7/7 | .68 | .11 |
+| 64 | 16 | 3 | 61 | 45 | 85.8% | 28.6% | 3/3 | .88 | .57 |
+| 64 | 24 | 7 | 57 | 33 | 83.6% | 11.9% | 7/7 | .95 | .84 |
+| 64 | 32 | 8 | 56 | 24 | 66.0% | 8.3% | 8/8 | .97 | .94 |
+
+`N′` moves with `k` (projection changes the margins), so only the per-image column is comparable across rows.
+Read across: at `r = 64` the per-image basin stays at 8–29% from `k = 8` to `k = 32` while the chart goes from
+class-only (`.11` instance id) to instance-identifying (`.94`); at `r = 32` the admissible `k` stop at 16–24.
+The mirror pair (`r = 32, k = 8` vs `r = 64, k = 40`, both seventeen below) is the remaining row.
+
+### Find-some-among-twenty on the wide head (job 725918, `m = 26`, `r = 64`, `k = 8`, 10,000 random starts)
+
+Twenty optdigits, nineteen certificate-recoverable (Step 22): **88.6% of 10,000 starts land on a private digit;
+18 of 20 found** (landings median 241, max 2,402; the boundary image and one more at 0), argmin on a private digit.
+On the 10-class head the same cell found nothing (rank 9, certificate dead for all): the `m − 1` cap measured from
+both sides *and* through the attack. (The objective floor here is ~1e-6, not 1e-20, since the recorded residuals
+on this head sit at 1e-8 … 4e-3 — landings are counted by image error < 1e-2.)
+
+### Bracket, `k = 10` (job 706721): still below its line for this batch (`N′ = 5`, line 11) — 13.4% of 2,000 starts
+on a private digit, all five found, argmin correct, floor fraction 12.9% ≈ recorded (no spurious zero). The
+at/above-line regime is the earlier 704286 rows (`k = 12, 14, 16`: spurious zeros dense, argmin wrong).
