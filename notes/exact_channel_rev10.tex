@@ -1010,6 +1010,41 @@ survive this needs foreign digits at \emph{matched} resolution — USPS at
 $16\times16$ upsampled exactly as the control is downsampled — and has not
 been run.
 
+\paragraph{The certificate is the recipe-free face of the same fact.}
+Theorem~\ref{thm:quot} builds $C=\Pi_{\mathrm{row}(B_T)}A_T$ and gives
+$CH=0$ with $\operatorname{rank}C=r-N$ under (A4). The imprint law says what
+happens when (A4) fails, and it is not a degradation but a sharpening. By
+Theorem~\ref{thm:traj}, $\mathrm{row}(B_T)$ is spanned by the vectors
+$A_0h_i$ weighted by each example's imprint, so when only $N'$ examples are
+recorded it is spanned by \emph{their} directions alone: $\operatorname{rank}
+C=r-N'$, and $Ch_i=0$ for a recorded example while $Ch_i$ is $O(1)$ for an
+invisible one. Measured$^\dagger$ (job 701679, strong backbone,
+in-distribution draw): $\operatorname{rank}B_T=6$ with
+$\operatorname{rank}C=10=r-N'$ exactly, and the per-image residuals
+$\|Ch_i\|/\|A_Th_i\|$ are $8.8\times10^{-15}$, $\mathbf{0.84}$,
+$3.7\times10^{-10}$, $6.1\times10^{-10}$, $9.9\times10^{-14}$,
+$\mathbf{0.49}$, $3.7\times10^{-10}$, $8.5\times10^{-13}$ — the two bold
+entries are exactly the two invisible examples, eight orders of magnitude
+clear of the largest recorded one. On the chart-projected version, where all
+eight are recorded, all eight residuals fall below $3\times10^{-8}$.
+
+Two things make this worth having beyond elegance. It is \emph{recipe-free}:
+$C$ needs no $\eta$, no $T$ and no labels, so an attacker can test any
+candidate image for membership without knowing how the adapter was trained.
+And for $N'=1$ the condition $C\varphi(\psi(w))=0$ is $r-1=15$ equations
+that are linear in the features, determining the dominant example when
+$k<r-N'$ with no unrolled dynamics at all — a far simpler landscape than the
+full residual, and the certificate line $k<r-N'$ rather than $k<m+r-N'$.
+Two caveats belong with it. The vanishing is approximate rather than exact
+below full rank — the recorded residuals sit at $10^{-10}$, not at machine
+precision, because the invisible examples' contribution to $M_T$ does not
+identically vanish — so the test needs a threshold, and the gap it must
+straddle is eight orders wide here. And $Ch=0$ is membership of a subspace,
+not of the private set: any candidate whose features lie in the span of the
+recorded ones passes, which is tight when $N'=1$ and a $6$-dimensional
+subspace of $\mathbb R^{1000}$ when $N'=6$. Under Adam
+$\operatorname{rank}B_T=r$, $C\equiv0$, and none of this applies.
+
 \subsubsection*{What an attacker gets from it}
 
 \paragraph{The image finishes long before the residual does.} On the
