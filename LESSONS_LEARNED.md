@@ -19,6 +19,18 @@ conditioned; it was 135× worse) is only useful if the mechanism replacing it is
 before the control runs — done: encoder compression of within-class variation, falsified if a random encoder of
 the same architecture shows the same gap.
 
+**A per-image quantity must be basis-independent (2026-09-03, evening).** I read "how much of image `i` is in the
+release" off the columns of `P_T = B_T X (XᵀX)⁻¹`. `X = A₀U` with `U` from a QR of the feature matrix, and the
+triangular factor makes column `i` a weighted sum of the accumulated residuals of every image *after* `i` in the
+batch order. Two sessions built a "hard examples re-record confident batch-mates through the feature Gram" story
+on it, ran a Gram measurement (which explained nothing) and a margin-shift trace (which refuted the story) before
+the algebra was checked. The basis-free quantity was one line away: `gB = Σ_i D[:,i](A h_i)ᵀ`, so each image's
+imprint `C_i` is its own rank-1 accumulation and `B_T = Σ_i C_i`. Rules: (1) before interpreting a per-item
+decomposition of a released matrix, write the release as an explicit sum over items and use *that*; (2) any
+recovered coefficient matrix that depends on an orthonormalisation is suspect the moment it depends on ordering
+— permute the batch and re-read it (a 30-second falsifier that would have caught this on the first row);
+(3) rank statements survive such errors, per-column statements do not — separate them in the write-up.
+
 **Solved-point vs at-truth fields — the third bite.** Rows carry `jac_sigma_min` / `jac_cond` (at the *stopped*
 point) and `jac_sigma_min_truth` / `jac_sigma_max_truth` (at the truth). Substituting the first for the second
 produced a false "non-monotone in cond" reading of the chart ordering on the write-up side: the least-converged

@@ -32,17 +32,24 @@ def traced_release(H, A0, W0, y, m, T, lr):
     N = H.shape[1]; r = A0.shape[0]; ar = torch.arange(N, device=H.device)
     Y = torch.eye(m, device=H.device)[y].T
     A = A0.clone(); B = torch.zeros(m, r, device=H.device)
+    # per-image IMPRINT: gB = D (AH)^T = sum_i D[:, i] (A h_i)^T, so B_T = sum_i C_i with C_i the m x r piece
+    # image i alone contributed.  This is basis-independent.  (The earlier "P_T column" read off
+    # B_T X (X^T X)^-1 is NOT: X = A0 U with U from a QR of H, whose triangular factor makes column i collect
+    # the accumulated residuals of every image AFTER i in batch order -- the "coupling" of 2026-09-03 was that.)
+    C = torch.zeros(N, m, r, device=H.device)
     res, mar = [], []
     for t in range(1, T + 1):
-        z = W0 @ H + B @ (A @ H)
+        AH = A @ H
+        z = W0 @ H + B @ AH
         R = torch.softmax(z, dim=0) - Y
         res.append(torch.linalg.norm(R, dim=0))
         zy = z[y, ar]; zo = z.clone(); zo[y, ar] = -float("inf"); mar.append(zy - zo.max(0).values)
         D = R / N
-        gB = D @ (A @ H).T
+        gB = D @ AH.T
         gA = B.T @ D @ H.T
+        C -= lr * torch.einsum("mi,ri->imr", D, AH)
         B, A = B - lr * gB, A - lr * gA
-    return A, B, torch.stack(res), torch.stack(mar)                 # residual, margin: (T, N)
+    return A, B, torch.stack(res), torch.stack(mar), C              # residual, margin: (T, N); imprint: (N, m, r)
 
 
 def main():
@@ -115,9 +122,14 @@ def main():
             margin = zy - zo.max(0).values
             A0 = (sigma0 * torch.randn(a.r, bb.n, generator=torch.Generator().manual_seed(1000 + a.a0_seed))).to(dev)
             A_T, B_T = train_release(H, A0, bb.W0, y, bb.m, a.T, a.lr, "sgd")
-            _, B_tr, res_tr, mar_tr = traced_release(H, A0, bb.W0, y, bb.m, a.T, a.lr)
+            _, B_tr, res_tr, mar_tr, C = traced_release(H, A0, bb.W0, y, bb.m, a.T, a.lr)
             gate = float(torch.linalg.norm(B_tr - B_T) / torch.linalg.norm(B_T))
-            assert gate < 1e-12, f"traced loop does not reproduce train_release: {gate:.3e}"
+            assert gate < 1e-10, f"traced loop does not reproduce train_release: {gate:.3e}"   # 4e-12 seen: roundoff over T steps
+            gate_C = float(torch.linalg.norm(C.sum(0) - B_T) / torch.linalg.norm(B_T))
+            assert gate_C < 1e-10, f"imprints do not sum to B_T: {gate_C:.3e}"
+            imp = torch.linalg.norm(C.reshape(a.N, -1), dim=1); imax = float(imp.max())
+            # independent DIRECTIONS among the imprints: rank of the N flattened m*r pieces
+            sC = torch.linalg.svdvals(C.reshape(a.N, -1)); rank_imprints = int((sC > 1e-12 * sC[0]).sum())
             U, _ = qr_canon(H); Xs = A0 @ U                                   # r x N
             P_T = B_T @ Xs @ torch.linalg.inv(Xs.T @ Xs)
             colP = torch.linalg.norm(P_T, dim=0); sB = torch.linalg.svdvals(B_T)
@@ -131,6 +143,8 @@ def main():
                 row = dict(encoder=label, labels=lmode, pick=a.pick, image=i, y=int(y[i]), margin_W0=float(margin[i]),
                            residual_W0=float(res0[i]), P_T_col_norm=float(colP[i]),
                            P_T_over_res0=float(colP[i] / res0[i]) if float(res0[i]) > 0 else None,
+                           imprint_norm=float(imp[i]), imprint_rel=float(imp[i] / imax), rank_imprints=rank_imprints,
+                           eff_rank_imprint_1e12=int((imp > 1e-12 * imax).sum()), imprint_gate=gate_C,
                            P_T_col_rel=float(colP[i] / cmax), P_T_floor_rel=1e-16, hard_image=hard, trace_gate=gate,
                            res_traj_sum=float(res_tr[:, i].sum()), res_traj_max=float(res_tr[:, i].max()),
                            res_final=float(res_tr[-1, i]), margin_final=float(mar_tr[-1, i]),

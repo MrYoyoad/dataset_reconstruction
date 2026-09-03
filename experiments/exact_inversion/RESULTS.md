@@ -1397,3 +1397,35 @@ and to own-label mates, next to the `P_T` column norms; all batches of the previ
   confident images in a batch with a hard example show a margin drop of tens of units, those in an all-confident
   batch show none. For the defender this is better news than the step-0 version: the accumulated per-example
   residual is something they *already compute* while fine-tuning.
+
+### CORRECTION (job 628731) — the "coupling" was an artefact of how the per-image column was read; withdrawn
+
+The trajectory trace refutes the margin-shift reading *and* exposes the measure. Confident images' margins do not
+move during training (strong model, `hard1_diff` on-chart: the margin-71 digit ends at 71.1, the margin-46 one
+at 39.9; all-confident batch: no image moves by more than 0.1), yet their "`P_T` columns" sit **15–26 orders
+above their accumulated residuals** (`Σ_t ‖res_t,i‖` = 5.6e-29 for the margin-71 digit; "column" 5.2e-3).
+
+**Why.** The per-image column was read as `P_T = B_T X (XᵀX)⁻¹` with `X = A₀U`, `U` from a QR of the features
+`H = U R_H`. Expanding the release, the leading term is `P_T = −lr (Σ_t D_t) R_Hᵀ`: **column `i` of `P_T` collects
+the accumulated residuals of every image `j ≥ i` in batch order**, weighted by the triangular factor `R_H[i, j]`.
+It is basis- and order-dependent and is not "image `i`'s share". That is exactly the pattern in the data: in
+the repeated draw (hard 3 at index 3, low-margin 5 at index 4) the "lifted" columns were indices 0–4 and the
+"invisible" ones 5–7 — the images *after* the last hard example; in `hard1_diff` raw (hard image at index 0)
+nothing else was lifted; in `hard1_diff` on-chart (a margin-4 digit at index 7) every column was.
+
+**Withdrawn:** "a hard example re-records confident batch-mates through the feature Gram", "the coupling follows
+features, not labels", and the Gram/label readings built on it (the cosines themselves are correct measurements
+and stay on file; they explain nothing). **Stands, unchanged:** the mechanism's core — the release records an
+example at the scale of its residual — and every rank statement (`rank B_T` is basis-independent): an
+all-confident batch releases rank 3 at 1e-24; a hard example plus confident ones releases rank 1; the 98% model
+loses identifiability below the line.
+
+**The correct per-image quantity** is image `i`'s own contribution to the release: `gB = D (AH)ᵀ = Σ_i D[:,i]
+(A h_i)ᵀ`, so `B_T = Σ_i C_i` with `C_i = −lr Σ_t D_t[:,i] (A_t h_i)ᵀ`, an `m × r` piece per image, basis-free,
+and `‖C_i‖ ≲ lr · Σ_t ‖res_t,i‖ · ‖A_t h_i‖` — **proportional to the accumulated residual, with no coupling term.**
+Job 631392 (`step58_imprint`) recomputes every batch with `‖C_i‖`, gated by `Σ_i C_i = B_T` to 1e-10, and records
+the rank of the stacked imprints. Prediction: Kendall(‖C_i‖, accumulated residual) ≈ 28/28 in every batch, and
+`rank B_T` = the number of images with non-negligible imprint whenever their features are independent. The
+defender-side quantity is then simply **the per-example accumulated residual during their own fine-tuning**.
+Job 630308 (subset/OOD) was killed before producing rows because it used the flawed column to name the recorded
+images; resubmitted as 631393 on the imprint.

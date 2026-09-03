@@ -213,6 +213,11 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
 - **Multi-layer LoRA (job 626564, after the grad fix): optimisation failure in BOTH arms** — seeds known (112
   unknowns) residual 2.2e-8, 3/8 images; seeds unknown (22,384) 7.7e-7, 1/8. Gate 0.0. The three-layer unroll is
   the obstruction at this budget, not the seeds. Empirical, outside the theorems; no identifiability statement.
+- **CORRECTION (job 628731): the "coupling through features" is WITHDRAWN** — it was an artefact of reading the
+  per-image column off `B_T X(XᵀX)⁻¹`, whose QR factor makes column `i` collect the residuals of every image
+  *after* `i` in batch order (matches the data exactly). Confident images' margins do not move during training.
+  The basis-free per-image quantity is the imprint `C_i` with `B_T = Σ_i C_i`, `‖C_i‖ ∝` accumulated residual, no
+  coupling; recomputed in job 631392. Every rank statement stands (rank is basis-independent).
 - **Batch composition (job 627166) — an all-confident batch leaves NOTHING:** the 98% model fine-tuned on eight
   digits it classifies at margin ≥ 56 releases columns at 1e-24 with `rank B_T = 3` (same digits through the
   random/weak/mid encoders: full rank, O(1)…O(1e-2)). A hard example lends its residual to the batch
