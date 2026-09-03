@@ -2107,3 +2107,24 @@ which is a search over subsets the attacker can run without knowing which images
 - Wide head, `k = 16` (job 725918): 62.5% of 10,000 starts on a private digit, 15 of 20 found (17 recorded).
 - The ladder job (721391) exited on an assertion after its `mnist_control r = 64, k = 16` row (88.8%, 8 of 8); all
   `confident` rows and the `mnist_control` k = 8 rows at every rank were already on disk.
+
+### Why the ladder job stopped, and what it shows (diagnostic 748065)
+
+The ladder job (721391) tripped the imprint-sum consistency assertion (`‖Σ_i C_i − B_T‖/‖B_T‖ < 1e-10`) at the
+`mnist_control r = 64` cell after k = 16. Recomputing that release at every k (CPU, FP64):
+
+| k | ‖B_T‖ | ‖Σ C_i − B_T‖ (abs) | relative | rank B_T |
+|---|---|---|---|---|
+| 16 | 3.7e-2 | 1.0e-15 | 2.9e-14 | 8 |
+| 24 | 1.7e-6 | 1.8e-15 | 1.1e-9 | 7 |
+| 32 | 7.9e-6 | 4.9e-16 | 6.1e-11 | 7 |
+| 40 | 8.3e-6 | 1.6e-15 | 1.9e-10 | 7 |
+| 48 | 4.5e-6 | 4.4e-16 | 9.6e-11 | 7 |
+| 56 | 9.3e-5 | 1.4e-15 | 1.5e-11 | 6 |
+
+The absolute mismatch is FP64 roundoff at every k (the traced loop and `train_release` differ only in summation
+order); what changed is the release itself: **the control batch's release shrinks by four orders between k = 16
+and k = 24 and loses rank (8 → 7 → 6)** — once the chart is faithful enough, the strong model classifies the
+projected control digits confidently and records almost nothing of them (Step 18's law, now along k). The
+assertion is being floored at roundoff (`1e-10·‖B_T‖ + 1e-13`) and the five missing control cells resubmitted; the
+k = 16 control row (88.8%, 8 of 8) stands — it was on a 3.7e-2-scale, rank-8 release.

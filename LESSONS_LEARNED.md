@@ -4,6 +4,20 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A relative consistency assertion fires on a legitimately tiny release — floor it at FP64 roundoff (2026-09-03)
+
+- **Presented as:** the per-rank ladder job 721391 died with a bare `AssertionError` from `subset_and_ood.release_and_imprints`
+  (`||Σ_i C_i − B_T|| / ||B_T|| < 1e-10`) at `mnist_control r=64` on the cell after k=16; the remaining five cells of the control
+  set never ran.
+- **Cause (diagnostic job 748065, same cell recomputed on CPU):** the absolute mismatch is FP64 roundoff at every k
+  (1e-15 … 5e-16, identical between the traced loop and `train_release`), but `||B_T||` drops from 3.7e-2 at k=16 to 1.7e-6 at
+  k=24 (the on-chart control digits become confidently classified once the chart is faithful enough — rank 8 → 7 → 6, the
+  "a strong model records nothing of what it already knows" effect along k), so the relative mismatch became 1.1e-9. Not a
+  recipe discrepancy: the two loops differ only in summation order.
+- **Fix:** make the tolerance `1e-10·||B_T|| + 1e-13` (an absolute floor at roundoff × scale) and print the three numbers in the
+  assertion message. General rule: a *relative* consistency check on a quantity that is legitimately near zero needs an
+  absolute floor, and a bare `assert` with no message costs a diagnostic job to read.
+
 ## 2026-09-03 — WEXAC compute nodes cannot see the session scratchpad (`/tmp` is node-local)
 
 - **Presented as:** a `bsub -q short` diagnostic died in 6 s with `python: can't open file '/tmp/claude-.../scratchpad/x.py': No such file or directory` (job 747682).
