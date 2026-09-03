@@ -148,6 +148,18 @@ degradation splits by N (the defender's variable), not by distance past the line
 N=8 stays inside tolerance sixteen units past the line, N=12/14 are outside one unit past; and every past-line
 error is a lower bound on the fibre's extent (near-init finds the nearest branch; walks stopped by budget).
 
+**17. A "surprising" cross-dataset comparison is usually a comparison of image statistics.** The MNIST prior
+appeared to draw two foreign sets BETTER than it draws MNIST (0.317 and 0.383 against 0.518), which was written up
+as a refuted prediction — the attacker's own-domain prior failing to be domain-specific. The blur control settles it:
+downsampling the same eight MNIST digits to 8 pixels and re-measuring on the same basis gives 0.320, against
+optdigits' 0.317. Scanned digits and rendered glyphs are simply lower-bandwidth than handwriting, and a
+low-dimensional linear chart represents smooth images better whatever fitted it. So the provenance of the chart
+contributed nothing measurable and that half of the prediction was never tested. Rule: before attributing a
+cross-dataset difference to what the datasets ARE, match their low-level statistics — resolution, blur, dynamic
+range — and re-measure. The control cost one CPU job on data already on disk, and it was the auditor's suggestion
+rather than mine: my instinct had been "try a rougher foreign set", which would have varied the same nuisance
+factor again instead of holding it fixed.
+
 **16. Two arms of an experiment that differ in the factor you name may also differ in the data.** A seven-order
 difference in conditioning was attributed to the label multiset because the two arms were called "distinct" and
 "repeated" — but the arms were different image sets, not the same images relabelled, and the repeated one happened to

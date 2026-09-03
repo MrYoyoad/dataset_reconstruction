@@ -70,17 +70,17 @@ What the section establishes, in order — every label as in the .tex:
   digits through the random/weak/mid encoders give rank 8 with columns of order 1 — so it is the model, not the
   digits. On-chart (projection lowers margins) one column rises to 0.41 but rank stays 3: what confident images then
   carry is a hard image's residual spread collinearly, so RANK, not column size, is the witness.
-- **OUT-OF-DISTRIBUTION PRIVATE DATA IS MORE EXPOSED ON BOTH AXES (job 644062, strong 98% backbone, raw).**
-  Control = random distinct-label MNIST test draw through the identical pipeline. UCI optdigits scans: base accuracy
-  †4/8, median margin †−2.0, every imprint O(1) with five within a decade of the largest, rank B_T †8/8 — where the
-  MNIST control has rank †6 and is dominated by ONE example (relative imprints 1, then ≤2e-5). So the imprint law
-  holds on data of a kind the model has never seen, and foreign data is recorded in FULL. BUT the second half of the
-  two-sided prediction FAILED: the MNIST PCA chart draws both foreign sets BETTER than MNIST (†0.317 optdigits,
-  †0.383 fonts vs †0.518 control) — upscaled scans and rendered glyphs are smoother than handwriting, so a
-  16-component subspace captures more of them. Both factors favour the attacker on these sets. Scoped: that is
-  about THESE sets, not foreignness in general (a rougher set, e.g. photographs, could reverse the chart half), and
-  the fonts already show the other failure mode — three bold glyphs classified at margins 31–47 leave imprints
-  ≤1e-11, so fonts are a partly failed OOD manipulation. Weak and mid: rank 8/8 on every set.
+- **FOREIGN PRIVATE DATA: the RECORDING half stands, the CHART half is WITHDRAWN (jobs 644062, 667729).** Strong 98%
+  backbone, raw digits, 8 examples, in-distribution control = random distinct-label MNIST test draw. STANDS: UCI
+  optdigits scans are misclassified †4/8, every imprint is O(1), rank B_T †8/8 — against the control's rank †6. So
+  data the model gets wrong is recorded in full and the imprint law holds on data of a kind it has never seen; the
+  chain is the margin, not foreignness (the fonts are foreign AND classified 8/8, and have rank 6 because three bold
+  glyphs sit at margins 31–47). WITHDRAWN: "the MNIST chart draws the foreign sets better" (0.317 / 0.383 vs 0.518)
+  is RESOLUTION, not provenance — the blur control downsamples the same eight control digits on the SAME k=16 basis
+  and gets †0.354 / 0.343 / 0.320 / 0.268 at 14/10/8/6 px against optdigits' †0.317, with a 2000-digit reference
+  moving †0.521 → †0.336; fonts' 0.383 sits where blurred MNIST sits. So "both effects favour the attacker" is
+  withdrawn and that half of the prediction was never tested. The test that would survive it needs foreign digits at
+  MATCHED resolution (USPS 16×16 upsampled as the control is downsampled) and has not been run.
 - **MECHANISM, FINAL FORM (job 631392) — the release is a sum of per-example imprints.** ∇_B L = s Σ_i D[:,i](A h_i)ᵀ,
   so B_T = Σ_i C_i with C_i = −ηs Σ_t D_t[:,i](A_t h_i)ᵀ and ‖C_i‖ bounded by example i's OWN accumulated softmax
   residual — no cross term. Measured over 40 batches × 4 encoders (gate ‖Σ C_i − B_T‖/‖B_T‖ < 4e-12): Kendall(‖C_i‖,
