@@ -1513,3 +1513,34 @@ feature geometry, not by margins) and it is rank 8 — the negative control for 
 not an anecdote; on the weaker models it never happens. Whether that one image can be recovered from random
 public-scale starts by residual ranking alone is job 650890 (per-start floor fractions, argmin-residual label
 and image, `k ∈ {16, 24, 25, 26}` toward the one-image line `k < m + r − 1 = 25`).
+
+## Step 21 — adding a NEW CLASS by LoRA (jobs 656205 CIFAR flowers; 658575 EMNIST 'a' on the MNIST models) — IN FLIGHT, predictions pre-registered
+
+`new_class.py`. The head is extended by one row for class 10 (zero, the practice; a random row at the existing
+rows' RMS norm as the arm that gives the new class ordinary-spread initial margins), LoRA on the extended head,
+`B₀ = 0`, `r = 16`, `T = 400`, `lr = 0.01`, `N = 8`, `k = 16`; line `k < m + r − N = 19`. Private new-class images
+from a TEST split never seen by backbone or chart; the attacker's chart = PCA on the public TRAIN images of that
+class (2,500 CIFAR-100 flowers; 4,800 EMNIST 'a's); generic chart as control; the in-distribution control runs on
+the SAME extended head (`old_ext`, zero row present, never the target) so `m` is matched. Every row carries the
+imprints' Gram (σ_N/σ_1, pairwise cosines) beside the imprint norms: *absent* (small norms) and *aligned* (small
+angles) are different causes of a poor `σ_min(J)`, and this is the field that separates them.
+
+**Pre-registered before the mid/weak arms and the controls report (2026-09-03, evening):**
+1. New class ⇒ imprints all `O(1)` and `rank B_T = 8` — present — but aligned (imprint-Gram `σ_N/σ_1` small, far
+   above the floor); alignment is a *conditioning* cost, not a wall. *(First rows, zero-row arm: CIFAR flowers —
+   imprints 0.4–1.0 relative, rank 8, Gram `σ_N/σ_1` 0.145 / 0.097, mean cosine 0.50 / 0.57, cell (a) at the floor
+   in 62 iterations with `σ_min` 2.4e-6; strong MNIST + 'a' — imprints 0.3–1.0, rank 8, Gram 0.092, cosine 0.52.)*
+2. **The quality ladder flattens for a new class**: imprints `O(1)` and rank 8 at 78%, 95% and 98% alike — a zero
+   row means maximal error regardless of encoder quality — whereas ordinary digits on the same models fall from
+   rank 8 to rank 6 with one dominant image. If it holds, *how good the model is* and *whether it has seen the
+   category* are two independent axes of exposure.
+3. The random-row arm gives the new class initial margins with spread; the imprint law is *tested* there
+   (Kendall of imprint vs accumulated residual), not exhibited by construction as under the zero row.
+4. The side-by-side table this section is for: the SAME 98% encoder on eight confident digits vs eight 'a's —
+   imprint norms, imprint-Gram `σ_N/σ_1`, `rank B_T`, `σ_min(J)` at the truth — to be filled from 658575's `old_ext`
+   and `new` rows.
+
+Scoping fixed in advance: near-truth starts, labels given (`oracle = [near_init, labels]`); under the zero row the
+new class's negative margin is set by the initialisation, not learned — margin claims ride on the random-row arm;
+the CIFAR MLP is a weak encoder (53% best-test-epoch checkpoint) and that domain isolates the new-class /
+shared-label structure only, not a quality replication.
