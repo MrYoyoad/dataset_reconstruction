@@ -2358,3 +2358,96 @@ letters may be chance-correct at t = 1 (positive margin) and show lower imprints
 imprints; the release survives every format, with only a chance-correct letter of margin > ~16.6 (unlikely at
 ordinary spread) dropping out under fp16 training. The zero-init arm remains primary (the honest model of a class
 the network does not have).
+
+### Step 25 (jobs 760909, 760912; `train_precision.py`): the release loop run in fp32 / bf16 / fp16
+
+Same recipe, every tensor cast to the format and the loop run in it; FP64 column is the gate (reproduces
+`train_release` to 6e-32 at the headline cell, 9e-16 at the O(1) letter cell).
+
+| cell | format | ‖B_T‖ | rel. dev. from FP64 | ‖ΣC_i − B_T‖ | feedback ‖B_T A_T H‖/‖z‖ | A_T − A₀ (rel) | N′ (tight / noise-matched) | certificate residual at the truths |
+|---|---|---|---|---|---|---|---|---|
+| confident k = 32 | fp64 | 7.62e-18 | — | **6e-32** | 4e-19 | **0** | 8 / 8 | 5e-15 … 2e-5 |
+| | fp32 | 7.62e-18 | 3e-6 | 2e-23 | 4e-19 | 3e-8 | 10 / 4 | 3e-6 … 2e-4 (4 images), 0.9 (4) |
+| | bf16 | 6.84e-18 | **0.21** | 3e-21 | 4e-19 | 2e-3 (the cast) | 10 / 2 | 0.18 at the two strongest |
+| | fp16 | **0** | 1 | 0 | 0 | — | 0 | — |
+| control k = 32 | fp64 | 7.89e-6 | — | 6e-21 | 5e-7 | 1e-11 | 7 / 7 | 5e-15 … 2e-5 |
+| | fp32 | 7.99e-6 | 0.02 | 3e-12 | 5e-7 | 3e-8 | 10 / 7 | 7e-7 … 8e-4 (5), 0.018, 0.82 |
+| | bf16 | 5.37e-6 | **0.72** | 6e-11 | 3e-7 | 2e-3 | 10 / 2 | 0.19, 0.20 at the two strongest |
+| | fp16 | **0** | 1 | 0 | 0 | — | 0 | — |
+| confident k = 8 | fp64 | 0.465 | — | 5e-16 | 0.040 | 0.029 | 7 / 7 | ≤ 6e-8 (recorded) |
+| | fp32 | 0.465 | 5e-7 | 2e-7 | 0.040 | 0.029 | 10 / 5 | ≤ 9e-5 (5), 0.9 (2 weakest) |
+| | bf16 | 0.397 | 0.17 | 0.02 | 0.026 | 0.018 | 10 / 2 | 0.07 |
+| | fp16 | 0.474 | 0.03 | 3e-3 | 0.038 | 0.026 | 7 / 2 | 0.03–0.04 |
+| **letters 'a' k = 32** | fp64 | **1.00** | — | 9e-16 | **0.43** | **0.093** | 8 / 8 | **2e-13 … 7e-12** |
+| | fp32 | 1.00 | 4e-7 | 5e-7 | 0.43 | 0.093 | 11 / 8 | 3e-7 … 1e-5 (tight), 1e-4 … 3e-3 (10ε) |
+| | bf16 | 0.894 | 0.12 | 0.09 | 0.36 | 0.085 | 11 / 3 | 0.04 … 0.23 |
+
+Margins (t = 1 → T): confident k = 32: 42–69 unchanged to three digits; control k = 32: 13.6–55 unchanged;
+confident k = 8: image 4 from 0.02 to 4.6 (the adapter acts); **letters: −8.95 … −2.65 at t = 1 → +6.0 … +13.7 at T
+(the model learned the class)**. Fraction of residual entries exactly zero: 0.10 at the headline cell *already in
+FP64* (the eight own-class entries `p_y − 1` round to zero at margins > 37), 0.14 fp32, 0.18 bf16, 1.0 fp16.
+
+**Random-start certificate search from the low-precision releases (500 starts, 1e-2 landing bar):**
+
+| cell | release | tolerance | N′ (line) | on a recorded image | found | first-landing error (residual at truth) |
+|---|---|---|---|---|---|---|
+| letters k = 32 | **fp64** | 1e-12 | 8 (56) | **38.4%** (all at floor) | **8 of 8** | 1e-12 … 6e-11 (2e-13 … 7e-12) |
+| letters k = 32 | fp32-trained | 1.2e-6 | 8 (56) | 16.2% | 6 of 8 (letters 0, 1 missing: residual 2.7e-3, 3.3e-3) | 6e-4 … 1e-2 (1e-4 … 1e-3) |
+| confident k = 32 | fp32-trained | 1.2e-6 | 4 (60) | 67.2% | 4 (1, 2, 5, 6) | 5e-6 … 1e-3 (3e-6 … 2e-4) |
+| control k = 32 | fp32-trained | 1.2e-6 | 7 (57) | 42.0% | 5 of 7 (0, 2, 3, 4, 6) | 1e-6 … 2e-3 (7e-7 … 8e-4) |
+
+**Reads.** (i) **The letters are the decisive cell and they came back as predicted:** a new class the base model
+does not have (margins −9 … −3 at t = 1, k-independent by construction), release of norm 1.0, the adapter moving the
+logits by 43% and the model learning the class (+6 … +14 at T), imprints 0.12–0.26 for every letter, certificate
+residuals 1e-12 at the truths **with a moving adapter** — and **all eight letters recovered from random starts
+with no recipe and no labels (38% of starts, argmin 3e-26) at k = 32**, chart error .24. One cell that is both
+robust and instance-level. (ii) **Precision-of-training acts through accumulation, and only when the adapter
+moves.** At the frozen-logit cells (feedback 1e-19, 5e-7) fp32 reproduces the FP64 release to 3e-6 / 2e-2 and the
+certificate keeps its images (the √2 detail pre-registered was wrong: FP64 had *already* rounded the own-class
+entries to zero, so nothing further was lost); at the letters (feedback 0.43) fp32's 400 accumulated roundings
+move the row space by 1e-4 … 3e-3 per image and the search from the fp32-trained release recovers 6 of 8 at the
+(wrong) noise-matched tolerance — the tight-tolerance search is running (764976). **bf16 training is a different
+regime from bf16 storage**: accumulating 400 steps in an 8-bit mantissa moves the release by 21% (headline), 72%
+(control), 12% (letters) and the certificate residuals at the strongest truths to 0.18–0.2 (digits) / 0.04–0.23
+(letters), against 2e-3 from a one-shot bf16 cast of the FP64 release (Step 24). (iii) **fp16 training zeroes the
+control's release too**, though its residuals exp(−13.6) = 1.2e-6 are representable: what must survive is the
+*update* `lr·R_i/N` (B starts at zero), 800× smaller — the fp16 training threshold is margin ≲ 10, not 16.6; the
+confident k = 8 cell (margins 0.02 … 0.9 for the recorded digits) keeps its release under fp16 to 3%. (iv) **The
+imprint-sum mismatch scales with the signal** (6e-32 at ‖B_T‖ 7.6e-18; 6e-21 at 7.9e-6; 5e-16 at 0.47; 9e-16 at 1.0) —
+the 7.6e-18 release is structure, not roundoff (yoado-6e's check). (v) The "adapter moves" companion is not the
+control at k = 32 (feedback 5e-7, margins frozen) but the letters and confident k = 8 — both recorded, both attackable.
+
+### The landing error tracks the certificate residual at the truth (all cells, from the saved first landings)
+
+Across every cell above and every Step 24 cell, the first landing's image error is **≈ 4–5 × the certificate
+residual at that image's truth**: fp64 headline 4e-6 → 1.3e-5, 5e-15 → 2e-14; tf32 storage 2e-4 → 9e-4 … 1.7e-3;
+bf16 storage 2e-3 → 6e-3 … 9e-3; letters fp32-trained 1e-4 → 6e-4, 1e-3 → 6e-3 … 1e-2. So "approximately
+contained → proportionally approximate recovery" is the mechanism (yoado-6e's first outcome), and the 1e-2 landing
+bar corresponds to a residual of ~2e-3 — which is why bf16 storage (residuals 2e-3 at five images) landed three of
+them just under the bar (errors 6e-3 … 9e-3) and missed two, and why the two missing fp32-trained letters
+(residuals 2.7e-3, 3.3e-3) are just over it. **Step 24's tf32 "5 found" is therefore five recovered to ~1e-3
+image error, not to 1e-7 as at fp32 or 1e-14 at fp64**; the count is honest, the sharpness scales with the residual.
+
+### Step 24, bf16 storage (753371, eighth cell): 3 found, all approximately
+
+bf16 release at tol 1e-12: N′ = 10, quantised spectrum 1, .9, 9e-4, 2e-4, 1e-4, 7e-6, 4e-6, 2e-6 (floor 3–4 orders
+below ε = 7.8e-3 — this cell); residual 2e-3 at the five above-floor truths, 0.8–0.9 at the three destroyed; 21% of
+starts land; **found 3 (images 1, 5, 7) at errors 6e-3 … 9e-3** — the other two above-floor images (2, 6) sit at the
+same 2e-3 residual and simply did not cross the 1e-2 bar. The ninth cell (tol 0.08, N′ = 2) is pending. On the "3
+orders below ε" magnitude (yoado-6e): √(m·r) = √640 ≈ 25 accounts for ~1.4 of them by the random-matrix heuristic;
+the rest is structured rounding error and is this-cell-specific until another spectrum shows it.
+
+### Control ladder at r = 64 (749362, after the assertion floor)
+
+| k | N′ (line) | on a recorded image | at floor | found |
+|---|---|---|---|---|
+| 24 | 7 (57) | 71.6% | 59.4% | 7 of 7 |
+| 32 | 7 (57) | 51.6% | 42.6% | 7 of 7 |
+| 40 | 7 (57) | 18.2% | 15.2% | 7 of 7 |
+| 48 | 7 (57) | 6.6% | 5.0% | 6 of 7 |
+| 56 | 6 (58) | pending | | |
+
+The control batch (releases 1e-6 … 1e-4, seven recorded at every k) is attackable across the whole range with the
+basin falling with k as the confident batch's does (16.6% at k = 8 on the confident batch was a different rank);
+argmin on a recorded image at every k; chart class accuracy 1.0. Job 753886 Part A at bf16 k = 58: ‖B_T‖ 1.6e-24,
+N′ = 3 at tol 0.08 (σ_rel 1, .7, .2), line 61, residuals 2e-3 … 3e-3 at three truths, 0.94–0.97 at five (Part B pending).

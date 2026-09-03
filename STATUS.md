@@ -267,6 +267,8 @@ What the section establishes, in order — every label as in the .tex:
 ## HEADLINE (2026-09-03 night, jobs 728592/721391, RESULTS Step 23): private images recovered from RANDOM starts, no recipe, no labels
 
 > **Scope caveat (2026-09-03, job 752500):** the headline cell's release has norm **7.6e-18** — the confident batch's projections at k = 32 have margins 42–60 and the strong model records only their 1e-18 softmax residuals. The certificate is scale-free in FP64, so the recoveries are exact, the release survives fp32 and bf16 *training* arithmetic (the off-class softmax entries exp(−margin) stay representable to margins ~100; the release never feeds back into the logits, so `A_T = A_0` and `B_T` is the closed-form one-step gradient × T) and is erased only by fp16's range (exp(−42) underflows) — pre-registered, RESULTS Step 24 continued; fp16 storage zeroes the file outright (measured, 753371: 0 found); fp32/tf32 storage keeps five of eight (the three recorded at 1e-11…1e-12 relative are destroyed — residual 0.9 at their truths); bf16 pending. The control batch (margins 11–15) keeps a 1e-6…1e-4 release at every k. The leakage-vs-k picture is therefore: what the model still had to learn about the projections, which vanishes as the chart sharpens for a confident batch.
+>
+> **Decisive robust cell (760909, RESULTS Step 25):** a NEW CLASS (EMNIST 'a' as an eleventh output, zero head row) at r = 64, k = 32 — release norm 1.0, adapter moves the logits by 43%, margins −9…−3 → +6…+14 — **all eight letters recovered from random starts, no recipe, no labels (38% of 500 starts)**, certificate residuals 1e-12 at the truths with a moving adapter. Under fp32 TRAINING: 6 of 8 at the noise-matched tolerance (tight-tolerance search running); bf16 training moves the release 12–72% (accumulation), fp16 training zeroes any release whose update lr·R/N underflows (margin ≳ 10). Landing error ≈ 5 × certificate residual at the truth, in every cell.
 
 Strong 98% MNIST model, LoRA r = 64, eight private digits it was confident about, 32-component public PCA chart:
 the certificate-only inversion from 500 random public-scale starts lands on a private digit **66% of the time,
@@ -415,6 +417,7 @@ Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Ev
   prediction came out with the opposite sign (same-class 1s not lifted; different-class on-chart batch lifted):
   the coupling follows **feature overlap**, not label — Gram measurement in flight (`step55_gram`).
 - **In flight:** feature-Gram measurement; chart budget reruns (624463); β = 4, 16 (624465); random-encoder
+- 764976: tight-tolerance (1e-12) search from the fp32- and bf16-TRAINED releases (letters, confident, control at k=32) — the noise-matched tolerance was the wrong knob.
 - 763805: random-init letter arm of the training-precision cell (robustness check; zero-init 760909 is primary).
 - 760909 / 760912: the release loop run in fp32/bf16/fp16 (`train_precision.py`): new-class letters (decisive), confident k=32 (negative control), control k=32 (adapter moves), confident k=8; feedback and imprint-sum mismatch per row; pre-registered in RESULTS Step 24 continued.
 - 753886: bf16 vs fp64 release ABOVE the FP64 certificate line (k=58, 60; does quantisation widen the line while narrowing the channel?) — pre-registered under Step 24.

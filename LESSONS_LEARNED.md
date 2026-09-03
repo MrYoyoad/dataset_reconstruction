@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Training precision acts through accumulation and through the UPDATE's range, not the residual's (2026-09-03)
+
+- **What was pre-registered:** fp32 training keeps a 1e-18 release with the own-class rows lost (√2 lower); fp16 training kills residuals with margin > 16.6.
+- **What the rows said (760912/760909):** (a) FP64 had already rounded the own-class entries `p_y − 1` to zero at margins > 37, so fp32 lost nothing further (release identical to 3e-6). (b) fp16 zeroed the CONTROL's release although its residuals exp(−13.6) = 1.2e-6 are representable in fp16: the quantity that must survive is the update `lr·R_i/N` (B starts at zero), 800× smaller — threshold margin ≈ 10. (c) bf16 TRAINING is not bf16 STORAGE: 400 accumulated 8-bit roundings move the release by 12–72% and the certificate residuals at the strongest truths to 0.2, against 2e-3 from a one-shot cast. (d) fp32 accumulation matters only where the adapter moves (letters, feedback 0.43): residuals at the truths 1e-4 … 3e-3 and 6 of 8 recovered, vs 8 of 8 in FP64; at frozen-logit cells (feedback 1e-19) fp32 is exact.
+- **Rule:** when predicting a precision effect on a recurrence, trace the smallest quantity that is *stored* (here the increment of a zero-initialised tensor), and separate one-shot rounding (storage) from accumulated rounding (training). Also: the landing error is ~5× the certificate residual at the truth in every cell — report sharpness with the count.
+
 ## A quantised release's usable rank is set by its measured spectrum floor, not by the format's unit roundoff (2026-09-03)
 
 - **Presented as:** the pre-registered "band rule" (images recoverable = singular directions above the format's roundoff ε) predicted 2–3 found from a tf32 release of the headline cell; 5 were found at a tight certificate tolerance (job 753371).
