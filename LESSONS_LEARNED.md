@@ -78,6 +78,21 @@ GLIBC 2.35 and fails; the `rec` env's `pdflatex` is a bare binary with no TeX tr
 network. Build script: `scripts/rev10_figs/build_pdf.sh`. Page rendering for a visual check: PyMuPDF
 (`python3 -m pip install --user pymupdf`), since `pdftoppm` is absent.
 
+**9. Three audit lessons from the same pass, all about the gap between a number and its evidence.**
+(a) *A dagger requires a committed artefact.* Two numbers in the write-up — the six-step global schedule fit
+(T=400 / T_max=1000 / base 0.01) and Adam's ‖1ᵀB_T‖/‖B_T‖ ≈ 2.6 — had no script, row or log behind them; the
+schedule fit was a re-analysis the executor ran but never committed (an auditor reproduced it from the saved
+η values, so the number is right, but "right" is not "verified"). Until the artefact exists the text says so
+and the † is withheld. (b) *"Monotone" is a claim about ordering, not magnitude.* "The residual is monotone in
+the size of the recipe error" was refuted by two pairs in the same table (η×2 ends below η/2; T+25% is 18×
+below T−25%): a detector, not a graded objective. (c) *"1 of 20 recovered" inherited a field.* The jsonl
+`verdict` thresholds on image error alone; by the document's own three-way classification (residual at the
+floor AND machine-precision error) that run — residual 9e-7, restart budget exhausted — is a search failure.
+Never inherit a verdict field into a document that defines its own classification. Also: the past-line
+degradation splits by N (the defender's variable), not by distance past the line (the attacker's chart) —
+N=8 stays inside tolerance sixteen units past the line, N=12/14 are outside one unit past; and every past-line
+error is a lower bound on the fibre's extent (near-init finds the nearest branch; walks stopped by budget).
+
 ---
 
 ## `k` is a property of the chart, not of the data — do not read a dimension bound as a privacy bound (2026-09-03)
