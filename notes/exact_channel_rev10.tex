@@ -708,31 +708,57 @@ $300$).}\label{fig:cond}
 
 \subsubsection*{What the release records, and when it records nothing}
 
-\paragraph{Encoder quality, and where the law stops applying.} Holding the
-architecture fixed ($784\to1000\to1000\to10$ GELU) and varying only how well
-it was trained — random weights at the trained layer norms ($8.7\%$ test
-accuracy), then checkpoints at $78.5\%$, $95.1\%$ and $97.9\%$ — with three
-$A_0$ draws per cell, at $k=16$, two units below the line$^\dagger$ (job
-625113; geometric means over the draws):
+\paragraph{Encoder quality, at fixed architecture.} Varying only how well
+the network was trained — random weights at the trained layer norms ($8.7\%$
+test accuracy), then checkpoints at $78.5\%$, $95.1\%$ and $97.9\%$ — with
+three $A_0$ draws per cell, at $k=16$, on the global chart with eight
+distinct labels$^\dagger$ (job 625113):
 \begin{center}\small
 \begin{tabular}{@{}lccccc@{}}\toprule
 encoder & accuracy & $\sigma_{\min}$ at the truth & $\operatorname{cond}$ & $\operatorname{rank}B_T$ ($N=8$) & $\operatorname{rank}D\rho$ / cols\\ \midrule
-random & $0.087$ & $1.7\times10^{-5}$ & $3.8\times10^{5}$ & 8 & 256/256\\
-weak   & $0.785$ & $1.4\times10^{-7}$ & $5.4\times10^{7}$ & 8 & 256/256\\
-mid    & $0.951$ & $7.1\times10^{-9}$ & $9.3\times10^{8}$ & 8 & 256/256\\
-\textbf{strong} & $0.979$ & $2.0\times10^{-15}$ & $6.1\times10^{15}$ & \textbf{6} & \textbf{210/256}\\ \bottomrule
+random & $0.087$ & $7.5\times10^{-5}$ & $7.5\times10^{4}$ & 8 & 256/256\\
+weak   & $0.785$ & $9.1\times10^{-7}$ & $8.6\times10^{6}$ & 8 & 256/256\\
+mid    & $0.951$ & $1.3\times10^{-8}$ & $4.8\times10^{8}$ & 8 & 256/256\\
+strong & $0.979$ & $5.6\times10^{-12}$ & $3.4\times10^{12}$ & 8 & 254--255/256\\ \bottomrule
 \end{tabular}
 \end{center}
-Two readings, and the second is a limitation of the theorems rather than a
-measurement of them. \emph{Conditioning degrades monotonically with encoder
-quality} — ten orders of $\sigma_{\min}$ from random weights to $97.9\%$, at
-a fixed architecture, a fixed chart and a fixed $k$ inside the capacity
-region. And \emph{on the strongest encoder the law stops applying at all}:
-$\operatorname{rank}X=8$ in every row while $\operatorname{rank}B_T$ is $6$
-(and $5$ on the local chart), so $\operatorname{rank}P_T<N$ and
-hypothesis~(A4) fails. $D\rho$ is rank-deficient at $k=16$, \emph{below} the
-line — the first loss of identifiability in this study that is not caused by
-the count.
+Seven orders of $\sigma_{\min}$ and eight of the condition number, monotone,
+at a fixed architecture, chart and $k$ inside the capacity region. The
+private data is identifiable at every rung: $\operatorname{rank}B_T=8$
+throughout, so (A4) holds.
+
+\paragraph{Where the law stops applying, and it needs two conditions.}
+Identifiability does fail below the line, but not on encoder quality alone.
+Holding the same encoder and varying only what is asked of it$^\dagger$
+(same job, same seeds, same $k$):
+\begin{center}\small
+\begin{tabular}{@{}llccc@{}}\toprule
+encoder & chart, labels & $\sigma_{\min}$ at the truth & $\operatorname{cond}$ & $\operatorname{rank}B_T$\\ \midrule
+strong & global, distinct & $5.6\times10^{-12}$ & $3.4\times10^{12}$ & \textbf{8}\\
+strong & global, two labels repeated & $7.0\times10^{-19}$ & $1.1\times10^{19}$ & \textbf{6}\\
+strong & class-local, distinct & $3.5\times10^{-19}$ & $6.1\times10^{19}$ & \textbf{6}\\
+strong & class-local, repeated & $6.5\times10^{-19}$ & $4.7\times10^{19}$ & \textbf{5}\\
+mid & global, two labels repeated & $3.9\times10^{-9}$ & --- & 8\\ \bottomrule
+\end{tabular}
+\end{center}
+Seven orders separate the first two rows — same encoder, same chart, same
+$k$, same seeds, only the label multiset differing. So $\operatorname{rank}
+P_T<N$, and with it the failure of (A4) and a rank-deficient $D\rho$ two
+units \emph{below} the capacity line, requires a strong encoder
+\emph{and} something that makes it more confident still: either two examples
+sharing a label, or a class-local chart that moves each example toward its
+own class mean. Neither condition alone suffices — the mid encoder with
+repeated labels keeps rank $8$ at $3.9\times10^{-9}$, and the strong encoder
+with distinct labels keeps rank $8$ at $5.6\times10^{-12}$.
+
+This is the imprint law of the next paragraph rather than a separate
+phenomenon: anything that raises the model's confidence on a private example
+shrinks what the release records about it, and two examples the model fits
+\emph{and} labels identically have imprints that are both tiny and nearly
+parallel, so they leave the rank together. The earlier version of this
+section attributed the rank loss to encoder quality alone, by averaging the
+two label sets into one rung — a geometric mean of $2.0\times10^{-15}$ that
+no measurement lies within three orders of.
 
 \paragraph{What the release records, per example.} The gradient in $B$ is
 $\nabla_BL=s\,D\,(AH)^{\!\top}=s\sum_i D[:,i]\,(Ah_i)^{\!\top}$, a sum of
@@ -749,15 +775,43 @@ example. Since $B_0=0$ starts the trajectory at $W_0$, an example the base
 model already classifies with margin $M$ enters at the scale of its softmax
 error there, $\mathrm e^{-M}$.
 
-Measured$^\dagger$ (job 631392; forty batches over four encoders, gated at
-$\|\sum_iC_i-B_T\|/\|B_T\|<4\times10^{-12}$): the rank correlation between
-$\|C_i\|$ and $\sum_t\|D_t[:,i]\|$ is $971$ of $1120$ concordant pairs, and
-$28$ of $28$ in every strong-encoder batch; within each batch the ratio
-$\|C_i\|/\sum_t\|D_t[:,i]\|$ varies by less than a decade. The exception is
-the random encoder, at chance — there all eight accumulated errors lie in
-$0.93$--$0.97$, so there is nothing to order, and the ratio is constant to
-$\pm0.3$ decades. And in all forty batches $\operatorname{rank}B_T$ equals
-the number of examples whose imprint clears the floor.
+Two things are measured, and the second is the substantive one. First, in
+all forty batches $\operatorname{rank}B_T$ equals the number of examples
+whose imprint clears the floor$^\dagger$ (job 631392, gated at
+$\|\sum_iC_i-B_T\|/\|B_T\|<4\times10^{-12}$): the rank of the release is a
+count of the examples it records. Second, and this is the non-obvious part,
+the \emph{ratio} $\|C_i\|/\sum_t\|D_t[:,i]\|$ is tight — median
+$3.0\times10^{-3}$ overall, and within a single batch it varies by a median
+of $0.4$ and at worst $0.95$ of a decade. Since $C_i$ is a sum over $T=400$
+steps of terms each carrying $D_t[:,i]$, the per-step contributions could
+have cancelled to any degree; that they do not, uniformly across encoders
+and batches, is a dynamical fact and not an algebraic one.
+
+The rank correlation between $\|C_i\|$ and $\sum_t\|D_t[:,i]\|$ is then
+$971$ of $1120$ pairs, but it should be read per encoder rather than pooled,
+because one population contributes nothing:
+\begin{center}\small
+\begin{tabular}{@{}lccc@{}}\toprule
+encoder & concordant pairs & batches ordered perfectly & within-batch spread of the accumulated error\\ \midrule
+random ($8.7\%$) & $148/280$ ($53\%$) & $0/10$ & $\times1.04$ to $\times1.21$\\
+weak ($78.5\%$) & $269/280$ ($96\%$) & $5/10$ & wide\\
+mid ($95.1\%$) & $275/280$ ($98\%$) & $5/10$ & wide\\
+strong ($97.9\%$) & $279/280$ ($99.6\%$) & $9/10$ & wide\\ \bottomrule
+\end{tabular}
+\end{center}
+The random encoder is at chance for a reason that is itself quantitative
+rather than an excuse: its eight examples differ in accumulated error by
+only $4$ to $21\%$, which is smaller than the ratio's own within-batch
+scatter of a third to a whole decade. So the ordering is resolvable exactly
+when the spread in error exceeds the scatter in the ratio — a criterion that
+says in advance where the law will and will not order examples, and which
+the three trained encoders satisfy comfortably.\footnote{Because $C_i$
+contains $D_t[:,i]$ as a factor, a log-log plot of $\|C_i\|$ against
+$\sum_t\|D_t[:,i]\|$ is close to plotting a quantity against its own bound,
+and a slope-one line is largely forced by \eqref{eq:imprint}. The evidence
+is therefore the tightness of the ratio and the rank identity, not the
+correlation; Figure~\ref{fig:imprint} is an illustration of the former, not
+the argument for it.}
 
 \begin{figure}[htbp]\centering
 \includegraphics[width=\linewidth]{fig_imprint.png}
@@ -795,9 +849,15 @@ For the attacker, the capacity $m+r-N$ is an upper bound that a confident
 model does not spend, and $\operatorname{rank}B_T$ read off the release says
 how many examples were recorded at all. For the defender, the per-example
 accumulated residual during their own fine-tuning — a quantity already
-computed in the course of training — is the meter, and nothing about labels,
-feature overlap or batch composition enters
-it.\footnote{An earlier version of this section attributed per-example
+computed in the course of training — is the meter. Batch composition cannot
+enter the \emph{form} of the bound in \eqref{eq:imprint}, and it enters its
+\emph{value} only weakly: the accumulated error is trajectory-dependent and
+the trajectory is shared, but holding the images fixed and permuting the
+label multiset moves the accumulated error by $0.1$--$4\%$ and the imprint
+by about $5\%$. That is composition-independence tested against label
+permutation only; the case that would test it properly — the same example in
+a batch of confident examples, then beside a badly fit one — is not in the
+design (\S\ref{sec:opens}).\footnote{An earlier version of this section attributed per-example
 content to the columns of $P_T$ and reported a coupling between batch-mates.
 Column $i$ of $P_T=-\eta s(\sum_tD_t)R_H^{\!\top}$ mixes every example
 $j\ge i$ in batch order through the triangular factor of $H=U_cR_H$: it is
@@ -1286,8 +1346,11 @@ re-derivation, and each is itemised in the repository's lessons log.
   distribution, does $\operatorname{rank}P_T$ begin to fall? That a
   deliberately high-margin fine-tuning set suppresses the release is now
   measured (\S\ref{sec:measured}, the confident batch); what is not is how
-  the suppression degrades as the batch is diluted with harder examples, and
-  whether the feature Gram predicts the dilution quantitatively.
+  the suppression degrades as the batch is diluted with harder examples. The
+  measurement that settles it is the same example's imprint in a confident
+  batch and then beside a badly fit one, which no cell yet contains; the
+  question is about \eqref{eq:imprint}'s value through the shared trajectory,
+  not about the feature coupling that was withdrawn.
 \item \textbf{LoRA on more than one layer.} Adapting the first layer moves
   its own successors' inputs, so (A1) fails downstream: the closure of
   Theorem~\ref{thm:traj} does not hold, several adapters are released, and
