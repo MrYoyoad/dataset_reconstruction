@@ -22,6 +22,15 @@ World: `k`-dim tanh generator → 64-dim image → tanh encoder → `n=96` featu
 LoRA `r=16`, `B₀=0`, Gaussian `A₀`, plain SGD. Attacker gets `(A_T, B_T)`, `W₀`, φ, ψ, the labels and the
 recipe; never `A₀`, `H`, or the trajectory. "Recovered" = relative image error < 1e-2 for **every** image.
 
+**Scope (independent genuineness audit by a sibling session, 2026-09-03, read-only over code + rows).** This is a
+single LoRA *head* on frozen features — `W₀ + BA` on the last layer, `A` and `B` the only trained parameters —
+not a deep multi-layer adapter (that case is `multilayer_lora.py`, Step 17, outside the theorems). The forward
+model is fully known (generator, encoder, recipe, labels), noise-free, with no model mismatch: the synthetic
+numbers are an **identifiability testbed / upper bound**, not attack feasibility. The audit traced every use of
+the ground truth: none reaches the objective; recovery is scored separately after the solve; `fwd_check` passes
+in every row; residual→0 with the wrong image is scored *failed* (68 such verdicts on disk). Verdict: nothing
+self-confirming; every remaining concern is scoping, and those scopings are written into the steps below.
+
 ## Step 1 — the simulator is the training map, and the released factors invert
 
 | k | N | r−N | T | lr | deformation | start err | fwd_check | final err (med) | residual | verdict |
@@ -102,7 +111,8 @@ the release no longer determines the data. That is **not supportable on these nu
 image errors are `1.7e-3` (N=4, k=34/38), `2.6e-3`-`5.7e-3` (N=8, k=28/29/30), `5.3e-3`-`9.3e-3`
 (N=8, k=32/38/44), `6.4e-3` (N=14, k=22), `1.2e-2` (N=12, k=26). In **8 of the 11** past-line cells
 `frac_recovered` is 1.0: every image is inside this study's own 1e-2 tolerance. A 0.3% relative image error
-is a visually identical image.
+is a visually identical image. (`frac_recovered` is a tolerance count, not the boundary marker: the boundary is
+read off `σ_min(J)` at the truth, which is already rank-deficient in those same cells.)
 
 What was measured is that the solution is **no longer pinned to machine precision** — an eleven-order jump
 from `1e-14` to `1e-3` — not that it is unrecovered. So:
@@ -889,6 +899,15 @@ Private data are genuine MNIST digits with their real labels, restricted to thei
 manifold coordinates are real principal components and `k` is a real dimension); `φ` is a frozen public
 network; the head has `m = 10` classes; the recipe is the plain SGD the law is stated for. `N = 8`.
 
+**Scoping (audit, 2026-09-03) — three things this cell is *not*.** (i) `φ` here is a *random* tanh encoder
+(`n = 96`), not a pretrained extractor; the trained-encoder case is Step 13. (ii) The solve starts from
+`W_true + 0.10·noise` in latent space, so this is a near-truth identifiability/basin test, **not release-only
+recovery** — do not present it as "MNIST reconstructed from the adapter alone". (iii) The PCA chart `V_k` was
+fitted on the first 10k train images, **which include the 8 private digits** (also in Step 11), so the private
+digits sit slightly more exactly on the chart than they would for a real attacker; the Steps 10–11 numbers
+predate the exclusion (commit `a1648aa`), and any rerun excludes them. Read the collapse off `σ_min(J)` at the
+truth, not off `frac_recovered`: near the line `frac_recovered` can still be 1.0 where `σ_min` is already ~1e-19.
+
 The line must **move with `r`**, and it does — sharp to one unit of `k` at every rank:
 
 | r | predicted line `k < m+r−N` | last `k` full-rank at the truth | first `k` collapsed |
@@ -1017,3 +1036,131 @@ boundary not at all, which is what rules out the widening itself having produced
 `World` now takes `gen_hidden` (default 32, so every earlier run reproduces byte-for-byte) and the script
 **warns** when the requested `k` approaches it. This defect was not found by any of the three audits; it
 surfaced because the law made a prediction sharp enough that one anomalous row was visibly wrong.
+
+## Step 13 — the line on a TRAINED model: trained head, trained features (jobs 607896, 610020)
+
+`trained_backbone.py`. Backbone: the repo's `weights-mnist10_gelu.pth` (784-1000-1000-10 GELU, **78.45%** test
+accuracy — verified against `CreateModel.NeuralNetwork` to 3.7e-14, so the weakness is the checkpoint's, not a
+loading bug); `φ` = penultimate activations (`n = 1000`), `W₀` = the trained output layer (`m = 10`). Chart:
+global PCA of the first 50k train images; private digits: 8 from the *test* split (unseen by backbone and chart),
+labels `[0,3,0,3,5,0,1,9]`. `r = 16`, `N = 8`, `T = 400`, `lr = 0.01`, cell (a) (truth on the chart), start
+`W_true + 0.10·noise`. Line `k < m + r − N = 18`. Rows deduplicated on `(k, seed, git)`; where 610020 reran a
+cell with a larger budget, that row is quoted.
+
+| k | σ_min(J) at truth | full rank | chart's best (err vs REAL) | err vs chart | err vs REAL | residual | LM iters | stop |
+|---|---|---|---|---|---|---|---|---|
+| 6 | 3.54e-5 | yes | 0.530 | 1.3e-13 | 0.866 | 8.4e-31 | 45 | floor |
+| 10 | 2.16e-6 | yes | 0.479 | 1.3e-12 | 0.761 | 8.7e-31 | 31 (rerun, restarts 4) | floor |
+| 14 | 2.36e-7 | yes | 0.460 | 1.5e-11 | 0.758 | 6.3e-31 | 281 (rerun) | floor |
+| 16 | 1.47e-8 | yes | 0.421 | 3.5e-2 | 0.731 | 1.6e-14 | 300 (rerun) | cap, still descending |
+| 17 | 1.23e-9 | yes | 0.421 | 5.7e-2 | 0.725 | 4.4e-13 | 80 | cap, still descending |
+| **18** | **2.43e-19** | **no** | 0.415 | 5.5e-2 | 0.725 | 3.1e-13 | 80 | collapsed |
+| 20 | 2.71e-19 | no | 0.414 | 5.0e-2 | 0.712 | 8.1e-13 | 80 | collapsed |
+| 22 | 3.56e-18 | no | 0.403 | 7.4e-2 | 0.704 | 2.8e-13 | 80 | collapsed |
+
+- **The line holds on a trained model, at 18 exactly** — full rank at 17, rank loss of ten orders at 18. The
+  count sees only `(m, r, N)`, and the trained head and features do not move it.
+- **Conditioning is what changes.** Against the random `n = 96` encoder of Step 10 at matched `k` (2.6e-4,
+  2.0e-4, 6.4e-5, 1.3e-6 at `k = 6, 10, 14, 17`) the trained backbone's `σ_min` is **7× / 93× / 271× / 1057×**
+  smaller. (Shape caveat: `n = 1000` vs `96`; the fixed-architecture version is job 624573, Step 18.)
+- **Below the line the failures are budget, not information.** `k = 10` and `14` came off the 80-iteration cap
+  still descending and reached the floor with the larger budget (31 and 281 iterations); `k = 16` is still
+  descending at 300 (residual 1.6e-14, fourteen orders above the floor). Iterations-to-floor is the cost axis:
+  45 → 31 → 281 → >300 across `k = 6, 10, 14, 16`.
+- **The picture is still the chart's.** Every recovered cell returns the chart's projection of the digit
+  (err vs REAL 0.87 → 0.70 is `chart_repr_err` itself), which is why Steps 14 and 18 change the chart.
+
+## Step 14 — chart families at fixed k = 16 on the trained backbone (jobs 611033, 611339, 612643) — TWO CONFOUNDS, reruns in flight
+
+`vae_chart.py` (VAE chart, GELU or ReLU decoder, trained on the train split only) and `conditional_charts.py`
+(global PCA · class-local PCA with labels given · class-conditional VAE). Same backbone, digits, labels, `r`,
+`N`, `T`, `lr` as Step 13; cell (a) = truth on the chart; cell (b) = adapter fine-tuned on the RAW digit, chart
+searched anyway (the realistic case; the residual cannot reach the floor). Budget in these first runs:
+`--lm-iters 200 --restarts 3`.
+
+| chart | family | analytic ψ | chart's best (err vs REAL) | σ_min(J) at truth | err vs chart | err vs REAL | residual | iters |
+|---|---|---|---|---|---|---|---|---|
+| global PCA (`vae_chart`) | linear | yes | 0.421 | 2.48e-8 | 5.3e-2 | 0.731 | 1.3e-14 | 200 cap |
+| global PCA (`conditional_charts`) | linear | yes | 0.421 | 2.33e-8 | 3.1e-2 | 0.731 | 8.5e-15 | 200 cap |
+| class-local PCA (labels given) | linear | yes | 0.364 | 1.72e-10 | 4.0e-2 | 0.619 | 5.2e-17 | 200 cap |
+| VAE, GELU | learned | yes | 0.339 | 1.82e-11 | 1.3e-1 | 0.567 | 1.1e-14 | 200 cap |
+| VAE, ReLU | learned | **no** | 0.327 | 1.59e-11 | 2.2e-1 | 0.555 | 2.9e-9 | 200 cap |
+
+Cell (b), off-chart, err vs REAL: global PCA **1.448** (residual 1.8e-5) · VAE-GELU **0.728** (1.2e-4) ·
+VAE-ReLU 0.828 (3.2e-4). The two global-PCA rows are the same chart through two scripts with different `A₀`
+draws: `σ_min` 2.48e-8 vs 2.33e-8 — the truth-side number is reproducible across the seed.
+
+**What is measured and not confounded.** `σ_min(J)` at the truth is solver-independent. Across the four charts,
+better representation came with worse conditioning, monotonically: 2.3e-8 → 1.7e-10 → 1.8e-11 → 1.6e-11,
+~1400× across the range. The prediction that a class-local chart would be *better* conditioned is **refuted**
+(135× worse). The ReLU decoder is not distinguishable from the analytic one in `σ_min` (1.59e-11 vs 1.82e-11):
+analyticity looks like a proof convenience here, not a live constraint. The count (`k < 18`) is unaffected by
+any of it.
+
+**Confound 1 — budget.** Every cell (a) stopped at the 200-iteration cap **off the floor** (the residual is a
+sum of squares with floor 1e-28; these sit at 1e-14 … 3e-9, fourteen-plus orders above it). So every cell (a)
+is a *search failure at budget*, none is an alias, and the err-vs-REAL ordering 0.731 → 0.619 → 0.567 → 0.555
+partly ranks how far each run got. **Do not quote the fidelity ranking as a result until job 624463 lands**
+(same cells, `--lm-iters 3000 --restarts 4`; it reports iterations-to-floor per chart next to `σ_min`).
+
+**Confound 2 — repeated labels (found by a sibling session).** The private draw has three 0s and two 3s.
+`LocalPCAChart` builds one `(μ_y, V_{y,k})` per class, so the three 0-columns get an *identical* map; the
+class-conditional VAE is label-conditioned too. That does not make `∂ψ/∂w` rank-deficient (block-diagonal,
+orthonormal per column, rank `Nk`), but it entangles richness, label conditioning and repeated-class structure
+in the local-vs-global 135×. The distinct-labels cell (job 624573, first cell) separates them. The unconditional
+VAE charts are not affected.
+
+**Reads.** (1) A richer chart raises the ceiling — 0.42 → 0.34 is the best any solver could return at `k = 16`
+— and the realistic off-chart case is where it shows most (1.45 → 0.73 on the same release). (2) It lowers
+conditioning by orders. Both PCA charts have an orthonormal `∂ψ/∂w`, so the 135× between them cannot be
+decoder geometry; it is what the *encoder* does to the directions each chart spans. Hypothesis, pre-registered
+before the controls: **a trained classifier compresses within-class variation — exactly where a local chart or a
+VAE spends its coordinates.** Falsifier: on a random encoder of the same architecture the gap should largely
+vanish (Step 18).
+
+## Step 15 — the Q-parametrisation: exact, smaller, and it does NOT widen the basin (job 605718)
+
+`q_param.py`. Theorem G says the trajectory depends on the seed only through `Q = XᵀX`; writing the residual in
+coefficient space and recovering `X = A_T U_c Ω⁻¹` in closed form leaves `Nk + N(N+1)/2 = 132` unknowns instead
+of 224 (`k = 12`, `N = 8`, `r = 16`, `m = 20`, `T = 400`, `lr = 0.01`). Gate: residual at the truth 1.4e-15.
+Basin edge, perturbed-truth starts, 3 seeds per noise level, matched cells:
+
+| init noise | median start err | (w, X), 224 unknowns | Q, 132 unknowns |
+|---|---|---|---|
+| 1.0 | 0.57 | 3/3 | 3/3 |
+| 1.5 | 0.71 | 0/3 | 1/3 |
+| 2.0 | 0.80 | 0/3 | 0/3 |
+| 3.0 | 0.86–1.05 | 0/3 | 0/3 |
+| 5.0 | 0.96–1.13 | 0/3 | 0/3 |
+
+1/3 against 0/3 on three seeds is noise. **The seed block was never the obstruction; the difficulty is in the
+data coordinates.** Closed as a negative; the reduced form stays as a verified structural simplification.
+
+## Step 16 — encoder quality at fixed architecture (job 614344, IN FLIGHT)
+
+`train_strong_backbone.py` trains the same 784-1000-1000-10 GELU architecture on the full train split and saves
+a mid checkpoint (`mnist_mlp_mid.pth`, **96.08%** at save time; 95.10% on the 2000-digit in-script check) and a
+strong one (`mnist_mlp_strong.pth`, ≥97%, last saved 98.24%); `trained_backbone.py` then sweeps
+`k ∈ {6, 10, 14, 16, 17, 18}` on each with `--lm-iters 300 --restarts 4`. First row on disk (mid, `k = 6`):
+`σ_min` **1.16e-6** against the 78% backbone's 3.54e-5 — **30.6× worse** — and residual 2.5e-15 at the
+300-iteration cap where the weak backbone reached the floor in 45. One row, provisional (†); direction:
+*quality hurts*. The full ladder (random / 78% / 96% / ≥97%) is Step 18's read.
+
+## Step 17 — multi-layer LoRA (job 608693, IN FLIGHT, EMPIRICAL ONLY)
+
+`multilayer_lora.py`: LoRA on all three layers, full unroll with `create_graph`. Arm A: seeds known (oracle,
+LBFGS on `W`); arm B: seeds unknown (22,384 unknowns). Outside the theorems (`theorems_apply=False`); no rows yet.
+
+## Step 18 — controls in flight (submitted 2026-09-03 after the sibling review of Step 14)
+
+| job | script | cell | settles |
+|---|---|---|---|
+| 624463 | `vae_chart.py`, `conditional_charts.py` | all Step-14 cell (a) arms at 3000 iters / 4 restarts | confound 1: iterations-to-floor per chart |
+| 624573 (1st) | `random_encoder_control.py --encoder trained --labels distinct` | global vs local, 8 distinct labels | confound 2: does the 135× survive distinct labels |
+| 624573 (2nd–3rd) | `--encoder random`, distinct and repeated labels | same charts on a random encoder with the trained layers' norms | the falsifier of the encoder-compression hypothesis |
+| 624573 (4th) | `--encoder random --ks 6 10 14 17 18` | ladder zero point at fixed architecture, 300 iters | replaces the `n = 96` comparator in Step 13 |
+| 624465 | `beta_vae_sweep.py`, β ∈ {0.25, 1, 4, 16} | one family, graded richness at fixed `k` | ordering vs curve; records `σ(∂ψ/∂w)` at the truth (decoder geometry control) |
+
+Every row from these carries `rank_B_T`, `σ_N/σ_1(B_T)` and `rank_X` (the per-cell witness that rank `P_T = N`
+holds with the labels actually drawn). Deferred, not refused: the residual at the chart's own best point for cell
+(b) (needs an edit to `vae_chart.py`, which is under running jobs; will be a standalone script).

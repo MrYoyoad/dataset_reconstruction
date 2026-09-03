@@ -133,6 +133,37 @@ What the section establishes, in order — every label as in the .tex:
   against †1.43e-2 past the line (8,32, 25 steps) and †3.84e-2 at the line (14,22, 25 steps, final). Same procedure,
   only the side of the boundary changes, twelve orders apart: the direct experimental form of the capacity law.
 
+## Trained backbone · chart families · encoder quality · a genuineness audit (2026-09-03; jobs 607896, 610020, 605718, 611033, 611339, 612643, 614344; in flight 624463, 624465, 624573, 608693)
+
+Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Every number provisional (†).
+
+- **The line holds on a trained model, at 18 exactly** (78% GELU MLP, trained head + features, `r=16, N=8`):
+  full rank at `k=17`, `σ_min` 1.2e-9 → 2.4e-19 at 18. What changes is conditioning — **7× / 93× / 271× / 1057×**
+  worse than the random encoder at `k = 6/10/14/17` — and cost: iterations-to-floor 45 → 31 → 281 → >300.
+  Below-line "failures" were budget (k=10, 14 reach the floor with 300 iterations), not information.
+- **Chart quality raises the ceiling and lowers conditioning, monotonically** (k=16, four charts): best-possible
+  0.42 → 0.36 → 0.34 → 0.33 while `σ_min` at the truth 2.3e-8 → 1.7e-10 → 1.8e-11 → 1.6e-11. The prediction
+  that a class-local chart would be *better* conditioned is **refuted** (135× worse). Off-chart (realistic): VAE
+  0.73 vs global PCA 1.45. ReLU vs GELU decoder: no `σ_min` difference (analyticity is a proof convenience).
+- **Two confounds in the chart cells, reruns in flight.** (1) Every cell stopped at 200 iterations 14 orders
+  above the floor, so the *fidelity* ranking partly ranks budget → job 624463 at 3000 iterations. (2) The private
+  draw has three 0s; the local chart gives them an identical map → job 624573 reruns with 8 distinct labels.
+- **Pre-registered mechanism + falsifier.** A trained classifier compresses within-class variation, where local
+  charts and VAEs spend their coordinates. Falsifier: a random encoder of the same architecture and layer norms
+  should collapse the 135× (job 624573). Graded version: β-VAE family at fixed k (job 624465), with `σ(∂ψ/∂w)`
+  recorded so decoder geometry is separated from encoder treatment.
+- **Encoder quality, first row: it hurts.** Mid checkpoint (96%) at `k=6`: `σ_min` 1.16e-6 vs 3.54e-5 on the 78%
+  model — 30.6× worse, off the floor at 300 iterations where the weak model took 45. One row (†); ladder pending.
+- **Q-parametrisation: exact (gate 1.4e-15), 132 unknowns instead of 224, and it does NOT widen the basin**
+  (1/3 vs 0/3 at 1.5×, 0/3 both beyond). The seed was never the obstruction. Closed.
+- **Genuineness audit (read-only sibling, code + rows): nothing self-confirming.** Ground truth never reaches the
+  objective; success scored separately; `fwd_check` passes in every row; residual→0 with a wrong image is scored
+  failed. All remaining concerns are scoping, now written into RESULTS.md: LoRA *head* on frozen features; known
+  forward model = identifiability upper bound; MNIST Steps 10–11 are near-truth starts on a random encoder with
+  a PCA fit that included the 8 private digits; the boundary marker is `σ_min(J)` at the truth, not `frac_recovered`.
+- **Next:** read 624573 (distinct labels, random encoder) before either 624463 or 624465 is interpreted; then
+  the 614344 ladder; then multilayer 608693; then the off-chart best-point residual (standalone script).
+
 ## Exact inversion on REAL data, and a scoping correction: `k` is the chart's dimension, not the data's (2026-09-03, jobs 568095, 574169)
 
 **The capacity law holds on real MNIST.** Genuine digits with real labels, `m = 10`, manifold = their own PCA

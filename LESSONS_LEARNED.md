@@ -4,6 +4,27 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A fidelity ranking is only a ranking if every arm reached the floor (2026-09-03)
+
+Four charts at the same `k` came back ordered by image error (0.73 → 0.62 → 0.57 → 0.55) and I reported the
+ordering as chart quality converting into fidelity. A sibling read the rows: every arm had stopped at the
+200-iteration cap with residual 1e-14 … 3e-9. The residual is a **sum of squares** with floor 1e-28, so 1e-14 is
+fourteen orders *off* the floor — each cell was a search failure at budget, and the ordering partly ranked how far
+each run got. (1) Report iterations-to-floor next to `σ_min` for any cross-arm comparison; it is the cost axis.
+(2) `σ_min(J)` at the truth is solver-independent and *was* a valid ordering; separate what is measured at the
+truth from what is measured at the stopped point. (3) The private draw had three 0s, so the class-local chart
+gave three columns an identical map — a second confound found by a different sibling. When a comparison hinges
+on per-class structure, check the label multiset before the run. (4) A refuted prediction (local chart *better*
+conditioned; it was 135× worse) is only useful if the mechanism replacing it is written down with its falsifier
+before the control runs — done: encoder compression of within-class variation, falsified if a random encoder of
+the same architecture shows the same gap.
+
+**Submission gotcha.** New modules under `experiments/exact_inversion/` import
+`experiments.exact_inversion.<module>`, so they must be launched as `python -u -m experiments.exact_inversion.x`;
+`python -u experiments/exact_inversion/x.py` dies in 5 s with `ModuleNotFoundError: experiments`. Two jobs lost
+that way (622546, 624222). A byte-identical kwarg (`beta=1.0`) in a module under a running job is still an edit
+under a running job — duplicate into the new module with a comment and fold back later.
+
 ## Four pitfalls from writing the exact-channel theorem section (Rev 10 delta, 2026-09-03)
 
 Context: `notes/exact_channel_rev10.tex`, written theorem-first with an adversarial sibling review
