@@ -2089,15 +2089,30 @@ rate.
   the basin --- $16.6\%\to74.4\%\to96.4\%$ as the slack goes from one unit to
   forty-nine. Both are raised for utility. And the head width caps it
   independently at $N'\le m-1$: twenty digits recover on a $26$-logit head and
-  none at all on a $10$-logit one, same data, same rank, same chart. The hypothesis under test is that this
-  obstruction scales with the number of \emph{recorded} examples rather than
-  with $N$, which would make it the model's choice: on a strong model the
-  release is often dominated by one example, and one example is a far smaller
-  search. That arm is running and unverified. It also carries a tension worth
-  owning rather than hiding: model confidence \emph{reduces} what is
-  recorded, which favours the defender, while making the little that remains
-  a smaller problem to solve, which favours the attacker. Both are true, and
-  which dominates is not yet measured.
+  none at all on a $10$-logit one, same data, same rank, same chart. Two scopings decide how this should be said.
+
+  The \emph{robust} leakage is not the flagship cell but the ordinary one.
+  Data the base model gets wrong or has never seen --- a new category, an
+  out-of-distribution draw, a hard example --- leaves imprints of order one
+  and releases of norm $10^{-6}$ to $1$, which survive every arithmetic in
+  use. On one encoder and one head, eight ordinary digits give
+  $\operatorname{rank}B_T=6$ of $8$ while eight examples of an unseen category
+  give rank $8$ with every imprint of order one. Since adding a capability the
+  base model lacks is the canonical reason to fine-tune, that is the case the
+  privacy story should lead with.
+
+  The \emph{confident} cell is the extreme, and it says something sharper at
+  the cost of being a corner. There $\|B_T\|=7.6\times10^{-18}$ and the
+  adapter never feeds back at all --- $A_T=A_0$, and $B_T$ is $T$ times one
+  gradient step --- so the fine-tune changed nothing about the model and
+  recorded every example anyway. It is exactly recoverable from any release
+  with FP32's exponent range, trained or stored, because the certificate is an
+  angle and not a magnitude; only FP16 erases it, by range rather than
+  precision. This also settles the tension the earlier draft left open.
+  Confidence \emph{does} reduce what is recorded --- by twenty-three orders of
+  $\|B_T\|$ as the chart sharpens --- and it does \emph{not} protect, because
+  a release too small to have moved the model is still large enough to
+  identify every image in it.
 
 \item \emph{Open, and said in the same breath.} Global uniqueness below the
   line; how far the release-consistent set extends past it (one direction of
