@@ -1662,3 +1662,38 @@ in `w` and the scale is pinned by `μ`.
 The weak checkpoint's local-vs-global gap survives distinct labels in the solve (520× in `σ_min`, floor vs cap);
 on the random encoder of the same architecture the two charts are within 1.8× and both reach the floor in ~30
 iterations. Consistent with the three-seed spectra: the gap is the weak checkpoint's, not trained encoders'.
+
+### Step 22, Part B guarded (job 704286, 16 random starts per cell, on-chart, `N′ ≤ 6`)
+
+| batch (on-chart) | k | N′ | line r−N′ | regime | starts at the floor | starts on a recorded image | argmin pick |
+|---|---|---|---|---|---|---|---|
+| hard1_diff | 10 | 6 | 10 | at | 0.44 | **2/16** (images 0 and 7) | not on one (0.105 away) |
+| hard1_diff | 12 | 5 | 11 | above | 0.25 | 0/16 | spurious zero |
+| hard1_diff | 14 | 4 | 12 | above | 0.75 | 0/16 | spurious zero |
+| hard1_diff | 16 | 4 | 12 | above | 0.81 | 0/16 | spurious zero |
+| confident | 10 | 5 | 11 | **below** | **0.00** | 0/16 (300 iterations; nearest recorded 0.33 away) | 6e-9, not at floor |
+| confident | 12 | 4 | 12 | at | 0.19 | 0/16 | spurious zero |
+| confident | 14 | 4 | 12 | above | 0.50 | 0/16 | spurious zero |
+| confident | 16 | 3 | 13 | above | 0.69 | 0/16 | spurious zero |
+
+No degenerate starts in any row (feature-norm ratios 0.3–1.7). **The structural prediction is confirmed:** below
+the certificate line no start finds a spurious zero (0.00), at and above it they are dense (0.19–0.81) — the
+kernel count made real. **The selection problem has a regime:** at or above the line the argmin is drawn from a
+population that is mostly spurious, so 2 of 16 starts landing on private images at the boundary did not make the
+attacker's pick correct, and more starts cannot fix a rule that cannot discriminate. Below the line the situation
+inverts — reaching the floor is itself the proof of having found a recorded example — and the only obstacle is
+the basin, which cheap starts (≈0.2 s each, no unroll) can buy. Job 706721 spends 2,000 starts per cell there
+(`k ∈ {6, 8, 10}`, both batches). Reading, conditional on it: *the certificate identifies the recorded set exactly
+and recipe-free; below its line, reaching the objective's floor is proof of a recorded example and cheap starts
+buy attempts; at or above the line spurious solutions are dense and no number of starts rescues the selection.*
+
+### Step 21/20 subset test — a recipe error found and fixed (job 634238 VOID; rerun 706597)
+
+The subset rows evaluated the N′-image residual at the recorded images' own truth and found **1.7e-2** (N′ = 3)
+and **1.7e-3** (N′ = 6) where the predicted floor was 1e-16 / 1e-31 — and solves then "beat the truth" with wrong
+images (residual 1.4e-8 at image error 0.09). Cause: the recipe divides the gradient by the number of images it
+is given (`D = R/N`), so an N′-image simulation at the original `lr` runs a *different recipe* (effective rate
+`lr/N′`), which the R1 result already said can never reach the floor. Fix: simulate the subset at `lr·N′/N`, so
+the omitted images contribute zero gradient — what "invisible" means; the attacker sees only the single
+effective rate `lr/N` (fittable, Step 9); `N` is taken as known here and flagged (`oracle` gains `N_known`).
+634238's rows are void; 706597 reruns Part A with rows written as produced.

@@ -45,6 +45,13 @@ cell (VAE-ReLU) has a solved σ_min 3× its truth σ_min. At the truth the order
 script — `truth_spectrum.py` already does; the cell scripts get it at their next safe edit (all are under running
 jobs as of 2026-09-03 evening), and until then it is recomputed from the two truth fields, never read off `jac_cond`.
 
+**The batch size is part of the recipe (2026-09-03, night).** Simulating a SUBSET of the private images with the
+original learning rate silently changed the recipe, because the gradient is divided by the number of images the
+simulator is given: the subset residual at the recorded images' own truth was 1e-2 instead of the predicted
+1e-16, and the solver then found wrong images that fit better than the truth. Any change to what the simulator is
+fed — fewer images, a different order, a different label multiset — must be checked against the residual AT THE
+TRUTH before a single solve is read; that one evaluation is the gate. Fix here: `lr·N′/N`.
+
 **A residual normalised by a constant can be driven to zero by a degenerate candidate (2026-09-03, night).** The
 certificate-only inversion minimised `‖Cφ(ψ(w))‖²/‖A_T‖²`; a blank image sends the GELU features to zero and the
 objective with them, and the attacker's own argmin picked those "solutions" (1e-32 objective, image error ≈ 1).
