@@ -69,6 +69,8 @@ def main():
                     "the RAREST recorded image has this many landings, or --max-starts is reached -- the per-image counts are what a "
                     "rank correlation is computed from, and Poisson noise on a count of five attenuates it toward zero")
     ap.add_argument("--max-starts", type=int, default=10000)
+    ap.add_argument("--start-scale", type=float, default=1.0, help="multiplier on the public coordinate std for the random starts: separates "
+                    "'basin size is chart geometry' from 'targets near the start scale attract more landings'")
     ap.add_argument("--max-np", type=int, default=6, help="Part B runs when N' <= this: the certificate's null space then holds N' recorded "
                     "images, and a random start below the certificate line k < r - N' should land on ONE of them")
     ap.add_argument("--n-fit", type=int, default=50000)
