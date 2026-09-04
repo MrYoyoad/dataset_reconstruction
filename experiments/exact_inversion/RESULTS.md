@@ -3179,3 +3179,29 @@ fp16's own 0.012 stop. So **bf16's floor (1.24e-2) sits *above* the knee, not at
 under-recovering rather than landing on the optimum, which corrects the "lucky landing" clause: coarse arithmetic
 stops a little short of the best point rather than exactly on it. The remaining fp16 stops (0.005, 0.003, 0.0019)
 locate the minimum and its sharpness.
+
+### The k = 32 "reversal" dissolves at the optimal stop (yoado-c9's reading, adopted with one scope caveat)
+
+Lined up at each format's *best* stopping point rather than at full descent:
+
+| | fp16 | bf16 | ordering |
+|---|---|---|---|
+| k = 16, full descent (= each format's floor) | **0.97%** | 3.0% | by precision |
+| k = 32, full descent | 7.5% (ran to 2.5e-3) | 4.56% (floor 1.24e-2) | *inverted* |
+| k = 32, best stop measured so far | **4.27%** (at 7.4e-3) | 4.53% (its best reachable) | by precision, restored |
+
+**There is no genuine reversal.** At k = 32 the inversion exists only in the naive full-descent comparison: fp16
+has the range to descend past the knee all the way to its floor and ruins the image doing so, while bf16's floor
+sits *above* the knee, so it cannot over-descend — and cannot reach the knee either, so it under-recovers at 4.53%.
+Precision is an asset (fp16 gets closer to the knee) that becomes a liability only past the knee, and only for an
+attacker who does not stop. The clause "the ordering inverts at k = 32" is **withdrawn**, along with the older
+chart-conditioning-amplification framing that predicted bf16 much worse; what replaces both: *at the optimal stop
+the precision ordering holds, and the full-descent reversal is the over-descent hazard, visible only to an attacker
+who runs to the floor — which is why the stopping rule is the knee, not the floor.*
+
+*Two scope caveats of my own.* (i) fp16's 4.27% is the best **measured so far**, not a located minimum; the
+remaining stops (0.005, 0.003, 0.0019) may go lower before the right arm rises. (ii) The k = 16 row is a
+full-descent comparison, so "the precision ordering holds at every k" is established at k = 32 and *assumed* at
+k = 16 — it holds there only if that chart's knee lies below fp16's floor (2.05e-3), which no row tests. A k = 16
+knee sweep would settle it; until then the statement is "at k = 32, measured; at k = 16, consistent with the
+full-descent rows".
