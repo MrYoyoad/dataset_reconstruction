@@ -251,3 +251,22 @@ it was **swapped**.
 - *Executor's addition to C1:* with masking an imprint accumulates only over the steps an image appeared in, so two
   equally-sampled images should be recorded comparably while a rarely-sampled one falls toward the floor. A sharper
   test of the same claim than `fwd_check` alone, at no extra cost.
+
+
+### The minibatching result is an ASYMMETRY between the two routes, and that is how it should be stated
+
+Relaxing the data assumption **buys a schedule assumption**, and the two routes pay it differently:
+
+- **Free for the certificate.** `C = P⊥_{row(B_T)} A_T` needs only the released factors. It never simulates, so it
+  never needs to know which examples were in which step. Per-step masking changes *which* images are recorded and
+  how strongly (an imprint accumulates only over the steps its image appeared in) but not the algebra: `Ch_i = 0`
+  still holds for every recorded image.
+- **Expensive for replay.** The simulator must reproduce the trajectory, so it needs the schedule: `T × N` unknowns
+  (3,200 in the standard cell) against a per-image identifiable budget of order 100. A free per-step schedule is
+  **not identifiable by this project's own counting**, so replay must either know the schedule or fit it — and
+  fitting it is a much larger recipe-probe problem than fitting a learning rate.
+
+**So the honest statement is not "minibatching is handled" but: minibatching is free for the recipe-free route and
+expensive for the replay route — which makes the certificate the route that survives realistic training.** That is
+a point in the certificate's favour and belongs in the pitch that way, alongside the standing caveat that the
+certificate pins fewer coordinates per image.
