@@ -1,5 +1,31 @@
 # Project Status
 
+## Where the adapter STARTS sets the ceiling, and the deployment gap is now a number (2026-09-04; jobs 218345, 218346)
+
+Both algebraic checks at the truth — Jacobian ranks at the true images, no solve, no start, not attacks.
+
+**Depth of first adaptation.** Four consecutive adapted layers at `r = 256`, everything below frozen. The
+saturating pixel count is set by what the frozen path below the FIRST adapted layer transmits:
+
+| first adapted layer | 1 | 2 | 4 | 7 |
+|---|---|---|---|---|
+| pixel conditions of 784 | 747 | 717 | 445 | **138** |
+| fraction of the image | 95.3% | 91.5% | 56.8% | **17.6%** |
+| σ_min at the rank | 3.1e-6 | 4.3e-9 | 1.3e-10 | 7.0e-11 |
+
+At `d = 7` the frozen path transmits exactly 138 directions and the four adapted layers deliver exactly 138 — the
+third and fourth add nothing. **Real adapters do not sit on the pixel-input layer, and this is what that costs:
+adaptation has to reach near the input for the release to determine the image.** Conditioning collapses with
+starting depth even faster than rank does, and from `d = 2` on, the usable count is below the formal count.
+
+**The deployment gap.** Layers 1–4 adapted, sweeping the rank: 7.1% of the image at `r = 64`, 29.2% at 128, 62.0%
+at 192, 95.3% at 256. Deployed LoRA runs `r` = 8–64, so **at deployed rank the release pins 7% of the image** —
+and that figure already assumes adaptation at the pixel input, which deployed adapters also do not do. `r = 64`
+additionally sits below the 90–110 drift plateau, so layers 2–4 are starved there and the 7.1% is layer 1 alone.
+**Reaching the image needs `r ≈ 256` on a 784-dimensional input, a third of full rank, which is not low-rank
+adaptation.** Conditioning trades the other way: 1.7 at `r = 64`, 2.2e5 at `r = 256`. There is no rank at which
+this release both determines the image and is comfortable to invert.
+
 ## The multi-layer certificate has a boundary, and it is DRIFT, not depth (2026-09-04; jobs 199890, 200956, 201967)
 
 Three pre-registered runs, all landing against the optimistic branch. Each is an algebraic check at the truth — a
