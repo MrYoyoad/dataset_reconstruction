@@ -1150,7 +1150,22 @@ been run.
 
 \paragraph{The certificate is the recipe-free face of the same fact.}
 Theorem~\ref{thm:quot} builds $C=\Pi_{\mathrm{row}(B_T)}A_T$ and gives
-$CH=0$ with $\operatorname{rank}C=r-N$ under (A4). The imprint law says what
+$CH=0$ with $\operatorname{rank}C=r-N$ under (A4). That is the
+\emph{exact} form, and (A4) --- $\operatorname{rank}P_T=N$ --- is a rank
+condition, hence a statement about a spectrum having a hard gap. It is worth
+writing down what replaces it when the gap is soft, since nothing in the
+construction requires exactness. Truncating instead at the top $j$ directions
+of $B_T$ gives a certificate $C_j$ with $r-j$ conditions which are satisfied
+not exactly but to the discarded tail, $\|C_jh_i\|/\|A_Th_i\|\sim
+\sigma_{j+1}(B_T)/\sigma_1(B_T)$. So the general statement is
+\emph{spectral}: at a tolerance $\varepsilon$ the usable width of the channel
+is $r-j(\varepsilon)$ with $j(\varepsilon)=\min\{j:\sigma_{j+1}/\sigma_1<
+\varepsilon\}$, and the exact theorem is the special case in which the
+spectrum has a hard gap at $N$, so that $j(\varepsilon)=N$ for every
+$\varepsilon$ above the numerical floor. Whether the two coincide in practice
+is a property of the release's spectrum and not of the construction; it is
+being measured, and \S\ref{sec:pixels}'s gap between the formal and usable
+counts is the same distinction seen from the conditioning side. The imprint law says what
 happens when (A4) fails, and it is not a degradation but a sharpening. By
 Theorem~\ref{thm:traj}, $\mathrm{row}(B_T)$ is spanned by the vectors
 $A_0h_i$ weighted by each example's imprint, so when only $N'$ examples are
