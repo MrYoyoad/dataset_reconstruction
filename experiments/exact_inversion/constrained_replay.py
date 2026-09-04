@@ -47,6 +47,7 @@ def pick_constructed(ref, Xte_t, yte_t, N, perm):
         if len(fillers) == N - 1: break
     return [hard] + fillers
 from experiments.exact_inversion.certificate import certificate, lm_cert
+from experiments.exact_inversion.margin_check import traced_release
 
 torch.set_default_dtype(torch.float64)
 
@@ -130,13 +131,22 @@ def main():
         # certificate does not vanish at the truth in this cell, Z_C does not contain the truth and every branch of
         # the pre-registration is void -- the analogue of fwd_check, for the constraint rather than the simulator.
         cert_at_truth = float(max(cert_res[i] for i in rec))             # worst over the RECORDED set
+        # (c9) the imprint GRAM per cell: aligned imprints lower the joint sigma_min AND defeat the subset solve, so
+        # every null must be read against it -- "too aligned to separate" is a different verdict from "the chain
+        # fails". Cimp holds the per-image contributions C_i with B_T = sum_i C_i.
+        _, _, _, _, Cimp = traced_release(bb.phi(X_on), A0, bb.W0, y, bb.m, a.T, a.lr)
+        Ci = torch.stack([Cimp[i].reshape(-1) for i in rec]); Ci = Ci / torch.linalg.norm(Ci, dim=1, keepdim=True)
+        cosG = (Ci @ Ci.T); off = cosG[~torch.eye(len(rec), dtype=torch.bool, device=dev)]
+        sG = torch.linalg.svdvals(cosG)
+
         print(f"  [k={k}] certificate gate at the truth: ||Ch||/||A_T h|| = {cert_at_truth:.3e}", flush=True)
         if cert_at_truth > 1e-6:
             emit(dict(part="GATE", set=a.set, k=k, r=a.r, n_prime=Np, cert_at_truth=cert_at_truth, passed=False,
                       note="Z_C does not contain the truth at this k; chain branches void", git=git_hash()))
             print(f"  [k={k}] GATE FAILED -- skipping (not scored as a replay outcome)", flush=True); continue
         emit(dict(part="GATE", set=a.set, k=k, r=a.r, n_prime=Np, cert_at_truth=cert_at_truth, passed=True,
-                  fwd_check_pending=True, git=git_hash()))
+                  imprint_cos_offdiag=dict(median=float(off.abs().median()), max=float(off.abs().max())),
+                  imprint_gram_sigma_ratio=float(sG[-1] / sG[0]), fwd_check_pending=True, git=git_hash()))
         if Np != 1:
             print(f"  [k={k}] N'={Np} != 1: the cell is not the one-image band; running anyway, rows carry N'", flush=True)
 
@@ -167,6 +177,15 @@ def main():
         with torch.no_grad(): fwd = float(torch.linalg.norm(replay_res(v_true)))
         sv_truth = torch.linalg.svdvals(tf.jacfwd(replay_res)(v_true).detach())
         smin_truth, smax_truth = float(sv_truth[-1]), float(sv_truth[0])
+        # (c9) the count is NECESSARY, sigma_min is SUFFICIENT: alignment and the r(N-N') free seed directions can
+        # collapse it where the counting guard holds. A cell with sigma_min ~ 0 is unidentifiable and its chain rows
+        # are uninterpretable -- gate it like fwd_check rather than reading them.
+        emit(dict(part="SGATE", set=a.set, k=k, r=a.r, n_prime=Np, n_recorded=nrec, fwd_check=fwd,
+                  jac_sigma_min_truth=smin_truth, jac_sigma_max_truth=smax_truth,
+                  free_seed_directions=a.r * (a.N - nrec), passed=bool(smin_truth > 1e-12), git=git_hash()))
+        print(f"  [k={k}] sigma_min(Drho) at the truth: {smin_truth:.3e}  (free seed dirs {a.r * (a.N - nrec)})", flush=True)
+        if smin_truth <= 1e-12:
+            print(f"  [k={k}] SIGMA GATE FAILED -- unidentifiable at the truth; chain rows would be uninterpretable", flush=True); continue
         print(f"  [k={k}] fwd_check at the truth (subset recipe, lr*N'/N): {fwd:.3e}", flush=True)
 
         # ---- certificate landings from random starts
