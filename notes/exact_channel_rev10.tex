@@ -2359,6 +2359,66 @@ theorem or a headline — was withdrawn by a follow-up measurement or a
 re-derivation, and each is itemised in the repository's lessons log.
 
 %----------------------------------------------------------------------------
+\subsection{Beyond one adapted layer: what a release constrains in pixel space}
+\label{sec:pixels}
+
+Everything above concerns one adapted layer with frozen inputs. Real adapters
+sit on several layers, and the question a practitioner asks is not about chart
+coordinates but about the image: \emph{how many independent constraints does a
+released multi-layer adapter place on the raw pixels?} The theorems answer it
+with a bound, and the bound turns out to be the binding one.
+
+\paragraph{The bound.} Stack every adapted layer's certificate conditions
+against the pixels: $K(x)=[\,C^\ell\,DF_\ell(x)\,]_\ell$, whose rank is the
+number of independent constraints. Every adapted layer's map factors through
+the first, $DF_\ell=\Phi_\ell DF_1$, so the stack shares that right factor and
+\[
+  \operatorname{rank}K\;\le\;\min\Bigl(\textstyle\sum_\ell\min\bigl(r_\ell-N'_\ell,\;\operatorname{rank}DF_\ell\bigr),\;\;\operatorname{rank}DF_1\Bigr).
+\]
+The last term is the one with teeth: however many layers are adapted and
+whatever their ranks, the total cannot exceed the Jacobian rank of the frozen
+path beneath the first adapted layer. That is a property of the stem, not of
+the adapters.
+
+\paragraph{Architecture gives an upper bound; training gives the real one.}
+By widths alone the cap is the narrowest point of the stem: a pooled
+convolutional stem with adapters on the head caps at $512$ or $2048$ against
+$150{,}528$ pixels, while a ViT-B/16 stem has \emph{no} bottleneck at all ---
+its patch embedding maps $16\times16\times3=768$ values to a $768$-dimensional
+token, a square map, so $196\times768$ is exactly the pixel count. ViT-L/16
+expands. So ``adapt late and you are safe'' is false for the family most
+people adapt.
+
+Measured on a trained network$^\dagger$, the cap falls far below the
+architectural figure and keeps falling with depth: of $784$ input dimensions
+the frozen path admits full rank at one and two layers, $220$ at four, and
+$96$ at seven. The gap between $784$ and $96$ is not architecture --- the
+widths permit $784$ throughout --- it is what training does to the map. A
+classifier earns its accuracy by discarding variation, and the discarded
+directions are exactly the ones no downstream certificate can constrain. The
+encoder's learned invariances, which appear in \S\ref{sec:opens} as the reason
+deep conditions are not independent, are the same phenomenon measured as a
+rank.
+
+\paragraph{Two consequences, and one withdrawal.} Past the cap, \emph{extra
+adapter rank buys nothing}: at the eighth layer the count is $96$ at rank
+$256$ and $96$ at rank $900$ alike. And conditioning collapses faster than the
+count --- $\sigma_{\min}$ of $10^{-2}$, $7\times10^{-4}$, $10^{-10}$ at one,
+two and four frozen layers --- so from four layers down the \emph{usable}
+number of conditions sits below the formal one. The defender reading is that
+\emph{adapting deeper layers leaks less in pixel space whatever rank is
+chosen}, which is a design choice costing no accuracy and independent of the
+model's confidence, its arithmetic and its training length. The scope line
+must travel with it: this bounds the recipe-free channel, since the replay
+route reads more of the release than $\operatorname{row}(B_T)$.
+
+The withdrawal is a defence that looked available and is not. If the recorded
+\emph{directions} at a drifting layer accumulated without limit, training
+longer would eventually fill the rank and close the deep channel. They do not:
+the count plateaus at $90$--$110$ directions and is flat from $10$ steps to
+$3200$. Once the adapter's rank exceeds that plateau, no amount of further
+training closes the channel, and ``train longer'' is not a lever.
+
 \subsection{What is open}
 \label{sec:opens}
 
