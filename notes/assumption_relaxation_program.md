@@ -759,17 +759,35 @@ At a layer whose input moves during training, each image contributes a *distinct
   image, which never moves, so its count equals the number of images at every training length tried, and its
   certificate holds to 14 digits throughout. Any layer with no adapted layer below it inherits this.
 - **Training longer destroys the deep-layer certificate.** At a quarter of the training length the additivity of §11
-  is back and exact. **So §11 was a LOW-DRIFT statement all along and we did not know it** — scoped, not wrong.
-- **Predictive form worth testing (mine, from 41's mechanism):** the deep certificate should die at the training
-  length where `N · d(T) ≥ r`, with `d(T)` the number of distinct input directions accumulated. That makes
-  **"train longer" a defender action with a mechanism and a predicted threshold**, and it is falsifiable by sweeping
-  `T` at fixed `r, N` and locating the crossing.
+  is back and exact. **CORRECTION (81): §11's INEQUALITY is fine as written**, because `N′_ℓ` is defined
+  operationally as `rank B_T^ℓ`, so `rank(J_stack) ≤ Σ_ℓ min(r_ℓ − N′_ℓ, k_ℓ)` survives untouched. What needed
+  scoping was the *gloss* — reading `N′` as a headcount of images — not the bound. I over-corrected by calling §11
+  itself a low-drift statement.
+- **Predicted threshold — REDESIGNED (81), and the new form can return "no lever", which mine could not.** Do NOT
+  predict `N · d(T) ≥ r`: if the trajectory is smooth and confined to a low-dimensional manifold, `d(T)` SATURATES,
+  the certificate rank stops falling, and **"train longer" is not a lever at all**. Instead sweep **`rank B_T^ℓ`
+  against `T` directly** at fixed `r, N`. Climbs to `r` ⇒ there is a crossing and the defender has an action;
+  plateaus below `r` ⇒ the drift lives in a subspace and **the lever does not exist**. Same measurement, one step
+  closer to the claim, and it is falsifiable in both directions.
 
-**14c. Convolutional paths carry nothing, at any rank 8–512.** Weight sharing means one image records once per
-spatial position: 8 images supply ~1500 patch vectors into a 9-dimensional first-layer input, so the layer is full
-*before any adapter is trained*. Apparent margins at high rank are an output-width artifact, and there the certificate
-does not hold at the true image (off by 6–70%). **The recipe-free channel is a DENSE-layer phenomenon and does not
-transfer to a downsampling conv path.**
+**14c. Convolutions — my first statement was OVER-GENERAL AND IT INVERTS (81's correction; the unqualified version
+would have told practitioners the opposite of the truth).** The saturation holds only where the patch vectors
+outnumber the patch dimension: **`N × positions ≥ in_channels · k²`** — true in EARLY conv layers (many positions,
+few channels), FALSE in DEEP ones (many channels, few positions). ResNet-50, `3×3`, `N = 8`:
+
+| layer | patch dim | vectors | verdict |
+|---|---|---|---|
+| layer1 (256 ch, 56²) | 2304 | 25088 | full → certificate **vacuous** |
+| layer2 (512 ch, 28²) | 4608 | 6272 | full → **vacuous** |
+| layer3 (1024 ch, 14²) | 9216 | 1568 | partial → **certificate SURVIVES** |
+| layer4 (2048 ch, 7²) | 18432 | 392 | partial → **SURVIVES** |
+
+So "conv paths carry nothing" is an **early-layer** statement, the crossover **moves with `N`**, and it is a
+*computable condition* rather than an architectural fact. **Deep convolutions, where channels dominate positions,
+keep a certificate.** Stated unqualified beside the cap table this would have told a practitioner that adapting deep
+convolutions is safe — the opposite of what it says. (What was measured directly on our small conv net is the
+early-layer regime; the high-rank apparent margins there were an output-width artifact and the certificate did not
+hold at the true image, off by 6–70%.)
 
 **14d. What replaces it, and it is a cleaner question.** The first adapted layer is drift-immune, its conditions land
 on **raw pixels with no chart at all**, so the count should scale with the **adapter rank, not with depth**.
