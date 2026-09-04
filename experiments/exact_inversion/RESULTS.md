@@ -3918,3 +3918,33 @@ moves the later layers' features during training — (A1) fails, exactly as `mul
 conditions are therefore *approximate* at depth, and a rank measured on an approximately-satisfied condition is a
 rank of the linearisation, not of an exactly-vanishing map. The curve does not resolve this and must not be
 reported as if it did.
+
+## The convolutional comparison — pre-registered before the run (job 200503)
+
+The conv comparison turns out not to be about spatial bottlenecks at all. It is about the **count**, and the count
+is the whole certificate route:
+
+    margin_l  =  rank C_l  =  min(r, d_l) − rank{ A h_{ip} : recorded i, every position p },     d_l = C_in·k·k
+
+A dense layer records **one** vector per image, so `N′ ≤ N` and the margin is generous. A convolution shares its
+kernel across `P` positions, so one image contributes `P` patch vectors to the recorded span. At the layers of a
+plain downsampling path that is `N·P` = 8×196, 8×49, 8×16 against `d_l` = 9, 288, 576 — every one of them larger
+than the input dimension it has to fill. **If those patches span `d_l`, then `N′ = d_l`, `C = 0`, and the
+certificate is vacuous on a convolution at every rank.**
+
+The counter-case is real and is why this is a measurement rather than an argument: MNIST is mostly identical
+background, so the number of *distinct* patch directions can be far below `N·P`. If the span is deficient, the
+margin is set by the number of distinct patch activations — a property of the **data**, not of the image count —
+and then weight sharing *helps*, because a conv layer supplies `rank C_l × P` conditions per image rather than
+`rank C_l`.
+
+| reading | what the rows would show | what it means |
+|---|---|---|
+| **CONV-VACUOUS** | `rank B_T = min(r, d_l)` at every conv layer and every `r`; all margins 0 | the recipe-free channel is a dense-layer phenomenon and does not transfer to a downsampling conv path. The pixel-rank curve cannot be run there at all. |
+| **CONV-CARRIES** | some layer has margin > 0 at some `r` | the pixel rank goes on the same axis as the MLP curve, with the prediction that it flattens at the narrowest spatial bottleneck, since every deeper layer's pixel map factors through the downsampled representation |
+
+The discriminator is measured **on the frozen backbone before any adapter is trained** — the rank of the stacked
+patch matrix at each layer against `d_l` — so the answer does not depend on the release, the recipe or the rank
+sweep. The sweep `r ∈ {8, …, 512}` then confirms it on the actual trained releases.
+
+Rows are algebraic checks at the truth: no solve, no start, not an attack.
