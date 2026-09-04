@@ -620,3 +620,40 @@ Two consequences worth stating in the paper:
 the release than `row(B_T)`, so `rank K` is not a bound on all leakage — it is the chart-free
 ceiling on what the recipe-free route can pin. Stating it as a bound on leakage per se would be
 the same overreach as the "iff" above.
+
+## 12. The certificate has FOUR jobs, and only one of them needs a large equation budget (Yoad's correction, 2026-09-04)
+
+§11 argued "one layer gives ~8 numbers per image, so a single-layer certificate is not an image attack". True — but
+it is an objection to only ONE of the certificate's uses, and I let it read as a general limitation. Corrected:
+
+| job | what it needs | status |
+|---|---|---|
+| **1. Membership inference** | almost nothing — one exact test per candidate | **works today**, exact, recipe-free, deterministic (1e-16…1e-8 vs 0.1–1). A complete result on its own; deterministic MIA is rare in a literature that is almost entirely statistical |
+| **2. Start generator for replay** | **proximity, not determination** | the equation count is IRRELEVANT here — a start does not have to be unique, only inside replay's basin. §11's counting does not bear on this at all. This is the chain, and the in-band handoff is its test |
+| **3. Instance identification inside a KNOWN category** | far fewer numbers than an image | "these are photos of my dog" is the realistic release. The remaining question is *which* dog / which instance, and the measured chart-fidelity curve says how many coordinates that takes: class identity 52% at k=6, self-identification among 10k held-out candidates 94% at k=32. So **tens of conditions can be enough to identify the instance**, which is the actual privacy harm |
+| **4. Standalone pixel reconstruction** | a large budget → many layers | this is the ONLY job §11's counting constrains |
+
+**Consequence for framing:** the target is not pixel-perfect reconstruction. It is **instance identification within a
+known category**, which is both the realistic harm and far cheaper in conditions. Lead with 1 and 3; treat 4 as the
+stretch and 2 as the open engineering question.
+
+### 12b. Depth caveat (Yoad): the signal reaching a very early adapted layer may be numerically tiny
+In a deep network the backpropagated error reaching the first adapted layer can be vanishingly small. **Magnitude
+alone is not the problem** — the certificate reads a *direction* (`row(B_T)`), and is scale-free: a release of norm
+7.6e-18 was inverted exactly in FP64 (§ledger). The problem is when the signal is small enough that **rounding
+dominates its direction**, which is precisely the measured half-precision-training failure (row space rotates
+2–25%, certificate 0 of 8). So this is not a new failure mode: it is the known one, reached by depth instead of by
+format. Mitigations that already exist in practice: residual connections and normalisation (which exist to prevent
+exactly this), and fp32/bf16 exponent range. **Testable cheaply:** measure `‖B_T^(ℓ=1)‖` and the certificate's
+member/non-member separation as network depth grows, at fixed format. Predict: separation degrades with depth only
+once the first layer's imprint approaches the format's rounding scale.
+
+### 12c. Would SimuDy's method work on a LoRA update rather than full fine-tuning?
+**Conceptually yes, trivially — nothing in their method needs full fine-tuning.** Unroll the LoRA training, match
+the released `(A_T, B_T)` instead of the full weight delta, same cosine objective. **That is our replay route.**
+Two consequences: (i) empirically it should work in the small-`N` personalisation regime and degrade as `N` grows,
+as theirs does (SSIM 0.12 at 120 images) — with less information than full weights, probably worse at matched `N`;
+(ii) **competitively, this is the risk**: the unrolling primitive is published and extends to LoRA in an afternoon,
+so our differentiator cannot be the unrolling. It has to be the **certificate** (recipe-free, exact, no start
+needed), the **conditions** (capacity lines, the caps, the imprint law), and the **impossibility** statements —
+none of which SimuDy has or could get from its own method.
