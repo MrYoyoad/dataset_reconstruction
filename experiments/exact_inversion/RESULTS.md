@@ -3075,10 +3075,20 @@ reduction fp16 buys by travelling the flat σ_min direction. The release is not 
 rounding floor acts as an implicit early stop**, and the "coarser format recovers better at the hard chart"
 finding is a statement about the solver's stopping point, not about what half precision destroys. Per-letter
 errors are uniform (4.1–7.7%) and the Z error falls with the residual (0.076 against 0.047 at full descent).
-Consequences: (i) an attacker at an ill-conditioned chart should stop at the release's own floor rather than
-minimise, and the floor is *knowable* — it is the matched residual at any candidate; (ii) the flush-to-zero
-reading (fp16 zeroing 28–35% of residual entries) and the dynamic-range reading (σ_min 1e-5 near fp16's normal
-floor) are not needed to explain the reversal, though neither is excluded as a contributor. **On the 2×2 (yoado-7e):** the decomposition is right — any residual-determined part is over-descent, any
+Consequences, **corrected on audit (yoado-7e) — my first version was wrong in a way an attacker following it
+would feel**: (i) *the floor is not the place to stop.* The best image error here is reached near residual ~0.011,
+while fp16's own A₀ floor is 0.0019 — far *below* it, so an fp16 attacker who "descends to the floor" over-descends
+and gets exactly the 7.5%. The floor is a lower bound on the reachable residual and an upper bound on how far one
+should travel toward it; the right stop is the **knee**, where residual reduction stops buying image accuracy and
+starts buying flat-direction travel, or equivalently damping along the ill-conditioned direction. (ii) *"Coarse
+arithmetic recovers better" is an accident of scale, not a property of the format.* bf16 wins at this cell only
+because its rounding floor (~0.012) happens to land near the knee (~0.011); change the chart's conditioning or the
+release's scale and the same floor could sit above the knee (under-recovery) or below it (over-descent, as fp16's
+does). The general statement is that **at an ill-conditioned chart the attacker should early-stop or regularise —
+which they can do at any precision** — and low precision does it by accident when its floor coincides with the
+knee. Nobody should read "train in bf16 and the attacker does worse". (iii) The flush-to-zero reading (fp16
+zeroing 28–35% of residual entries) and the dynamic-range reading (σ_min 1e-5 near fp16's normal floor) are not
+needed to explain the reversal, though neither is excluded; the matched-residual gap of 3.5% bounds them. **On the 2×2 (yoado-7e):** the decomposition is right — any residual-determined part is over-descent, any
 format-locked gap at matched residual is flush-to-zero — but the fourth cell cannot be measured: bf16's own A₀
 floor is 0.0227 and its full descent stops at 0.0124, so it can never reach fp16's 0.0025. The one comparison the
 design does support is the matched-residual one, and it is already in: **fp16 at 0.0107 → 4.72%, bf16 at 0.0124 →
