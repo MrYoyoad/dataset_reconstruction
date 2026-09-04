@@ -296,8 +296,10 @@ def main():
                 if w_st is None:
                     emit(dict(part="D0", set=a.set, k=k, r=a.r, n_prime=Np, dist=dist, note="Z_C has no tangent directions at this k")); continue
                 with torch.no_grad(): cert_st = float(torch.linalg.norm(g_of(w_st)))
-                e_st = float(torch.linalg.norm(chart.psi(w_st.reshape(k, 1))[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
-                r0 = run(torch.cat([w_st, torch.zeros(a.r * Np, device=dev)]), False, "d0", e_st)
+                Xst = chart.psi(w_st.reshape(k, nrec))                  # a station is the whole recorded SET
+                e_st = max(float(torch.linalg.norm(Xst[:, q] - X_on[:, rec[q]]) / torch.linalg.norm(X_on[:, rec[q]]))
+                           for q in range(nrec))                        # worst image at the station
+                r0 = run(torch.cat([w_st, torch.zeros(a.r * nrec, device=dev)]), False, "d0", e_st)
                 emit(dict(part="D0", dist=dist, station_cert_norm=cert_st, station_err=e_st, **r0))
                 stations.append((dist, e_st))
                 if r0["verdict"].startswith("recovered"): ok.append((dist, e_st))
