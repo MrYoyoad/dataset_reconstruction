@@ -3011,3 +3011,40 @@ mechanism is visible in the predicted floors: at N′ = 3 the swapped-in image's
 N′ = 6 it is 4e-19 — below the solver's own reach (both cells stop at 5e-17), so no residual can see it. **The
 boundary is not a value of N′ but a comparison: the rule discriminates while the omitted imprint exceeds the
 achievable residual (~1e-16 … 1e-17 here); N′ = 6 is where it falls below on this batch.**
+
+### The cap-violating direction is the all-ones vector — measured (job 85049), with two corrections to the fix
+
+`D = softmax(z) − Y` has every column summing to zero exactly, so `B_T`'s column space lies in the zero-sum
+hyperplane and `rank B_T ≤ m − 1` (yoado-7e's derivation). Recomputing the letter releases and projecting the
+all-ones direction `1_m/√m` out of the output space:
+
+| k | format | ‖B_T‖ | rank @1e-10 | rank after removing 1_m | max overlap of a left singular vector with 1_m (index) | σ_rel there | mean \|softmax column sum − 1\| at t = 1 |
+|---|---|---|---|---|---|---|---|
+| 16 | fp64 | 0.975 | 8 | 8 | **0.976** (9th) | **2.1e-16** | 1.5e-16 |
+| 16 | fp32 | 0.975 | 10 | 10 | **0.976** (9th) | **1.5e-7** | 8.0e-8 |
+| 16 | bf16 | 0.862 | 11 | **10** | 0.792 (6th) | 1.3e-2 | 5.0e-4 |
+| 16 | fp16 | 0.960 | 11 | **10** | 0.754 (6th) | 5.9e-3 | 1.2e-4 |
+| 32 | fp64 | 1.001 | 8 | 8 | 0.979 (9th) | 2.2e-16 | 6.9e-17 |
+| 32 | fp32 | 1.001 | 10 | 10 | 0.981 (9th) | 9.4e-8 | 3.6e-8 |
+| 32 | bf16 | 0.894 | 11 | **10** | 0.600 (6th) | 8.6e-3 | 8.0e-4 |
+| 32 | fp16 | 0.983 | 11 | **10** | 0.562 (6th) | 5.5e-3 | 1.3e-4 |
+
+**Confirmed:** the ninth direction is the all-ones vector (overlap .98) and its singular value tracks the softmax
+column-sum error almost exactly — fp64 2.1e-16 against 1.5e-16, fp32 1.5e-7 against 8.0e-8. The mechanism is
+exactly as derived: roundoff breaks `1ᵀD = 0`, an all-ones component leaks into `B_T`, and the simplex cap is
+violated numerically.
+
+**Two corrections to "subtract one from every half-precision N′" (yoado-7e's fix).** (i) *It is necessary but not
+sufficient.* Removing the all-ones component takes bf16 and fp16 from 11 to **10**, not to the true 8 — the two
+remaining extra directions are ordinary roundoff filling, not the simplex break. A corrected N′ is still inflated
+by two on these cells. (ii) *In half precision the all-ones is not an isolated small direction:* its overlap is
+0.98 with the ninth singular vector in fp64/fp32 but only 0.56–0.79 with the *sixth* in bf16/fp16, i.e. it is mixed
+into the signal directions and cannot be cleanly removed.
+
+**And the true rank is not recoverable by choosing a tolerance (yoado-c9's question, answered no).** In fp64 the
+gap between the last real direction and the first spurious one is eleven orders (3.2e-5 → 2.1e-16). In bf16 at
+k = 16 it is **3×** (σ_8 = 5.8e-4, σ_9 = 1.9e-4), in fp16 **4×** (2.0e-4 → 5.2e-5); at k = 32, bf16 4× and fp16 2×.
+Note also that σ_9…σ_11 sit *below* the format's unit roundoff (bf16 1.9e-4 … 1.5e-5 against ε = 7.8e-3), so the
+10ε discipline does not reach them either. Rounding has compressed the spectral gap from eleven orders to a factor
+of two to four: **no tolerance separates the recorded directions from the spurious ones on a half-precision
+release**, and any N′ or certificate line read off one is unreliable in a way no threshold choice fixes.
