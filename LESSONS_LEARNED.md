@@ -4,6 +4,32 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A relay is not a verification (2026-09-04)
+
+Findings passed between sessions arrive with their confidence intact and their evidence left behind. Three
+instances in one day, each caught only because someone re-checked the source rather than the message:
+
+1. **An "applied" that wasn't.** A patch script asserted on its second anchor and, because it wrote once at the
+   end, discarded all three edits while exiting clean; the file was unchanged when the edit was reported done.
+2. **A misattributed number.** A start-model audit reported that the headline cell blended a random-start
+   landing count with near-truth-start residuals, and it was relayed as the highest-priority fix. The residuals
+   and the landing count are the *same row* of the same job (`RESULTS.md` Step 25 closed, 764976, certificate
+   search from 500 random starts). Applying the fix would have replaced a correct random-start residual with a
+   false claim that it was a near-truth replay number — the audit's own failure mode, inverted.
+3. **A mechanism inferred from rows without the code path.** An anomaly was real (a median landing error of
+   0.714 where 1e-15 was expected) but the diagnosis was wrong: not a scientific limit, a metric that scored
+   every start against one fixed recorded image rather than the one it landed on. The rows could not have
+   revealed that; only the code path could.
+
+**Rules.** (a) Verify at the point of **application**, not at the point of relay — the session about to write
+the claim into a document is the last one that can catch it. (b) When a finding and a fix arrive together,
+check the finding against its source row before applying the fix; a correct diagnosis and a correct remedy are
+separate claims. (c) Refusing a relayed fix and saying why, then doing something that meets its intent, is a
+better outcome than either applying or ignoring it. (d) An anomaly found in rows licenses "something is wrong
+here", not "this is what is wrong" — name the diagnosis as provisional until the code path is read.
+
+---
+
 ## Do not cost a framework-derived unknown by its expanded dimension (2026-09-04)
 
 - **What I got wrong:** I costed a minibatch shuffle as `T × N` free bits (3,200) against an identifiable budget of ~100 and concluded the data assumption was merely being swapped for a schedule assumption.
