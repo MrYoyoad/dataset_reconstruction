@@ -3850,3 +3850,34 @@ scope from the margin sweep still applies: this is a personalisation-regime resu
 *The corollary is now quantitative:* a chart must compress the image into **no more than ≈158 coordinates** for this
 release to determine a candidate within it — against the 16-to-32 dimensional charts used throughout this work,
 which are far inside that budget. The chart is not the binding constraint at this depth; it is generous.
+
+**The conditioning check, which decides whether the additivity result stands (job 169541).** Formal independence is
+cheap: 158 conditions can be mutually independent and nearly parallel, which is full rank and practically empty,
+and reads exactly like a strong result. Stacked-system spectrum as layers are added:
+
+| layers | rank | σ_max | σ_min at the rank | condition number |
+|---|---|---|---|---|
+| 1 | 58 | 4.77e-1 | **2.77e-1** | **1.7** |
+| 1, 2 | 102 | 6.24e-1 | **6.94e-2** | **9.5** |
+| 1, 2, 3 | 158 | 9.86e-1 | **1.15e-2** | **1.0e2** |
+
+**The result survives, with a real cost attached.** `σ_min` does not collapse — it falls by a factor of 24 across
+two added layers while the rank rises from 58 to 158, and the condition number stays at **100**, which is a
+well-conditioned system by any standard in this project (the replay Jacobians run 1e6 … 1e18). So the added
+conditions are not near-parallel filler: they constrain genuinely, though each new layer's directions are somewhat
+weaker than the first layer's. **The honest form: the layers are additive in rank and mildly degrading in
+conditioning**, and the extrapolation must carry that — at 14 layers the condition number would be far larger if
+the trend continued geometrically, which is exactly what the extended-layer run is for.
+
+**Reframing (yoado-cd): perfect additivity is what genericity predicts, so the surprise would have been
+degeneracy.** Stacked matrices in general position have rank `min(Σ rows, columns)`, so both my redundancy
+prediction and the saturation prediction were predictions of *pathology*, and the rows say no pathology occurs.
+That is the better statement: **nothing obstructs the accumulation**, and the thing that must eventually stop it is
+the architectural bound `rank K ≤ rank DF_1` — every adapted layer's pixel-space map factors through the first, so
+the whole stack shares that right factor. That number says where the linear growth has to stop, and it is queued.
+
+*Not yet in any document, pending the extended-layer curve:* if the count reaches the pixel count with enough
+layers, the implication is not that the chart is generous but that **a chart may not be needed at all** — 158
+conditions against 784 pixels is 20% of a chart-free determination of the raw image with no prior. Three points do
+not support that, which is why the 4/6/8/10/14-layer curve and the conv-net comparison run before it is written
+anywhere.
