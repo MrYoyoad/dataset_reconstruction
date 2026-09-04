@@ -2241,8 +2241,12 @@ gradient --- that is what invisibility means in \eqref{eq:imprint} --- but the
 normalisation must be corrected for the ones that remain. Second, the attacker
 never needs $N$: they fit one scalar, which is precisely the fit (R2) measures
 succeeding to $5.2\times10^{-16}$. Third, and this is the defender-side
-reading, $N$ cannot be recovered from the release at all. Only $N'$, the
-number of examples recorded, can be, and $\operatorname{rank}B_T$ returns it;
+reading, $N$ cannot be recovered from the release at all. Only $N'=\operatorname{rank}B_T$
+can be --- and at a layer whose \emph{input is frozen}, which is the setting
+throughout this section, that rank is the number of examples recorded. At a
+layer whose input drifts because an adapted layer sits below it, the same rank
+counts recorded \emph{directions}, over images and steps together, and is no
+longer a headcount (\S\ref{sec:opens});
 and the two halves of that statement hold to different strengths. That $\eta$
 and $N$ are inseparable, and that neither is needed, is exact and
 unconditional: it is a statement about the parametrisation of a fixed batch.
