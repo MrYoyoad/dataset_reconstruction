@@ -220,7 +220,7 @@ def main():
                     if constrained:                                     # pull back onto the manifold (one GN step)
                         with torch.no_grad(): gv = gfun(vn[:nW])
                         Jg2 = tf.jacfwd(gfun)(vn[:nW]).detach()
-                        vn = vn.clone(); vn[:nW] = vn[:nW] - torch.linalg.lstsq(Jg2, gv.unsqueeze(1)).solution.reshape(-1)
+                        vn = vn.clone(); vn[:nW] = vn[:nW] - torch.linalg.pinv(Jg2, rtol=1e-10) @ gv
                     with torch.no_grad(): Fn = replay_res(vn)
                     if float(Fn @ Fn) < fval:
                         v, F, fval = vn, Fn, float(Fn @ Fn); lam = max(lam / 3, 1e-15); accepted = True; break
@@ -291,9 +291,9 @@ def main():
             if null.shape[1] == 0: return None
             d = null @ torch.randn(null.shape[1], generator=gen).to(dev)
             w = w + dist * float(W_all.std()) * d / torch.linalg.norm(d)
-            for _ in range(8):                                        # Gauss-Newton back onto the manifold
+            for _ in range(12):                                       # Gauss-Newton back onto the manifold
                 gv = g_of(w); Jg2 = tf.jacfwd(g_of)(w).detach()
-                w = w - torch.linalg.lstsq(Jg2, gv.unsqueeze(1)).solution.reshape(-1)
+                w = w - torch.linalg.pinv(Jg2, rtol=1e-10) @ gv         # pinv: Jg is rank-deficient by construction
                 if float(torch.linalg.norm(g_of(w))) < 1e-12: break
             return w
         d0_radius = None
@@ -304,6 +304,11 @@ def main():
                 if w_st is None:
                     emit(dict(part="D0", set=a.set, k=k, r=a.r, n_prime=Np, dist=dist, note="Z_C has no tangent directions at this k")); continue
                 with torch.no_grad(): cert_st = float(torch.linalg.norm(g_of(w_st)))
+                if cert_st > 1e-8:                                       # the pull-back did not converge: the station
+                    emit(dict(part="D0", set=a.set, k=k, dist=dist, station_cert_norm=cert_st,   # is not on Z_C, so its
+                              valid=False, note="station left Z_C; replay outcome not scored"))  # replay says nothing
+                    print(f"    [k={k}] station at {dist}: OFF the manifold (cert {cert_st:.2e}) -- not scored", flush=True)
+                    continue
                 Xst = chart.psi(w_st.reshape(k, nrec))                  # a station is the whole recorded SET
                 e_st = max(float(torch.linalg.norm(Xst[:, q] - X_on[:, rec[q]]) / torch.linalg.norm(X_on[:, rec[q]]))
                            for q in range(nrec))                        # worst image at the station
