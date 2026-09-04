@@ -4631,3 +4631,34 @@ rather than discarded. Pre-registered before that run: if the certificate stays 
 through 0.6–0.9, the claim is "a statistic from the deterministic channel beats the standard membership baseline
 in the regime where the baseline is informative"; if the certificate degrades as the baseline improves, the two
 are measuring the same thing and there is no claim. Job 286191.
+
+## Pre-registered — the STRONGER form of the head claim, and what would falsify it (job 286191, in flight)
+
+**Disclosure, since this is being written while the job runs:** one cell was visible at the time of writing —
+`N = 32, T = 5`, giving certificate AUC 1.000 against a baseline of 0.380 — and it merely reproduces the leftmost
+point already reported above. **No cell in the discriminating region (baseline climbing through 0.6–0.9) had been
+produced.** The registration below therefore precedes the data that would test it, but not all data.
+
+**The stronger claim (yoado-cd), registered alongside my original one.** The two statistics do not compete on the
+same terrain and the void exposed it:
+
+> **A loss-based membership attack requires the model to have MEMORISED. The certificate requires only that the
+> image was in the batch and that `r >` the recorded span. So the certificate should detect membership at training
+> lengths where the statistical attack is at chance — it does not need to beat the baseline inside the informative
+> band, it needs to EXIST below it.**
+
+**The quantity to report is therefore the training length at which each method crosses AUC 0.6, not the gap at any
+one point.** Both curves go on one axis against training steps, with both crossings marked.
+
+**What would falsify it, and why that branch is the surprising one.** The head's encoder is frozen, so its recorded
+span stays at the batch size at every training length — the certificate has no structural reason to degrade along
+the sweep. So "the certificate degrades as the baseline improves", which would mean the two are measuring the same
+thing, is the genuinely informative negative. The `N = 64` arm runs beside it as the vacuous control, where the
+span reaches the rank and the certificate must read nothing at all.
+
+**A condition on any positive, and it is not optional.** A loss threshold is the weakest comparator in the
+membership literature and "beats the baseline" would read as "beats a straw man". **If this trajectory lands
+positive, the claim must be re-measured against a shadow-model / LiRA-style attack before it is stated anywhere.**
+That run is being built now rather than after, so it is ready: the encoder is frozen, so per-image features can be
+cached with a single forward pass over the pool and each shadow release is then head-only training on cached
+features — which makes a proper 128-shadow LiRA cheap rather than prohibitive. `experiments/exact_inversion/head_lira.py`.
