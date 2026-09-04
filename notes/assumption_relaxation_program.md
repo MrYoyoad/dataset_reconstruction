@@ -739,3 +739,50 @@ real error in variant 2 and cited the wrong theorem in variant 3.**
 The honest statement is that the certificate's value is membership + instance-ID + start-generation (§12), and image
 reconstruction routes all funnel back to the chart, whether reached by a prior, by bootstrapping, or by feature-space
 search.
+
+## 14. The multi-layer route is dead as stated; the mechanism that killed it is the better result (job set 2026-09-04 late)
+
+**Both pre-registered checks went against the optimistic branch. The 20%-of-the-image / chart-free extrapolation is
+WITHDRAWN and must not appear in any document.**
+
+**14a. The layer curve flattens, hard.** On a 15-layer MLP with every layer adapted at rank 64, **twelve of fifteen
+layers supply nothing at all** — their recorded count equals the rank, so the certificate is the zero matrix (§10's
+vacuity, at scale). Only layer 1, layer 2 and the head carry anything: 80 independent pixel conditions out of 112
+supplied, of which **only 69 survive the release's own noise floor**, at condition number 9e9. First time in the
+project the *usable* count has fallen below the *formal* count.
+
+**14b. The mechanism — and this is the keeper. `N′` does not count images; it counts recorded DIRECTIONS.**
+At a layer whose input moves during training, each image contributes a *distinct* direction per step:
+`row(B_T^ℓ) = span{A₀ h_i^ℓ(t)}` over images `i` AND steps `t`. So the effective count grows with training length,
+`N′_ℓ ≲ N · (distinct input positions over training)`, and fills the rank. Consequences:
+- **The first adapted layer is immune, and not because it is first — because its input is FROZEN.** Its input is the
+  image, which never moves, so its count equals the number of images at every training length tried, and its
+  certificate holds to 14 digits throughout. Any layer with no adapted layer below it inherits this.
+- **Training longer destroys the deep-layer certificate.** At a quarter of the training length the additivity of §11
+  is back and exact. **So §11 was a LOW-DRIFT statement all along and we did not know it** — scoped, not wrong.
+- **Predictive form worth testing (mine, from 41's mechanism):** the deep certificate should die at the training
+  length where `N · d(T) ≥ r`, with `d(T)` the number of distinct input directions accumulated. That makes
+  **"train longer" a defender action with a mechanism and a predicted threshold**, and it is falsifiable by sweeping
+  `T` at fixed `r, N` and locating the crossing.
+
+**14c. Convolutional paths carry nothing, at any rank 8–512.** Weight sharing means one image records once per
+spatial position: 8 images supply ~1500 patch vectors into a 9-dimensional first-layer input, so the layer is full
+*before any adapter is trained*. Apparent margins at high rank are an output-width artifact, and there the certificate
+does not hold at the true image (off by 6–70%). **The recipe-free channel is a DENSE-layer phenomenon and does not
+transfer to a downsampling conv path.**
+
+**14d. What replaces it, and it is a cleaner question.** The first adapted layer is drift-immune, its conditions land
+on **raw pixels with no chart at all**, so the count should scale with the **adapter rank, not with depth**.
+Pre-registered as `r − N` and matching exactly so far: `r=16 → 8`, `32 → 24`, `64 → 56`, `128 → 120`. Conditioning
+degrades slowly as `r` grows; ranks to 900 are running, where the count would meet the 784-pixel count.
+**Deployment scope, which is the honest bottom line:** at the ranks people actually deploy (8–64) this is
+**8–56 conditions on the raw image** — nowhere near determining it. So at realistic ranks the recipe-free channel is
+a **membership and instance-identification instrument, not a reconstruction one**, which is exactly §12's ordering.
+Consistency check: this does not violate 81's cap, since at the first adapted layer the input *is* the image, so
+`rank DF_1 = 784` and `r − N` may approach it.
+
+**14e. Bug, logged: a relative rank tolerance has no absolute floor.** Asking for the rank of a matrix at a tolerance
+relative to its own largest singular value calls a **numerically zero matrix full rank** — which made every conv layer
+look like it had a healthy margin. Caught by the residual column beside it. **Second time this project has been bitten
+by a relative test with no absolute floor** (cf. the 1e-3 threshold that "manufactured a zero by construction").
+Standing rule: every rank/threshold test carries an absolute floor as well as a relative one.
