@@ -204,6 +204,20 @@ release, so *any* derivation in which a chain widens the admissible `k` has coun
   genuinely new finding rather than a restatement of the kernel count — and it would be the most
   attacker-relevant result in the chain work, because it would mean an attacker can identify good starts in
   exactly the regime where the certificate alone does not suffice.
+  **Scoring, fixed 2026-09-04 before any in-band row exists** (reference: the below-line table at 9 orders,
+  1.0 / ≤0.2). **SURVIVES** = a boundary between adjacent bins with **≥3 orders** separation in median
+  certificate residual, **AND** landing rate **≥0.8** on the low-residual side and **≤0.3** on the high side.
+  **DEGRADES** = anything short of all three. **The boundary's position is free and must be reported, not
+  constrained** — an attacker needs only that *a* threshold exists, not that it sits anywhere particular; a
+  clean cut at the 1/2 boundary is as useful as one at 7/8, it just means fewer good starts, and constraining
+  the position would let a real positive be scored as a failure. **Void rule:** the table is read over
+  floor-reachers, which in band includes spurious zeros — that is the point, since the question is whether the
+  residual still predicts *landing on a private image* once reaching zero stops implying it. ≥100
+  floor-reachers → deciles; 40–99 → quartiles with the same three criteria at the quartile boundary; **<40 →
+  the cell is VOID**, recorded as such and scored neither way, with starts raised adaptively rather than a thin
+  table read. **Report `N′` per cell beside the lines:** the band edges move with it, and a cell whose `N′`
+  differs from the below-line reference of 3 is not the same experiment — say so in the row rather than
+  comparing decile structures across different `N′` silently.
 - **Minibatch masking**, both arms (schedule known and schedule wrong).
 - **Multi-layer localisation and the cap**, gated on a cell with `N ≥ m` and on the certificate vanishing at the
   hidden layer, with the magnitude predicted (cap from class count to layer width) rather than the direction.
