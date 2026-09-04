@@ -4,6 +4,13 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A rank-deficient constraint's tangent space must be read from its RANK, not its shape (2026-09-04)
+
+- **Presented as:** the certificate-constrained replay reported "the constraint surface has no tangent directions" at every station, which would have made the whole chain experiment untestable.
+- **Cause:** the null space was taken as `Vh[J.shape[0]:]`, valid only for a full-rank Jacobian. The certificate matrix `C` has rank `r − N′`, not `r`, so its Jacobian is rank-deficient *by construction* — the surface has dimension `k − (r − N′)` (five in the first cell), not `k − r` (negative, hence "empty").
+- **Fix:** take the numerical rank from the singular values and slice there. General rule: whenever a constraint is built by projection (here `P⊥A_T`), its Jacobian inherits the projector's rank deficiency, and any shape-based null-space calculation silently returns the wrong dimension rather than failing.
+- **Caught by:** launching. Four launches were needed for this cell — a shape-vs-rank error, a shape mismatch from moving to a joint solve, a singular normal-equation solve at a rank-deficient point, and two row-construction collisions. None would have surfaced from reading the code.
+
 ## A threshold below the solver's own achievable floor is not a test (2026-09-04)
 
 Found three times in one day, in three unrelated places, always by an auditor and never by the
