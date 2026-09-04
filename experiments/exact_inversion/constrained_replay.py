@@ -190,6 +190,7 @@ def main():
         print(f"  [k={k}] fwd_check at the truth (subset recipe, lr*N'/N): {fwd:.3e}", flush=True)
 
         # ---- certificate landings from random starts
+        n_land = 0; landings = []                                      # defined before run(): D0 calls it first
         def run(v0, constrained, tag, start_err, gfun=None):
             gfun = gfun if gfun is not None else g_of
             v = v0.clone(); jac = tf.jacfwd(replay_res)
@@ -331,7 +332,7 @@ def main():
             if d0_radius < a.d0_min_radius:
                 print(f"  [k={k}] D0 GATE FAILED -- D1/D2 not launched at this k (plan section 3)", flush=True); continue
 
-        gs = torch.Generator().manual_seed(a.seed + 31); landings = []; by_image = {}; n_land = 0; t0 = time.time()
+        gs = torch.Generator().manual_seed(a.seed + 31); by_image = {}; t0 = time.time()
         cert_objs = []; land_errs = []; start_errs = []; normmatch_errs = []; norm_ratios = []
         for s_i in range(a.cert_starts):
             w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
