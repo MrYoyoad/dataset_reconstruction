@@ -187,3 +187,49 @@ structure as a proposition; keep the fittability in the measured section, cross-
 paper's count is per-example — `(m−1)+r−N` coordinates — so the honest comparison is per-example on
 both sides, and the full-head figure has to be derived in the same units before the ratio means
 anything. Worth doing; not worth quoting until it is.
+
+
+## Pre-registration for both conjectures (yoado-b9, adopted; executor 2026-09-04)
+
+Both are **derivations, unmeasured**, and carry that label in any ledger entry.
+
+### C1 minibatching — state it as PROVED, and add the arm that decides what it costs
+The induction never inspects `D_t`'s contents, only its shape, so `B_t = P_t(A₀H)ᵀ` and `A_t = A₀(I + HM_tHᵀ)`
+reproduce for **any** masked or reweighted `D_t`; shuffling and batch order fall out identically. So the run is
+**verification, not test**. The arm it is missing is the one that matters: masking is *according to the step-t
+batch*, so the simulator must know **which images were in which step** — a new recipe unknown of size `T×N`
+(3,200 in the standard cell) against an identifiable recipe budget of `N((m−1)+r−N) − Nk` = **120** there. A free
+per-step schedule is therefore **not identifiable by this project's own counting**. Two arms, and (a) never stands
+alone:
+- **(a) schedule known** → `fwd_check` at machine precision (tests the closure).
+- **(b) schedule wrong** — same release, a different valid schedule of the same batch size → residual far above the
+  floor, as every wrong recipe is (6e-8 for one step in four hundred).
+Honest line after a pass on both: *minibatching does not break the closure; it moves the requirement from the data
+to the schedule, and whether the schedule is recoverable is the open question* — which the existing recipe-probe
+machinery may answer, and that would be the real result. Without (b) a pass reads as an assumption **removed** when
+it was **swapped**.
+
+### C2 deep-layer localisation — the stated falsifier is vacuous, and the effect is larger than claimed
+- **The cell must have `N ≥ m`.** `rank B_T ≤ min(m, r, N′)` always, so at m = 10, N = 8 the rank cannot reach 9
+  whatever the layer does and "rank did not exceed m−1" would mean nothing. Require the output cap to *bind* first
+  (N = 10–12), else the test is vacuous.
+- **Pre-register the magnitude, not the direction.** At the output the cap is the class count minus one; at a hidden
+  layer of width `W` the zero-sum is gone and the cap is `W` — one to two orders in any real model, not "one more
+  image". Predict `rank B_T` reaching `min(W, r, N′)` and the replay line moving from `k ≤ (m−1)+r−N′` to
+  `k ≤ W + r − N′`. Direction-only would let any increase count as confirmation.
+- **Gates first:** `fwd_check` at machine precision on the hidden-layer release, and the certificate vanishing at the
+  recorded truths there. If `Ch` does not vanish at a hidden layer, localisation has failed and no cap claim is
+  scoreable.
+- **What a pass does not license:** what is recovered at a hidden layer is that layer's *inputs* — activations, not
+  images — so a pass is a wider recording cap **in activation space** and says nothing about pixels until the
+  activation→image step exists. "More images recorded" and "more images reconstructed" are the two claims a reader
+  will merge.
+- **Both signs up front:** a larger `N′` moves the certificate line `k < r − N′` the *unhelpful* way, so the loosened
+  cap widens the replay band and narrows the certificate-alone region at the same time. A mixed result is the
+  prediction, not a failure.
+- *Executor's addition:* the zero column sum is also what keeps the certificate's arithmetic readable — on a
+  half-precision release its loss made the rank exceed the cap and become unreadable **at any tolerance**. So the
+  deep-layer cell may loosen the cap and make the count harder to read at once; predict that before running.
+- *Executor's addition to C1:* with masking an imprint accumulates only over the steps an image appeared in, so two
+  equally-sampled images should be recorded comparably while a rarely-sampled one falls toward the floor. A sharper
+  test of the same claim than `fwd_check` alone, at no extra cost.
