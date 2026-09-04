@@ -132,7 +132,16 @@ def main():
             cn = torch.linalg.norm(torch.einsum("ndp,kd->nkp", P, C), dim=1)
             an = torch.linalg.norm(torch.einsum("ndp,kd->nkp", P, A_T), dim=1) + 1e-300
             return (cn / an).mean(-1)
-        rm = float(res(Pm)[0]); rn = res(Pn)
+
+        # THE NUMERICAL FLOOR of C, computable from the release alone (yoado-b9). At N' = 1 the member residual is
+        # at this floor BY ALGEBRAIC IDENTITY, so nothing may be scored against the member. Everything is scored
+        # against the floor instead.
+        def floor_of(P):
+            eps = torch.finfo(torch.float64).eps
+            pn = torch.linalg.norm(P, dim=1)
+            an = torch.linalg.norm(torch.einsum("ndp,kd->nkp", P, A_T), dim=1) + 1e-300
+            return float((eps * float(torch.linalg.norm(C, 2)) * pn / an).mean())
+        rm = float(res(Pm)[0]); rn = res(Pn); c_floor = floor_of(Pm)
         # 7e's per-draw null: the SAME image scored under the PREVIOUS draw's release, which never saw it. This
         # separates "the certificate annihilates this image" from "the certificate annihilates this image BECAUSE
         # it was trained on it" -- a same-image control no non-member population can provide.
@@ -148,14 +157,28 @@ def main():
         below = int((rn < rm).sum())
         gap = math.log10(float(srt[0]) / max(rm, 1e-300)) if rm > 0 else float("inf")
         gate_ok = (rm < a.gate) and rank_C > 0
+        # b9's REPLACEMENT criterion. The old one -- rank 1 of 1001 plus a 2-order gap -- is now VACUOUS: at
+        # N' = 1, C h = 0 is an algebraic identity, so rank 1 is automatic and carries no evidence. Success is
+        # measured entirely on the NEGATIVE side, against C's own numerical floor.
+        null_ok = (null_same_image == null_same_image) and (null_same_image >= 100 * c_floor)
+        nm_ok = float(srt[0]) >= 100 * c_floor
         verdict = ("void: gate" if not gate_ok else
-                   "success" if (below == 0 and gap >= 2) else "fail")
+                   "void: no prior draw for the paired null" if null_same_image != null_same_image else
+                   "success" if (null_ok and nm_ok) else "fail")
         if gate_ok:
             scored += 1; ok += (verdict == "success")
         emit(dict(part="LIVE", draw=di, margin_stratum=rank_i, initial_margin=float(margin0[di]),
                   r=a.r, positions=int(Pm.shape[2]), d_in=d_in, n_prime_measured=Np,
                   predicted_margin=a.r - int(Pm.shape[2]), rank_C=rank_C,
                   member_residual=rm, member_side_not_scored="forced to ~0 by rank-one collinearity at N=1",
+                  certificate_numerical_floor=c_floor,
+                  null_over_floor=(null_same_image / c_floor if c_floor > 0 else None),
+                  nonmember_min_over_floor=(float(srt[0]) / c_floor if c_floor > 0 else None),
+                  criterion="b9 replacement: the paired same-image null AND the non-member minimum must each sit "
+                            ">= 2 orders above C's numerical floor. The member residual is REPORTED, NOT SCORED -- "
+                            "it is at the floor by algebraic identity at N' = 1.",
+                  claim_supported="the certificate is SPECIFIC (it annihilates the member and rejects everything "
+                                  "else); NOT 'it identifies the member', which is an identity",
                   null_same_image_untrained_release=null_same_image,
                   null_ratio=(null_same_image / rm if rm > 0 and null_same_image == null_same_image else None),
                   nonmember_min=float(srt[0]), nonmember_median=float(srt[len(srt) // 2]),
@@ -168,8 +191,8 @@ def main():
                   start_attacker_buildable="n/a (scoring at the truth, no start)",
                   seconds=time.time() - t0, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
         print(f"  draw {rank_i:3d} margin {float(margin0[di]):+8.3f}  N'={Np:3d} rank C={rank_C:3d}  "
-              f"member {rm:.2e}  self-null {null_same_image:.2e}  nm_min {float(srt[0]):.2e}  "
-              f"below {below}  gap {gap:5.2f}  {verdict}", flush=True)
+              f"member {rm:.2e} (floor {c_floor:.1e})  self-null x{null_same_image/max(c_floor,1e-300):.1e}  "
+              f"nm_min x{float(srt[0])/max(c_floor,1e-300):.1e}  {verdict}", flush=True)
     hk.remove()
     lo, hi = binom_ci(ok, max(scored, 1))
     emit(dict(part="LIVE_SUMMARY", successes=ok, scored=scored, voided=a.draws - scored,

@@ -5033,3 +5033,41 @@ conditions give a ratio floor of 0.22 and a genuine bracket — the pixel-input-
 satisfied there too, so yoado-81's condition survives. Or restore a second rank, which yoado-cd removed on the
 grounds that below `r = 256` the answer is arithmetic; that reasoning still holds for the *single-cell* verdict but
 not for a crossing, which needs the conditions to vary. **Nothing launches until that is settled.**
+
+## Test 2's scoring replaced mid-flight — the criterion I launched under was vacuous (job 302044 killed, 302745 relaunched)
+
+The theory lane's `N′ = 1` catch has a second consequence I did not draw at first, and yoado-b9 drew it: if
+`C h = 0` is an algebraic identity, then **"the member ranks 1 of 1,001" is automatic**, so the criterion I
+launched under could not fail and must never be reported as passed. The job was killed and relaunched rather than
+left to produce rows whose verdict field encodes a criterion that carries no evidence.
+
+**What does not follow, and it matters:** the test still works as an attack. An attacker computing `‖Cφ(x)‖` sees
+~0 for the member and, if the certificate is specific, something large for everyone else. **The identity explains
+why the attack works rather than undermining it.** What changes is what may be *claimed* and what may be *scored*.
+
+**Replacement criterion, now in the code:**
+- The member residual is **reported and not scored**, labelled as the identity it is.
+- The **primary statistic is the paired same-image null** — the member scored under the *previous* draw's release,
+  which never saw it. Being the same image, image-specific factors cancel, and it is the only thing separating
+  *"the certificate annihilates this image"* from *"the certificate annihilates images"*.
+- Success per draw requires the null **and** the non-member minimum each to sit **≥2 orders above `C`'s own
+  numerical floor** `≈ ε·‖C‖·‖φ‖ / ‖A_Tφ‖`, which is computable from the release alone and is now emitted per row.
+  Scoring against the member's residual would be scoring against the floor itself.
+- Across draws: the fraction clearing both, with the exact binomial interval. The ≥20 draws and the margin
+  stratification are unchanged and remain the point.
+
+**The claim the test can support has narrowed, and the wording is fixed now rather than at write-up:** not *"the
+certificate identifies the member"*, which is an identity, but **"the certificate is specific — it annihilates the
+member and rejects everything else"**, which is the attack and is what the negative side measures. The risk being
+measured is real: at `N′ = 1` the zero set of `C` is a large subspace, `φ(x) ∈ span(h) + ker A₀`, and whether
+natural images land near it is exactly the open question.
+
+**Test 3 is locked on the restored grid** (yoado-b9): ranks 64/128/256 against the basis axis at 28×28, supplied
+56/120/248, ratio 0.19–5.7, bar ≥1 order in `s` at an energy fraction declared before placement. **The finding is
+the collapse of twelve cells from two independent axes onto one curve, not the crossing alone.** The fitted
+constant is reported with a confidence interval as "≤ this factor from ideal, under this solver", the solver
+named, the absolute level treated as an upper bound and cell-to-cell differences as a measurement. Residual
+scatter is checked against per-cell conditioning **with the sign pre-registered** — worse conditioning must predict
+worse recovery, and the other direction is a second effect rather than a correction. **Void unless the recorded
+set — the image indices, not the count — is identical across ranks**, with the declared fallback being a fit on
+the intersection, its size reported and the excluded images named.
