@@ -2905,11 +2905,26 @@ The FP64 line is sharp as pre-registered: one unit above it the certificate's ex
 spurious (argmin 0.84 from any recorded image), three above 36%. **The claim that the bf16 release's wider line puts k = 58/60 below it is withdrawn (yoado-81).** The same
 release reads N′ = 3 (line 61) at tolerance 0.08 and N′ = 11 (line 53) at 1e-12 — and 11 is above the m − 1 = 10
 cap, so that reading is the rounding artefact; whichever tolerance is chosen, "below the line" is a choice, not a
-measurement, and at the tight tolerance k = 58 is *above* the line. What the rows do say without a tolerance
-choice: from the bf16 release the best of 5,000 starts is a near-miss 7.8–10.3% from a recorded image, no landing
-within 1%, with residual 2e-3 at the three strongest truths — degraded directions plus a basin that at k ≥ 56 is
-already under 1% per image on the FP64 release. "Approximately and rarely", with the reason left open between the
-two.
+measurement, and at the tight tolerance k = 58 is *above* the line.
+
+**And "approximately and rarely" is withdrawn too — the rows say never (yoado-b9).** Three separate reasons, each
+sufficient. (a) *The 7.8% is a post-hoc nearest match, not a recovery:* it is the distance from the best point to
+whichever of the seven recorded images happens to be closest (image 7, chosen after the fact;
+`argmin_nearest_is_top` False, `argmin_landed_on_recorded` False). Against the intended target the same point is
+**113% / 115% away** (`argmin_err_vs_top_chart` 1.133 / 1.148). An attacker holding it cannot know which image it
+is near, or that it is near one. (b) *There is no rate to be "rare":* `frac_starts_on_a_recorded_image`,
+`frac_starts_recovered` and `frac_starts_at_floor` are all exactly 0 over 5,000 starts, and every per-image landing
+count is 0 — the 7.8% is one order statistic, not a tail of a distribution. (c) *The objective's minimum is not at
+the truth in these cells:* the objective at the recorded truths is 4.5e-6 … 9.8e-6 while the argmin's objective is
+**8.8e-8 / 1.9e-12** — the best point fits the certificate two to eight orders *better* than any truth does, so the
+search is not failing to reach a minimum located at a private image; the minimum is elsewhere. The honest
+statement: **on a bf16 release of norm 1.6e-24 the certificate objective no longer has its minimum at the truth;
+no start of 5,000 lands on a recorded image, and the best-fitting point is 113% from the target.**
+
+*The FP64 control's boundary is graded, not hard (same audit):* at k = 58, one unit above its line, **2 of 5,000
+starts did land on recorded image 6** (`frac_starts_on_a_recorded_image` 4e-4, Poisson error 1.41 on that count);
+at k = 60 it is zero. "Spurious zeros dense at and above the line" must carry that 2/5,000 rather than round it
+away.
 The near-blank guard is load-bearing here (5–6% of starts degenerate at k ≥ 58).
 
 ### Wide head, k = 40 (725918, last row)
@@ -2963,18 +2978,27 @@ digits flatten as predicted: rank 8 on mid and weak (margins −1.7 … +0.6: th
 own digits) against rank 6 on the strong model. Recipe-route cells: near-start exact everywhere (1e-30); random
 starts fail everywhere (chart errors 1–5). The weak model's mixed batch is still running.
 
-**OOD inversion grids (644064, three encoders × three sets, k = 16, N = 8, near start and random start).** The
-imprint law across model strength, on foreign data: `mnist_control` — weak (78% model) rank 8, imprints 3e-6 … 4e-1,
-margins ~2; mid rank 8, imprints 2e-4 … 6e-1; strong rank 6 raw / 8 on-chart, imprints 1e-27 … 2e-4 (margins 20–24).
-`font_digits` — weak rank 8 (margins −0.07), mid rank 8 (1.2), strong rank 6 raw / 7 on-chart with the three
-letters it misreads carrying imprints 3e-1 … 7e-1 against 1e-17 for the ones it gets right. `optdigits` — every
-encoder rank 8 with imprints 0.1 … 2 and *negative* median margins (−1.0 … −3.2): the strong model is wrong about
-optdigits and records all eight, exactly as it records a new class. Recipe route: every near-start cell reaches
-1e-30 (chart error ≤ 1e-9) except the two strong on-chart cells, which stall at 2e-16 / 1.9e-15 with chart error
-0.10–0.13 (σ_min 1e-18 — rank-deficient because part of the batch is invisible); every random-start cell fails
-(chart error 0.4 … 13). So: **the "what the model got wrong is what it records" law holds across three model
-strengths and three foreign sets**, and foreign data that a strong model misreads is recorded exactly as richly as
-a new class — while reachability from random starts remains the recipe route's problem, not the certificate's.
+**OOD inversion grids (644064, three encoders × three sets, k = 16, N = 8, near start and random start).** Recipe
+route: every near-start cell reaches 1e-30 (chart error ≤ 1e-9) except the two strong on-chart cells, which stall
+at 2e-16 / 1.9e-15 with chart error 0.10–0.13 (σ_min 1e-18 — rank-deficient because part of the batch is
+invisible); every random-start cell fails (chart error 0.4 … 13).
+
+**What the imprint rows say, in the form the rows support (rewritten after audit — the categorical version is
+withdrawn).** My first reading was "the model records what it gets wrong and not what it gets right". The rows
+contradict the categorical form in both directions (yoado-b9): in the strong model's on-chart font batch, image 7
+has a *positive* margin (+1.25) and a relative imprint of 0.36, comparable to the 0.50 of a misread one; and the
+weak model's `mnist_control` batch, which it classifies perfectly, still records at relative imprints up to 1.0
+because its margins are 0.1 … 14.5. The consistent statement is the **margin-order law already measured within
+batches (9/9)**: *what is recorded is what has low margin*, and distribution shift is a route to low margin rather
+than a second mechanism. It shows up cleanly across the grid — strong model: `mnist_control` margins 4.7 … 23.2 →
+one image above 1e-6 relative, `font` margins −6.7 … +44 → the four lowest-margin images carry 0.36 … 1.0 and the
+four highest 1e-4 or less, `optdigits` margins −17 … +8 → six of eight at 0.1 … 1.0; weak and mid models: margins
+0.1 … 11 everywhere → everything recorded. The falsifiable form, not yet run: **an in-distribution batch selected
+for low margin should be recorded as heavily as optdigits.** *Measurement note:* `ood_acc_at_W0` is computed once
+on the raw images (`subset_and_ood.py:286`, outside the setting loop) while `margins` are recomputed per setting,
+so an on-chart row can show accuracy 1.0 beside negative on-chart margins; the two are not inconsistent, they are
+about different images. The margin-order form does not depend on the accuracy field at all, which is a second
+reason to prefer it.
 
 **R6's boundary, measured (706597, three batches).** The selection rule works while the omitted imprints are
 large enough to move the floor, and stops when they are not. Ratio of the one-swapped subset's achieved residual
