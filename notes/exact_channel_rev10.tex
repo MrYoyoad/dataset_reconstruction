@@ -1665,15 +1665,46 @@ whose error was already sitting on its own floor ($3.0\%$ against a floor of
 $2.3\%$) and so had nothing to amplify. My prediction applied a conditioning
 factor to a quantity that was floor-dominated.
 
-One consequence is that \emph{the format ordering inverts with $k$}. FP16
-recovers better at $k=16$ ($0.97\%$ against bfloat16's $3.0\%$) and worse at
-$k=32$ ($7.5\%$ against $4.6\%$), because FP16's error amplifies while
-bfloat16's is pinned. Underneath, FP16's narrow exponent range flushes
-$28$--$35\%$ of the residual entries to exactly zero at these margins ---
-destroyed information rather than noise --- while bfloat16 zeroes $1$--$2\%$
-and merely coarsens the rest. There is no format that is safer than another
-here; there is a floor, a conditioning factor, and a chart dimension that
-decides which of the two you meet.
+FP16's $7.5\%$ at $k=32$ against bfloat16's $4.6\%$ looks like a reversal of
+the precision ordering, and is not one. It is \emph{over-descent}, and the
+early-stop test settles it$^\dagger$: FP16 halted at bfloat16's residual gives
+$4.72\%$ against bfloat16's $4.56\%$, where running to its own floor gives
+$7.5\%$. Information the solver can recover by stopping sooner was never
+destroyed. At each format's best stopping point the ordering holds at both
+charts --- FP16 $0.97\%$ against bfloat16's $3.0\%$ at $k=16$, and $4.20\%$
+against $4.53\%$ at $k=32$.
+
+This is the same phenomenon as \S\ref{sec:measured}'s observation that the
+image finishes long before the residual does, in its sharpest form. Because
+$A_0$ cannot be reconstructed exactly, the matched objective's minimiser is
+not the truth, so image error falls as the residual falls, reaches a
+\emph{knee}, and then rises again as the solver closes on a displaced
+minimiser. At $k=32$ FP16 passes the knee --- $4.2\%$ at residual
+$4.2\times10^{-3}$ becoming $7.5\%$ at $2.8\times10^{-3}$, a factor of $1.5$
+in residual costing a factor of $1.8$ in image error --- while bfloat16's
+coarser floor of $1.2\times10^{-2}$ sits above the knee, so it cannot
+over-descend and cannot reach the optimum either. FP32's minimiser is
+essentially the truth, so it has no knee and descends monotonically to
+$5.8\times10^{-6}$. The knee lifts with conditioning, which is why
+over-descent appears only at the harder chart: at $k=16$ it sits below FP16's
+floor and the descent is monotone. \emph{The attacker's rule is to stop at the
+knee, not at the floor.}
+
+The cause is underflow specifically, not inaccuracy in general --- bfloat16 is
+the less accurate format and barely suffers, because it barely underflows
+($1$--$2\%$ of residual entries flushed against FP16's $28$--$35\%$), while
+FP32 rounds nothing away and has no knee at all. My earlier reading named
+underflow correctly and then drew the wrong conclusion from it: flushed
+entries displace the minimiser, they do not destroy the information, and the
+loss is the solver chasing that displacement. Stopping restores the ordering
+but not the margin --- FP16 recovers about threefold better than bfloat16 on
+the easy chart and only slightly better on the hard one --- so the honest
+claim is that \emph{low-precision training is not a defence; it costs the
+attacker a stopping rule and a modest loss of fidelity}, and any
+precision-based defence would have to act on numerical \emph{range} rather
+than accuracy. Two caveats: the dose-response rests on two FP16 points, a
+trend and not a formula, and no format that rounds away more than FP16 has
+been tested.
 
 What survives all of it is the claim: at $k=32$, the instance-identifying
 chart, a matched attacker recovers the private letters to $5.8\times10^{-6}$
