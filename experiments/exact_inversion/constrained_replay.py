@@ -31,6 +31,25 @@ from experiments.exact_inversion.trained_backbone import TrainedBackbone, PCACha
 from experiments.exact_inversion.subset_and_ood import pick_batch, release_and_imprints, margins_of
 
 
+def dist_to_recorded(x, X_on, rec):
+    """ONE candidate against the recorded set: the nearest RECORDED image (never an unrecorded one, never a fixed
+       target). A fixed target deflates when several images are recorded; a nearest-over-ALL match would credit a
+       drift toward an unrecorded image. Returns (error, index)."""
+    return min(((float(torch.linalg.norm(x - X_on[:, i]) / torch.linalg.norm(X_on[:, i])), i) for i in rec))
+
+
+def assign_to_recorded(Xh, X_on, rec):
+    """A candidate SET against the recorded set: optimal one-to-one assignment (greedy nearest-match inflates by
+       letting several returns claim the same truth). Returns (per-image errors, assignment, cost matrix)."""
+    from scipy.optimize import linear_sum_assignment
+    Cst = torch.zeros(Xh.shape[1], len(rec))
+    for ii in range(Xh.shape[1]):
+        for jj, tj in enumerate(rec):
+            Cst[ii, jj] = torch.linalg.norm(Xh[:, ii] - X_on[:, tj]) / torch.linalg.norm(X_on[:, tj])
+    ri, ci = linear_sum_assignment(Cst.cpu().numpy())
+    return [float(Cst[i_, j_]) for i_, j_ in zip(ri, ci)], (ri, ci), Cst
+
+
 def pick_constructed(ref, Xte_t, yte_t, N, perm):
     """The CONSTRUCTED N' = 1 cell (c9's option (b)): the single lowest-margin test image, plus N-1 fillers taken as
        the highest-margin image of each other class. The plan's words describe exactly this batch and no existing
@@ -239,13 +258,7 @@ def main():
             # (yoado-b9) OPTIMAL ONE-TO-ONE ASSIGNMENT, never greedy nearest-match: a joint solve with a mixing
             # symmetry can return several near-copies of the easiest image, and greedy matching would score that
             # well. The number of DISTINCT truths matched is reported separately as mode collapse.
-            Cst = torch.zeros(nrec, nrec)
-            for ii in range(nrec):
-                for jj, tj in enumerate(rec):
-                    Cst[ii, jj] = torch.linalg.norm(Xh[:, ii] - X_on[:, tj]) / torch.linalg.norm(X_on[:, tj])
-            from scipy.optimize import linear_sum_assignment
-            ri, ci = linear_sum_assignment(Cst.cpu().numpy())
-            per_image = [float(Cst[i_, j_]) for i_, j_ in zip(ri, ci)]
+            per_image, (ri, ci), Cst = assign_to_recorded(Xh, X_on, rec)   # shared helper: one-to-one assignment
             # (c9) Hungarian matching can INFLATE the count: it minimises total error, so a blend gets assigned to a
             # truth even when its match is poor. An image counts as recovered only if its match is UNAMBIGUOUS --
             # the assigned error at least 10x below that return's second-best truth.
@@ -365,14 +378,13 @@ def main():
             w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
             w, obj, _ = lm_cert(g_one, w0, a.cert_iters)
             xh = chart.psi(w.reshape(k, 1))[:, 0]
-            e = min((float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])), i) for i in rec)
+            e = dist_to_recorded(xh, X_on, rec)                        # shared helper
             cert_objs.append(obj)
             # (yoado-b9) the handoff must be measured against the RECORDED image specifically, never the post-hoc
             # nearest one -- the certificate has no information about images it did not record, and a start drifting
             # toward an unrecorded one would score as a pass. `top` is the recorded image.
-            def err_to_rec(wv):                                       # nearest RECORDED image (never an unrecorded one)
-                xv = chart.psi(wv.reshape(k, 1))[:, 0]
-                return min(float(torch.linalg.norm(xv - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in rec)
+            def err_to_rec(wv):                                       # shared helper: nearest RECORDED image
+                return dist_to_recorded(chart.psi(wv.reshape(k, 1))[:, 0], X_on, rec)[0]
             land_errs.append(err_to_rec(w)); start_errs.append(err_to_rec(w0))
             # (yoado-b9) SHRINKAGE control: if the solve mostly shrinks ||w|| toward the chart mean, every start moves
             # closer to every image without acquiring information. Compare against a random point of the SAME norm.
