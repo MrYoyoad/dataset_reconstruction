@@ -3048,3 +3048,27 @@ Note also that σ_9…σ_11 sit *below* the format's unit roundoff (bf16 1.9e-4 
 10ε discipline does not reach them either. Rounding has compressed the spectral gap from eleven orders to a factor
 of two to four: **no tolerance separates the recorded directions from the spurious ones on a half-precision
 release**, and any N′ or certificate line read off one is unreliable in a way no threshold choice fixes.
+
+### The k = 32 reversal is over-descent, not information loss (job 85300, yoado-7e's test)
+
+The two candidate mechanisms differ in where the damage is: over-descent is a solver effect (an early stop fixes
+it), flush-to-zero is information lost from the release (no solver can undo it). The test: run the fp16-trained
+k = 32 cell again and **stop the LM at bf16's residual level** (0.0124) instead of letting it descend to 0.0025.
+
+| fp16-trained, k = 32 | residual reached | iterations | image error vs the on-chart truths (median / max) |
+|---|---|---|---|
+| full descent (782682) | 0.0025 | 23 | **7.5% / 10.4%** |
+| **early-stopped (85300)** | **0.0107** | **4** | **4.72% / 7.69%** |
+| bf16-trained, full descent, for comparison | 0.0124 | 17 | 4.56% / 8.6% |
+
+**Over-descent confirmed.** Stopped at bf16's residual, fp16 lands at 4.72% — within 4% of bf16's 4.56%, i.e. the
+two formats agree once the descent is equalised, and the entire reversal is the extra decade of residual
+reduction fp16 buys by travelling the flat σ_min direction. The release is not the lossy thing: **bf16's coarse
+rounding floor acts as an implicit early stop**, and the "coarser format recovers better at the hard chart"
+finding is a statement about the solver's stopping point, not about what half precision destroys. Per-letter
+errors are uniform (4.1–7.7%) and the Z error falls with the residual (0.076 against 0.047 at full descent).
+Consequences: (i) an attacker at an ill-conditioned chart should stop at the release's own floor rather than
+minimise, and the floor is *knowable* — it is the matched residual at any candidate; (ii) the flush-to-zero
+reading (fp16 zeroing 28–35% of residual entries) and the dynamic-range reading (σ_min 1e-5 near fp16's normal
+floor) are not needed to explain the reversal, though neither is excluded as a contributor. The mirror cell
+(bf16 stopped at fp16's residual, which it cannot reach) is running as a control.
