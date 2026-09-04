@@ -75,8 +75,24 @@ under half-precision training. The chosen cell is inside the exact regime; the c
 certificate vanishes", not a general one. Projection recomputed EVERY step (curved Z_C, GELU encoder) with a
 correction step back onto the surface; certificate residual logged at the end so drift is visible.
 
+## 2b. Amendments from yoado-b9 (adopted)
+- **Counting result — the chain buys reachability, not capacity.** On `Z_C` each image keeps `k − (r − N′)` free
+  coordinates; the B-block (simplex-constrained) carries `N′(m−1)` numbers to pin them, so the chain closes iff
+  `k − (r − N′) ≤ m − 1`, i.e. `k < (m−1) + r − N′` — replay's own line. Every dimension the certificate removes is one
+  it was already pinning. Consequences: branch (2) is PREDICTED at k=16 (that control checks arithmetic, not an open
+  question); the pitch line is "attack from starts an attacker actually has", not "attack bigger charts".
+- **Null-manifold control (one extra arm).** D2 constrained onto a `Z_C` built from a permuted/resampled `B_T` — same
+  dimension and conditioning, wrong subspace. If it does about as well, the gain is dimension reduction, not certificate
+  information.
+- **D3 schedule pre-registered** (geometric, stated endpoints and step count) so a stall is a negative, not a re-tune.
+- **D0 is GATING:** D1/D2 do not launch if the in-manifold basin is negligible.
+- **Run the chain cell in FP64.** The fp32 floor (objective 1.1e-14, image error 3e-7) makes the FP64 thresholds
+  unfireable — every start would score branch 3 falsely. Arithmetic is a separate axis; keep it out.
+- **Branch 1 is D2 EXCEEDING D1** (the claim is that the constraint does work), not D2's absolute fraction alone.
+
 ## 3. Order of work
-D0 → (D1 + D2 in one job) → D3 only if D2 stalls (branch 3) → D5 only if D2 works and N′ ≥ 2 is wanted.
+D0 (gating) → (D1 + D2 + null-manifold arm in one job, FP64) → D3 only if D2 stalls (branch 3), one pre-registered
+schedule → D5 only if D2 works and N′ ≥ 2 is wanted.
 
 ## 4. Open questions for the lanes (answers appended below by each session)
 - Is `Z_C` well-conditioned enough to walk on? (certificate Jacobian σ_min along the manifold vs across it)
