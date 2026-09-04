@@ -5355,3 +5355,25 @@ membership, not class separation**, which is the answer the claim depended on.
 **One honest limit that comes with it:** the same-class pool is 246 images rather than 1,000, so the rule-of-three
 bound on the per-candidate rate is **1.2e-2** here against 3e-3 in the mixed cell. The result is qualitatively
 clean and quantitatively coarser, and the coarseness is set by how many images the dataset has in one class.
+
+## Pre-registered before the chunked enumeration rerun — the SHAPE of the minimum, not the count
+
+With **zero** false positives measured at every group size, every number quotable from a *count* is a bound set by
+the non-member population, and reaching larger groups by counting failures would need impossibly many negatives.
+yoado-cd's fix converts the question into a curve: **report the distribution of the best (minimum) non-member
+score at each group size.** Taking a minimum over more draws shifts that distribution toward the bar measurably,
+and its trend extrapolates the group size at which it would cross — **without ever observing a false positive.**
+
+**Pre-registered shape, before the rerun lands:** the minimum non-member score falls **slowly** with group size —
+roughly with `log |G|` if the candidates were independent — and **more slowly than that**, because augmented
+candidates are correlated. **The gap between the observed decline and the independent-draw prediction is itself
+the report**: it measures how much structure the augmentation group shares, and it is the same quantity that made
+the union bound infinitely loose.
+
+**Two design notes recorded as choices rather than fallbacks.** Public photographs of the labelled concept are
+used in place of a generator **by design, not because the environment lacks one**: a generator raises a question
+the collection does not — whether its output distribution matches the victim's — and public images are what a real
+attacker would use. If they work, a generator is a convenience. And the **random-start baseline for the label cell
+will be built in the real-data setting**, not borrowed: the standing 0-of-20 comes from the synthetic bed where an
+image is a latent vector, so a label prior is vacuous there by construction, and quoting against it would compare
+a label-informed attack in one world with a random attack in another.

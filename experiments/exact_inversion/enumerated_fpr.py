@@ -145,13 +145,23 @@ def main():
         best = torch.cat(parts)
         kk = int((best < a.bar).sum()); nn = int(best.shape[0])
         union = 1 - (1 - p_hi) ** gsz
+        # THE DISTRIBUTION, not just the count (yoado-cd). With zero false positives at every group size, every
+        # number quotable from a COUNT is a bound set by the non-member population, and reaching larger groups by
+        # counting failures would need impossibly many negatives. The minimum non-member score shifts toward the
+        # bar measurably as the group grows, so its trend extrapolates the crossing group size WITHOUT ever
+        # observing a false positive.
+        srt = torch.sort(best).values
+        qs = {f"q{p}": float(srt[max(0, min(nn - 1, int(p / 100 * nn)))]) for p in (0, 1, 5, 10, 50)}
         emit(dict(part="ENUM", group_size=gsz, n=nn, k_below_bar=kk, measured_fpr=kk / nn,
+                  best_score_quantiles=qs, best_min=float(srt[0]), margin_to_bar_orders=math.log10(
+                      float(srt[0]) / a.bar) if float(srt[0]) > 0 else float("nan"),
                   union_bound=union, bound_over_measured=(union / (kk / nn) if kk else float("inf")),
                   bar=a.bar, seconds=time.time() - t1,
                   note="the MEASURED attacker error rate: full candidate set per non-member, minimum taken. No "
                        "independence assumption -- candidates are correlated (an image and its mirror), so the "
                        "union bound over-counts.", git=git_hash(), cmd=" ".join(sys.argv)))
-        print(f"  |G|={gsz:3d}: measured enumerated FPR {kk}/{nn} = {kk/nn:.5f}   union bound {union:.5f}   "
+        print(f"  |G|={gsz:3d}: min {float(srt[0]):.4f} (q1 {qs['q1']:.4f}, q5 {qs['q5']:.4f}, med {qs['q50']:.4f})  "
+              f"margin to bar {math.log10(float(srt[0])/a.bar):.2f} orders   FPR {kk}/{nn} = {kk/nn:.5f}   union {union:.5f}   "
               f"{'bound is ' + format(union/(kk/nn), '.1f') + 'x loose' if kk else 'bound is INFINITELY loose (0 measured)'}"
               f"   [{time.time()-t1:.0f}s]", flush=True)
     hk.remove()
