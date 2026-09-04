@@ -169,9 +169,15 @@ picture.
    because a richer chart makes projections easier to classify. Eighteen probed cells, three batches, chart
    sizes 6–16: counts run 7 down to 3, **never 1 or 2**. A cell constructed to the plan's own specification
    (lowest-margin image plus the highest-margin image of every other class) gave 7,7,6,5,4,4,4,4.
-2. **So the one-image regime and the band are mutually exclusive at a deployable rank.** The thousandfold
-   imprint spread the design needed opens only at chart size 18, above the band. This is the imprint law
-   constraining which batches can *exist* in the band — a structural result, not a failure to find a batch.
+2. **So the one-image regime and the band are mutually exclusive at rank 8.** The thousandfold imprint spread
+   the design needed opens only at chart size 18, above the band. This is the imprint law constraining which
+   batches can *exist* in the band — a structural result, not a failure to find a batch.
+   **CORRECTED 2026-09-05, scope narrowed:** this was written "at a deployable rank" and is **false at rank 64**.
+   A probe (job 351056) measured the `hard1_diff` batch at `r = 64` with **certified `N′` = 1** and a band of
+   63…72 — a genuine single-recorded-image cell **inside** the band, the configuration declared unconstructible
+   the day before. The exclusivity is a **rank-8** result; at rank 64 the one-image regime and the band overlap.
+   Anything scored on that cell is scored on the **negative side only**, since `N′ = 1` carries the algebraic
+   identity (`Ch = 0` at the member regardless of content).
 3. **Three harness artefacts, each of which looked like a clean null** (LESSONS_LEARNED, 2026-09-04): a
    rank-deficient Jacobian reported as "no tangent directions"; an `lstsq` default driver assuming full rank,
    putting stations at image error 1e7; and a seed block started at zero instead of the span estimate. Rule now
