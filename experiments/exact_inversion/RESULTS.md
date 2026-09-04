@@ -5448,3 +5448,26 @@ only variable is recovery versus random rather than image shape. And any gain is
 budget, never as budget**: bootstrapping renders the same `k` coordinates as a better image and cannot recover
 more coordinates, because the capacity line is untouched. That is round 1's carried-forward issue and the sentence
 most likely to be got wrong.
+
+## The design probe found the attributive cell — test 6 can be made attributive rather than suggestive (job 351056)
+
+Certified counts measured per batch composition, at `r = 64`, `m = 10`. **The lines differ, which is what the
+attribution needs:**
+
+| batch | certified `N′` | certificate line | replay line | band |
+|---|---|---|---|---|
+| confident | 7 | 57 | 67 | **57 … 66** |
+| hard1_diff | **1** | 63 | 73 | **63 … 72** |
+| repeated | 6 | 58 | 68 | 58 … 67 |
+
+**`k = 67` is ABOVE the line for the confident batch and IN BAND for hard1_diff.** At that chart dimension the
+sweep parameter is identical and **only band membership differs** — which is precisely the comparison yoado-b9
+said is the only one able to attribute a degradation to the line rather than to `k`. A second contrast is
+available in the other direction: `k = 62` is **in band for confident** and **below the line for hard1_diff**.
+
+**So the arm converts from suggestive to attributive at the cost of one extra batch**, and the second batch is now
+**chosen by its measured line rather than hoped for** — which is the whole reason the probe emitted no verdicts.
+
+Note also `hard1_diff` has `N′ = 1` with a top imprint of 1.0 and every other image at 1e-24 or below, and
+`σ₂/σ₁ = 4.9e-16`: it is a genuinely single-recorded-image cell. That is the configuration the chain experiment
+wanted all day and could not find, and it arrives here as a by-product of a probe run for a different reason.
