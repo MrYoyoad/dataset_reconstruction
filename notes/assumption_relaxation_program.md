@@ -1143,3 +1143,35 @@ structured null, `r − N′` measurements"** is exact — which matters in fron
 of the practical rank range for 28×28 images and at **no practical rank for anything larger**, because the requirement
 scales with the image's sparsity while `r` does not. **That is a stronger negative than "we could not reconstruct": it
 says why, with a number, and it will survive someone trying harder with a better solver.**
+
+## 24. Truncation fails — and the null exists only because the rule was fixed first
+
+**Result.** The truncated certificate **fails every cell** under the pre-registered rule (truncate at the largest gap
+in the log spectrum): members and non-members sit **0–0.3 orders apart against a 2-order bar**. The reason is
+structural — **there is no gap to truncate at.** The spectrum spans 1–2.5 orders with the largest break anywhere
+between 0.2 and 0.5 of a decade, so it is smooth, and any truncation leaves a tail the size of the signal. The
+pre-registered flat-spectrum branch fires. **Truncation buys nothing, the transformer closure stands, and the counting
+rule remains a statement about EXISTENCE rather than only about exactness.**
+
+**The part worth carrying, and it is the best methodological artefact this project has produced.** 41's own script,
+choosing the truncation point *per module by whichever value separated best*, printed **separation in 4 of 6 cells at
+AUC 0.94–1.00**. The same data under the fixed rule reaches **nothing at all**.
+
+> **The difference between a headline and a null was one number chosen after seeing the outcome. The only reason we
+> have the null is that the rule was forbidden in advance.**
+
+That is a concrete, in-house demonstration — not a methodological platitude — and it is worth showing a supervisor as
+evidence of how the programme is run.
+
+**Second result: the reconstruction-side distributional question** (scoped alive after the membership version died,
+since in reconstruction the attacker does *not* hold the image). Private data fixed and raw, only the attacker's chart
+pool varying. **Degradation is monotone and the attacker is hit twice** — the recovered error rises from 1.2× the
+chart's own floor at a matched pool to 2.5× for clothing images and 2.6× for noise, *and* the floor itself worsens from
+~0.5 to over 1. So a mismatched attacker gets a worse chart and a worse fraction of that worse chart.
+
+**Scope, and it is limiting: no cell reaches recovery.** 0 of 200 starts land in *any* pool including the matched one,
+because the release was trained on **raw** images and no point inside a low-dimensional chart satisfies the certificate
+exactly. **So this measures the degradation of an attack that does not work in this configuration**, not the
+degradation of a working one. The meaningful version would use private images that genuinely lie in a low-dimensional
+chart, so the matched-pool attacker succeeds and mismatch is measured against a working baseline. Optional follow-up,
+not commissioned.
