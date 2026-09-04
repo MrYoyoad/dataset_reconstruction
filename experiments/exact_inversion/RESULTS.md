@@ -5000,3 +5000,36 @@ access and would be an oracle. TV is universal, so it stays. The real risk is TV
 hallucinating a plausible smooth image from few constraints, and **that is exactly what the scrambled-release arm
 catches**: a TV-plus-box solve on a scrambled release must FAIL, and if it recovers, TV is the reconstructor and
 the certificate contributed nothing. **The scramble control is therefore load-bearing rather than decorative.**
+
+## PRE-RUN DETERMINATION — the basis axis cannot bracket the transition at MNIST scale (jobs 300814, 301126)
+
+Test 3's finding is now pre-registered as a **curve crossing**: the boundary should follow
+`s ≲ (r − N′)/log(n/s)`, fitted with one free constant, and the cell list must **bracket** the ratio
+`(r − N′)/(s·log(n/s)) = 1`. Two things were checked before locking the list, and both are arithmetic.
+
+**First, the scoreability phrase has two readings that differ by an order, and I am not choosing between them.**
+"≥1 order of magnitude in best-`s`-term approximation error" can mean the error at a **fixed** `s` — measured
+**×7.2** across the twelve cells, which **fails** the bar — or the `s` required for a **fixed** energy, which runs
+10 to 593, **×59**, and clears it easily. The reading that lets the run proceed is the one I have an interest in,
+so the lanes fix it.
+
+**Second, and this is the structural one.** `s·log(n/s)` is concave with a maximum at `s = n/e`, so the
+compressed-sensing requirement has a **ceiling that no choice of basis can raise**:
+
+| image | `n` | max over `s` of `s·log(n/s)` | ratio floor at 248 conditions |
+|---|---|---|---|
+| MNIST 28×28 | 784 | **288** | **0.86** |
+| CIFAR 32×32×3 | 3072 | 1130 | **0.22** |
+| 224×224×3 | 150528 | 55376 | 0.004 |
+
+**At MNIST scale with `r = 256` the ratio can never fall below 0.86.** Crossing is therefore *possible* but only
+via the least compressible bases (`s ≳ 150`), and the achievable range is 0.86 to 5.7 with **eleven of twelve
+measured cells above the boundary and one barely below**. A curve with one free constant cannot be determined from
+that. **The basis axis alone does not bracket the transition at this cell**, and running it would produce a fit
+rather than a crossing.
+
+**Two fixes exist and the choice is the lanes', not mine.** Move the cell to CIFAR scale, where the same 248
+conditions give a ratio floor of 0.22 and a genuine bracket — the pixel-input-layer linearity requirement is
+satisfied there too, so yoado-81's condition survives. Or restore a second rank, which yoado-cd removed on the
+grounds that below `r = 256` the answer is arithmetic; that reasoning still holds for the *single-cell* verdict but
+not for a crossing, which needs the conditions to vary. **Nothing launches until that is settled.**
