@@ -382,3 +382,25 @@ The useful corollary for the paper is the reverse reading: this is why the shuff
 has queued is worth running on the *default* seed specifically. Confirming that a default-seeded
 shuffle is recoverable is a real result; confirming that some seed is recoverable given the seed is
 not.
+
+## 9. Multi-layer, continued: one certificate PER adapted layer (Yoad's question, 2026-09-04)
+
+**The idea.** Each adapted layer `ℓ` has its own released pair, hence its own certificate
+`C_ℓ = P_{row(B_T^ℓ)^⊥} A_T^ℓ`, testing that layer's *inputs* `h^ℓ`. For the **first** adapted layer `h¹ = φ(x)`
+with `φ` frozen, so the derivation holds exactly (§3). For a **deeper** layer `h^ℓ` moves during training, because
+the adapters below it move — so the exact derivation fails.
+
+**But it may hold approximately, and that is testable.** The imprint sum runs over steps in which `h^ℓ` took slightly
+different values; if the lower adapters move little (small `lr`, few steps — the ordinary LoRA regime; the measured
+`A_T` shift in the headline cell is 9.3%), then `h^ℓ` is nearly fixed and `C_ℓ h_i^ℓ ≈ 0` to the order of that drift.
+**If it holds, every adapted layer supplies its own `r − N′_ℓ` equations on its own inputs**, which is the concrete
+form of "more equations rather than fewer unknowns" (§7c) — and the deeper caps do not bind (§3).
+
+**Falsifier and design.** Two-or-three-layer adapted MLP; measure `‖C_ℓ h_i^ℓ‖` at the recorded inputs for each `ℓ`
+against the lower adapters' drift; the prediction is that the residual scales with the drift and stays far below the
+non-member level (0.1–1) while the drift is small. If the residual is already at the non-member level at ordinary
+`lr`, the idea is dead and only the first adapted layer is usable. **Cheap: no unrolled solve, only projections.**
+
+**Why it matters for cost.** Replay on a multi-layer adapter must unroll the whole network (the layers couple), so it
+inherits SimuDy's memory wall. The certificate never simulates, so it has no such wall — **multi-layer is where the
+certificate's advantage over replay is largest**, not smallest.
