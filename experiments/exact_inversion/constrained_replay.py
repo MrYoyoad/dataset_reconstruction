@@ -406,17 +406,36 @@ def main():
         # chain is a smaller search of an equally bad space and D2 need not run (cf. 753886: exact certificate
         # zeros 0.84 away, above the line).
         le = sorted(land_errs); se = sorted(start_errs); ne = sorted(normmatch_errs); nr = sorted(norm_ratios)
-        order = sorted(range(len(cert_objs)), key=lambda q: cert_objs[q])      # best-converged landing first
+        # floor-reachers: in band this set INCLUDES spurious zeros, which is the point of the test, not contamination
+        floor_q = [q for q in range(len(cert_objs)) if cert_objs[q] ** 0.5 <= 1e-8]
+        nbins = 10 if len(floor_q) >= 100 else (4 if len(floor_q) >= 40 else 0)
+        order = sorted(floor_q, key=lambda q: cert_objs[q]) if nbins else []
         dec = []
-        for d in range(10):
-            idx = order[d * len(order) // 10:(d + 1) * len(order) // 10]
+        for d in range(nbins):
+            idx = order[d * len(order) // nbins:(d + 1) * len(order) // nbins]
             if not idx: continue
-            dec.append(dict(decile=d,
+            dec.append(dict(decile=d, bin_of=nbins,
+                            cert_residual_lo=float(min(cert_objs[q] ** 0.5 for q in idx)),
+                            cert_residual_hi=float(max(cert_objs[q] ** 0.5 for q in idx)),
                             cert_residual_median=float(sorted(cert_objs[q] ** 0.5 for q in idx)[len(idx) // 2]),
                             landing_err_median=float(sorted(land_errs[q] for q in idx)[len(idx) // 2]),
                             norm_matched_err_median=float(sorted(normmatch_errs[q] for q in idx)[len(idx) // 2]),
                             frac_closer_than_norm_matched=float(sum(1 for q in idx if land_errs[q] < normmatch_errs[q]) / len(idx)),
                             frac_landed_1e2=float(sum(1 for q in idx if land_errs[q] < 1e-2) / len(idx))))
+        # SURVIVES iff some ADJACENT bin boundary has >= 3 orders of separation in median certificate residual,
+        # landing rate >= 0.8 below it and <= 0.3 above it. The boundary's POSITION is free and reported, not fixed.
+        best_cut = None
+        for b in range(len(dec) - 1):
+            lo = dec[:b + 1]; hi = dec[b + 1:]
+            mlo = sorted(x["cert_residual_median"] for x in lo)[len(lo) // 2]
+            mhi = sorted(x["cert_residual_median"] for x in hi)[len(hi) // 2]
+            rlo = sum(x["frac_landed_1e2"] * 1 for x in lo) / len(lo)
+            rhi = sum(x["frac_landed_1e2"] * 1 for x in hi) / len(hi)
+            sep = (mhi / mlo) if mlo > 0 else float("inf")
+            ok = bool(sep >= 1e3 and rlo >= 0.8 and rhi <= 0.3)
+            if ok and best_cut is None:
+                best_cut = dict(boundary_after_bin=b, separation_orders=float(torch.log10(torch.tensor(sep))),
+                                landing_rate_low=rlo, landing_rate_high=rhi)
         in_band = bool(a.r - Np <= k < (bb.m - 1) + a.r - Np)
         emit(dict(part="HANDOFF", set=a.set, k=k, r=a.r, n_prime=Np, in_band=in_band,
                   cert_line=a.r - Np, replay_line=(bb.m - 1) + a.r - Np,
@@ -429,7 +448,9 @@ def main():
                   frac_landings_closer_than_best_random=float(sum(1 for x in land_errs if x < se[0]) / len(land_errs)),
                   frac_landings_closer_than_norm_matched=float(sum(1 for i in range(len(land_errs)) if land_errs[i] < normmatch_errs[i]) / len(land_errs)),
                   measured_against="the nearest RECORDED image (all are legitimate targets; unrecorded images excluded)",
-                  by_certificate_residual_decile=dec,
+                  by_certificate_residual_decile=dec, n_floor_reachers=len(floor_q), n_bins=nbins,
+                  scoring=("VOID (<40 floor-reachers)" if nbins == 0 else ("deciles" if nbins == 10 else "quartiles")),
+                  survives=bool(best_cut is not None), survival_cut=best_cut,
                   git=git_hash()))
         print(f"  [k={k}] HANDOFF vs the recorded image: landing {le[len(le)//2]:.3f} | random start {se[len(se)//2]:.3f} | "
               f"norm-matched random {ne[len(ne)//2]:.3f} | latent norm ratio {nr[len(nr)//2]:.2f}", flush=True)
