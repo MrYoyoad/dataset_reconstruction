@@ -4437,6 +4437,16 @@ once for:
 **This is more useful to a defender than any reconstruction number in this ledger**, because it is a property they
 can evaluate about their own configuration in a minute, and because it is falsifiable in one forward pass.
 
+> **THE RULE IS NOT A GENERAL DEFENCE, and this qualification must travel with it every time it is stated.**
+> Satisfying the counting rule — `batch ≥ rank`, so the recorded span fills the adapter and `C = 0` — closes
+> **this** channel and **nothing else**. A shadow-model / likelihood-ratio membership attack still works in exactly
+> that configuration, because it reads memorisation from the model's outputs and does not care about the row space
+> of `B_T` at all. The two channels have **different failure modes**, which is a result rather than an
+> embarrassment: a defender who satisfies the rule has defeated the certificate and left a statistical attacker
+> untouched. Stating the rule as a privacy guarantee would be the kind of error that gets a claim retracted;
+> stating its scope makes it more credible, not less. The `batch = rank` arm of the LiRA run (job 287241) measures
+> exactly this — the certificate must read nothing there while LiRA is expected to keep working.
+
 ## RESULT — the head is the surviving surface, and it is the only non-weight-shared module (job 279182)
 
 yoado-cd's prediction, measured on the same two frozen pretrained transformers at the same real photographs, in
@@ -4655,6 +4665,17 @@ span stays at the batch size at every training length — the certificate has no
 the sweep. So "the certificate degrades as the baseline improves", which would mean the two are measuring the same
 thing, is the genuinely informative negative. The `N = 64` arm runs beside it as the vacuous control, where the
 span reaches the rank and the certificate must read nothing at all.
+
+**The requirement column is the contribution, and it leads the row** (yoado-cd, refining my cost framing). Cost is
+arguable — a determined attacker buys compute. What they cannot always buy is the likelihood-ratio attack's
+*precondition*: **a sample from the private data distribution**, plus the recipe. In the settings where this attack
+matters that assumption is frequently unsatisfiable — an attacker targeting one person's photographs, one
+hospital's scans, or a single artist's style cannot draw further samples from that distribution to train shadows
+on. So the row reads as **three separate requirements — shadow budget, recipe, distributional access — of which the
+certificate needs none**, with compute second. **A tie on separation is then not a tie**, because one method is
+applicable in threat models where the other cannot be instantiated at all. *(The emitted rows currently carry the
+cost strings only; `head_lira.py` is NOT being edited while job 287241 runs it — CLAUDE.md ground rule 2, which I
+already broke once today — so the assumption fields go in after that job lands.)*
 
 **A condition on any positive, and it is not optional.** A loss threshold is the weakest comparator in the
 membership literature and "beats the baseline" would read as "beats a straw man". **If this trajectory lands

@@ -151,7 +151,10 @@ yoado-d0); four errors caught and fixed before shipping are logged in LESSONS_LE
 > at deployed settings: one image records one direction per token or per position, so a single image floods a
 > rank-8-to-64 adapter on any transformer block (job 273322), and early conv layers are vacuous at every rank
 > (job 201967). The counting rule `N × positions` against the input dimension decides it from the architecture and
-> the batch size alone, before any release exists.
+> the batch size alone, before any release exists. **The rule is NOT a general defence and must never be quoted as
+> one:** `batch ≥ rank` closes this channel and nothing else — a shadow-model membership attack works fine in that
+> same configuration, because it reads memorisation from the outputs and never touches the row space of `B_T`. The
+> two channels have different failure modes, and saying so is what makes the rule credible.
 
 **A released adapter, fine-tuned in ordinary FP32 arithmetic on a class the base model does not have, hands
 back every private example it was trained on to an attacker who knows only the public model.** EMNIST 'a' as
