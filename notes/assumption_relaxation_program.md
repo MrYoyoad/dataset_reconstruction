@@ -899,3 +899,36 @@ encoder goes 1 → 2 → 4 layers, and from 4 frozen layers on the *usable* coun
 **Honest shape of the whole result:** the three-condition usability criterion (§15) decides *whether* a layer's
 certificate works at all; this fourth quantity decides *how much of the image* it can pin once it does. The first is
 about the adapter; the second is about the frozen network, and is not about the certificate at all.
+
+## 17. The deepest statement to come out of this: leakage is bounded by what the model did NOT learn to ignore
+
+**(81, from the unified multi-layer section, commit a02ebea.)** Architecture gives an *upper* bound on pixel-space
+leakage; **training gives the real one, and it is far lower.** By widths, the MLP stem permits 784 throughout — yet
+the measured transmitted rank is 220 at four frozen layers and 96 at seven. **The gap between 784 and 96 is not
+architecture. It is what training does to the map:**
+
+> **A classifier earns its accuracy by discarding variation, and the discarded directions are precisely the ones no
+> downstream certificate can constrain.**
+
+Three reasons this is the most valuable sentence of the session:
+1. **It closes a loop.** The encoder's learned invariances appear in §11 as the *reason* deep conditions are not
+   independent; §16e is the same phenomenon measured as a rank profile with depth. One mechanism, two symptoms.
+2. **It validates the pre-registration that produced it.** The two-column design (dimensional bound vs measured
+   Jacobian rank) was requested precisely because a divergence would mean "a stem bottlenecks harder than its widths
+   suggest". **Every deep row diverges, by a factor of eight.**
+3. **It is a privacy-generalisation link with a mechanism**, i.e. exactly the kind of question a theory supervisor
+   engages with: *the better a model generalises, the less it can leak in pixel space through this channel* — because
+   generalisation IS the discarding of the directions the channel would have to carry. Falsifiable, and testable by
+   sweeping model accuracy against transmitted rank at fixed architecture (the four-checkpoint ladder already exists:
+   random / 78% / 95% / 98%).
+
+**Methodological rule, generalised (81):** a prediction stated as a **form** (`N·d(T) ≥ r`) can only be confirmed or
+left ambiguous; the same question asked as a **measurement** (sweep the rank against `T`) can also return *no effect*.
+**Any prediction whose falsification requires an absence must be posed as the measurement, not the form.**
+
+**THE HONEST LEDGER OF DEFENCES — weaker than "four levers", and this is the version that survives a referee:**
+- **Architectural bottleneck** — works, but **ViT-B/16 does not have one** (patch embedding is square, ratio 1.00).
+- **Rank below the drift plateau** (~90–110 directions) — works, but **costs utility**; it is not a free choice.
+- **Train longer** — **WITHDRAWN**, drift saturates (§16c).
+- **Adapt deeper** — a free design choice at no accuracy cost, **but bounded by the trained stem's contraction**, and
+  the bound is what §17 explains rather than an independent lever.
