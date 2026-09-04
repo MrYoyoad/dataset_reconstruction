@@ -287,7 +287,11 @@ def main():
                        f"partial ({n_under} of {nrec} under 1e-10)" if at_floor and n_under > 0 else
                        "alias (residual zero, wrong images)" if at_floor else
                        "optimisation failure (residual not zero)")
+            in_band_row = bool(a.r - Np <= k < (bb.m - 1) + a.r - Np)
+            if not in_band_row:
+                verdict = "NOT IN BAND -- no chain verdict is emitted from this cell (" + verdict + " below/above the band)"
             return dict(part="B", arm=tag, set=a.set, k=k, r=a.r, N=a.N, n_prime=Np, seed=a.seed, constrained=constrained,
+                        in_band=in_band_row, cert_line=a.r - Np, replay_line=(bb.m - 1) + a.r - Np,
                         fwd_check=fwd, res_at_truth=fwd, jac_sigma_min_truth=smin_truth, jac_sigma_max_truth=smax_truth,
                         n_landings_total=n_land, n_landings_replayed=len(landings),
                         start_err_vs_truth=start_err, residual=fval ** 0.5, objective=fval,
@@ -413,7 +417,9 @@ def main():
                             norm_matched_err_median=float(sorted(normmatch_errs[q] for q in idx)[len(idx) // 2]),
                             frac_closer_than_norm_matched=float(sum(1 for q in idx if land_errs[q] < normmatch_errs[q]) / len(idx)),
                             frac_landed_1e2=float(sum(1 for q in idx if land_errs[q] < 1e-2) / len(idx))))
-        emit(dict(part="HANDOFF", set=a.set, k=k, r=a.r, n_prime=Np,
+        in_band = bool(a.r - Np <= k < (bb.m - 1) + a.r - Np)
+        emit(dict(part="HANDOFF", set=a.set, k=k, r=a.r, n_prime=Np, in_band=in_band,
+                  cert_line=a.r - Np, replay_line=(bb.m - 1) + a.r - Np,
                   landing_err=dict(min=le[0], p10=le[len(le)//10], median=le[len(le)//2]),
                   random_start_err=dict(min=se[0], p10=se[len(se)//10], median=se[len(se)//2]),
                   norm_matched_random_err=dict(min=ne[0], p10=ne[len(ne)//10], median=ne[len(ne)//2]),

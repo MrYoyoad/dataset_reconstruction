@@ -3536,7 +3536,15 @@ are mutually exclusive at r = 8**, so the realistic low-rank attack is inherentl
 *Scope: r = 8, m = 10, the 98% MNIST model, on-chart PCA charts, FP64. The mechanism (imprint ∝ error on the
 projection) is general; the specific counts are not.*
 
-### The handoff, measured correctly (job 159323): the certificate hands replay a start 3e12× better than chance
+### The handoff, measured correctly — but BELOW the line, where there is nothing to chain (job 159323)
+
+> **Scope, checked after the fact and decisive: this cell is `k = 16` with `cert_line = 61`, i.e. forty-five units
+> BELOW the certificate line, `in_band = false`.** Below `r − N′` the certificate already isolates the recorded
+> images on its own, so a median landing of 2.6e-13 is what the theory *requires* there and is **not evidence about
+> the chain** — replay is being handed starts that are already the answer. The chain is defined only in the band
+> `r − N′ ≤ k < (m−1) + r − N′` = [61, 71) for this cell, where the certificate's zero set is a manifold rather
+> than isolated points. What follows is therefore a **below-line result** (a strong one, and an end-to-end
+> validation of the rebuilt harness) and must not be quoted as the handoff for the chain.
 
 The earlier reading — "landings are barely closer to a private image than a random point of the same norm" — came
 from a defect in my own metric and is **withdrawn**. It scored every start against *one* recorded image (the
@@ -3551,8 +3559,8 @@ starts and the norm-matched control), at r = 64, k = 16, N′ = 3, 500 random st
 | random point of the **same norm** | 0.35 | 0.61 | 0.78 |
 
 **95% of landings are closer to a private image than a norm-matched random point; the median is better by a factor
-of 3e12.** So the handoff falsifier does not fire: the certificate does not merely shrink the search space, it
-delivers starts essentially *on* private images.
+of 3e12.** So below the line the certificate does not merely shrink the search space, it delivers starts essentially *on*
+private images — which is what "below the line the certificate alone suffices" means, measured.
 
 **Conditioned on the landing's certificate residual, by decile** (best-converged first): deciles 0–7 all have
 `frac_landed < 1e-2` = **1.00** with landing errors 1e-15 … 1.2e-10; decile 8 drops to 0.20 (median error 0.46);
@@ -3565,3 +3573,16 @@ certificate residual is at the floor" recovers a clean population.
 *This also answers the question of whether the k = 6 correspondence (every floor-reacher is a private image)
 breaks higher up the chart range: on this row it does not. The apparent median landing error of 0.71 that suggested
 it was the same metric defect.*
+
+*What remains open, and where the chain actually lives.* In band (k = 61 … 70 for this cell) the certificate's zero
+set becomes a manifold, and a landing can sit at an exact certificate zero while being far from any private image —
+already measured above the line at k = 58/60, where 14.3% of starts reached an exact zero, 0.04% landed on a
+recorded image, and the argmin was 0.84 away. The handoff characterisation is therefore being re-run **in band**
+(k = 62, 64, 66, 68) with the corrected metric and the decile split. *Pre-registered expectation (yoado-cd, before
+the run): the handoff degrades sharply on crossing 61, and the decile structure changes from "the best eight all
+land" to something much weaker.*
+
+*Two things from the below-line row that stand on their own:* the handoff quality is **uniform over the best eight
+deciles** rather than concentrated in a top slice, and **an attacker can select the good landings using the
+certificate residual alone**, with no private knowledge — the failing deciles are exactly those where the
+certificate solve had not converged.
