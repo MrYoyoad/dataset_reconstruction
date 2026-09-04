@@ -1738,6 +1738,16 @@ starts reaching an exact zero \emph{rises} while the fraction reaching a
 private image falls to nothing. A defender reading only ``the attacker's
 solver converged'' would draw the opposite conclusion from the truth.
 
+The corresponding half-precision cells cannot be placed relative to their line
+at all, and that is itself the finding. The same bfloat16 release reads
+$N'=3$ (line $61$) at tolerance $0.08$ and $N'=11$ (line $53$) at $10^{-12}$,
+and $11$ breaks the $m-1$ cap --- so whether $k=58$ sits above or below its
+line is a choice of tolerance on a quantity we have shown to be inflated by
+rounding. What survives without that choice: of $5000$ starts the best is a
+near-miss $7.8$--$10.3\%$ from a recorded image, nothing lands within $1\%$,
+and the residual at the three strongest truths is $2\times10^{-3}$.
+Approximately, and rarely.
+
 \paragraph{The image finishes long before the residual does.} On the
 $95.1\%$ backbone every below-line cell stops at residual
 $10^{-13}$--$10^{-15}$ after $300$ iterations — fifteen orders above the
@@ -2120,7 +2130,19 @@ achieves $2.1\times10^{-10}$ (over-floor $1.00$). Both are exact; they differ
 by six orders in \emph{where} exactness lies, because the floor is set by the
 imprints the subset omits. So the selection rule is to minimise the achievable
 residual over candidate subsets, and it is available to an attacker, who
-observes each candidate's achievable residual without knowing any truth.
+observes each candidate's achievable residual without knowing any truth. The
+rule has a boundary, and it is not a value of $N'$: it discriminates while the
+omitted imprint exceeds the achievable residual. Across three batches the
+one-swapped subset's residual exceeds the recorded subset's by $3.9\times$,
+$2.9\times10^{3}$ and $1.9\times10^{6}$, and by only $1.6\times$ in the cell
+where the swapped-in image's imprint is $4\times10^{-19}$ of the release ---
+below the $5\times10^{-17}$ the solver itself reaches, so there is nothing
+left to separate. The coarse discrimination never fails: a candidate subset
+containing \emph{no} recorded image separates by $10^{5}$ to $2\times10^{16}$
+in every cell tested. What degrades is the fine distinction between two
+subsets that both contain most of the release. (The batches confound $N'$ with
+which image was swapped, so the ordering by $N'$ is not clean; the ordering by
+the swapped-in imprint against the achievable residual is.)
 
 \emph{(R4) With continued-training access, a decaying schedule leaks the
 step count that a constant one hides.} This result assumes an access model
