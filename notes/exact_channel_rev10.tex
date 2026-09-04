@@ -2147,13 +2147,38 @@ shape: worse conditioning, not lost identifiability.}\label{fig:spectrum}
 \subsubsection*{The recipe}
 
 \paragraph{How much of the recipe the release itself gives up.}
-Definition~\ref{def:rho} takes $(\eta,s,T)$ and the labels as known. Under a
-\emph{weights-only} release — the attacker has $(A_T,B_T)$, $W_0$, $\varphi$,
-$\psi$ and nothing else — three measurements$^\dagger$ at $k=12$, $N=8$,
-$T=400$, $\eta=0.01$ (job 484255) show that a wrong recipe is detected (R1)
-and that $\eta$, the $(\eta,T)$ split and the labels are fitted from the
-release alone (R2, R3). A fourth (R4) needs more access and is scoped as
-such.
+Definition~\ref{def:rho} takes $(\eta,s,T)$ and the labels as known. The first
+thing to say about that hypothesis is which channel carries it.
+\emph{The certificate is recipe-free by construction} --- $C$ is assembled
+from $(A_T,B_T)$ alone, with no $\eta$, no $T$, no schedule and no labels ---
+and it is the only route here that runs from random starts. So recipe
+knowledge is a hypothesis of the \textbf{wide} channel and not of the narrow
+one, and the narrow one needs no argument about what a release discloses.
+
+A second distinction is worth drawing precisely, because the two halves are
+usually conflated and only one of them is free. A released adapter ships its
+\emph{architecture} --- the rank $r$, the scale $\alpha$ (hence $s$), and
+which modules were adapted --- in the configuration file that accompanies the
+weights. Those are exactly hypotheses (A2) and (A5) and the $s$ of every
+recurrence, so that much of the setup is disclosed as a matter of format. The
+\emph{recipe} --- optimiser, learning rate, epoch count --- is not: it appears
+in a model card when an author chooses to put it there, which is a property of
+practice and not of the format. We assume, and do not measure, that default
+recipes dominate real fine-tunes; a survey of public adapter configurations
+would make that empirical and is noted in \S\ref{sec:opens} as available work.
+
+With that scoping, three measurements$^\dagger$ at $k=12$, $N=8$, $T=400$,
+$\eta=0.01$ (job 484255) show that a wrong recipe is detected (R1) and that
+$\eta$, the $(\eta,T)$ split and the labels are fitted from the release alone
+(R2, R3). A fourth (R4) needs more access and is scoped as such. One
+qualification governs how R1 may be read, and it is not a small one: those
+probes start from the truth perturbed by $10\%$. The rejection test is
+therefore decisive \emph{in the regime where the inversion already succeeds}.
+From attacker-buildable starts no replay cell reaches the floor at all, and
+there a wrong recipe and a correct recipe from a poor start produce the same
+observation --- a high residual. So R1 establishes that the release
+distinguishes recipes, not that an attacker lacking a start can use it to find
+one.
 
 \emph{(R1) None of seven wrong recipes reached the floor.} With the control first:
 \begin{center}\small
@@ -2324,6 +2349,15 @@ re-derivation, and each is itemised in the repository's lessons log.
 %----------------------------------------------------------------------------
 \subsection{What is open}
 \label{sec:opens}
+
+\noindent\emph{Available and not on the critical path.} The threat model
+assumes that default recipes dominate real fine-tunes. That is an assumption
+about practice, not about the format, and it is the one place the recipe
+discussion rests on something unmeasured. A survey of public adapter
+configurations --- how many disclose optimiser, learning rate and epoch count,
+and how concentrated the disclosed values are --- would convert it into an
+empirical statement. It is self-contained, needs no compute, and is worth
+doing when it is not competing with a measurement.
 
 \begin{enumerate}\itemsep3pt
 \item \textbf{Local, not global.} Theorem~\ref{thm:suff} isolates the truth
