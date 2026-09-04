@@ -1658,6 +1658,21 @@ from an FP32-trained release and to $4.6\%$ and $7.5\%$ from the
 half-precision ones --- against a chart whose own error is $0.235$. Even the
 worst of those is a third of what the chart costs anyway.
 
+Two details in the same rows are worth keeping. The conditioning term is
+visible with no arithmetic mismatch at all: the FP64 cell's own error rises
+from $1.7\times10^{-15}$ at $k=16$ to $1.5\times10^{-14}$ at $k=32$, the same
+$8.9\times$, so the amplification is a property of the chart rather than an
+artefact of quantisation. And the half-precision releases report
+$\operatorname{rank}B_T=11$ at both $k$ against FP64's $8$ --- not merely
+inflated but \emph{above the cap} of $m-1=10$ that
+Proposition~\ref{prop:simplex} imposes. Rounding has broken the zero column
+sum: unit roundoff sets the own-class entry of $D$ to exactly zero while the
+off-class entries survive, so the columns no longer sum to zero and the
+rank-$N$ locus is no longer confined to $\mathbf 1^{\perp}\otimes\mathbb R^r$.
+Every $N'$ and every certificate line read off a half-precision release
+inherits that inflation --- one more reason the certificate route misreads
+these releases while the matched recipe route does not.
+
 \emph{The three attackers on this one release are the clearest lesson in the
 section.} The certificate recovers none of the eight. The recipe route with an
 FP64 simulator recovers none, and worse, aliases --- confidently, at a
