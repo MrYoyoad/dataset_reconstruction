@@ -3779,3 +3779,35 @@ of images the model was *wrong* about, this scopes the route: **fine for persona
 against `r` = 16–64, margins comfortable) and **dead for a fine-tune on hundreds of images the model gets wrong**,
 where `N′` saturates `r` at every layer and every certificate is vacuous. That is a property of the release, not of
 the attacker's effort, so no amount of compute recovers it.
+
+### Pre-registration: how many independent constraints does a released multi-layer adapter place on the RAW IMAGE?
+
+*Written before the rows (job 168937).* One layer's certificate gives `r − N′` ≈ 8 numbers per image and replay
+gives `(m−1) + r − N′` ≈ 17. **An image is not 8 numbers**, so the only recipe-free route to an image-level budget
+is many layers. Measured against **chart coordinates** the rank saturates at `k` *by construction* — `k` is the
+attacker's own choice, so a saturating result there is circular as an argument about leakage. Measured against
+**pixels** the ceiling is the pixel count and the answer is a property of the release and the network alone.
+
+**Three quantities, reported together.**
+1. **Feature-space codimension — exact and global.** `C_ℓ h = 0` is *linear* in `h`, so the solution set in feature
+   space is an affine subspace of codimension exactly `rank(C_ℓ)`, with **no local-versus-global gap and no
+   linearisation**. Summed over the layers in the objective, this is the conditions the release genuinely supplies.
+2. **Pixel-space rank — the pullback through the encoder**, per recorded image, layer by layer, at three tolerances
+   with the full spectrum logged. This one *is* local: it counts directions in which a small perturbation of the
+   image changes the certificate, not the size of the consistent set.
+3. **The gap between them is the encoder's cost**, which turns the local/global caveat from an unquantified hedge
+   into a measured quantity. And the **usable rank** is counted against the release's own noise floor
+   (`q_eff`-style) rather than an arbitrary cut, so the headline number is principled rather than chosen.
+
+**Pre-registered outcomes.** The pixel-space rank is expected far below the pixel count and close to
+`Σ_ℓ (r_ℓ − N′_ℓ)` at small layer counts, then to **saturate below that sum** as layers are added (redundancy: the
+deeper conditions are functions of the shallower ones through the network). A rank comparable to the pixel count
+would be the strongest result in the programme and **must be checked twice before it is believed**. And the negative
+case, stated in advance rather than in discussion afterwards: **if the count is tens against 784, the release does
+not contain the image — the prior supplies the remainder, and the honest description of the attack becomes
+constrained guessing rather than reconstruction.** That is a hard ceiling no amount of attacker effort passes, the
+same shape as "the recorded count is set by the chart": a property of the release, not of the attacker.
+
+*Corollary that makes the chart question quantitative rather than aesthetic:* **a chart must compress the image into
+no more coordinates than there are independent conditions.** The measured rank therefore states exactly how good a
+chart the attack needs, and whether one is plausible for that image class.
