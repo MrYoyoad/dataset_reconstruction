@@ -4968,3 +4968,35 @@ well-conditioned that basis makes the solve".
 Note also, per yoado-cd: the required-rank table (MNIST ≈ 256, CIFAR ≈ 1100, 224² ≈ 54,000) is **arithmetic from
 published sparsity estimates, not an experimental claim**, so it needs no cells and nothing in this run is to be
 presented as testing it.
+
+## Locked designs after the theory pre-audit (yoado-c9) — two scopings that change what may be claimed
+
+**Test 2 is an ACTIVATION-space result, not pixel recovery.** The margin of 15 is a *span* margin —
+`rank B_T ≤ min(r=64, positions=49, output width=512)` and the position count binds, not the width — so it is the
+healthy kind and the width-cap concern does not apply. But it is a **hidden-layer** certificate, so what it
+concerns is the convolution's 49 **input patches**, which are activations, not the photograph. Three consequences,
+all adopted: `rank B_T` is **measured** rather than assumed at 49, since the certificate rank is `r − rank B_T` and
+is larger if fewer positions imprint above the floor; the member side is **not scored**, because the patches lie in
+`row(B_T)` by construction — the `N = 1` collinearity generalised to 49 positions — so scoring is the non-member
+separation against the `χ²_{r−N′}` null; and the row states **activation-space** until an activation-to-image step
+exists. Freezing the stages below is **the hypothesis, not a cheat** — the certificate requires a fixed input — but
+the placement assumption goes on the row, because **the attack always lives at the earliest adapted layer**: a
+fine-tune that also adapts stage 1 moves the attack there, where the input is the raw image. SGD-class training is
+a hard gate; Adam is already measured to destroy this.
+
+**Test 3's method is not ours, and the write-up must say so.** The linear-subspace-plus-box-plus-sparsity recovery
+is exactly the `A₀ = 0` span-leakage note's LP. What differs is the **subspace**, and it is harder: their route
+gives `row(ΔW) = span{x_i}` exactly, an `N`-dimensional image span, so their LP searches a clean `N`-dimensional
+polytope. Ours gives `ker C = image-span ⊕ ker A₀`, of dimension `N + (n − r)`, with `n − r` **random nuisance
+directions**, and asks sparsity to beat them with `r − N′` effective measurements. **So the contribution is (i) the
+realistic Gaussian `A₀` — their `A₀ = 0` is a non-deployed toy — and (ii) whether convex recovery survives the
+`ker A₀` nuisance at all, which is open. The LP is theirs and their clean case is the better existence proof.**
+That attribution belongs in the paper, not in a footnote.
+
+**TV is not distributional access, and the line is worth stating once.** Universal priors — box, total variation,
+a generic DCT or wavelet basis — encode that natural images are piecewise smooth and are legitimate. A prior
+**fitted to the private set or its class** — a chart, a class-conditional generative model — is distributional
+access and would be an oracle. TV is universal, so it stays. The real risk is TV doing the reconstruction itself,
+hallucinating a plausible smooth image from few constraints, and **that is exactly what the scrambled-release arm
+catches**: a TV-plus-box solve on a scrambled release must FAIL, and if it recovers, TV is the reconstructor and
+the certificate contributed nothing. **The scramble control is therefore load-bearing rather than decorative.**
