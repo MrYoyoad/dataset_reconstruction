@@ -92,7 +92,11 @@ def main():
                 hn = GELU(Ws[j] @ hn + (b1[:, None] if j == 0 else 0) + Bs[j] @ (As[j] @ hn))
             res_non = torch.linalg.norm(C @ hn, dim=0) / torch.linalg.norm(As[l] @ hn, dim=0)
             C_norm = float(torch.linalg.norm(C)); A_norm = float(torch.linalg.norm(As[l]))
-            vacuous = bool(Np >= a.r or C_norm <= 1e-12 * A_norm or float(res_non.median()) < 1e-6)
+            # (yoado-cd) vacuity is not a new failure mode: the certificate imposes r - N' conditions, so the
+            # standing line k < r - N' IS the non-vacuity condition, and at N' = r the budget is zero. The flag is
+            # therefore the margin itself, with the empirical checks kept as confirmation rather than definition.
+            margin = a.r - Np
+            vacuous = bool(margin <= 0 or C_norm <= 1e-12 * A_norm or float(res_non.median()) < 1e-6)
             width = Ws[l].shape[0] if l < 2 else m
             emit(dict(part="LAYER", layer=l + 1, exact=(l == 0), lr=lr, T=a.T, N=a.N, r=a.r, k=a.k, m=m,
                       layer_width=width, cap_is=("m-1" if l == 2 else "layer width"),
@@ -101,8 +105,9 @@ def main():
                       cert_residual_median=float(res.median()), cert_residual_max=float(res.max()),
                       nonmember_residual_median=float(res_non.median()), nonmember_residual_min=float(res_non.min()),
                       separation_orders=float(torch.log10(res_non.median() / res.median())) if float(res.median()) > 0 else float("inf"),
-                      C_norm_over_A_norm=C_norm / A_norm, rank_C=int(torch.linalg.matrix_rank(C, rtol=1e-10)),
-                      VACUOUS=vacuous, vacuity_reason=("rank(B_T) = r: row(B_T) is everything, C = 0" if Np >= a.r else
+                      certificate_margin=margin, C_norm_over_A_norm=C_norm / A_norm,
+                      rank_C=int(torch.linalg.matrix_rank(C, rtol=1e-10)),
+                      VACUOUS=vacuous, vacuity_reason=("certificate margin r - N' <= 0: no conditions left, C = 0" if margin <= 0 else
                                                        ("C is numerically zero" if C_norm <= 1e-12 * A_norm else
                                                         ("non-members annihilated too" if vacuous else ""))),
                       cert_residual_per_image=[float(v) for v in res],

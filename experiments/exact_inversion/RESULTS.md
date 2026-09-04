@@ -3730,3 +3730,44 @@ So the programme is two routes with two cleanly separable limitations, not one d
 and that is precisely **why the certificate is the lead result and replay is the identifiability story**. The
 circular-oracle finding therefore scopes the *recipe* claims (all of which are replay claims) and leaves the
 certificate results untouched.
+
+## One certificate per adapted layer (jobs 165750, 166348): the head-width cap is a property of adapting the HEAD
+
+Three adapted layers of the 98% MLP (784-1000-1000-10), twelve private images so the output cap can bind, learning
+rate swept to move the drift, projections only. Every row carries a **held-out non-member control** pushed to that
+layer's own inputs, and the **certificate margin `r − N′`**.
+
+| r | layer | N′ | margin `r−N′` | cap | binds | input drift | member residual | **non-member** | separation |
+|---|---|---|---|---|---|---|---|---|---|
+| 16 | 1 (exact) | 8 | 8 | 1000 | no | 0 | 2.4e-8 | 1.4e-1 | **6.8 orders** |
+| 16 | 2 (hidden) | **16** | **0** | 1000 | no | 2.0e-2 | 2.1e-15 | 2.4e-15 | **0.1 — VACUOUS** |
+| 16 | 3 (output) | **9** | 7 | **9** | **yes** | 2.8e-2 | 1.9e-3 | 3.2e-1 | 2.2 orders |
+| 64 | 1 (exact) | 8 | 56 | 1000 | no | 0 | 2.9e-8 | 3.2e-1 | 7.0 orders |
+| 64 | 2 (hidden) | **24** | 40 | 1000 | no | 2.1e-2 | **1.2e-3** | 5.3e-1 | **2.6 orders** |
+| 64 | 3 (output) | 9 | 55 | 9 | yes | 2.9e-2 | 4.9e-3 | 6.4e-1 | 2.1 orders |
+
+**(1) The head-width cap does not apply at a hidden layer — a within-run contrast.** Same data, same recipe, same
+run: the output layer's rank is **exactly `m − 1 = 9`, binding**, while the hidden layer's reaches **16 and then 24**
+as the adapter rank grows. So `N′ ≤ m − 1` is a property of *adapting the head*, not of the model, and the
+protection a narrow head appears to give disappears one layer down. This is stronger than a cross-model comparison
+because nothing varies but the layer.
+
+**(2) The deep-layer certificate is real but weaker, and its first appearance was VACUOUS.** At r = 16 the hidden
+layer's `N′` reaches `r`, the margin `r − N′` is **zero**, `C = P_{row(B_T)⊥}A_T` is the zero matrix, and *every*
+input passes — members at 2.1e-15 and non-members at 2.4e-15, a separation of 0.1 orders. That is a vacuous
+certificate reading exactly like a perfect one, and it was caught only by the non-member control. At r = 64 the
+margin is 40 and the same layer gives a genuine **2.6 orders** of separation despite 2% input drift, so the
+conjecture *does* hold approximately at depth — but with a separation far below the first layer's 7 orders.
+
+**(3) Vacuity is not a new failure mode — it is the standing line at its endpoint (yoado-cd).** The certificate
+imposes `r − N′` conditions, so `k < r − N′` **is** the non-vacuity condition and `N′ = r` leaves no test at all.
+The flag is therefore the margin itself, and the margin is now reported beside every certificate residual. A grep
+of every stored row found **six** with `N′ ≥ r`, all of them these hidden-layer cells and all now flagged.
+
+**(4) The registered prediction is confirmed in a sharper form than it was stated.** Before these rows I predicted
+that the softmax zero-sum which caps the count is also what keeps the certificate's arithmetic readable, so a
+deeper layer might loosen the cap *and* make the count harder to read at once. The rows give the mechanism exactly:
+at the output the cap `N′ ≤ m − 1` holds `N′` below `r` whenever `m − 1 < r`, and so **silently guarantees a
+non-trivial certificate**; remove the cap at a hidden layer and `N′` climbs to `min(width, r, N)`, which can reach
+`r` and kill the certificate outright. **Same fact, opposite effects: a hidden layer records more and certifies
+less.**
