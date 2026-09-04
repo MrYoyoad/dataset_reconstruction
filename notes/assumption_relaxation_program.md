@@ -740,7 +740,22 @@ The honest statement is that the certificate's value is membership + instance-ID
 reconstruction routes all funnel back to the chart, whether reached by a prior, by bootstrapping, or by feature-space
 search.
 
-## 14. The multi-layer route is dead as stated; the mechanism that killed it is the better result (job set 2026-09-04 late)
+## 14. The multi-layer route is WEAKER THAN HOPED, not dead — and the mechanism is the better result
+*(Heading corrected 2026-09-04 after Yoad challenged "killed". "Dead" over-reads the rows: see the box below.)*
+
+> **What actually died and what did not.** DIED: *"adapt every layer and harvest all of them."* In the 15-layer
+> all-adapted cell, 12 of 15 layers were vacuous because every layer above the first had a DRIFTING input — §15's
+> condition 3 failing everywhere at once. DID NOT DIE: (a) **the first adapted layer always has a frozen input, in
+> every configuration**, so it is always harvestable; (b) **deep layers in a stack do yield valid certificates when
+> their input is frozen** — the solo deep-conv arms held at the true image to ~11 digits at conv layers 3 and 4;
+> (c) **drift is a function of training length, not a binary** — at a quarter of the training length the additivity
+> was exact. So the 12-of-15 collapse is ONE configuration at FULL training length, not a theorem.
+> **Magnitude, honestly:** the three live layers gave 112 supplied → 80 independent → **69 usable**, against `r − N`
+> from the first layer alone. That is a modest gain (~20–25% if `N = 8`), not the multiplicative gain hoped for and
+> not nothing. *(Exact single-layer comparator requested from 41; do not quote the percentage until it lands.)*
+> **Correct statement: multi-layer harvesting is governed by the §15 criterion, and in a fully-adapted stack at full
+> training length it degrades to a modest gain.** The untested cell that would give the real ceiling is a stack with
+> FROZEN GAPS between adapted layers, or shorter training.
 
 **Both pre-registered checks went against the optimistic branch. The 20%-of-the-image / chart-free extrapolation is
 WITHDRAWN and must not appear in any document.**
