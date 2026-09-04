@@ -57,6 +57,17 @@ def main():
                     help="adam is a NEGATIVE control: rank B_T = r, no certificate exists, cell must come back void")
     ap.add_argument("--classes", type=int, default=102); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--gate", type=float, default=1e-8)
+    ap.add_argument("--bar", type=float, default=1e-2,
+                    help="THE fixed threshold on the normalised objective ||C phi|| / ||A_T phi||. NOT the "
+                         "numerical floor: in FP64 that is ~1e-15 and everything passes it, INCLUDING a "
+                         "certificate that has gone vacuous. 1e-2 is anchored between measured bands -- true "
+                         "non-members 0.1..1, the marginal-recorded in-band tail 1e-5..1e-8, clean members "
+                         "1e-16..1e-8 -- so it sits one order below the lowest non-member and three above the "
+                         "marginal band: a working certificate clears it by 1-2 orders, a degraded one fails.")
+    ap.add_argument("--max-fpr", type=float, default=0.01,
+                    help="pre-registered false-positive rate bar. Scoring is a RATE, not a minimum: with 1000 "
+                         "non-members the minimum is an extreme statistic and one unlucky draw would void a "
+                         "working certificate.")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(); dev = torch.device(a.device)
@@ -162,11 +173,14 @@ def main():
         # b9's REPLACEMENT criterion. The old one -- rank 1 of 1001 plus a 2-order gap -- is now VACUOUS: at
         # N' = 1, C h = 0 is an algebraic identity, so rank 1 is automatic and carries no evidence. Success is
         # measured entirely on the NEGATIVE side, against C's own numerical floor.
-        null_ok = (null_same_image == null_same_image) and (null_same_image >= 100 * c_floor)
-        nm_ok = float(srt[0]) >= 100 * c_floor
+        fpr = float((rn < a.bar).double().mean())
+        null_ok = (null_same_image == null_same_image) and (null_same_image >= a.bar)
+        fpr_ok = fpr <= a.max_fpr
         verdict = ("void: gate" if not gate_ok else
                    "void: no prior draw for the paired null" if null_same_image != null_same_image else
-                   "success" if (null_ok and nm_ok) else "fail")
+                   "success" if (null_ok and fpr_ok) else
+                   "fail: null below the bar (annihilates an unseen image)" if not null_ok else
+                   "fail: false-positive rate above 1%")
         if gate_ok:
             scored += 1; ok += (verdict == "success")
         emit(dict(part="LIVE", draw=di, margin_stratum=rank_i, initial_margin=float(margin0[di]),
@@ -174,11 +188,15 @@ def main():
                   predicted_margin=a.r - int(Pm.shape[2]), rank_C=rank_C,
                   member_residual=rm, member_side_not_scored="forced to ~0 by rank-one collinearity at N=1",
                   certificate_numerical_floor=c_floor,
-                  null_over_floor=(null_same_image / c_floor if c_floor > 0 else None),
-                  nonmember_min_over_floor=(float(srt[0]) / c_floor if c_floor > 0 else None),
-                  criterion="b9 replacement: the paired same-image null AND the non-member minimum must each sit "
-                            ">= 2 orders above C's numerical floor. The member residual is REPORTED, NOT SCORED -- "
-                            "it is at the floor by algebraic identity at N' = 1.",
+                  bar=a.bar, false_positive_rate=fpr, max_fpr=a.max_fpr,
+                  null_clears_bar=bool(null_ok), fpr_clears=bool(fpr_ok),
+                  criterion="PRIMARY: false-positive rate = fraction of non-members below the fixed bar 1e-2, "
+                            "pre-registered <= 1%. The paired same-image null must land ABOVE the bar; if it "
+                            "falls below, the certificate is annihilating an image it never saw and the draw "
+                            "FAILS regardless of the population rate. The non-member MINIMUM is reported, not the "
+                            "criterion -- with 1000 non-members it is an extreme statistic. The member residual "
+                            "is REPORTED, NOT SCORED: at N' = 1 it is an algebraic identity. NOTE the bar is NOT "
+                            "the numerical floor (~1e-15 in FP64), which a vacuous certificate would also pass.",
                   claim_supported="the certificate is SPECIFIC (it annihilates the member and rejects everything "
                                   "else); NOT 'it identifies the member', which is an identity",
                   null_same_image_untrained_release=null_same_image,
@@ -193,10 +211,10 @@ def main():
                   start_attacker_buildable="n/a (scoring at the truth, no start)",
                   seconds=time.time() - t0, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
         print(f"  draw {rank_i:3d} margin {float(margin0[di]):+8.3f}  N'={Np:3d} rank C={rank_C:3d}  "
-              f"member {rm:.2e} (floor {c_floor:.1e})  self-null x{null_same_image/max(c_floor,1e-300):.1e}  "
-              f"nm_min x{float(srt[0])/max(c_floor,1e-300):.1e}  {verdict}", flush=True)
+              f"member {rm:.2e}  self-null {null_same_image:.2e}  FPR {fpr:.4f}  "
+              f"nm_min {float(srt[0]):.2e}  {verdict}", flush=True)
     hk.remove()
-    lo, hi = binom_ci(ok, max(scored, 1))
+    lo, hi = binom_ci(ok, max(scored, 1))  # fraction of draws where the null clears the bar AND the FPR is <= 1%
     emit(dict(part="LIVE_SUMMARY", successes=ok, scored=scored, voided=a.draws - scored,
               rate=ok / max(scored, 1), exact_binomial_95=[lo, hi], draws=a.draws, optimiser=a.optimiser,
               headline="residual versus margin; the member side is not scored", git=git_hash()))
