@@ -432,3 +432,39 @@ certificate's arithmetic well behaved"); this is that prediction confirmed in a 
 **Standing guard, all layers, all cells:** every certificate row must carry a held-out **non-member control** pushed
 to that layer's inputs, the certificate's own norm and rank, the member/non-member separation in orders, and an
 explicit vacuity flag. A separation of zero orders is the signature.
+
+## 11. How many equations does one layer actually give? — the honest budget (Yoad's push-back, 2026-09-04)
+
+**One layer is not enough and never was.** Per image the certificate gives `r − N′` numbers and replay gives
+`(m−1) + r − N′`. At `r = 16, N′ = 8, m = 10` that is **8** and **17** numbers per image. An image is not eight
+numbers. So a single-layer certificate can only ever return the chart's rendering of the image in ~8 coordinates —
+a class prototype — and no amount of chart engineering changes the count. **Any story in which this becomes an
+image attack must get more equations, not a better chart.**
+
+**Where more equations can come from, in order of size.**
+1. **Adapted layers.** A real LoRA fine-tune adapts `q,v` in every block: 2 × (blocks) modules — 64 for a 32-block
+   model. If a per-layer certificate holds (§9), the budget is `Σ_ℓ (r_ℓ − N′_ℓ)`, i.e. **hundreds to thousands of
+   numbers per image** rather than eight. That is the difference between a prototype and an image. Each layer's
+   conditions constrain that layer's inputs `h^ℓ`, and all `h^ℓ` are functions of the candidate `x` through the
+   released model, so they compose into constraints on `x`.
+2. **Rank.** `r = 64` instead of 16 quadruples the per-layer term.
+3. **Multiple releases** of the same private set (checkpoints, seeds).
+
+**THE TENSION, and it is the crux.** The certificate is non-vacuous only while `N′ < r` at that layer (§10:
+`rank B_T = min(m_ℓ, r, N′)`; at `N′ ≥ r` the projector is zero and the test is empty). At the OUTPUT layer the
+softmax cap `N′ ≤ m−1` protects this whenever `m−1 < r`. At HIDDEN layers there is no such cap (§3, measured:
+output rank 9 vs hidden rank 16 in one run), so `N′` climbs to `r` and the certificate dies **exactly at the layers
+whose numbers we need**. So:
+
+> **The only route to a sufficient equation budget is many layers, and many layers is the regime where the
+> certificate is most likely to be vacuous.** Resolving that is the load-bearing experiment of the whole programme,
+> not a side check.
+
+**Scope this forces, stated plainly:** the certificate route requires **fewer recorded images than the adapter
+rank, per layer**. Fine for personalisation (5–50 private images, `r` 16–64); dead for a fine-tune on hundreds of
+images the model gets wrong. That belongs in the threat model, not in a footnote.
+
+**Priority consequence:** §9 (per-layer certificates, with §10's non-member control and the `r − N′` margin as the
+x-axis) is promoted above the chain and above the chart work. If it fails, the certificate is a membership
+instrument and a prototype-level reconstructor, and image-level reconstruction has to come from replay — which is
+gated on the start problem.
