@@ -1707,10 +1707,21 @@ entries displace the minimiser, they do not destroy the information, and the
 loss is the solver chasing that displacement. Stopping restores the ordering
 but not the margin --- FP16 recovers about threefold better than bfloat16 on
 the easy chart and only slightly better on the hard one --- so the honest
-claim is that \emph{low-precision training is not a defence; it costs the
-attacker a stopping rule and a modest loss of fidelity}, and any
-precision-based defence would have to act on numerical \emph{range} rather
-than accuracy. Two caveats: the dose-response rests on two FP16 points, a
+claim needs its access model attached, because every matched-replay cell in
+this study starts from the truth perturbed by $10\%$. What is established is
+that \emph{half-precision training does not destroy the information}: matched
+replay from a near start recovers to a few per cent, so the release still
+contains the images. What it does do is break the \emph{certificate} route ---
+the only route here that runs from random starts --- which returns none of the
+eight on a half-precision-trained release. The replay route that succeeds
+needs a starting point no attacker has: none of $20$ attacker-buildable starts
+reaches the floor in any replay cell. So for a bfloat16-trained adapter the
+search has, today, no attacker-available beginning, and the honest sentence is
+\emph{recorded, recoverable in principle, and out of reach of every start we
+can actually build}. That is an extraction cost and not an information bound,
+but it is a cost the attacker cannot currently pay. Any precision-based
+defence would still have to act on numerical \emph{range} rather than
+accuracy. Two caveats: the dose-response rests on two FP16 points, a
 trend and not a formula, and no format that rounds away more than FP16 has
 been tested.
 
@@ -1740,9 +1751,15 @@ section.} The certificate recovers none of the eight. The recipe route with an
 FP64 simulator recovers none, and worse, aliases --- confidently, at a
 residual two hundred and forty times below the truth's own. The recipe route
 simulating in the release's own arithmetic recovers all eight to three per
-cent. Two attackers failed and their failure looked exactly like protection;
-the third differed by a change of arithmetic, not of information, and nothing
-about the release differed between the three runs. Any statement of the form
+cent. The access models differ and the comparison must say so: the certificate
+runs from random public-scale starts, while both replay routes are given the
+truth perturbed by $10\%$. So the clean contrast is the second against the
+third --- same start, same solver, same release, differing only in the
+arithmetic of the simulator, and the difference between a confident alias and
+a full recovery. The certificate's failure is a separate fact about a
+different and weaker attacker. Two attackers failed, their failure looked
+exactly like protection, and nothing about the release differed between the
+three runs. Any statement of the form
 ``this defence works'' is a statement about the attacker who was run, and here
 the interval between the first attempt and the successful one was a few
 hours.
