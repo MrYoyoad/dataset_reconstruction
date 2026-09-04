@@ -397,3 +397,26 @@ they say whether a handoff CAN work, not that the attack does. Every row must ca
     post-solve norm** and measures its distance to the recorded image; the gate reports the landing distribution
     against both the raw starts and that norm-matched control, plus the latent norm ratio itself. If the landing is
     no closer than a random point of equal norm, the gate has fired on shrinkage and nothing downstream runs.
+
+### §5 pre-audit sign-off and the reading pre-registered (yoado-c9, adopted verbatim in substance; executor, 2026-09-04)
+
+**GO, D0 first.** Three things fixed before any row exists:
+
+12. **The null is the expected outcome.** Two measured results already point against the chain: the
+    Q-parametrisation shrank the search and did *not* widen the basin (605718), and membership of `Z_C` is not
+    proximity to the truth (753886 — exact certificate zeros 0.84 away from any recorded image). So the chain is
+    **not** framed as expected-to-work; it is a basin bet the existing evidence is against, and the burden is on two
+    named quantities to overturn it: **D0's basin extent along `Z_C`** and **the handoff image-error distribution**
+    (do the ~500 landings fall inside that extent). If they do not, the null stands.
+13. **The reading is a ladder, pre-registered.** `null` = replay from random starts (known 0 of 20). `D1` = replay
+    from certificate landings, unconstrained. `D2` = the same, constrained to `Z_C`. Then: **D1 vs null** tests
+    whether the landings are better *starts* than random; **D2 vs D1** tests whether the *constraint* adds anything
+    beyond the start. If D1 = null the chain is dead at the handoff and D2 cannot rescue it. If D1 > null but
+    D2 = D1, the value is the start and the constrained machinery is unjustified. **Only D2 > D1 credits the
+    constraint** — pre-registered so that a positive D2 cannot be miscredited to the constraint when it was the
+    start that did the work.
+14. **The cell is maximally favourable and is scored as such.** Most-leaking image, `N′ = 1` (no cross-image mixing,
+    no arity step), FP64, on-chart (inside the `Ch ≈ 0` regime). **A null here is decisive and kills the chain.** A
+    positive here is "the mechanism works at its best case" and does *not* carry to `N′ ≥ 2` (D5), nor to the wide
+    head or half-precision training, where `Z_C` does not contain the truth at all. A best-case positive must not be
+    written as "the chain works".
