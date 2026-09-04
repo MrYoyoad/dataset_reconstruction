@@ -4817,3 +4817,53 @@ Two caveats carried in every row: a margin that exists only because `r` exceeds 
 backed by a condition that holds at the truth (measured: residual 5.5e-6 there against 3e-11 where the count is
 data-limited); and admitted counts assume the exact certificate — see the truncated-certificate run below, which
 tests whether that requirement can be weakened.
+
+## The recovery threshold table — a counting fact that stands independently of any experiment
+
+Raised by yoado-81 through yoado-cd, and it corrects a precedent **I was about to rely on**. The `A₀ = 0` span
+route recovers near-exact pixels from a subspace plus box and sparsity, and I had taken it as evidence that
+"structure beats counting" would carry to the certificate. It does not, and the gap is two orders of magnitude:
+
+| route | linear conditions on a 784-pixel image |
+|---|---|
+| span route (`A₀ = 0`) | `n − N` ≈ **776** |
+| certificate at `r = 16` | `r − N′` = **8** |
+| certificate at `r = 64` | **56** |
+| compressed-sensing threshold for MNIST-like sparsity, `m ≳ s·log(n/s)` | **≈ 250** |
+
+The span route works because it sits far **above** the threshold; the certificate at practical rank sits far
+**below** it. The precedent therefore transfers by analogy only, and the analogy is wrong.
+
+**The threshold scales with the image and the adapter rank does not, which is the durable statement:**
+
+| dataset | pixels | conditions needed |
+|---|---|---|
+| MNIST | 784 | `r ≈ 256` |
+| CIFAR | 3072 | `r ≈ 1100` |
+| a 224² natural image | 150528 | **`r ≈ 54,000`** |
+
+**So the channel's inability to determine a real image is not an artefact of our charts — it is a counting fact
+with a threshold that is out of reach.** Deployed ranks are 8–64. This belongs in the write-up whether or not any
+recovery experiment is ever run, and it is worth more than the experiment it replaced.
+
+**Consequent rescoping of the structured-recovery test.** It now runs **one marginal cell** — MNIST scale,
+`r = 256`, where the supplied conditions (248) sit at the threshold (≈250) — because at `r` = 16 or 64 the answer
+is arithmetic and spending compute on it would measure a foregone conclusion. Two scope conditions from yoado-81:
+the compressed-sensing machinery needs the conditions **linear in pixels**, which holds only when the adapted
+layer sees the raw image, so **the cell must adapt the pixel-input layer** and that scope goes on the row; and the
+claim is scoped as **determination versus discrimination** — a handful of conditions cannot determine an image but
+discriminate within a finite pool essentially always, which is the membership result already in hand.
+
+**Control ladder for that single cell** (yoado-7e), all at identical solver and budget: conditions + box/sparsity ·
+constraints only · conditions only · scrambled release + constraints, plus a prior-weight dose-response. **And it
+runs on a non-sparse dataset as well as MNIST**, since pixel sparsity is MNIST-specific and a win on MNIST alone
+would be the prior rather than the release; the sparsity basis is per-dataset (pixels for MNIST, TV or a
+wavelet/DCT basis for natural images) and is logged as a column.
+
+**Scoring, fixed before any row** (yoado-b9): λ chosen by the **discrepancy principle** against `C`'s own numerical
+floor `≈ ε·‖C‖·‖φ‖`, computable from the release alone and therefore untunable on the truth, with an L-curve
+corner as the declared fallback; recovery error reported across a fixed λ grid so a sharp optimum is visible as
+such; nearest-neighbour baseline **oracle-selected**, in the same metric and space, with the pool size fixed in
+advance; success = error ≤ 1e-2 **and** ≤ ⅓ of the best baseline; error > 1e-1 is a negative regardless of
+appearance; the band between is *partial and not scored as recovery*; **no visual or "recognisable" judgement
+enters the score at any point.**
