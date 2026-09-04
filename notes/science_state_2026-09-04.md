@@ -39,17 +39,14 @@ rather than protecting them.
 images and not for the rest. **[M]** 1e-16…1e-8 against 0.1–1 for invisible images. It needs the release, the
 public base model and a chart — **no recipe, no labels, no N, no start near the truth**. From-nothing recovery:
 2000 random public-scale starts at k=6, **51.0% reach the floor and 51.0% land on a recorded image — the same
-number**; all seven recorded images found (job 706721). *On-chart.*
+number**, so every floor-reacher is private and none is spurious; all seven recorded images found (job 706721).
+*On-chart.*
 
-> **Scope, provisional (added 2026-09-04, pending job 156607's field semantics).** The step from "the two
-> fractions match" to *every floor-reacher is a private image* is **not yet established across the chart
-> range**. At k=6 the floor-reachers and the recorded-image-landers are the same 51% **[M]** (706721); at k=16,
-> also well below that cell's certificate line of 61, the same harness reports 410 landings from 500 starts
-> with a **median landing error of 0.714** and only its best at 9.3e-16 **[M]** (156607). Either the
-> correspondence does not hold up the chart range, or "landing" is defined differently between the two
-> harnesses. Treat the correspondence itself as **[C]** until that is answered; the two measurements are
-> **[M]** either way. If the semantics differ, this note is replaced by a one-line clarification; if they do
-> not, the correspondence keeps this scope and the claim is weaker but true.
+> **One caveat, not a doubt.** Equal fractions alone would be consistent with the two sets overlapping only
+> partially; what makes the identification *exact* at k=6 is the kernel count, which predicts the floor
+> fraction to equal the recorded fraction there. That argument has been checked at k=6 and **not yet
+> elsewhere in the chart range** — the k=16 check is recomputing (job 156607). This is the right reason to
+> want the check and is independent of any measurement fault.
 
 **(c) Two counting lines.** Reading the release through the certificate gives `r − N′` equations per image;
 reading it through the full replay residual gives `(m−1) + r − N′`. **[M+D]** So
@@ -182,10 +179,10 @@ picture.
 **The chain's state in two sentences, which belong together.** What is *proved* is that the chain cannot move
 the line: `S_chain = S_ρ` exactly (Prop. 13 `prop:chain`, Cor. 14 `cor:chainbasin`, commit bb323ac), so its
 entire possible value is basin — reaching solutions, never reaching further ones. What is *unproved and
-unmeasured* is that it buys any basin at all, and the only relevant measurement so far is discouraging: the
-handoff gate shows certificate landings beating a norm-matched random point in **61%** of cases against a 50%
-coin, at a median ratio of 1.12 (job 156607). **So the chain's upside is bounded above by theory and
-unsupported below by measurement.** The reusable general form is worth carrying: `C` is a function of the
+unmeasured* is that it buys any basin at all. The handoff gate is the measurement that will decide it, and
+**no valid reading of it exists yet**: the first version scored every start against a single fixed recorded
+image rather than the one it landed on, so genuine landings on the other two scored as failures; it is being
+recomputed (job 156607). **So the chain's upside is bounded above by theory and, as yet, unmeasured below.** The reusable general form is worth carrying: `C` is a function of the
 release, so *any* derivation in which a chain widens the admissible `k` has counted the release twice.
 
 - **The chain test** (certificate landings handed to replay). Three branches — floor at the truth / floor at a
