@@ -503,8 +503,16 @@ network below has not already discarded. Write `V_ℓ = Φ_ℓ(V)` and `k_ℓ = 
 non-increasing in `ℓ`: it is the part of the chart's tangent space still visible at depth `ℓ`.
 Layer `ℓ` can then contribute at most `min(r_ℓ − N'_ℓ, k_ℓ)` conditions, not `r_ℓ − N'_ℓ`. So
 
-    **Conjecture (stacked line).**  Generically, local identifiability from the stacked
-    certificate holds iff   k < Σ_ℓ min( r_ℓ − N'_ℓ , k_ℓ ).
+    **Necessary condition (stacked line).**  Local identifiability from the stacked
+    certificate requires   k < rank(J_stack),   and
+    rank(J_stack) ≤ Σ_ℓ min( r_ℓ − N'_ℓ , k_ℓ ) ≤ Σ_ℓ ( r_ℓ − N'_ℓ ).
+
+**Corrected from an earlier draft of this section, which stated it as a generic "iff".** That was
+wrong, and wrong by my own argument two paragraphs below: genericity is not available for the
+`Φ_ℓ`, which are fixed by the trained network, so there is no general position to appeal to. The
+sum-of-minima is a legitimate *tightening of the upper bound* — `rank(C^ℓ Φ_ℓ J_1) ≤ min(r_ℓ−N'_ℓ,
+k_ℓ)` blockwise — but it is not the rank, and the rank is the thing to measure. State the
+inequality; let the run report the rank.
 
 It reduces to `k < r − N'` at `L = 1` (`k_1 = k`). The naive `Σ_ℓ (r_ℓ − N'_ℓ)` is an upper bound
 attained only where every layer sees the whole chart tangent space — i.e. where the encoder
@@ -544,3 +552,44 @@ the same question as the knee: use a condition to the tolerance it actually hold
 **Practical rule that follows:** weight each layer's block by its measured separation rather than
 including deep blocks unweighted. An unweighted stack lets the least exact condition dominate the
 residual and reintroduces exactly the over-descent failure already characterised at §9.
+
+### (2) The pixel parametrisation — and the theory does have something to say
+
+Against chart coordinates the rank saturates at `k` by construction, so it can only ever report
+"determined within the chart I chose". Against **pixels** it is chart-free and it is the right
+question: *how many independent constraints does a released multi-layer adapter place on the raw
+image?* Write `K(x) = [ C^ℓ · DF_ℓ(x) ]_ℓ`, a `(Σ_ℓ(r_ℓ−N'_ℓ)) × n_pix` matrix; the answer is
+`rank K`.
+
+Three bounds, in increasing sharpness:
+
+    rank K  ≤  Σ_ℓ (r_ℓ − N'_ℓ)                          (row count)
+    rank K  ≤  Σ_ℓ min( r_ℓ − N'_ℓ , rank DF_ℓ(x) )      (blockwise)
+    rank K  ≤  rank DF_1(x)                              (the shared factor)
+
+**The third is the one with teeth, and it is a defender-side statement independent of any
+attacker's prior.** Every adapted layer's map factors through the first, `DF_ℓ = Φ_ℓ DF_1`, so
+however many layers are adapted and whatever their ranks, the total number of independent
+constraints on the raw image cannot exceed the rank of the map from pixels to the **first** adapted
+layer's input. Concretely, that rank is bounded by the narrowest Jacobian rank along the path from
+pixels up to that layer — created by pooling, striding, downsampling, or any narrow projection.
+
+    **Bound.** The recipe-free channel constrains the raw image in at most
+    `min( Σ_ℓ min(r_ℓ − N'_ℓ, rank DF_ℓ), rank DF_1 )` independent directions,
+    and `rank DF_1` is a property of the frozen stem alone — not of the adapters,
+    not of their ranks, and not of how many layers were adapted.
+
+Two consequences worth stating in the paper:
+
+- **A bottleneck below the adapters caps pixel-space leakage through this channel**, and adding
+  adapted layers above it cannot raise the cap. That is an architectural defence with no accuracy
+  cost of its own, and it is the first defender-side lever here that does not depend on the model's
+  confidence or on precision.
+- **Conversely, adapting early — embeddings, or the first block — removes the cap**, because
+  `DF_1` is then near-full-rank in pixels. "Which layers you adapt" becomes a privacy decision and
+  not only a utility one.
+
+**Scope, and it matters:** this bounds the *certificate* channel. The replay route reads more of
+the release than `row(B_T)`, so `rank K` is not a bound on all leakage — it is the chart-free
+ceiling on what the recipe-free route can pin. Stating it as a bound on leakage per se would be
+the same overreach as the "iff" above.
