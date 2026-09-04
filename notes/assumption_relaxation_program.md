@@ -468,3 +468,79 @@ images the model gets wrong. That belongs in the threat model, not in a footnote
 x-axis) is promoted above the chain and above the chart work. If it fails, the certificate is a membership
 instrument and a prototype-level reconstructor, and image-level reconstruction has to come from replay — which is
 gated on the start problem.
+
+---
+
+## §11 answer — the stacked certificate (yoado-81). A clean form, and it is not the sum.
+
+### The setup, in the notation of the .tex
+
+Adapted layers `ℓ = 1…L`, layer `ℓ` with released `(A^ℓ_T, B^ℓ_T)`, certificate
+`C^ℓ = Π_{row(B^ℓ_T)^⊥} A^ℓ_T`, and condition `C^ℓ h^ℓ_i = 0` — that is `r_ℓ − N'_ℓ` scalar
+conditions on that layer's *inputs*. Since the release is known, `h^ℓ = F_ℓ(x)` is a known
+deterministic map, so every condition pulls back to the chart: `C^ℓ (F_ℓ∘ψ)(w) = 0`.
+
+### (1) Independence — the pullbacks are structurally coupled, and the sum is not attained
+
+**The key fact is that every deeper layer factors through the first.** `F_ℓ = G_ℓ ∘ F_1`, so
+writing `J_1 = D(F_1∘ψ)(w)` and `Φ_ℓ = DG_ℓ`, the stacked Jacobian of all the conditions is
+
+    J_stack  =  [ C^1 ; C^2 Φ_2 ; … ; C^L Φ_L ] · J_1
+
+Every block shares the right factor `J_1`. So the conditions are *not* Σ_ℓ independent constraints
+in general position — they are Σ_ℓ constraints read through one common `k`-dimensional tangent
+space, and they overlap to the extent the `Φ_ℓ` fail to separate its directions.
+
+That gives the exact local statement. Let `V = col(J_1)` (dimension `k` if the chart is
+immersive). The candidate is *locally pinned by the stacked certificate* iff
+
+    ⋂_ℓ { v ∈ V : Φ_ℓ v ∈ ker C^ℓ }  =  {0}
+
+i.e. iff no chart direction survives, at every depth, into that depth's certificate kernel.
+
+**Why the naive sum overcounts, and by how much.** Deep layers can only constrain directions the
+network below has not already discarded. Write `V_ℓ = Φ_ℓ(V)` and `k_ℓ = dim V_ℓ ≤ k`, which is
+non-increasing in `ℓ`: it is the part of the chart's tangent space still visible at depth `ℓ`.
+Layer `ℓ` can then contribute at most `min(r_ℓ − N'_ℓ, k_ℓ)` conditions, not `r_ℓ − N'_ℓ`. So
+
+    **Conjecture (stacked line).**  Generically, local identifiability from the stacked
+    certificate holds iff   k < Σ_ℓ min( r_ℓ − N'_ℓ , k_ℓ ).
+
+It reduces to `k < r − N'` at `L = 1` (`k_1 = k`). The naive `Σ_ℓ (r_ℓ − N'_ℓ)` is an upper bound
+attained only where every layer sees the whole chart tangent space — i.e. where the encoder
+discards nothing, which is the one thing an encoder is for.
+
+**This is falsifiable by the run already queued, and it says what to log.** `k_ℓ` is measurable
+directly: it is `rank(Φ_ℓ J_1)`, the rank of the pullback Jacobian at depth `ℓ`. The prediction is
+that the *marginal* contribution of layer `ℓ` to `rank(J_stack)` equals `min(r_ℓ − N'_ℓ, k_ℓ)` and
+therefore **decays with depth**, so measuring `rank(J_stack)` alone will not distinguish the
+conjecture from the naive sum — the run must log `rank(J_stack)` after adding each layer *and*
+`k_ℓ` per layer. If marginal contributions stay at `r_ℓ − N'_ℓ` while `k_ℓ` falls, the conjecture
+is wrong and the sum is right, which would be the better outcome for the attack.
+
+**On generic independence.** There is one thing to say and it is a caution: genericity arguments
+are available for the *chart* (`ψ` in general position) but not for the `Φ_ℓ`, which are fixed by
+the trained network. A network trained to be invariant to a nuisance direction makes `Φ_ℓ` kill
+that direction at every depth beyond the invariance, and no amount of adapted rank downstream
+recovers it. So the failure of independence here is not a measure-zero accident — **it is exactly
+the encoder's learned invariances**, which is the same ceiling already stated for the single-layer
+case, now with a mechanism. That is worth saying in the paper regardless of how the run comes out.
+
+### (2) Exactness at depth — approximate conditions buy resolution, not identifiability
+
+Strictly, identifiability is a statement about exact zeros, and a deep condition is exact only to
+the lower adapters' drift. So the deep conditions do **not** enlarge the set of `k` for which the
+truth is an *isolated exact* zero. What they do is bound how far a candidate can stray while still
+satisfying them to the achievable tolerance: with separation `ε_ℓ` at depth `ℓ` and sensitivity
+`σ_ℓ` of that condition along `V`, the stacked conditions pin the candidate to a ball of radius set
+by `max_ℓ (ε_ℓ / σ_ℓ)` — the *worst* condition used, not the best.
+
+**Which is the right currency here anyway.** An image attack does not need machine precision; it
+needs the image. Measured separations are ~7 orders at the frozen layer and ~2.5 at depth, so the
+deep conditions can be expected to pin to roughly `10^{-2.5}` relative rather than to `10^{-15}`.
+Whether that suffices is an empirical question about the chart, not a theoretical one — and it is
+the same question as the knee: use a condition to the tolerance it actually holds to, and stop.
+
+**Practical rule that follows:** weight each layer's block by its measured separation rather than
+including deep blocks unweighted. An unweighted stack lets the least exact condition dominate the
+residual and reintroduces exactly the over-descent failure already characterised at §9.
