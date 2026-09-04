@@ -3499,3 +3499,39 @@ search.* That is a materially weaker claim than the one I sent as a story note e
 carry. It also sharpens where the remaining work is: the replay route's binding constraint was already the
 initialiser rather than the information, and half-precision training removes the one initialiser-free route that
 had been supplying starts.
+
+## The recorded count is not an independent variable — it is set by the chart (2026-09-04, 26 probed cells)
+
+This constrains every design in the chain direction and was found while trying to build one, so it is recorded on
+its own rather than inside that experiment's write-up.
+
+**Measured.** Four batches (`confident`, `hard1_diff`, `repeated`, and one constructed to specification) at r = 8,
+on-chart, tolerance 1e-12, chart sizes 6 … 18. The recorded count `N′`:
+
+| chart size k | 6 | 8 | 10 | 12 | 14 | 16 | 17 | 18 |
+|---|---|---|---|---|---|---|---|---|
+| `confident` | 7 | 7 | 5 | 4 | 4 | 3 | — | — |
+| `hard1_diff` | 7 | 7 | 6 | 5 | 4 | 4 | — | — |
+| `repeated` | 7 | 7 | 6 | 6 | 6 | 6 | — | — |
+| constructed (one low-margin image + 7 confident fillers) | 7 | 7 | 6 | 5 | 4 | 4 | 4 | 4 |
+
+**Two consequences, both structural.**
+
+**(i) `N′` falls as the chart sharpens, for every batch.** This is the imprint law along `k`: a richer chart makes
+the projections easier for the model to classify, so fewer of them leave a trace. The certificate vanishes at the
+truth in every cell (1e-16 … 1e-12), so this is not a degenerate-cell artefact. **Therefore `N′` and `k` cannot be
+varied independently**, and any claim of the form "the attack improves as `N′` falls" is confounded with the chart
+size by construction. In-band cells available at this rank: `N′` = 7 at k = 6, 8; 6 at k = 10; 5 at k = 10, 12;
+4 at k = 12. `N′` = 3 occurs only out of band; `N′` ≤ 2 does not occur at all.
+
+**(ii) A single-recorded-image cell does not exist at a deployable rank.** Not naturally, and not by construction.
+A batch built to the obvious recipe — the lowest-margin image plus the highest-margin image of every other class —
+gives 7, 7, 6, 5, 4, 4, 4, 4 and nearly duplicates `hard1_diff`, which is defined the same way. The reason is
+mechanistic: a filler is confidently classified *as an image*, but the release records the model's error on its
+**on-chart projection**, and a small chart destroys that confidence. At k = 6–8 the fillers' relative imprints are
+0.7, 0.6, 0.4 — within a factor of two of the target's, where a one-image cell needs them a thousandfold beneath
+it. The gap only opens at k = 18 (σ₂/σ₁ = 2.8e-9), which is *above* the band. **The one-image regime and the band
+are mutually exclusive at r = 8**, so the realistic low-rank attack is inherently multi-image.
+
+*Scope: r = 8, m = 10, the 98% MNIST model, on-chart PCA charts, FP64. The mechanism (imprint ∝ error on the
+projection) is general; the specific counts are not.*

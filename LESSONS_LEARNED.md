@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A constrained-search experiment produces clean-looking nulls by accident — a positive control is mandatory (2026-09-04)
+
+- **What happened:** the certificate-constrained replay experiment produced a convincing negative **three times**, and every one was the harness. (1) The constraint surface was sized from its Jacobian's *shape*, but that Jacobian is rank-deficient by construction (the certificate is a projection of rank `r − N′`), so the code reported "no tangent directions" everywhere; the surface actually had five dimensions. (2) The Gauss–Newton projection back onto the surface went through `lstsq`, whose default driver assumes full rank, so stations landed at image error **1e7** with certificate violation 0.2–0.9 instead of ~1e-15. (3) The unknown seed block was started at zero rather than at the span estimate every other solve in this project uses, putting it outside its own basin so replay failed even from a station 0.3% from the truth.
+- **Why this class of experiment is prone to it:** every one of those bugs *reduces* the search's freedom or its starting quality, and the failure mode of a reduced search is silence — a residual that does not descend. Silence is exactly what a true negative looks like, so nothing distinguishes them without a control.
+- **Rule, now enforced in code:** a null from a constrained-search harness is not reportable unless the *same pipeline* reproduces a known positive end to end (`--positive-control`: the certificate alone recovering a recorded image from random starts at a cell where that is established), plus a start-at-the-truth station so that a plateau can be attributed to the solver rather than the geometry. Neither control costs anything beside the experiment itself.
+
 ## A rank-deficient constraint's tangent space must be read from its RANK, not its shape (2026-09-04)
 
 - **Presented as:** the certificate-constrained replay reported "the constraint surface has no tangent directions" at every station, which would have made the whole chain experiment untestable.
