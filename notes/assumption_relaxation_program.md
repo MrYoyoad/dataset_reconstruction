@@ -1050,3 +1050,39 @@ configurations people ship. Hence §12's ordering stands and is now *measured* r
 **Summary:** the ceiling on *directions* is locked by the frozen network; the slack is in *how much of an image a given
 set of directions determines*, which is a structured-recovery question, not a rank question — and it is the one avenue
 that could change the deployment verdict without changing the release.
+
+## 21. HARD NEGATIVE: weight sharing kills the recipe-free channel on transformers
+
+**Measured on frozen pretrained weights (a base ViT and DINO-small), at real photographs, BEFORE any adapter is
+trained.** A shared linear inside a block is applied at **every token**, so one image contributes **one recorded
+direction per token**. The measured span is **exactly `min(tokens × batch, input dim)`** — exactly, in every module of
+both models. **One image supplies 197 independent directions into a 768-dimensional input.**
+
+**Consequence.** The certificate needs `r > span` (§15 condition 1). At the deployed range `r = 8–64` the margin is
+**zero for every batch size, including one**. At `r = 256` (4× the largest deployed rank) it survives **only for a
+batch of exactly one** and dies at two. Surviving at eight images would need `r > 1500` — twice the model's own width.
+DINO is worse: **no module survives above a single image.**
+
+**So: the recipe-free channel is dead on transformer attention/MLP blocks at any deployed configuration.**
+
+**Scope, stated tightly (41's wording, and this is the sentence that will be quoted).** It kills the **recipe-free**
+channel — the narrow one needing only the release and a public model. It says **nothing about replay**, which has a
+different budget and is limited by the start problem instead. And it is a statement about **weight sharing**, not about
+transformers being safe: the same arithmetic condemned early convolutional layers and exonerated deep ones.
+
+**41's pre-registration was wrong in an instructive way (their own catch).** They registered a redundancy branch
+because trained transformers have famously redundant token activations. **At the level of linear span they do not** —
+the activations are in general position. *Redundancy in the sense of heads being prunable is not redundancy in the
+sense of vectors spanning a small subspace.*
+
+**THE RULE, which has now decided three separate results and is arguably the project's most useful output:**
+> **Count the vectors a layer actually records — batch size × positions — against its input dimension.**
+> Needs no training, no release and no recipe: **only the architecture and the batch size.** A defender computes it
+> for their own configuration in a minute. It condemned early convs, exonerated deep convs, and now condemns
+> transformer blocks.
+
+**POSSIBLE SURVIVOR, to check (mine): the classification HEAD is the one non-weight-shared module in a transformer.**
+It consumes a single token per image (CLS), so its recorded count is `N`, not `197N` — which is exactly the regime all
+of this project's MLP experiments live in, and where the head-width cap `N′ ≤ m−1` applies. If that holds, the honest
+surviving surface is **head adaptation on a transformer** (plus dense MLPs and deep convs), while **LoRA on attention —
+the dominant deployment pattern — is out of reach for this channel.**
