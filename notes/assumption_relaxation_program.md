@@ -856,3 +856,46 @@ frozen inputs comes from the adapter config, which ships with the release. **So 
 attempting anything whether the recipe-free channel is open — and a defender can check the same three conditions to
 know whether their release exposes one.** That symmetry is the paper's most practically usable statement, and it is
 the thing to put in front of the supervisor: not a result about one cell, but a criterion that decides every cell.
+
+## 16. The flattening verdict was on a STARVED cell — and a fourth quantity is the real ceiling (2026-09-04, latest)
+
+**16a. Exact comparator (41), so the 23% is measured not inferred.** 15-layer stack, `r = 64`, `N = 8`: layer 1 alone
+**56** usable; layers 1+2 **57**; all three live layers **69** usable (80 formal, 112 supplied). So layer 2 + head added
+**13 usable conditions, +23%**. Modest, not multiplicative, not zero.
+
+**16b. THE 12-of-15 COLLAPSE WAS RANK STARVATION, NOT DEPTH.** On the same stack at **`r = 256` all fifteen layers are
+usable, at every training length swept from 10 to 3,200 steps.** The drift plateau is **90–110 recorded directions**,
+and `r = 64` sits below it. **So the extended-layer curve has never been measured in a configuration where the layers
+were live**, and both "the curve flattens" and my "multi-layer is dead" were verdicts on a starved cell. Real curve
+running at `r = 256`.
+
+**16c. THE "TRAIN LONGER" DEFENCE IS DEAD — measured, and exactly as 81 warned it might be.** 81's objection to my
+`N·d(T) ≥ r` form was that drift could SATURATE, in which case the lever does not exist. **It saturates:** the plateau
+is 90–110 directions, flat from 10 steps to 3,200. So once `r` exceeds the plateau, training longer never closes the
+channel. **Withdraw the "train longer" lever entirely.** The defender's levers are now: the architectural bottleneck
+(§ cap table), the head-width/output-width truncation (§15 condition 2), and keeping `r` *below* the drift plateau —
+which is a utility choice, not a free one.
+
+**16d. Frozen gaps between adapted layers would NOT help (41).** Drift at a layer comes from *any* adapted layer below
+it, not only the adjacent one. My suggested cell is void; the two things that keep layers live are `r` above the drift
+plateau (demonstrated) and shorter training (already known).
+
+**16e. THE FOURTH QUANTITY, and it is the real ceiling: how much of the image the FROZEN ENCODER still transmits at
+the truth.** Any layer's pixel-space contribution is capped by `rank(Dφ_ℓ)`, the Jacobian rank of the frozen path from
+pixels to that layer — **and it collapses with depth**: full at 1–2 frozen layers, **220 at 4, 96 at 7**, out of 784.
+Past that ceiling **extra adapter rank buys literally nothing** — layer 8 stops at 96 conditions whether the adapter is
+rank 256 or 900. And **conditioning collapses faster than rank does**: `σ_min` falls 1e-2 → 7e-4 → 1e-10 as the frozen
+encoder goes 1 → 2 → 4 layers, and from 4 frozen layers on the *usable* count sits below the *formal* count.
+
+**Consequences.**
+- **Early adapted layers dominate; deep ones are capped low regardless of rank.** Multi-layer helps, but the sum is
+  dominated by the shallow end, so expect the real curve to rise steeply then flatten — for this reason, not for the
+  starvation reason we first measured.
+- This is **81's `rank K ≤ rank DF_1` bound, measured per-layer**, and it should be unified with the architecture cap
+  table: the table gives the bound for the first adapted layer; this gives the whole profile with depth.
+- **Defender reading:** adapting deep layers leaks less in pixel space, independently of the rank chosen — a design
+  lever that costs no accuracy and does not depend on confidence, precision, or training length.
+
+**Honest shape of the whole result:** the three-condition usability criterion (§15) decides *whether* a layer's
+certificate works at all; this fourth quantity decides *how much of the image* it can pin once it does. The first is
+about the adapter; the second is about the frozen network, and is not about the certificate at all.
