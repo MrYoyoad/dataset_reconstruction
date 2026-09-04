@@ -5169,3 +5169,56 @@ else."** Three scopes travel with it: it is a **hidden-layer** certificate, so i
 input patches — **activation space, not the photograph**; freezing the stages below is the hypothesis, and the
 attack always lives at the **earliest adapted layer**, so a fine-tune that also adapts stage 1 moves it onto raw
 pixels; and it is **SGD-class only**, which the control now demonstrates rather than asserts.
+
+## Pre-registered for the near-duplicate run — with an exact provenance disclosure
+
+**Correction to my own header.** I first wrote "no rows printed at the time of writing". That was wrong: the same
+command that appended this section counted **six rows already emitted** by job 312227. What I had *not* done is
+read their contents — the count was visible, the values were not. The prediction below was therefore written
+without sight of any transformation's number, but **not** before rows existed, and the difference matters enough
+to state rather than round off. That job was then killed and rerun with the upgrades below, so the prediction is
+tested against rows produced after it was recorded.
+
+yoado-cd's prediction of the **ordering**, not just the two readings — six transformations scored against the fixed
+bar gives six binary outcomes, and predicting which ones pass makes it a test rather than a description:
+
+| transformation | predicted |
+|---|---|
+| 8-bit requantisation | **passes as member** (tiny activation change) |
+| brightness +10% | **passes as member** |
+| 90% centre crop | **marginal** |
+| downsample to 200 and back | **marginal** |
+| Gaussian blur | **rejected as non-member** |
+| horizontal flip | **rejected as non-member** — a flip substantially reorders convolutional activations even though the image is semantically identical |
+
+**If that ordering holds, the claim becomes "specific to the image as the ENCODER sees it, with tolerance
+proportional to activation distance"** — a far more precise sentence than either binary. **If it comes out
+unordered, the tolerance is not an activation-distance story**, and that is worth knowing.
+
+## STANDING RULE — no membership-style claim may rest on a positive-side criterion
+
+Adopted across all four tests and every future one, from the Adam control's behaviour:
+
+> **A vacuous test and a perfect test produce identical positive-side numbers and differ only on negatives.** With
+> `C = 0` the member residual is still ~1e-14, because zero times anything is zero. An annihilating test and a
+> discriminating test agree on **every** positive. So a criterion built from positives cannot separate them,
+> however precise it looks — and the precision is exactly what makes it convincing.
+>
+> **The negative rate is mandatory on every row, and a positive-side number at machine precision is evidence of
+> nothing on its own.** And in yoado-b9's words: *a negative rate is mandatory; a **paired** negative is required
+> wherever one can be constructed, and a population-only negative must state what it is not controlling for.* A
+> population negative is confoundable — by class, as this project has just found — and a paired negative holds
+> image-specific factors fixed and cannot be.
+
+That single rule would have caught, without anyone being clever: the broken Adam control (which passed 5 of 6 on
+member-side numbers), the vacuous hidden-layer certificate (members *and* non-members at 2e-15), and the
+graded-statistic ceiling. All three had flawless positive sides.
+
+**The 19-of-20 disposition, ruled by yoado-b9 and reported in full rather than as a rate.** Draw 1's paired null is
+*undefined*, not false, and the locked verdict is a conjunction, so the draw is unevaluable and scoring it as a
+failure would count an untested draw as evidence against. The correct statement is: **19 usable of 20 run; 19 of 19
+on the locked criterion; draw 1 excluded for want of a prior release to form its paired null; draw 1's population
+false-positive rate reported separately, since its population arm WAS evaluable.** Nothing measured is discarded
+and nothing unmeasured is counted. **The exclusion was structural and predictable** — `n` draws give `n − 1`
+null-testable draws — **and should have been pre-registered; it was not.** Fixed in v2 by training one extra
+release on a held-out image first, purely to give draw 1 a null, so all `n` draws are evaluable.

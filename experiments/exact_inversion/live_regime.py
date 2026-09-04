@@ -64,6 +64,11 @@ def main():
                          "non-members 0.1..1, the marginal-recorded in-band tail 1e-5..1e-8, clean members "
                          "1e-16..1e-8 -- so it sits one order below the lowest non-member and three above the "
                          "marginal band: a working certificate clears it by 1-2 orders, a degraded one fails.")
+    ap.add_argument("--same-class", action="store_true",
+                    help="draw the non-members from the MEMBER'S OWN CLASS. Dataset-matched non-members exclude "
+                         "cross-dataset detection, but activations cluster by class, so a mixed-class pool is the "
+                         "easy case and a zero false-positive rate there is partly class discrimination. Within "
+                         "class -- can it tell this rose from another rose -- is the privacy question.")
     ap.add_argument("--near-dupes", action="store_true",
                     help="NEAR-DUPLICATE SPECIFICITY: score transformed versions of the private image -- crop, "
                          "resize, flip, brightness, blur, JPEG recompression. Both answers are results and they "
@@ -90,8 +95,22 @@ def main():
     gh = torch.Generator().manual_seed(a.seed)
     Whead = (torch.randn(a.classes, feat_dim, generator=gh) / math.sqrt(feat_dim)).to(dev)
 
-    pool, _ = load_images(a.data_root, a.nonmembers + a.draws + 8, 224, dev)
-    members, nonmembers = pool[:a.draws], pool[a.draws:a.draws + a.nonmembers]
+    if a.same_class:
+        import glob as _g, numpy as _np
+        from scipy.io import loadmat
+        lab = loadmat(os.path.join(os.path.dirname(a.data_root.rstrip("/")), "imagelabels.mat"))["labels"].ravel()
+        files = sorted(_g.glob(os.path.join(a.data_root, "*.jpg")))
+        cls = int(_np.bincount(lab).argmax())                       # the most populous class: the largest pool
+        idx = [i for i, f in enumerate(files) if i < len(lab) and lab[i] == cls]
+        pool, _ = load_images(a.data_root, len(files), 224, dev)
+        sel = pool[torch.tensor(idx, device=dev)]
+        members, nonmembers = sel[:a.draws], sel[a.draws:]
+        print(f"# SAME-CLASS cell: class {cls}, {len(idx)} images, {a.draws} members vs "
+              f"{nonmembers.shape[0]} same-class non-members (a smaller pool than the mixed cell, so the "
+              f"false-positive rate is coarser -- reported with its denominator)", flush=True)
+    else:
+        pool, _ = load_images(a.data_root, a.nonmembers + a.draws + 8, 224, dev)
+        members, nonmembers = pool[:a.draws], pool[a.draws:a.draws + a.nonmembers]
     print(f"# live regime: {a.model} stage {a.stage} conv d_in={d_in} d_out={d_out}, r={a.r}, "
           f"{a.draws} draws vs {a.nonmembers} SHARED non-members, optimiser={a.optimiser}  "
           f"git={git_hash()} host={socket.gethostname()}", flush=True)
@@ -122,6 +141,10 @@ def main():
     order = torch.argsort(margin0)                                     # stratify across the margin range
     Pn = patches(nonmembers)
     ok = 0; scored = 0; prev = None       # prev release: gives each image a NEVER-TRAINED null of ITSELF (7e)
+    # The exclusion of draw 1 was STRUCTURAL and predictable -- n draws give n-1 null-testable draws -- and should
+    # have been pre-registered. Fixed here: one extra release is trained on a held-out image FIRST, purely to give
+    # draw 1 a null to score against, so all n draws are evaluable.
+    seed_img = members[-1:] if a.draws > 1 else None
     for rank_i, di in enumerate(order.tolist()):
         x = members[di:di + 1]; yi = y[di:di + 1]
         gA = torch.Generator().manual_seed(a.seed + 100 + di)
@@ -184,7 +207,21 @@ def main():
                  "blur": TF.gaussian_blur(x, 5, [1.0]),
                  "quantise8bit": (((x + 1) * 127.5).round() / 127.5 - 1)}
             for nm, xv in v.items():
-                dupes[nm] = float(res(patches(xv))[0])
+                Pv = patches(xv)
+                d_feat = float(torch.linalg.norm(Pv - Pm) / torch.linalg.norm(Pm))
+                q_here = float(res(Pv)[0])
+                # PAIRED negative for the transformation itself (b9's rule): the same transformed image scored
+                # against a release that never saw it. Without this, a low score is ambiguous between "it passes"
+                # and "it scores low for image-independent reasons".
+                if prev is not None:
+                    Cp, Ap = prev
+                    cn = torch.linalg.norm(torch.einsum("ndp,kd->nkp", Pv, Cp), dim=1)
+                    an = torch.linalg.norm(torch.einsum("ndp,kd->nkp", Pv, Ap), dim=1) + 1e-300
+                    q_null_v = float((cn / an).mean(-1)[0])
+                else:
+                    q_null_v = float("nan")
+                dupes[nm] = dict(q=q_here, q_paired_null=q_null_v, feature_distance=d_feat,
+                                 reads_as_member=bool(q_here < a.bar))
         # 7e's per-draw null: the SAME image scored under the PREVIOUS draw's release, which never saw it. This
         # separates "the certificate annihilates this image" from "the certificate annihilates this image BECAUSE
         # it was trained on it" -- a same-image control no non-member population can provide.
@@ -218,8 +255,10 @@ def main():
                   predicted_margin=a.r - int(Pm.shape[2]), rank_C=rank_C,
                   member_residual=rm, member_side_not_scored="forced to ~0 by rank-one collinearity at N=1",
                   near_duplicates=dupes,
-                  near_dupe_verdict={k: ("PASSES as member (below the bar)" if q < a.bar else "rejected as "
-                                         "non-member (above the bar)") for k, q in dupes.items()},
+                  near_dupe_measured_order=[k for k, v in sorted(dupes.items(), key=lambda z: z[1]["feature_distance"])],
+                  near_dupe_prediction="pass/fail falls at a SINGLE boundary in the MEASURED feature-distance "
+                                       "order -- one monotone prediction that can fail, not six binaries which "
+                                       "are six chances to find one that works",
                   certificate_numerical_floor=c_floor,
                   bar=a.bar, false_positive_rate=fpr, max_fpr=a.max_fpr,
                   null_clears_bar=bool(null_ok), fpr_clears=bool(fpr_ok),
@@ -240,13 +279,20 @@ def main():
                   chi2_dof=rank_C, recovery_space="activation (49 conv input patches), NOT pixels",
                   placement_assumption="first adapted layer is stage %d; the attack lives at the EARLIEST "
                                        "adapted layer, so a stage-1 fine-tune moves it to raw pixels" % a.stage,
-                  nonmember_population="shared across draws (disclosed); disjoint from members by index",
+                  nonmember_population=("SAME CLASS as the member" if a.same_class else
+                                        "same dataset, MIXED classes"),
+                  n_nonmembers=int(Pn.shape[0]),
+                  nonmember_note="shared across draws (disclosed); disjoint from members by index",
                   start_attacker_buildable="n/a (scoring at the truth, no start)",
                   seconds=time.time() - t0, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
         print(f"  draw {rank_i:3d} margin {float(margin0[di]):+8.3f}  N'={Np:3d} rank C={rank_C:3d}  "
               f"member {rm:.2e}  self-null {null_same_image:.2e}  FPR {fpr:.4f}  "
               f"nm_min {float(srt[0]):.2e}  {verdict}"
-              + ("  dupes " + " ".join(f"{k}={v:.1e}" for k, v in dupes.items()) if dupes else ""), flush=True)
+              + ("\n        dupes by MEASURED feature distance: " + "  ".join(
+                    f"{k}(d={v['feature_distance']:.3f} q={v['q']:.1e} null={v['q_paired_null']:.1e} "
+                    f"{'MEMBER' if v['reads_as_member'] else 'reject'})"
+                    for k, v in sorted(dupes.items(), key=lambda z: z[1]["feature_distance"])) if dupes else ""),
+              flush=True)
     hk.remove()
     lo, hi = binom_ci(ok, max(scored, 1))  # fraction of draws where the null clears the bar AND the FPR is <= 1%
     emit(dict(part="LIVE_SUMMARY", successes=ok, scored=scored, voided=a.draws - scored,
