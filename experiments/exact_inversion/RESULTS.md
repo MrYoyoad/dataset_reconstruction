@@ -5256,3 +5256,39 @@ the individual placements.
 **Bug found and fixed in the same job:** the same-class cell died because the shared image loader caps at 2,000
 sorted filenames, which silently excluded most of the set and made the class pool unreachable. The same-class run
 now loads only the class's own files and is rerunning as job 316123.
+
+## The near-duplicate result is GRADED, and the binary reading — including mine — was wrong (job 316800)
+
+yoado-cd was right that one operating point understates it, and the curve says something stronger than either of
+us expected. ROC over 12 draws, each transformation against its **paired** negatives (the same transformed image
+under a release that never saw it) and against the population:
+
+| transformation | activation distance | mean `q` | **AUC vs paired** | AUC vs population | reads as member at the 1e-2 bar |
+|---|---|---|---|---|---|
+| 8-bit requantisation | 0.000 | 1.8e-14 | **1.000** | 1.000 | 12/12 |
+| brightness +10% | 0.062 | 9.5e-3 | **1.000** | 1.000 | 9/12 |
+| downsample to 200 | 0.222 | 3.3e-2 | **1.000** | 1.000 | 0/12 |
+| Gaussian blur | 0.356 | 5.2e-2 | **1.000** | 1.000 | 0/12 |
+| 90% centre crop | 0.557 | 7.8e-2 | **1.000** | 0.993 | 0/12 |
+| horizontal flip | 0.922 | 1.0e-1 | 0.864 | **0.500** | 0/12 |
+
+**Pooled over all six: AUC 0.974 against paired negatives.**
+
+**I have to correct what I said one message ago.** I wrote that "flipping, cropping, blurring or downsampling
+evades it". That is false for three of the four. **Downsampling, blurring and cropping separate PERFECTLY from
+genuine non-members — AUC 1.000 — while failing the 1e-2 bar.** The bar was discarding information the channel
+actually carries. **Only the horizontal flip destroys the signal**, and it destroys it completely: AUC 0.500
+against the population, which is chance.
+
+**So the correct statement is a trade, not a boundary:** *the certificate's tolerance is a tunable operating point
+between false-positive rate and how far a transformation may move the activations. At a 1e-2 threshold it accepts
+only requantisation and brightness; at a threshold chosen for a 1% false-positive rate it would accept
+transformations out to a 90% crop. Only a horizontal flip, which reorders convolutional activations wholesale,
+reduces it to chance.*
+
+**The defender reading, corrected accordingly, and it is narrower than cd proposed.** Random *flips* defeat the
+test outright. Random crops, blur and rescaling **do not** — they defeat one chosen threshold while remaining
+perfectly separable at a tuned one. What augmentation does buy the defender reliably is the *other* mechanism:
+it moves the features between steps and breaks the closure the certificate needs. **And the attacker must apply
+the victim's own preprocessing pipeline** for a candidate's activations to land in the neighbourhood at all —
+that assumption belongs on the row.

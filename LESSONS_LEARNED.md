@@ -2847,3 +2847,18 @@ arithmetic**, and make the primary statistic a rate over negatives.
 Three of today's failures share this shape: a vacuous certificate reading like a perfect one, a relative rank call
 returning full for a zero matrix, and a member residual forced to zero at `N′ = 1`. In all three the *positive*
 side looked flawless.
+
+## 2026-09-05 — a loader that truncates without raising is indistinguishable from a small dataset
+
+**Third silent data-path fault today.** A shared image loader caps at 2,000 sorted filenames. The same-class cell
+needed the 8,189-image set to find a class pool, got the first 2,000, and the class was unreachable. No error, no
+warning — the cell simply had no data and died downstream with a message about the wrong thing.
+
+**Why this class of fault keeps winning.** A truncated load looks exactly like a smaller dataset. Nothing in the
+numbers is wrong; there are just fewer of them, and every downstream statistic is computed correctly on the wrong
+population. The other two today: an optimiser selector assigned and never read (two identical arms, no error), and
+a metric whose threshold was unreachable by construction (every cell failed, including the control).
+
+**The fix, which is one line per cell:** **log the realised pool size beside the requested one on every row.** A
+silent cap then shows up in the row rather than in a rerun three hours later. Any loader with an internal limit
+should either raise when it truncates or return the count it actually loaded.
