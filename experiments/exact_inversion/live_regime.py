@@ -124,13 +124,26 @@ def main():
         st = {"A": A, "B": B}
         h = conv.register_forward_hook(lambda m, i, o: o + (st["B"] @ (st["A"] @ torch.nn.functional.unfold(
             i[0], k_, dilation=m.dilation, padding=pd_, stride=st_))).reshape(o.shape))
-        opt = (torch.optim.Adam if a.optimiser == "adam" else torch.optim.SGD)
+        # BUG FIXED (job 304455): this line previously read `opt = (torch.optim.Adam if ... else torch.optim.SGD)`
+        # and `opt` was NEVER USED -- both arms ran plain gradient descent, so the Adam negative control was a
+        # second SGD run and could not control anything. Caught by the pre-registered inverted finding: the Adam
+        # arm PASSED, which was declared in advance to mean the pipeline is wrong rather than Adam interesting.
+        mA = torch.zeros_like(st["A"]); vA = torch.zeros_like(st["A"])
+        mB = torch.zeros_like(st["B"]); vB = torch.zeros_like(st["B"])
+        b1, b2, epsA = 0.9, 0.999, 1e-8
         t0 = time.time()
-        for _ in range(a.T):
+        for step in range(1, a.T + 1):
             loss = torch.nn.functional.cross_entropy(net(x) @ Whead.T, yi)
             gA_, gB_ = torch.autograd.grad(loss, [st["A"], st["B"]])
-            st["A"] = (st["A"] - a.lr * gA_).detach().requires_grad_(True)
-            st["B"] = (st["B"] - a.lr * gB_).detach().requires_grad_(True)
+            if a.optimiser == "adam":
+                mA = b1 * mA + (1 - b1) * gA_; vA = b2 * vA + (1 - b2) * gA_ ** 2
+                mB = b1 * mB + (1 - b1) * gB_; vB = b2 * vB + (1 - b2) * gB_ ** 2
+                dA = (mA / (1 - b1 ** step)) / ((vA / (1 - b2 ** step)).sqrt() + epsA)
+                dB = (mB / (1 - b1 ** step)) / ((vB / (1 - b2 ** step)).sqrt() + epsA)
+            else:
+                dA, dB = gA_, gB_
+            st["A"] = (st["A"] - a.lr * dA).detach().requires_grad_(True)
+            st["B"] = (st["B"] - a.lr * dB).detach().requires_grad_(True)
         h.remove()
         A_T, B_T = st["A"].detach(), st["B"].detach()
         S = torch.linalg.svdvals(B_T)

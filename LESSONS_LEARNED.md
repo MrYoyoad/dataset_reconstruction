@@ -2803,3 +2803,27 @@ wrong.**
 
 **The fix pattern is the same each time:** score the side the construction does *not* force — here the non-member
 distribution against its closed-form null — and add the control whose failure is the evidence.
+
+## 2026-09-05 — the negative control passed, and it was the harness: an unused optimiser variable
+
+**What happened.** Test 2's Adam arm exists to fail: under Adam the released factor is full rank, no certificate
+exists, and every draw should void at the gate. It **succeeded in 5 of 6 draws**, with rows numerically
+indistinguishable from the SGD arm — same recorded count, same certificate rank, same member residual.
+
+**Why.** The training loop read `opt = (torch.optim.Adam if ... else torch.optim.SGD)` and then never used `opt`;
+the updates below it were plain gradient steps in both arms. **The Adam control was a second SGD run.** It could
+not have controlled anything, and nothing in its numbers looked wrong — they looked *right*, which is worse.
+
+**What caught it.** Not a failing test and not a suspicious number, but a **pre-registered inverted expectation**:
+the claims lane had required, in advance, that this arm's *expected* outcome is the negative one and that a pass
+means the pipeline is broken rather than the science interesting. Without that sentence written down first, five
+of six "successes" in a control arm would have been easy to read as reassurance.
+
+**The consequence for the result, and it is the important part.** The SGD arm's 19 of 20 is **not licensed** until
+a real Adam control fails. The control's whole job is to show the separation is a property of the certificate
+rather than of the harness, and a control that never ran a different optimiser shows nothing. The number stands
+unreported until the rerun.
+
+**The habit.** For every control arm, write down *before running* what it must do and what its passing would mean.
+And when a variable is assigned to select behaviour, check it is actually read — a selector that is computed and
+discarded produces two identical arms and no error anywhere.
