@@ -300,8 +300,13 @@ exactly on `Z_C`. That is guaranteed for recorded examples and **not** for anyth
 example below the recording floor, or a release read at a tolerance that inflates `N'`, puts the
 truth off the manifold, and a hard constraint then excludes it outright with no diagnostic. A
 *soft* penalty (`‖Cφ‖` as a weighted term beside `ρ`) degrades gracefully in the same situation.
-**Prefer the soft form unless the containment has been measured at the operating floor for that
-cell.** The cost of the soft form is a weight to tune; the cost of the hard form, in the case
+**Prefer the soft form unless containment is established at that cell's operating floor — by
+measurement, or by derivation where the cell's own hypotheses give it.** The pre-registered chain
+cell is the derivable case: FP64, on-chart, and a recorded example, so the truth lies on `Z_C` by
+`thm:quot` and the floor (`~1e-30`) puts it there to machine precision. The hard form is licensed
+*there* without waiting on any plot. It is every extension beyond that cell — a lower-precision
+release, an off-chart truth, a batch with examples below the recording floor, or an `N'` read at a
+tolerance that inflates it — where the derivation lapses and the soft form is the safe default. The cost of the soft form is a weight to tune; the cost of the hard form, in the case
 where it is wrong, is an empty search that looks like a negative result.
 
 
