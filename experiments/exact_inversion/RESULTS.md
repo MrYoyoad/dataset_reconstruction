@@ -4759,6 +4759,21 @@ because it is the same assumption the replay channel needs and the certificate w
 neither is the "cannot be instantiated at all" barrier I claimed an hour ago, and the claim should not be made in
 that form.
 
+**SCOPE OF THIS NULL — it is a membership result and must not be quoted against the reconstruction-side version**
+(yoado-cd). The argument died for a reason specific to membership inference: **the attacker already holds the
+candidate image**, so it enters half the shadows whatever else they own, and only the co-training pool is missing.
+**In reconstruction they do not hold the image — that is the task.** There, a prior or a chart has to be built from
+*something*, and a mismatched public pool may genuinely cost fidelity, which is a live and unmeasured question. So
+the correct record is:
+
+| surface | "the attacker cannot obtain a sample from the private distribution" |
+|---|---|
+| membership inference | **DEAD** — measured here; the candidate is held by definition and any pool substitutes |
+| reconstruction (chart / prior construction) | **LIVE and UNMEASURED** — the image is what is being recovered, so the pool is the only source of a prior |
+
+Nobody should cite today's null as evidence about the reconstruction case, and the reconstruction case should not
+be re-derived from scratch later on the assumption that this settled it.
+
 **Bottom line for the head surface, without inflation.** The certificate gives no demonstrated advantage over a
 shadow attack in separation, at any training length, and its assumption advantage is materially smaller than
 argued — reduced from three requirements to two, neither of them prohibitive. **On the head, this channel is not

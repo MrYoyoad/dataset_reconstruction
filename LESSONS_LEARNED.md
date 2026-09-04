@@ -2717,3 +2717,22 @@ label-free confidence and it scored at chance. With both populations labelled, t
 **The check is one question, asked before any statistic is chosen:** *are my two populations identical in
 everything except the property under test?* If not, either fix the construction or state in the row that the
 baseline is weaker than the literature's standard — never report the number as if it were that standard.
+
+## 2026-09-04 — ask whether the run CAN answer the question before spending it
+
+**What happened.** I built and ran a four-level distributional-mismatch ladder to test whether a shadow attack
+degrades when the attacker lacks a sample from the private distribution. It does not degrade at all — LiRA holds
+0.996–1.000 with greyscale FashionMNIST shadows against private flower photographs.
+
+**The failure was derivable in one sentence before the run.** In membership inference the attacker **holds the
+candidate by definition** — that is the object being tested — so the candidate enters half the shadows regardless
+of what else they own, and only the *co-training* pool is missing. Once stated that way, it is obvious that an
+arbitrary pool substitutes. I spent a run establishing something a sentence of reasoning would have given.
+
+**The habit.** Before submitting, write down what the attacker (or the method) actually needs and what they already
+have, and check that the manipulated variable is one of the things they lack. If the variable being swept is not on
+the critical path, the sweep measures nothing. This costs a minute and the run cost a job.
+
+**The salvage, and it is why the run was not worthless.** Stating the mechanism precisely revealed that the same
+argument is *alive* on the reconstruction surface, where the attacker does **not** hold the image — so the result
+is a scope boundary rather than a plain null. But that boundary was also derivable in advance.
