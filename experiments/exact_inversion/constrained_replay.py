@@ -198,7 +198,13 @@ def main():
                 J = jac(v).detach(); JtJ = J.T @ J; JtF = J.T @ F
                 accepted = False
                 for _ in range(12):
-                    step = torch.linalg.solve(JtJ + lam * torch.eye(JtJ.shape[0], device=dev), JtF)
+                    # the joint normal equations are singular at a rank-deficient point (the r(N-N') free seed
+                    # directions and any alignment), so damp with diag(JtJ) as Marquardt and fall back to lstsq
+                    Dmp = torch.diag(torch.diagonal(JtJ).clamp_min(1e-30))
+                    try:
+                        step = torch.linalg.solve(JtJ + lam * Dmp + 1e-30 * torch.eye(JtJ.shape[0], device=dev), JtF)
+                    except Exception:
+                        step = torch.linalg.lstsq(JtJ + lam * Dmp, JtF.unsqueeze(1)).solution.reshape(-1)
                     if constrained:                                     # project the latent block onto null(Jg)
                         Jg = tf.jacfwd(gfun)(v[:nW]).detach()
                         U_, S_, Vh = torch.linalg.svd(Jg, full_matrices=True)
