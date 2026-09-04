@@ -5333,3 +5333,25 @@ pre-registered 1e-2 bar was CONSERVATIVE, and reporting the curve rather than th
 stronger result** — perfect separation out to a 90% crop at a 1% false-positive rate, where the fixed bar had said
 "rejected". A pre-registered threshold protects against over-claiming and can equally hide a real effect;
 **reporting the curve alongside the chosen point costs nothing and is the only way to see which has happened.**
+
+## RESULT — the same-class cell passes: the zero false-positive rate is NOT class discrimination (job 316123)
+
+The load-bearing control. A dataset-matched non-member pool leaves a zero false-positive rate consistent with the
+certificate discriminating **class** rather than **membership**, and a membership claim built on class
+discrimination is not a membership claim. Non-members are now drawn from the **member's own class** — flowers
+class 51, the most populous, 258 images, 12 members against 246 same-class non-members.
+
+| quantity | mixed-class cell | **same-class cell** |
+|---|---|---|
+| `N′` / `rank C` | 49 / 15 | **49 / 15** |
+| false-positive rate | 0.0000 | **0.0000** |
+| lowest non-member | 0.084 – 0.116 | **0.086 – 0.094** |
+| paired same-image null | 0.10 – 0.14 | **0.096 – 0.106** |
+
+**The rate does not move.** Within a single class — can it tell this rose from another rose — the certificate still
+rejects every non-member, and the lowest same-class non-member sits an order above the bar. **So the zero rate was
+membership, not class separation**, which is the answer the claim depended on.
+
+**One honest limit that comes with it:** the same-class pool is 246 images rather than 1,000, so the rule-of-three
+bound on the per-candidate rate is **1.2e-2** here against 3e-3 in the mixed cell. The result is qualitatively
+clean and quantitatively coarser, and the coarseness is set by how many images the dataset has in one class.
