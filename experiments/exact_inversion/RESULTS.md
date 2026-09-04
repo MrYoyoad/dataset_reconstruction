@@ -5071,3 +5071,55 @@ scatter is checked against per-cell conditioning **with the sign pre-registered*
 worse recovery, and the other direction is a second effect rather than a correction. **Void unless the recorded
 set — the image indices, not the count — is identical across ranks**, with the declared fallback being a fit on
 the intersection, its size reported and the excluded images named.
+
+## RESULT — the truncated certificate buys NOTHING, and its apparent success was the fit (jobs 298988, 302919)
+
+Pretrained ViT-B/16, three blocks, `r` = 16 and 64, exact certificate vacuous in every cell (`rank B_T = r`),
+8 members against 64 non-members. Scored under yoado-b9's rule fixed before the run — `k` at the **largest gap in
+the log spectrum**, identical across modules — not by the `k` that looks best.
+
+| block | `r` | `k` by rule | largest log gap | conditions | member | non-member | orders | scrambled AUC | verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 16 | 1 | 0.19 | 15 | 8.1e-1 | 8.2e-1 | 0.00 | 0.53 | **FAIL** |
+| 0 | 64 | 1 | 0.21 | 63 | 9.2e-1 | 9.3e-1 | 0.01 | 0.71 | **FAIL** |
+| 6 | 16 | 1 | 0.38 | 15 | 6.6e-1 | 6.7e-1 | 0.01 | 0.34 | **FAIL** |
+| 6 | 64 | 2 | 0.21 | 62 | 7.8e-1 | 8.2e-1 | 0.02 | 0.29 | **FAIL** |
+| 11 | 16 | 1 | 0.55 | 15 | 3.9e-1 | 7.7e-1 | 0.30 | 0.32 | **FAIL** |
+| 11 | 64 | 1 | 0.46 | 63 | 5.1e-1 | 8.8e-1 | 0.24 | 0.17 | **FAIL** |
+
+**Every cell fails, and the reason is that there is no gap to truncate at.** The pre-registered discriminator was
+whether `B_T`'s spectrum decays. It does not: the whole rank spans 1 to 2.6 orders, and the **largest** break in
+the log spectrum is 0.19 to 0.55 decades — a smooth decay with no break anywhere. Truncating at the rule's `k`
+leaves a tail of the same size as the signal, so members and non-members sit on top of each other (0.00 to 0.30
+orders apart against a 2-order bar).
+
+**The script's own printed line said SEPARATES in four of six cells, and that was entirely the fit.** Choosing `k`
+per module by its best AUC reached 0.94 to 1.00; the same data under the fixed rule reaches nothing. **This is the
+clearest demonstration this project has produced of why the rule had to be fixed in advance** — the difference
+between a headline and a null was a free parameter chosen after seeing the outcome.
+
+**So the pre-registered flat-spectrum branch fires: truncation buys nothing, and the transformer closure stands
+exactly as reported.** The counting rule remains a statement about existence, not merely about exactness.
+
+## RESULT — a mismatched public pool costs the attacker about a factor of two, on the reconstruction surface (job 295642)
+
+The distributional-access question, on the surface where it survived. Private data **fixed and raw**; only the
+attacker's chart pool varies; recovery from 200 random starts, scored against the truth and against the chart's own
+projection error as the reachable floor.
+
+| attacker's pool | chart error (the floor) | median recovery | **excess over floor** |
+|---|---|---|---|
+| matched (MNIST train) | 0.52 – 0.54 | 0.61 – 0.65 | **×1.19 – 1.22** |
+| near (EMNIST letters) | 0.56 – 0.60 | 1.18 – 1.26 | **×1.94 – 2.15** |
+| far (FashionMNIST) | 0.66 – 0.70 | 1.53 – 1.68 | **×2.22 – 2.50** |
+| gross (uniform noise) | 1.21 – 1.22 | 2.82 – 3.18 | **×2.33 – 2.61** |
+
+**Degradation is monotone across the ladder, as pre-registered**, and it is a factor of about two from matched to
+mismatched — not the order-of-magnitude collapse the membership version failed to show, but not nothing either.
+Note the floor itself degrades as well (0.52 → 1.22), so a mismatched attacker is hit twice: a worse chart, and a
+worse fraction of that worse chart.
+
+**No cell lands anywhere near recovery.** The solver never reaches the chart floor at all, because the release was
+trained on the raw images and no point inside a `k`-dimensional chart satisfies the certificate exactly. Zero of
+200 starts land below 1e-1 in every pool including matched. **So this is a measurement of degradation, not of a
+working attack**, and it must be read that way.
