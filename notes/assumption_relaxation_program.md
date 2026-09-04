@@ -630,7 +630,7 @@ it is an objection to only ONE of the certificate's uses, and I let it read as a
 |---|---|---|
 | **1. Membership inference** | almost nothing — one exact test per candidate | **works today**, exact, recipe-free, deterministic (1e-16…1e-8 vs 0.1–1). A complete result on its own; deterministic MIA is rare in a literature that is almost entirely statistical |
 | **2. Start generator for replay** | **proximity, not determination** | the equation count is IRRELEVANT here — a start does not have to be unique, only inside replay's basin. §11's counting does not bear on this at all. This is the chain, and the in-band handoff is its test |
-| **3. Instance identification inside a KNOWN category** | far fewer numbers than an image | "these are photos of my dog" is the realistic release. The remaining question is *which* dog / which instance, and the measured chart-fidelity curve says how many coordinates that takes: class identity 52% at k=6, self-identification among 10k held-out candidates 94% at k=32. So **tens of conditions can be enough to identify the instance**, which is the actual privacy harm |
+| **3. Instance identification inside a KNOWN category** | far fewer numbers than an image | **MEASURED (MNIST):** a `k`-coordinate chart identifies its own source among 10k held-out candidates 52% at `k=6` and **94% at `k=32`** — so tens of coordinates suffice for instance-ID, against 784 for the exact image. **EXTRAPOLATION, not measured (c9's scope catch):** the "these are photos of my dog — which dog?" framing transfers that MNIST mechanism to a face/animal domain with a different intrinsic dimension and a different candidate pool. Keep the number as MNIST-measured; label the dog/face scenario **the mechanism generalised**, never a measured result. As first written it let an MNIST curve carry a dog-identification claim |
 | **4. Standalone pixel reconstruction** | a large budget → many layers | this is the ONLY job §11's counting constrains |
 
 **Consequence for framing:** the target is not pixel-perfect reconstruction. It is **instance identification within a
@@ -672,9 +672,14 @@ and only ours:
 - **The observed object**: adapter-only vs their full weights. Ours is the weaker (harder) observation, so at matched
   `N` replay should do *worse* than SimuDy, not the same — less information in an adapter than in full weights.
 
-**Why SimuDy degrades with N (honest reading).** For FULL fine-tuning the system is *heavily* overdetermined — **but note this is my own double standard and is
-withdrawn as stated**: I counted raw parameters for them while insisting throughout that only the rank of independent
-conditions counts for us. The defensible version is only that **their own stated limitation is memory** (they keep the whole graph; the mixing
+**Why SimuDy degrades with N (honest reading).** For FULL fine-tuning, information is not their wall — **but my first argument for that was a double standard and
+I then over-withdrew it (c9).** Wrong argument: "86M params ≫ N·pixels", a raw count, when this framework insists
+throughout that only the RANK of independent conditions counts (`B_T` is rank `N′`; its `mr` entries are not `mr`
+conditions). Right argument, same standard applied to them: **a full-weight update has high EFFECTIVE RANK per
+image**, so it over-determines each one — information-rich, and therefore limited by memory and by the mixing
+symmetry (optimisation), which is what their own paper says. The conclusion stands; only the argument needed
+fixing. Downstream this also un-confuses the "small-N is fundamental for us" line: the honest form is **our LoRA
+budget hits an INFORMATION wall as `N` grows, sooner than their MEMORY wall bites** (they keep the whole graph; the mixing
 symmetry gives the optimiser more ways to trade images off as N grows; SSIM 0.12 at N=120). For US the adapter has few
 parameters, so the INFORMATION wall arrives sooner — which is exactly what §11's per-image budget measures. So a better
 optimiser would extend SimuDy somewhat, but the small-N limit is partly fundamental for us in a way it is not for them.
@@ -696,7 +701,9 @@ real error in variant 2 and cited the wrong theorem in variant 3.**
    imprint `C_1` from `B_T`, re-form the certificate". Two independent objections, one algebraic and one
    theorem-level, and they agree:
    - `C_i = −lr Σ_t D_t[:,i](A_t h_i)ᵀ` with `D_t[:,i]` a function of the logits, hence of `B_t, A_t`, hence of the
-     WHOLE batch — so `C_1` is not computable from image 1 alone. Circular.
+     WHOLE batch — so `C_1` is not computable from image 1 alone. Recovering `w_1` does not give you the trajectory
+     either, and **simulating image 1 ALONE gives the wrong `C_1`** (a solo trajectory is not the batch trajectory),
+     so there is no shortcut. Circular. (c9, independent derivation.)
    - Worse (81): **`B_T − C_1` is not a release at all.** No run produces it; the remaining `C_i` would themselves
      have been different had image 1 been absent. So `thm:quot`'s hypotheses do not hold for the peeled object, the
      containment proof fails at its first step, and `prop:chain` is not merely inapplicable — for a peeled release
@@ -710,6 +717,11 @@ real error in variant 2 and cited the wrong theorem in variant 3.**
    - Also corrected: the budget gain from removing one image is **exactly one dimension** of `k` for the certificate
      (`r − N′ → r − N′ + 1`). The larger gain lives in replay's subset line `k < (m−1) + r − N′_kept` and comes from
      *choosing* a smaller subset, which is a choice, not an iteration. I had blurred the two.
+   - **THE CLAIM SURVIVES ONCE REFRAMED (c9).** The operative loop is
+     **isolate → replay → re-simulate → repeat**: the certificate *isolates* the dominant image (spectrum
+     truncation); replay *recovers* it at the single-image subset budget `k < (m−1) + r − 1`; subset re-simulation at
+     `η·N′/N` *removes* it. So "this is how the per-image budget becomes a multi-image attack" is **correct**, at a
+     fidelity of about 2.5e-2 per image rather than machine precision. Only the subtraction wording was wrong.
 
 3. **Bootstrap chart — right conclusion, WRONG THEOREM (81).** `prop:chain` is stated for a *fixed* chart: `S_ρ` is
    defined relative to `ψ`, so changing the chart between iterations changes `S_ρ` and the proposition simply does not
