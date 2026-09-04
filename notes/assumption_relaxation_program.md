@@ -41,9 +41,20 @@ permitted** — covering minibatching, sample weighting, gradient accumulation a
 survives (masking zeroes whole columns, so `1ᵀD = 0` still holds) and the `−1` in the capacity count is safe. The imprint law survives with the accumulation running only over the
 steps in which an image appeared.
 **What actually breaks the closure is narrower than the table claims:** the *features* changing (augmentation, a
-trainable block upstream) or updates not linear in the gradient (Adam). Minibatching is neither.
+trainable block upstream), updates not linear in the gradient (Adam), or **cross-example coupling inside a step**
+(training-mode batchnorm — the masking argument needs the per-step gradient to be a SUM of per-example terms; fine for
+layernorm and for frozen/eval-mode batchnorm, so a non-issue for transformer LoRA, but it belongs on the list — c9).
+Minibatching is none of these.
+
+> **SWAPPED, NOT REMOVED (b9's pre-registration, c9's framing fix — do not oversell this).** The closure survives, but
+> masking is *per-step*, so a simulator now needs the **schedule** — which images in which step — a `T×N` unknown
+> (~3,200 in the standard cell) against an identifiable budget of order 100. By the project's own counting the
+> schedule is **not identifiable**. Honest claim: *"minibatching does not break the closure; it moves the requirement
+> from the data to the schedule, and schedule-recoverability is open."* And the asymmetry that matters:
+> **free for the CERTIFICATE** (it never simulates — it needs only `row(B_T)` and `A_T`) and **expensive for REPLAY**.
+> That is why the certificate is the route that survives realistic training.
 **To verify:** run a minibatched release through the existing simulator with masked `D_t`; `fwd_check` must stay at
-machine precision. Cheap. If it holds, one of the three worst-looking assumptions disappears.
+machine precision. Cheap. If it holds, the assumption is **SWAPPED, NOT REMOVED** — see the box below.
 **Sharper second test (41):** with masking, an image's imprint accumulates only over the steps it appeared in, so two
 images sampled equally often should be recorded comparably while a rarely-sampled one drops toward the floor. That is
 a stronger test of the same claim than `fwd_check` alone and costs nothing extra.
@@ -58,7 +69,8 @@ coupled joint recurrence — consistent with the measured multi-layer cells sitt
 **The cap does not loosen deeper — it VANISHES (81).** It came from the softmax zero-sum, which a backpropagated error
 does not have, so `N′ ≤ min(m_ℓ, r, N)` with no `−1`; at a hidden layer of width ~10³ it is not binding at all.
 **Head-width protection is a property of adapting the HEAD; an adapter on a hidden layer does not have it.** This is
-the sharpest defender-side consequence in this note and deserves its own line in the paper.
+the sharpest defender-side consequence in this note and deserves its own line in the paper — **scoped to recording in
+ACTIVATION space, not to image recovery** (c9).
 
 **What is CONJECTURE here, tagged (7e):** *closure does not survive multi-layer* — settled by 81's derivation and
 retrodicted by Step 17 (the one multi-layer attempt was the REPLAY route and it failed, seeds known or not).
@@ -125,7 +137,7 @@ better conditioned, and it isolates the prior where it can be audited. Also the 
 | assumption | status |
 |---|---|
 | recipe (η, T, batch size) known | **not needed** — fitted and verifiable (measured) |
-| same batch every step | **probably not needed** — masking conjecture, §2, cheap to check |
+| same batch every step | **SWAPPED, not removed** — closure survives masking (derived, twice-verified, unrun); but replay then needs the *schedule* (`T×N` unknowns, not identifiable). Free for the certificate, open for replay |
 | single adapted layer | **localises** to the first adapted layer, §3 — conjecture |
 | output layer (margin law, `N′ ≤ m−1`) | genuinely output-layer-bound; cap loosens deeper |
 | `B₀ = 0` | required (it is the HF PEFT default) |
