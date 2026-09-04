@@ -127,65 +127,6 @@ def main():
         print(f"  [k={k}] fwd_check at the truth (subset recipe, lr*N'/N): {fwd:.3e}", flush=True)
 
         # ---- certificate landings from random starts
-        # ---------- D0 (gating): replay's basin radius ALONG Z_C, measured before any landing is spent ----------
-        def walk(w0, dist, gen):
-            """one random tangent step of size `dist` (relative to the latent std), pulled back onto Z_C."""
-            w = w0.clone().reshape(-1)
-            Jg = tf.jacfwd(g_of)(w).detach()
-            _, _, Vh = torch.linalg.svd(Jg, full_matrices=True)
-            null = Vh[Jg.shape[0]:].T if Jg.shape[0] < k else None
-            if null is None or null.shape[1] == 0: return None
-            d = null @ torch.randn(null.shape[1], generator=gen).to(dev)
-            w = w + dist * float(W_all.std()) * d / torch.linalg.norm(d)
-            for _ in range(8):                                        # Gauss-Newton back onto the manifold
-                gv = g_of(w); Jg2 = tf.jacfwd(g_of)(w).detach()
-                w = w - torch.linalg.lstsq(Jg2, gv.unsqueeze(1)).solution.reshape(-1)
-                if float(torch.linalg.norm(g_of(w))) < 1e-12: break
-            return w
-        d0_radius = None
-        if "d0" in a.arms:
-            gd = torch.Generator().manual_seed(a.seed + 991); ok = []
-            for dist in a.d0_steps:
-                w_st = walk(w_true.reshape(-1), dist, gd)
-                if w_st is None:
-                    emit(dict(part="D0", set=a.set, k=k, r=a.r, n_prime=Np, dist=dist, note="Z_C has no tangent directions at this k")); continue
-                with torch.no_grad(): cert_st = float(torch.linalg.norm(g_of(w_st)))
-                e_st = float(torch.linalg.norm(chart.psi(w_st.reshape(k, 1))[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
-                r0 = run(torch.cat([w_st, torch.zeros(a.r * Np, device=dev)]), False, "d0", e_st)
-                emit(dict(part="D0", dist=dist, station_cert_norm=cert_st, station_err=e_st, **r0))
-                if r0["verdict"].startswith("recovered"): ok.append(dist)
-            d0_radius = max(ok) if ok else 0.0
-            emit(dict(part="D0SUM", set=a.set, k=k, r=a.r, n_prime=Np, in_manifold_basin_radius=d0_radius,
-                      gate_threshold=a.d0_min_radius, passed=bool(d0_radius >= a.d0_min_radius), git=git_hash()))
-            print(f"  [k={k}] D0: replay recovers along Z_C out to {d0_radius} (gate {a.d0_min_radius})", flush=True)
-            if d0_radius < a.d0_min_radius:
-                print(f"  [k={k}] D0 GATE FAILED -- D1/D2 not launched at this k (plan section 3)", flush=True); continue
-
-        gs = torch.Generator().manual_seed(a.seed + 31); landings = []; n_land = 0; t0 = time.time()
-        cert_objs = []; land_errs = []
-        for s_i in range(a.cert_starts):
-            w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
-            w, obj, _ = lm_cert(g_of, w0, a.cert_iters)
-            xh = chart.psi(w.reshape(k, 1))[:, 0]
-            e = min((float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])), i) for i in rec)
-            cert_objs.append(obj); land_errs.append(e[0])
-            if e[0] < 1e-2:
-                n_land += 1
-                if len(landings) < a.n_landings: landings.append((w.detach(), obj, e[0], e[1]))
-        edges = [1e-28, 1e-20, 1e-16, 1e-12, 1e-8, 1e-4, 1e-2, 1.0]      # the landing SPECTRUM (yoado-cd): tells
-        hist = {f"<={e:.0e}": sum(1 for o in cert_objs if o ** 0.5 <= e) for e in edges}   # "the manifold misses the
-        qs = sorted(o ** 0.5 for o in cert_objs)                          # basin" from "the landings were never on it"
-        emit(dict(part="L", set=a.set, k=k, r=a.r, n_prime=Np, cert_starts=a.cert_starts, n_landings_total=n_land,
-                  n_landings_replayed=len(landings), cert_residual_cumulative=hist,
-                  cert_residual_quantiles=dict(min=qs[0], p1=qs[len(qs)//100], p10=qs[len(qs)//10], median=qs[len(qs)//2]),
-                  landing_err_min=float(min(land_errs)), landing_err_median=float(sorted(land_errs)[len(land_errs)//2]),
-                  seconds=time.time() - t0, git=git_hash(), host=socket.gethostname()))
-        print(f"  [k={k}] certificate: {n_land}/{a.cert_starts} landings ({time.time()-t0:.0f}s), carrying {len(landings)}", flush=True)
-        if n_land == 0:
-            print(f"  [k={k}] NO LANDINGS -- outcome (4): the chain test did not run here; not a replay failure", flush=True)
-            continue
-
-        # ---- replay LM, optionally confined to {g = 0}
         def run(v0, constrained, tag, start_err):
             v = v0.clone(); jac = tf.jacfwd(replay_res)
             with torch.no_grad(): F = replay_res(v)
@@ -239,6 +180,79 @@ def main():
                         cert_at_truth=cert_at_truth, objective_trace_full=[float(x) for x in trace],
                         seconds=time.time() - t1, git=git_hash(), host=socket.gethostname())
 
+        # ---------- D0 (gating): replay's basin radius ALONG Z_C, measured before any landing is spent ----------
+        def walk(w0, dist, gen):
+            """one random tangent step of size `dist` (relative to the latent std), pulled back onto Z_C."""
+            w = w0.clone().reshape(-1)
+            Jg = tf.jacfwd(g_of)(w).detach()
+            _, _, Vh = torch.linalg.svd(Jg, full_matrices=True)
+            null = Vh[Jg.shape[0]:].T if Jg.shape[0] < k else None
+            if null is None or null.shape[1] == 0: return None
+            d = null @ torch.randn(null.shape[1], generator=gen).to(dev)
+            w = w + dist * float(W_all.std()) * d / torch.linalg.norm(d)
+            for _ in range(8):                                        # Gauss-Newton back onto the manifold
+                gv = g_of(w); Jg2 = tf.jacfwd(g_of)(w).detach()
+                w = w - torch.linalg.lstsq(Jg2, gv.unsqueeze(1)).solution.reshape(-1)
+                if float(torch.linalg.norm(g_of(w))) < 1e-12: break
+            return w
+        d0_radius = None
+        if "d0" in a.arms:
+            gd = torch.Generator().manual_seed(a.seed + 991); ok = []
+            for dist in a.d0_steps:
+                w_st = walk(w_true.reshape(-1), dist, gd)
+                if w_st is None:
+                    emit(dict(part="D0", set=a.set, k=k, r=a.r, n_prime=Np, dist=dist, note="Z_C has no tangent directions at this k")); continue
+                with torch.no_grad(): cert_st = float(torch.linalg.norm(g_of(w_st)))
+                e_st = float(torch.linalg.norm(chart.psi(w_st.reshape(k, 1))[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
+                r0 = run(torch.cat([w_st, torch.zeros(a.r * Np, device=dev)]), False, "d0", e_st)
+                emit(dict(part="D0", dist=dist, station_cert_norm=cert_st, station_err=e_st, **r0))
+                if r0["verdict"].startswith("recovered"): ok.append(dist)
+            d0_radius = max(ok) if ok else 0.0
+            emit(dict(part="D0SUM", set=a.set, k=k, r=a.r, n_prime=Np, in_manifold_basin_radius=d0_radius,
+                      gate_threshold=a.d0_min_radius, passed=bool(d0_radius >= a.d0_min_radius), git=git_hash()))
+            print(f"  [k={k}] D0: replay recovers along Z_C out to {d0_radius} (gate {a.d0_min_radius})", flush=True)
+            if d0_radius < a.d0_min_radius:
+                print(f"  [k={k}] D0 GATE FAILED -- D1/D2 not launched at this k (plan section 3)", flush=True); continue
+
+        gs = torch.Generator().manual_seed(a.seed + 31); landings = []; n_land = 0; t0 = time.time()
+        cert_objs = []; land_errs = []; start_errs = []
+        for s_i in range(a.cert_starts):
+            w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
+            w, obj, _ = lm_cert(g_of, w0, a.cert_iters)
+            xh = chart.psi(w.reshape(k, 1))[:, 0]
+            e = min((float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])), i) for i in rec)
+            cert_objs.append(obj); land_errs.append(e[0])
+            e0 = min(float(torch.linalg.norm(chart.psi(w0.reshape(k, 1))[:, 0] - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in rec)
+            start_errs.append(e0)                                   # the SAME start before the certificate solve
+            if e[0] < 1e-2:
+                n_land += 1
+                if len(landings) < a.n_landings: landings.append((w.detach(), obj, e[0], e[1]))
+        edges = [1e-28, 1e-20, 1e-16, 1e-12, 1e-8, 1e-4, 1e-2, 1.0]      # the landing SPECTRUM (yoado-cd): tells
+        hist = {f"<={e:.0e}": sum(1 for o in cert_objs if o ** 0.5 <= e) for e in edges}   # "the manifold misses the
+        qs = sorted(o ** 0.5 for o in cert_objs)                          # basin" from "the landings were never on it"
+        # THE CHEAPEST FALSIFIER (yoado-81), reported first after fwd_check: does the certificate move a start
+        # CLOSER to a private image at all? If the landing distribution is no better than the random starts', the
+        # chain is a smaller search of an equally bad space and D2 need not run (cf. 753886: exact certificate
+        # zeros 0.84 away, above the line).
+        le = sorted(land_errs); se = sorted(start_errs)
+        emit(dict(part="HANDOFF", set=a.set, k=k, r=a.r, n_prime=Np,
+                  landing_err=dict(min=le[0], p10=le[len(le)//10], median=le[len(le)//2]),
+                  random_start_err=dict(min=se[0], p10=se[len(se)//10], median=se[len(se)//2]),
+                  median_ratio=float(se[len(se)//2] / le[len(le)//2]) if le[len(le)//2] > 0 else float("inf"),
+                  frac_landings_closer_than_best_random=float(sum(1 for x in land_errs if x < se[0]) / len(land_errs)),
+                  git=git_hash()))
+        print(f"  [k={k}] HANDOFF: landing err median {le[len(le)//2]:.3f} vs random-start median {se[len(se)//2]:.3f}", flush=True)
+        emit(dict(part="L", set=a.set, k=k, r=a.r, n_prime=Np, cert_starts=a.cert_starts, n_landings_total=n_land,
+                  n_landings_replayed=len(landings), cert_residual_cumulative=hist,
+                  cert_residual_quantiles=dict(min=qs[0], p1=qs[len(qs)//100], p10=qs[len(qs)//10], median=qs[len(qs)//2]),
+                  landing_err_min=float(min(land_errs)), landing_err_median=float(sorted(land_errs)[len(land_errs)//2]),
+                  seconds=time.time() - t0, git=git_hash(), host=socket.gethostname()))
+        print(f"  [k={k}] certificate: {n_land}/{a.cert_starts} landings ({time.time()-t0:.0f}s), carrying {len(landings)}", flush=True)
+        if n_land == 0:
+            print(f"  [k={k}] NO LANDINGS -- outcome (4): the chain test did not run here; not a replay failure", flush=True)
+            continue
+
+        # ---- replay LM, optionally confined to {g = 0}
         # null manifold (yoado-cd): the same construction on a Z_C built from a RESAMPLED B_T -- same dimension and
         # conditioning, wrong subspace. If constrained replay works there too, the constraint is not doing the work.
         gn = torch.Generator().manual_seed(a.seed + 555)
