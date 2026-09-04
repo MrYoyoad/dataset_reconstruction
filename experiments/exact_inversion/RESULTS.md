@@ -5377,3 +5377,31 @@ attacker would use. If they work, a generator is a convenience. And the **random
 will be built in the real-data setting**, not borrowed: the standing 0-of-20 comes from the synthetic bed where an
 image is a latent vector, so a label prior is vacuous there by construction, and quoting against it would compare
 a label-informed attack in one world with a random attack in another.
+
+## Test 6, pre-registered dispositions from the scoring lock — the arm cannot attribute from one batch
+
+yoado-b9's ruling, adopted in full, and the second point is more serious than the cell count.
+
+**The band split checks out and the values are not being adjusted.** `r − N′ = 56` and `(m−1) + r − N′ = 65`, so
+`k` = 62 and 64 are in band and 66 and 68 are above it. Tuning the sweep to sit entirely inside the band would
+leave no crossing to observe, so the two-on-each-side split stands.
+
+1. **Per-cell verdicts are scoreable now**, against the locked absolute bar, and all four are reported.
+2. **The degradation contrast is NOT scoreable at 2 versus 2.** A perfect split has chance probability
+   `1/C(4,2) = 0.167` under random assignment, which is not evidence. It is reported descriptively **with that
+   probability named, never as confirmed**. Three against three would give exactly 0.05.
+3. **Attribution to the line is not available from ONE batch at any cell count**, and this is the part that four
+   more cells would not fix. In a single-batch sweep `k` rises monotonically and the line is fixed, so **band
+   membership is perfectly confounded with `k`**: a degradation at `k = 66` is equally consistent with *crossed
+   the line* and with *`k` got larger*. Adding cells buys significance for a pattern whose cause stays ambiguous,
+   which is worse than not scoring it.
+
+**The fix, and it is the same shape as the one that repaired the rank axis:** a **second batch with a different
+certified count**, hence a different line, chosen so that at least one `k` is **in band for one batch and above
+the line for the other**. At that `k` the chart dimension is identical and only band membership differs — the only
+comparison that can attribute a degradation to the line rather than to `k`. Job 121 is a **design probe**, not a
+scored arm: it measures the certified count of each available batch composition so the second batch is **chosen by
+its line rather than hoped for**. No verdict is emitted from it.
+
+**If no second batch is affordable**, the pre-registration is that the arm reports per-cell verdicts, states the
+confound explicitly, and **does not claim the degradation is caused by crossing the line.**
