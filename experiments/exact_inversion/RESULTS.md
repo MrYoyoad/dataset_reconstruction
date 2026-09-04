@@ -2897,15 +2897,18 @@ trained in fp32, to 6e-6; the certificate alone, nothing; the FP64 simulator, a 
 |---|---|---|---|---|---|---|---|
 | fp64 | 58 | 7 (57) | **one above** | 0.04% (2 landings) | **14.3%** | 1 of 7 | spurious exact zero (4e-31), error 0.84 |
 | fp64 | 60 | 7 (57) | three above | 0 | **36.4%** | 0 | spurious (1e-30), error 1.18 |
-| bf16 (tol .08) | 58 | 3 (61) | three below | 0 | 0 | 0 | 7.8% from a recorded image (obj 9e-8); 229 near-blank starts excluded |
-| bf16 (tol .08) | 60 | 3 (61) | one below | 0 | 0 | 0 | 10.3% from a recorded image (obj 2e-12); 289 excluded |
+| bf16 (tol .08) | 58 | 3 (line 61) — **but 11 (line 53) at tol 1e-12** | *undefined* | 0 | 0 | 0 | 7.8% from a recorded image (obj 9e-8); 229 near-blank starts excluded |
+| bf16 (tol .08) | 60 | 3 (line 61) — **but 11 (line 53) at tol 1e-12** | *undefined* | 0 | 0 | 0 | 10.3% from a recorded image (obj 2e-12); 289 excluded |
 
 The FP64 line is sharp as pre-registered: one unit above it the certificate's exact zeros are dense (14%) and
-spurious (argmin 0.84 from any recorded image), three above 36%. The bf16 release's wider line (61) does put
-k = 58/60 below it, and its argmin is a near-miss at 8–10% from a recorded image with residual 2e-3 at those
-truths — degraded directions plus a basin that at k ≥ 56 is already < 1% per image on the FP64 release. So "is a
-bf16 release attackable where the chart is faithful?" reads: *approximately and rarely* — a 10% near-miss is the
-best 5,000 starts produce, no landing within 1%; the widened line is real but buys a degraded, unsampled target.
+spurious (argmin 0.84 from any recorded image), three above 36%. **The claim that the bf16 release's wider line puts k = 58/60 below it is withdrawn (yoado-81).** The same
+release reads N′ = 3 (line 61) at tolerance 0.08 and N′ = 11 (line 53) at 1e-12 — and 11 is above the m − 1 = 10
+cap, so that reading is the rounding artefact; whichever tolerance is chosen, "below the line" is a choice, not a
+measurement, and at the tight tolerance k = 58 is *above* the line. What the rows do say without a tolerance
+choice: from the bf16 release the best of 5,000 starts is a near-miss 7.8–10.3% from a recorded image, no landing
+within 1%, with residual 2e-3 at the three strongest truths — degraded directions plus a basin that at k ≥ 56 is
+already under 1% per image on the FP64 release. "Approximately and rarely", with the reason left open between the
+two.
 The near-blank guard is load-bearing here (5–6% of starts degenerate at k ≥ 58).
 
 ### Wide head, k = 40 (725918, last row)
@@ -2971,3 +2974,15 @@ optdigits and records all eight, exactly as it records a new class. Recipe route
 (chart error 0.4 … 13). So: **the "what the model got wrong is what it records" law holds across three model
 strengths and three foreign sets**, and foreign data that a strong model misreads is recorded exactly as richly as
 a new class — while reachability from random starts remains the recipe route's problem, not the certificate's.
+
+**R6's boundary, measured (706597, three batches).** The selection rule works while the omitted imprints are
+large enough to move the floor, and stops when they are not. Ratio of the one-swapped subset's achieved residual
+to the recorded subset's, by cell: `hard1_diff` N′ = 4 → **3.9×** (2.6e-16 vs 1.0e-15); `confident` N′ = 3 →
+**2.9e3×** (7.9e-16 vs 2.3e-12); `repeated` N′ = 3 → **1.9e6×** (1.1e-16 vs 2.1e-10); `repeated` N′ = 6 →
+**1.6×** (3.4e-17 vs 5.3e-17) — gone. The confident-only subset (no recorded image at all) separates by 1e5 … 2e16
+in every cell including N′ = 6, so the rule always distinguishes "contains recorded images" from "contains none";
+what degrades with N′ is the finer discrimination between two subsets that both contain most of the release. The
+mechanism is visible in the predicted floors: at N′ = 3 the swapped-in image's imprint is 1e-10 of the release, at
+N′ = 6 it is 4e-19 — below the solver's own reach (both cells stop at 5e-17), so no residual can see it. **The
+boundary is not a value of N′ but a comparison: the rule discriminates while the omitted imprint exceeds the
+achievable residual (~1e-16 … 1e-17 here); N′ = 6 is where it falls below on this batch.**
