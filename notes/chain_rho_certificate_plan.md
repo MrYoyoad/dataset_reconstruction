@@ -268,3 +268,27 @@ the truth than random ones, the chain is a smaller search of an equally bad spac
 | seed unknowns | `rN` | `N'² + r(N−N')` (exact under (A4): `N²`) |
 | what is hoped for | — | basin only |
 | what is warranted | — | nothing yet; `Z_C` membership ≠ proximity (753886) |
+
+### §2 amendments (b9's blocking items, adopted; executor, 2026-09-04)
+
+1. **The cell is FP64, not fp32** — `constrained_replay.py` sets `torch.set_default_dtype(torch.float64)` and the
+   release is trained in it, so option (a) is what is implemented. The plan's "fp32 SGD release" is corrected here:
+   arithmetic is a different axis and was just dropped from the pitch; keeping the chain cell in FP64 removes the
+   confound and lets absolute thresholds mean something.
+2. **Branch 1 is scored on `objective`, not `residual`.** `residual` is the square root and floors at ~1e-15 even in
+   FP64, so `residual ≤ 1e-28` is unreachable in any arithmetic. **Branch 1: `objective ≤ 1e-28` AND image error vs
+   the on-chart truth `≤ 1e-10`.** The relative form `objective ≤ 100 × fwd_check²` is logged on every row alongside
+   (`at_floor_abs`, `at_floor_rel`), so if this cell's own floor is worse than the letters cell's the scoring can be
+   read either way without being chosen after the fact. A looser verdict (`image error < 1e-2`) is reported as its
+   own label, never merged into branch 1.
+3. **The landing fraction is scored against D1, not in absolute terms.** The claim under test is that the
+   *constraint* does work, so: **branch 1 at k = 8 requires D2 ≥ 10% of landings AND D2 ≥ 3 × D1 on the same
+   landings**; at k = 14, **≥ 3 successes AND D2 > D1**. A single success out of ~500 is 0.2% and is not evidence.
+4. **A certificate gate, before any landing is scored.** `‖C h‖/‖A_T h‖` at the truth is checked at every k
+   (`part="GATE"`); if it exceeds 1e-6 the band premise `{ρ=0} ⊆ {Ch=0}` has failed numerically at that k, `Z_C`
+   does not contain the truth, and the k is skipped as **void** rather than scored as any branch. This is the
+   certificate's analogue of `fwd_check` and it is the same scope risk noted in §4: the chain is defined only where
+   the certificate vanishes to machine precision.
+5. **The k = 16 control is at the replay line, not above it** (`(m−1) + r − N′ = 16` at r = 8, N′ = 1), and the
+   counting argument says nothing about equality. Use **k = 18** for an unambiguous above-the-line control, or label
+   k = 16 "at the line, outcome not predicted".
