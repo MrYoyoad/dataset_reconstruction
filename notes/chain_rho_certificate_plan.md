@@ -565,3 +565,27 @@ six cells with a 3-success bar make one chance pass non-negligible.
 
 **Scope sentence to carry:** the landings are wherever the certificate solver converged, not a uniform sample of
 the manifold — which is the right population for an attack, since an attacker has only what a solver produces.
+
+### §8 D0's harness history — three artefact nulls before any real row (executor, 2026-09-04)
+
+D0 produced a clean-looking null **three times**, and each was the harness. Recorded because the pattern matters more
+than any one bug: *a negative result from a new harness is the likeliest thing to be wrong, and every one of these
+would have read as "the chain is dead".*
+
+1. **Tangent space from shape, not rank.** `C` has rank `r − N′`, so its Jacobian is rank-deficient by construction
+   and a shape-based null space is empty — D0 reported "Z_C has no tangent directions" at every station. The surface
+   actually has dimension `k − (r − N′)` = 5 in this cell.
+2. **Rank-deficient pull-back through `lstsq`.** Its default driver assumes full rank, so the Gauss–Newton
+   projection back onto `Z_C` returned garbage: stations sat at image error **1e7** with certificate norm 0.2–0.9
+   instead of ~1e-15. Fixed with `pinv`; a station whose certificate norm exceeds 1e-8 is now refused rather than
+   scored.
+3. **Seed block started at zero.** Every other solve in this project starts it at the attacker-available span
+   estimate `A_T U_c(w)`; starting at zero put it outside its own basin and replay failed from *every* station,
+   including one 0.3% from the truth. With the fix that station's residual went 2.6e-1 → 1.6e-5.
+4. **The control that should have existed from the start:** a `dist = 0` station — replay started *at the truth*.
+   If LM cannot sit at the floor there, a plateau at any other station is the solver's and not the basin's. Added.
+
+After (1)–(3) the first station (image error 0.003, certificate norm 2.6e-15 — genuinely on the manifold) descends
+6.7e-2 → 2.96e-10 in 30 iterations and then **plateaus at 2.58e-10**, ten orders above the floor, for 270 more.
+Whether that is the basin or the solver is exactly what the `dist = 0` control decides, so no D0 verdict is written
+until it has run.
