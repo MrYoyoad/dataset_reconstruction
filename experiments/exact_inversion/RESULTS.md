@@ -3133,7 +3133,17 @@ bf16 at 0.08, 0.04, 0.02, 0.016, 0.0124 (it cannot go lower). **Predicted (yoado
 stopping residual is U-shaped — high at 0.08 (barely descended), a minimum near 4.6% at a knee around 0.011, rising
 to 7.5% at fp16's floor; the two points already in hand (0.0124 → 4.56%, 0.0025 → 7.5%) forbid a monotone curve,
 so what the sweep decides is *where* the knee sits and *how sharp* it is — a flat bottom is a wide safe-stopping
-band for the attacker, a sharp one means they must tune the stop. **And the two formats plotted on the same axes
-close the mechanism:** in the overlap (residual 0.012 … 0.08) the curves must *coincide* if fidelity is purely
-residual-determined, which proves format-independence directly rather than by inference; any persistent vertical
-gap there **is** the flush-to-zero contribution, measured instead of bounded by the current ≤ 3.5% scatter.
+band for the attacker, a sharp one means they must tune the stop. **Sharpened before the rows land (yoado-c9): "fidelity is residual-determined" is a *left-arm*
+property, and the knee is where it stops holding.** Above the knee every format is still converging toward the
+truth, so image error ≈ f(residual) and the curves must coincide; below it each format veers toward *its own*
+displaced minimiser, and those differ (coarser roundoff → larger displacement), so the right arms **must** diverge
+by format — that divergence is not a failure of the hypothesis, it *is* the over-descent, and its onset marks the
+knee. For fp16 against bf16 the overlap is entirely left-arm (bf16's floor ~0.0124 sits at or above the knee
+~0.011), so those two should coincide cleanly. **The trap to avoid on the plot:** fp32's minimiser is essentially
+the truth (roundoff ~2e-8), so it has *no right arm* — it descends monotonically to ~1e-6 and will peel
+**downward** past the knee while bf16 and fp16 peel upward. That is the same mechanism (fidelity tracks
+distance-to-minimiser, and fp32's minimiser is the truth), not a violation of residual-determinism, and it must be
+labelled as such or it would spuriously reopen the format-effect question. **A third sweep (fp32, job below) tests
+exactly that prediction: coincidence on the shared left arm and a monotone descent with no upturn.** Any persistent
+vertical gap in the shared left arm is the flush-to-zero contribution, measured instead of bounded by the current
+≤ 3.5% scatter.
