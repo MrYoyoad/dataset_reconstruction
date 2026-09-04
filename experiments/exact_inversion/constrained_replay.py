@@ -29,6 +29,23 @@ import torch, torch.func as tf
 from experiments.exact_inversion.lora_exact_inversion import (train_release, simulate_sgd_reduced, qr_canon, git_hash)
 from experiments.exact_inversion.trained_backbone import TrainedBackbone, PCAChart, read_idx
 from experiments.exact_inversion.subset_and_ood import pick_batch, release_and_imprints, margins_of
+
+
+def pick_constructed(ref, Xte_t, yte_t, N, perm):
+    """The CONSTRUCTED N' = 1 cell (c9's option (b)): the single lowest-margin test image, plus N-1 fillers taken as
+       the highest-margin image of each other class. The plan's words describe exactly this batch and no existing
+       picker builds it -- the natural batches record 3 to 7 images on-chart at r = 8 (probe, 18 cells), so the
+       one-image band the pre-registration is written for does not occur naturally and must be constructed. This is
+       honest only because the specification was written first: the cell realises the pre-registration rather than
+       being chosen after seeing results, and it is labelled `constructed` on every row."""
+    yte = yte_t.cpu(); mar, _ = margins_of(ref, Xte_t.T, yte_t); mar = mar.cpu()
+    hard = int(torch.argmin(mar)); c = int(yte[hard])
+    fillers = []
+    for cls in sorted((k for k in range(10) if k != c), key=lambda k: -max(float(mar[i]) for i in range(len(mar)) if int(yte[i]) == k)):
+        best = max((float(mar[i]), i) for i in range(len(mar)) if int(yte[i]) == cls)[1]
+        fillers.append(best)
+        if len(fillers) == N - 1: break
+    return [hard] + fillers
 from experiments.exact_inversion.certificate import certificate, lm_cert
 
 torch.set_default_dtype(torch.float64)
@@ -71,7 +88,9 @@ def main():
 
     if a.sets:                                                          # probe mode: which batch gives N' = 1 on-chart?
         for sname in a.sets:
-            idxp = torch.tensor(pick_batch(sname, bb, Xte_t, yte_t, a.N, perm), device=dev)
+            picker = pick_constructed if sname == "constructed" else pick_batch
+            idxp = torch.tensor((picker(bb, Xte_t, yte_t, a.N, perm) if sname == "constructed"
+                                 else picker(sname, bb, Xte_t, yte_t, a.N, perm)), device=dev)
             Xp = Xte_t[idxp].T.contiguous(); yp = yte_t[idxp]
             for k in a.ks:
                 chartp = PCAChart(Xtr_t, k, dev); Xonp = chartp.psi(chartp.coords_of(Xp)); Hp = bb.phi(Xonp)
@@ -85,7 +104,8 @@ def main():
                           sigma2_over_sigma1=float(sBp[1] / sBp[0]), imprint_rel=[float(v / impp.max()) for v in impp],
                           cert_at_truth_top=float(resp[topp]), git=git_hash()))
         return
-    idx = torch.tensor(pick_batch(a.set, bb, Xte_t, yte_t, a.N, perm), device=dev)
+    idx = torch.tensor((pick_constructed(bb, Xte_t, yte_t, a.N, perm) if a.set == "constructed"
+                        else pick_batch(a.set, bb, Xte_t, yte_t, a.N, perm)), device=dev)
     X_real = Xte_t[idx].T.contiguous(); y = yte_t[idx]
 
     for k in a.ks:
