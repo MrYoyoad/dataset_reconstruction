@@ -2137,9 +2137,7 @@ far as the release distinguishes them.
   separate by 6× at it — the certificate line is sharp on both batches.
 - Wide head (job 725918), the k ladder on the twenty-digit batch (m = 26, r = 64): k = 8 → 18 of 20 found (N′ 19);
   k = 16 → 62.5% of 10,000 starts, 15 of 20 (N′ 17); **k = 24 → 46.9% of 10,000, 13 of 20 (N′ 16, line 48)**, landings
-  per image 0 / 57 / 1,765 (min / median / max), no start at the 1e-20 floor because the certificate residual at the
-  recorded truths reaches 0.1 (images present but numerically outside the row space at this N′), argmin on a recorded
-  image, chart error .25; **k = 32 → 27.9% of 10,000, 12 of 20 (N′ 15, line 49)**, landings 0 / 30 / 1,544, argmin on a recorded image, chart error .23; k = 40 → N′ 14 (line 50, Part B pending). The wide
+  per image 0 / 57 / 1,765 (min / median / max), argmin on a recorded image, chart error .25; **k = 32 → 27.9% of 10,000, 12 of 20 (N′ 15, line 49)**, landings 0 / 30 / 1,544, argmin on a recorded image, chart error .23; k = 40 → N′ 14 (line 50, Part B pending). The wide
   head's release loses rank with k as the confident batch's does (19 → 17 → 16 → 15): the same collapse-with-fidelity.
 - The ladder job (721391) exited on an assertion after its `mnist_control r = 64, k = 16` row (88.8%, 8 of 8); all
   `confident` rows and the `mnist_control` k = 8 rows at every rank were already on disk.
@@ -2866,7 +2864,10 @@ residual below the truth's floor by the same 1.8× as at k = 16, raw error at th
 chart-conditioning amplification from k = 16 to 32 is **1.5×**, not the 6× read off the FP64-simulator alias
 (yoado-ed's 19% pre-registration is falsified toward the attacker; yoado-6e's refinement — the A₀-floor
 perturbation lives mostly in well-conditioned directions, expect a single-digit factor — is the one that held,
-and bf16 did not cross into alias). (ii) **The ordering inverts between the charts and my first reading of it was wrong.** I wrote fp16's 7.5% off
+and bf16 did not cross into alias). (ii) **The ordering inverts between the charts and my first reading of it was wrong.** *(This whole paragraph is
+superseded — see "The k = 32 'reversal' dissolves at the optimal stop" and the knee sweep below: the inversion was
+an artefact of comparing an over-descended fp16 against a floor-stopped bf16, and "the ordering inverts" is
+retired. Read on only for the chronology.)* I wrote fp16's 7.5% off
 as a stall because its endpoint residual (2.5e-3) sits above its floor (1.9e-3) — but *every* low-precision row
 ends on `no_accept` with a flat trace (bf16 at k = 32 plateaus at 1.5358e-4 for its last three iterations, fp16 at
 6.2227e-6, fp32 at k = 16 at 1.1415e-14), so a plateau is the normal termination here and does not distinguish
@@ -2959,9 +2960,16 @@ floor with chart error 3e-8 / 3e-9 and raw error .73 (their .42 ceiling); β-VAE
 error 4e-12) at a raw error of 1.01 (ceiling .72 — the chart is useless); every other learned chart is *still
 descending at the cap*: VAE-GELU 1.4e-17 (chart error .025), VAE-ReLU 2.9e-9 (.22), local 9e-20 (.022), cVAE
 7e-17 (.023), β = 0.25 1.3e-16 (.16), β = 1 2.5e-17 (.049), β = 4 1.4e-19 (3e-4). Per the standing lesson, no
-ranking among the unconverged arms is claimed; what stands is that the learned charts are worse conditioned
-(σ_min 4e-12 … 6e-11 against 1e-8 … 2e-8 for the PCA charts) and do not reach the floor in 3,000 LM iterations
-where the PCA charts do in ~1,200–1,800, while offering better ceilings (.22 … .34 against .42). The ceiling
+ranking among the unconverged arms is claimed. **Weakened on audit (yoado-b9):** I had called the
+non-convergence a conditioning statement rather than a budget one, but these are not alternatives — conditioning is
+*why* a budget is inadequate. The converged charts took 616 / 1,175 / 1,808 iterations at σ_min 1e-8 … 2e-8 while
+the learned charts sit at 4e-12 … 6e-11, so if LM iterations grow anything like 1/σ_min they would need 1e5 … 1e7
+and a 3,000 cap cannot separate "slow" from "never". **What stands: the learned charts did not converge within
+3,000 iterations, which is what their conditioning predicts**, and they offer better ceilings (.22 … .34 against
+.42). Deciding budget against barrier needs the per-iteration descent rate and **that job logged no trace**
+(`lm_iters_used` and `stop` only), so it needs a rerun with tracing. Caveat on the conditioning half: for the
+learned charts σ_min is evaluated at the 300-step Adam inner-solve output, so it is a property of an unconverged
+projection as well as of the chart; the ceiling half is safe, since inner-solve slack only understates a ceiling. The ceiling
 question (a richer chart) and the conditioning question (a reachable one) pull apart, as the conditioning
 figure said.
 
@@ -3009,8 +3017,15 @@ in every cell including N′ = 6, so the rule always distinguishes "contains rec
 what degrades with N′ is the finer discrimination between two subsets that both contain most of the release. The
 mechanism is visible in the predicted floors: at N′ = 3 the swapped-in image's imprint is 1e-10 of the release, at
 N′ = 6 it is 4e-19 — below the solver's own reach (both cells stop at 5e-17), so no residual can see it. **The
-boundary is not a value of N′ but a comparison: the rule discriminates while the omitted imprint exceeds the
-achievable residual (~1e-16 … 1e-17 here); N′ = 6 is where it falls below on this batch.**
+law, in the quantity the rows already log (yoado-b9):** the controlling number is `residual_floor_pred` on the
+*one-swapped* subset, computable without solving anything — 2.06e-10 → ratio 1.9e6 (repeated, N′ = 3); 2.57e-12 →
+2.9e3 (confident, N′ = 3); 2.19e-15 → 3.9 (hard1_diff, N′ = 4); 3.83e-19 → 1.6 (repeated, N′ = 6). Monotone across
+four cells, nine orders of predicted floor against six of ratio, and the last cell explains itself: its swapped
+floor lies *below* what the recorded subset actually achieved (3.4e-17), and a solver cannot resolve a floor
+beneath its own achievable residual. **The discrimination ratio tracks the swapped subset's predicted floor
+against the achievable residual, and is lost when that floor falls below it** — falsifiable on a new cell *before
+it runs*. This also dissolves the confound I flagged (N′ and which image was swapped move together): `floor_pred`
+is one scalar that absorbs both and orders all four cells.
 
 ### The cap-violating direction is the all-ones vector — measured (job 85049), with two corrections to the fix
 
@@ -3362,3 +3377,39 @@ The two mechanism claims reconcile as cause and effect: **flush is the cause** (
 residual entries below the knee) and **over-descent is the effect** (the continued descent then travels the flat
 direction); fp32 does not flush, so it has no over-descent and recovers to the truth. Above the knee all three
 formats coincide within 0.5% — residual-determined and precision-independent.
+
+### The wide head measures a weaker object than the exact cells, and the reason is the imprint law (yoado-b9)
+
+**The certificate does not hold at the truth on the m = 26 head.** `Ch_i ≈ 0` is the instrument: on the m = 10/11
+cells the recorded images sit at 1e-16 … 1e-8 against 0.1 … 1 for invisible ones, a four-to-sixteen-order gap. On
+the twenty-six-class head the objective at the *recorded truths* is 0.05 … 0.20 — the same order as an invisible
+image elsewhere — and the floor fraction is **0.0000 at every k of the ladder, k = 8 included** (not only at
+k = 24, where my prose had misplaced the clause as if it distinguished that cell).
+
+**What that costs the attacker.** In the exact cells a landing is *self-certifying*: objective at the floor **and**
+the right image, each confirming the other. Here the floor test is unavailable, so the only criterion left is
+1e-2 relative image error **against ground truth the attacker does not have**. So the sequence 18 / 15 / 13 / 12 / 9
+at k = 8 … 40 is a **single fixed criterion** — it measures one quantity, which was the question asked — but an
+**oracle-scored** one on this head, not an attacker-available one. It belongs beside the exact cells with that
+difference stated, not inside the same word. What *is* attacker-available and survives: **the argmin lands on a
+recorded image at every k tested** — no ground truth needed to take an argmin. Honest scoping: on the wide head the
+certificate degrades from exact to approximate, the floor test is lost, and the weaker argmin criterion still
+selects a recorded image throughout.
+
+**And the degradation is the imprint law again — predicted, then checked in the logged rows.** `Ch_i = 0` needs
+`row(B_T)` to equal `col(A₀H)` exactly; with twenty images spanning a wide imprint range the numerical row space is
+dominated by the strong imprints and the faintest recorded images are not annihilated. Prediction: the certificate
+residual at each recorded truth is ordered by that image's imprint. **Measured, concordant pairs (imprint up →
+residual down):** 136/190 at k = 8, 153/190 at k = 16, 164/190 at k = 24, 162/190 at k = 32, 163/190 at k = 40 —
+72–86%, and the split is clean at the ends: every image with residual > 0.05 has an imprint between 1e-4 and 4e-9,
+while every image with residual ≤ 0.05 has one between 1.0 and 2e-3. **So the certificate's usable N′ is set by the
+imprint *spread*, not by the count** — the same law that decides what is recorded also decides what the certificate
+can annihilate, and the wide head's degradation is not a separate failure of the instrument.
+
+*Final two-part form (yoado-7e, adopting the claims lane's magnitude point).* **(1) The inversion was an
+over-descent artefact and is resolved:** with early stopping the ordering is monotone in *sign* — fp32 6e-6,
+fp16 4.20%, bf16 4.56% at k = 32, and fp16 ahead at k = 16 too. **(2) A genuine, smaller precision advantage
+survives and shrinks with conditioning:** fp16's advantage over bf16 is 3.1× at k = 16 and 1.08× at k = 32, with
+knee-to-knee amplification 4.40× against 1.50×, so about 2.9× of format-dependence remains after the stopping rule
+has done all its work. The first is an artefact of not stopping; the second is not an artefact at all. Precision
+still matters — just less at an ill-conditioned chart.
