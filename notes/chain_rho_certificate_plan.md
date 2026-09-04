@@ -449,3 +449,47 @@ they say whether a handoff CAN work, not that the attack does. Every row must ca
     positive here is "the mechanism works at its best case" and does *not* carry to `N′ ≥ 2` (D5), nor to the wide
     head or half-precision training, where `Z_C` does not contain the truth at all. A best-case positive must not be
     written as "the chain works".
+
+## 6. Amendment (Yoad, 2026-09-04 evening): N′ SWEEP, not the constructed cell alone
+Natural batches at r=8 record N′ = 3–7 on-chart (41's probe, 18 cells), so the single-image cell is a construction.
+Run N′ ∈ {1 (constructed), 3, 5, 7 (natural)}, r=8, m=10, FP64, on-chart; chart sizes inside each band
+(r−N′, m−1+r−N′): N′=1 → k∈{8,10,12,14}; 3 → {6,8,10,12}; 5 → {4,6,8,10}; 7 → {2,4,6,8}; plus at-line and above-line
+controls per N′. Replay = joint subset solve over the recorded images (step η·N′/N; seed mixing N′×N′). D0 gates per
+N′. Pre-registration and null-manifold arm per N′ (b9). Order: N′=1 (mechanism) → 3 → 5/7. Scope stays: the
+constructed N′=1 tests the mechanism; only the natural-N′ cells can support a claim about low-rank fine-tunes.
+
+### §6 The N′ = 1 premise is dead — measured, twice (executor, 2026-09-04)
+
+**Finding, not a blocker.** The plan's cell ("r = 8, N′ = 1, one low-margin image in a confident batch") does not
+exist at a deployable rank, and both ways of obtaining it fail:
+
+1. **No natural batch gives it.** Eighteen probed cells, three batches (`confident`, `hard1_diff`, `repeated`) ×
+   chart sizes 6 … 16, r = 8, on-chart, tolerance 1e-12: the recorded count runs **7, 7, 6, 5, 4, 4 / 7, 7, 6, 6, 6, 6 /
+   7, 7, 5, 4, 4, 3**. Never 1, never 2. The certificate vanishes at the truth in every cell (1e-16 … 1e-12), so this
+   is not a degenerate-cell artefact.
+2. **The constructed batch gives it no better.** A picker built to the plan's own words — the lowest-margin test
+   image plus the highest-margin image of each other class — yields **7, 7, 6, 5, 4, 4, 4, 4** at k = 6 … 18, and
+   nearly duplicates `hard1_diff`, which is defined the same way.
+
+**Why, and why no picker fixes it.** A filler is chosen for being confidently classified *as an image*, but the
+release records the model's error on its **on-chart projection**, and a small chart destroys much of that
+confidence. At k = 6–8 the fillers' relative imprints are 0.7, 0.6, 0.4 — within a factor of two of the target's,
+where the design needs them a thousandfold beneath it. The gap only opens at k = 18 (σ₂/σ₁ = 2.8e-9, imprints
+1, 4e-9, 3e-9, 1e-9), which is **above** the band the test is about. So the one-image regime and the band are
+mutually exclusive at this rank: **the single-recorded-image cell does not exist at a deployable rank.**
+
+**A second structural point the sweep proposal exposed: `N′` is not an independent knob.** It is fixed jointly by
+the batch and the chart size, and for any fixed batch it *falls* as k rises (richer chart → more confident
+projections → fewer images recorded). So "for each N′, place the chart sizes inside its band" cannot be done by
+choosing chart sizes; the chart size chooses the count. In-band cells actually available at r = 8: **N′ = 7 at
+k = 6, 8; N′ = 6 at k = 10; N′ = 5 at k = 10, 12; N′ = 4 at k = 12.** N′ = 3 occurs only out of band; N′ ≤ 2 not at
+all. Any statement of the form "the chain improves as N′ falls" is therefore **confounded with k** and must be
+reported as an observational sweep, never as a controlled one.
+
+**Decision (GM, on Yoad's behalf):** drop the constructed cell; run the band at the counts each cell actually has,
+as the **multi-image chain**; replay is the joint subset solve over the recorded images (step `η·N′/N`, seed mixing
+`N′ × N′`); D0 gates per cell; chart sizes inside each cell's own band plus an at-line and an above-line control.
+Options "use k = 18, outside the band" and "loosen the tolerance to get N′ = 2" are both declined — the band and the
+tolerance are not traded for arity. **The pre-registered question is now the multi-image chain, and the arity
+premise is retired**: the lanes score reachability (D2 vs D1, handoff proximity against the chart baseline, the
+wrong-manifold arm), not a one-image mechanism.
