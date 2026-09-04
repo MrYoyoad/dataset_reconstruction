@@ -39,8 +39,17 @@ rather than protecting them.
 images and not for the rest. **[M]** 1e-16…1e-8 against 0.1–1 for invisible images. It needs the release, the
 public base model and a chart — **no recipe, no labels, no N, no start near the truth**. From-nothing recovery:
 2000 random public-scale starts at k=6, **51.0% reach the floor and 51.0% land on a recorded image — the same
-number**, so every floor-reacher is private and none is spurious; all seven recorded images found (job 706721).
-*On-chart.*
+number**; all seven recorded images found (job 706721). *On-chart.*
+
+> **Scope, provisional (added 2026-09-04, pending job 156607's field semantics).** The step from "the two
+> fractions match" to *every floor-reacher is a private image* is **not yet established across the chart
+> range**. At k=6 the floor-reachers and the recorded-image-landers are the same 51% **[M]** (706721); at k=16,
+> also well below that cell's certificate line of 61, the same harness reports 410 landings from 500 starts
+> with a **median landing error of 0.714** and only its best at 9.3e-16 **[M]** (156607). Either the
+> correspondence does not hold up the chart range, or "landing" is defined differently between the two
+> harnesses. Treat the correspondence itself as **[C]** until that is answered; the two measurements are
+> **[M]** either way. If the semantics differ, this note is replaced by a one-line clarification; if they do
+> not, the correspondence keeps this scope and the claim is weaker but true.
 
 **(c) Two counting lines.** Reading the release through the certificate gives `r − N′` equations per image;
 reading it through the full replay residual gives `(m−1) + r − N′`. **[M+D]** So
