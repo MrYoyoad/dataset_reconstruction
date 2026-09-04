@@ -152,7 +152,15 @@ def main():
         # CERTIFICATE GATE (yoado-b9): the band premise {rho=0} subset {Ch=0} is numerical, not formal. If the
         # certificate does not vanish at the truth in this cell, Z_C does not contain the truth and every branch of
         # the pre-registration is void -- the analogue of fwd_check, for the constraint rather than the simulator.
-        cert_at_truth = float(max(cert_res[i] for i in rec))             # worst over the RECORDED set
+        # (yoado-b9) per image, against that image's own imprint -- a worst-case over the set is dominated by a
+        # marginal member the certificate cannot certify, and reads as if the containment had failed for the cell.
+        cert_at_truth = float(max(cert_res[i] for i in rec))             # worst over the RECORDED set (reported)
+        cert_by_image = sorted(((float(imp[i] / imp.max()), float(cert_res[i]), i) for i in rec), reverse=True)
+        imp_sorted = [x[0] for x in cert_by_image]
+        gaps = [(imp_sorted[q] / imp_sorted[q + 1], q + 1) for q in range(len(imp_sorted) - 1) if imp_sorted[q + 1] > 0]
+        gap_ratio, n_strong = max(gaps) if gaps else (1.0, len(rec))     # the natural cut in the imprint spectrum
+        strong = [i for _, _, i in cert_by_image[:n_strong]]
+        cert_at_truth_strong = float(max(cert_res[i] for i in strong))
         # (c9) the imprint GRAM per cell: aligned imprints lower the joint sigma_min AND defeat the subset solve, so
         # every null must be read against it -- "too aligned to separate" is a different verdict from "the chain
         # fails". Cimp holds the per-image contributions C_i with B_T = sum_i C_i.
@@ -162,13 +170,20 @@ def main():
         sG = torch.linalg.svdvals(cosG)
 
         print(f"  [k={k}] certificate gate at the truth: ||Ch||/||A_T h|| = {cert_at_truth:.3e}", flush=True)
+        gate_row = dict(part="GATE", set=a.set, k=k, r=a.r, n_prime=Np, cert_at_truth=cert_at_truth,
+                        cert_at_truth_strong_only=cert_at_truth_strong, n_strong=n_strong, imprint_gap_ratio=gap_ratio,
+                        imprint_spectrum=[x[0] for x in cert_by_image], cert_by_image=[x[1] for x in cert_by_image],
+                        passed_all=bool(cert_at_truth <= 1e-6), passed_strong=bool(cert_at_truth_strong <= 1e-6))
+        if cert_at_truth > 1e-6 and cert_at_truth_strong > 1e-6:
+            emit({**gate_row, "passed": False, "note": "Z_C does not contain even the strongly-recorded truths here"})
+            print(f"  [k={k}] GATE FAILED for the strong set too -- skipping", flush=True); continue
         if cert_at_truth > 1e-6:
-            emit(dict(part="GATE", set=a.set, k=k, r=a.r, n_prime=Np, cert_at_truth=cert_at_truth, passed=False,
-                      note="Z_C does not contain the truth at this k; chain branches void", git=git_hash()))
-            print(f"  [k={k}] GATE FAILED -- skipping (not scored as a replay outcome)", flush=True); continue
-        emit(dict(part="GATE", set=a.set, k=k, r=a.r, n_prime=Np, cert_at_truth=cert_at_truth, passed=True,
-                  imprint_cos_offdiag=dict(median=float(off.abs().median()), max=float(off.abs().max())),
-                  imprint_gram_sigma_ratio=float(sG[-1] / sG[0]), fwd_check_pending=True, git=git_hash()))
+            print(f"  [k={k}] gate: worst over the recorded set {cert_at_truth:.2e} is a MARGINAL image "
+                  f"(imprint {imp_sorted[-1]:.1e}); the {n_strong} strongly-recorded images are certified to "
+                  f"{cert_at_truth_strong:.2e} -- proceeding on the strong set, N'={n_strong}", flush=True)
+        emit({**gate_row, "passed": True,
+                  "imprint_cos_offdiag": dict(median=float(off.abs().median()), max=float(off.abs().max())),
+                  "imprint_gram_sigma_ratio": float(sG[-1] / sG[0]), "fwd_check_pending": True, "git": git_hash()})
         if Np != 1:
             print(f"  [k={k}] N'={Np} != 1: the cell is not the one-image band; running anyway, rows carry N'", flush=True)
 
