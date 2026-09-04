@@ -212,7 +212,7 @@ Above the certificate line the manifold `Z_C` is positive-dimensional: `ker C` h
 
     unknowns per image:  k − (r−N')        (was k)
     seed unknowns:       unchanged (see (b))
-    B-block conditions:  unchanged, N((m−1)+r−N)
+    B-block conditions:  unchanged, N'((m−1)+r−N')
 
 **The chain's line coincides with replay's, and must.** Since `{ρ=0} ⊆ Z_C`, restricting to `Z_C`
 removes no solution and adds no constraint that `ρ = 0` did not already impose. The capacity count
