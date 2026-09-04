@@ -2827,3 +2827,23 @@ unreported until the rerun.
 **The habit.** For every control arm, write down *before running* what it must do and what its passing would mean.
 And when a variable is assigned to select behaviour, check it is actually read — a selector that is computed and
 discarded produces two identical arms and no error anywhere.
+
+## 2026-09-05 — a criterion anchored on machine precision cannot tell a working test from an annihilating one
+
+**The sharpest instance yet, and it came from a control that was supposed to fail.** With the certificate
+identically zero (the Adam arm: `rank C = 0`), the member's residual is still ~1e-14 — because `0 · h = 0`. So a
+**vacuous** certificate and a **perfect** one produce the same member-side number. Any criterion of the form "the
+member sits near machine precision", and any bar anchored on the numerical floor `ε‖C‖‖φ‖`, passes both.
+
+What separates them is on the other side entirely: with `C = 0` **everything** is annihilated, so the
+false-positive rate goes to **1.0000**, while a working certificate holds it at **0.0000**. The fixed 1e-2 bar
+plus the rate catches in one number what no member-side statistic can see at all.
+
+**Generalise it:** *an annihilating test and a discriminating test agree on every positive and differ only on
+negatives.* So a criterion built from positives cannot distinguish them, however precise it looks — and precision
+is exactly what makes it look convincing. **Anchor thresholds between measured bands, not on the floor of the
+arithmetic**, and make the primary statistic a rate over negatives.
+
+Three of today's failures share this shape: a vacuous certificate reading like a perfect one, a relative rank call
+returning full for a zero matrix, and a member residual forced to zero at `N′ = 1`. In all three the *positive*
+side looked flawless.

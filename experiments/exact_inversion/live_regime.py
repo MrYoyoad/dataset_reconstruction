@@ -64,6 +64,12 @@ def main():
                          "non-members 0.1..1, the marginal-recorded in-band tail 1e-5..1e-8, clean members "
                          "1e-16..1e-8 -- so it sits one order below the lowest non-member and three above the "
                          "marginal band: a working certificate clears it by 1-2 orders, a degraded one fails.")
+    ap.add_argument("--near-dupes", action="store_true",
+                    help="NEAR-DUPLICATE SPECIFICITY: score transformed versions of the private image -- crop, "
+                         "resize, flip, brightness, blur, JPEG recompression. Both answers are results and they "
+                         "are DIFFERENT CLAIMS: pass = 'this image or anything close to it', the stronger privacy "
+                         "statement and the weaker specificity one; fail = 'this exact image', narrower and "
+                         "sharper. It is the difference between detecting a photograph and detecting a file.")
     ap.add_argument("--max-fpr", type=float, default=0.01,
                     help="pre-registered false-positive rate bar. Scoring is a RATE, not a minimum: with 1000 "
                          "non-members the minimum is an extreme statistic and one unlucky draw would void a "
@@ -168,6 +174,17 @@ def main():
             an = torch.linalg.norm(torch.einsum("ndp,kd->nkp", P, A_T), dim=1) + 1e-300
             return float((eps * float(torch.linalg.norm(C, 2)) * pn / an).mean())
         rm = float(res(Pm)[0]); rn = res(Pn); c_floor = floor_of(Pm)
+        dupes = {}
+        if a.near_dupes:
+            import torchvision.transforms.functional as TF
+            v = {"crop90": TF.resize(TF.center_crop(x, 202), [224, 224], antialias=True),
+                 "resize200": TF.resize(TF.resize(x, [200, 200], antialias=True), [224, 224], antialias=True),
+                 "hflip": TF.hflip(x),
+                 "bright+10%": (x * 1.1).clamp(-1, 1),
+                 "blur": TF.gaussian_blur(x, 5, [1.0]),
+                 "quantise8bit": (((x + 1) * 127.5).round() / 127.5 - 1)}
+            for nm, xv in v.items():
+                dupes[nm] = float(res(patches(xv))[0])
         # 7e's per-draw null: the SAME image scored under the PREVIOUS draw's release, which never saw it. This
         # separates "the certificate annihilates this image" from "the certificate annihilates this image BECAUSE
         # it was trained on it" -- a same-image control no non-member population can provide.
@@ -200,6 +217,9 @@ def main():
                   r=a.r, positions=int(Pm.shape[2]), d_in=d_in, n_prime_measured=Np,
                   predicted_margin=a.r - int(Pm.shape[2]), rank_C=rank_C,
                   member_residual=rm, member_side_not_scored="forced to ~0 by rank-one collinearity at N=1",
+                  near_duplicates=dupes,
+                  near_dupe_verdict={k: ("PASSES as member (below the bar)" if q < a.bar else "rejected as "
+                                         "non-member (above the bar)") for k, q in dupes.items()},
                   certificate_numerical_floor=c_floor,
                   bar=a.bar, false_positive_rate=fpr, max_fpr=a.max_fpr,
                   null_clears_bar=bool(null_ok), fpr_clears=bool(fpr_ok),
@@ -225,7 +245,8 @@ def main():
                   seconds=time.time() - t0, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
         print(f"  draw {rank_i:3d} margin {float(margin0[di]):+8.3f}  N'={Np:3d} rank C={rank_C:3d}  "
               f"member {rm:.2e}  self-null {null_same_image:.2e}  FPR {fpr:.4f}  "
-              f"nm_min {float(srt[0]):.2e}  {verdict}", flush=True)
+              f"nm_min {float(srt[0]):.2e}  {verdict}"
+              + ("  dupes " + " ".join(f"{k}={v:.1e}" for k, v in dupes.items()) if dupes else ""), flush=True)
     hk.remove()
     lo, hi = binom_ci(ok, max(scored, 1))  # fraction of draws where the null clears the bar AND the FPR is <= 1%
     emit(dict(part="LIVE_SUMMARY", successes=ok, scored=scored, voided=a.draws - scored,
