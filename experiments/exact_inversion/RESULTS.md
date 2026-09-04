@@ -3535,3 +3535,33 @@ are mutually exclusive at r = 8**, so the realistic low-rank attack is inherentl
 
 *Scope: r = 8, m = 10, the 98% MNIST model, on-chart PCA charts, FP64. The mechanism (imprint ∝ error on the
 projection) is general; the specific counts are not.*
+
+### The handoff, measured correctly (job 159323): the certificate hands replay a start 3e12× better than chance
+
+The earlier reading — "landings are barely closer to a private image than a random point of the same norm" — came
+from a defect in my own metric and is **withdrawn**. It scored every start against *one* recorded image (the
+strongest) rather than against the image it actually landed on, so at a cell with three recorded images two thirds
+of genuine landings read as failures. Corrected (nearest **recorded** image, applied identically to landings, raw
+starts and the norm-matched control), at r = 64, k = 16, N′ = 3, 500 random starts:
+
+| | min | 10th pct | median |
+|---|---|---|---|
+| certificate landing | 9.3e-16 | 1.0e-15 | **2.6e-13** |
+| the same starts, before the solve | 0.40 | 0.59 | 0.75 |
+| random point of the **same norm** | 0.35 | 0.61 | 0.78 |
+
+**95% of landings are closer to a private image than a norm-matched random point; the median is better by a factor
+of 3e12.** So the handoff falsifier does not fire: the certificate does not merely shrink the search space, it
+delivers starts essentially *on* private images.
+
+**Conditioned on the landing's certificate residual, by decile** (best-converged first): deciles 0–7 all have
+`frac_landed < 1e-2` = **1.00** with landing errors 1e-15 … 1.2e-10; decile 8 drops to 0.20 (median error 0.46);
+decile 9 to 0.00 (median 1.2). So the handoff is neither weak nor concentrated in a narrow top slice — **it is
+uniform over the best 80% of landings and fails only in the last 20%**, exactly where the certificate solve itself
+did not converge (its residual rises from 3.6e-15 in decile 0 to 0.48 in decile 9). The attacker's own certificate
+residual therefore *predicts* handoff quality with no private knowledge, and the rule "keep landings whose
+certificate residual is at the floor" recovers a clean population.
+
+*This also answers the question of whether the k = 6 correspondence (every floor-reacher is a private image)
+breaks higher up the chart range: on this row it does not. The apparent median landing error of 0.71 that suggested
+it was the same metric defect.*
