@@ -1,5 +1,34 @@
 # Project Status
 
+## Against a real membership baseline the certificate wins on ASSUMPTIONS, not on separation (2026-09-04, job 287241)
+
+Frozen ViT-B/16, cached features, head LoRA at `r = 64`, 128 shadow releases, target disjoint from every shadow.
+
+| training steps | certificate | **LiRA** | loss threshold |
+|---|---|---|---|
+| 5 | 1.000 | **0.997** | 0.591 |
+| 20 | 1.000 | **0.997** | 0.932 |
+| 50 and up | 1.000 | **1.000** | 1.000 |
+| any, at **batch = rank** | **vacuous** | **0.994 – 1.000** | 0.585 – 1.000 |
+
+**The pre-registered stronger claim fails on its own terms.** It predicted the certificate would detect membership
+where the statistical attack could not. A likelihood-ratio attack is at 0.997 after five steps, so there is no
+training length here where the certificate reads membership and LiRA does not.
+
+**A correction of my own that flattered the method.** The earlier "baseline at chance" came from a *label-free*
+confidence statistic, because non-members in that harness had no labels. With the standard label-aware loss the
+same trivial threshold reaches 0.591 and 0.932. Those VOID cells were void for two reasons, and I had reported one.
+
+**What survives, without inflation.** The certificate needs the released factors, the public model, and one forward
+pass — **no shadow budget, no recipe, no sample from the private data distribution.** LiRA needs all three, and the
+third is the one an attacker often cannot buy: against one person's photographs, one hospital's scans or one
+artist's style there is no distribution to draw shadows from. That is the contribution on this surface —
+**applicability where the statistical attack cannot be instantiated, at equal separation where both can.**
+
+**And the complementarity result, which protects the claim.** At `batch = rank` the certificate is identically
+vacuous while LiRA stays at 0.994–1.000. **Satisfying the counting rule closes this channel and leaves a
+statistical attacker untouched.** The rule is never to be quoted as a privacy guarantee.
+
 ## Across FOUR real pretrained models, the recipe-free channel exists at deployed rank only on NON-SHARED modules (2026-09-04; jobs 273322, 279182, 280419)
 
 ViT-B/16, DINO ViT-S/16, ResNet-18, ResNet-50 — all pretrained, measured at real photographs before any adapter is
