@@ -1119,3 +1119,27 @@ candidate's energy in adapter space, reducing exactly to the certificate when un
 pre-registered control. **However the control has a ceiling effect**: a baseline at 1.0 cannot be beaten, only tied or
 lost to, and the release had memorised 8 images to loss 4e-3. Being redone on *fine-tuned* rather than memorised
 releases, larger private sets, fewer steps. **Not reportable as success or failure until that lands.**
+
+## 23. CLOSING SYNTHESIS: the negative is explained, with a number, and survives a better solver
+
+**The structural sentence (81, now in the .tex):**
+> **Membership and reconstruction are opposite readings of one annihilation. A test that returns exactly zero for
+> every recorded example is for that reason unable to distinguish among them.**
+
+This converts "reconstruction needs a prior" from something the paper *reports* into something it *explains*, from the
+certificate's defining property rather than from any chart's shortcomings — and it retroactively makes sense of the
+whole chart programme.
+
+**Genericity is EXACT, not heuristic (81 sharpening c9).** For Gaussian `A₀`, `A₀u` and `A₀v` are **independent**
+exactly when `u ⊥ v`. So off the training span the certificate *is* a random projection, not approximately one, and
+`ker A₀` is uniformly random and incoherent with any fixed sparsity basis w.h.p. The headline **"generic matrix,
+structured null, `r − N′` measurements"** is exact — which matters in front of a referee who knows the CS literature.
+
+**Two independently derived accounts meet numerically.** c9's recoverable sparsity `(r − N′)/log n` and 81's threshold
+`m ≳ s·log(n/s)` give the same crossing: **1.2, 4.7, 13.9, 40.5, 149.9** recoverable pixels at `r = 16, 32, 64, 128,
+256`, against ~150 non-zero pixels in an MNIST digit. **`r = 256` is the crossing from both directions.**
+
+**The deployment verdict is EXPLAINED, not overturned.** The channel reaches sparse-recoverability at exactly the top
+of the practical rank range for 28×28 images and at **no practical rank for anything larger**, because the requirement
+scales with the image's sparsity while `r` does not. **That is a stronger negative than "we could not reconstruct": it
+says why, with a number, and it will survive someone trying harder with a better solver.**
