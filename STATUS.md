@@ -24,10 +24,18 @@ Jacobian rank at the true image, no solve and no start — so none of it is an a
    98.63% conv net, `r ∈ {8 … 512}`, the verdict is CONV-VACUOUS at every rank by two independent routes. Eight
    images supply 1568 patch vectors into conv layer 1's 9-dimensional input, so its recorded span fills the layer
    before any adapter is trained. **But saturation is a computable condition, `N × positions ≥ C_in·k²`, not an
-   architectural fact** (audit 02b93e8): it holds in early layers and fails in deep ones, where the certificate is
-   predicted to survive. On ResNet-50 at `N = 8` the first two stages are full and the last two are partial. The
-   claim is therefore scoped to early-channel layers, and the deep-regime run with drift switched off by freezing
-   everything upstream is job 205887.
+   architectural fact** (audit 02b93e8): it holds in early layers and fails in deep ones. **Job 205887 confirms
+   it.** With drift switched off by freezing everything upstream, conv layer 1 (`N·P = 1568` into a 9-dim input)
+   is vacuous at every rank, while conv layers 3 and 4 (`N·P` = 128 and 32 into 1152 and 2304 dims) are
+   non-vacuous and their certificates hold at the truth to ~1e-11. Deep convolutional layers DO carry a
+   certificate; the earlier unqualified claim is superseded.
+
+4. **One rule now covers every cell measured today.** A layer's certificate is usable iff (a) `r` exceeds the
+   recorded count, (b) that count is **data-limited rather than width-limited** — when the output width truncates
+   `rank B_T`, the row space stops containing the recorded directions and the condition fails at the truth
+   (conv 2 at `r = 256`: margin 128, residual 5.5e-6, against conv 3's 3.2e-11) — and (c) the input is frozen.
+   The recorded count itself is the **image count** for a dense layer with a frozen input and the **patch span
+   rank** for a convolution. Saturation and drift are two separate mechanisms and are now measured apart.
 
 **What this leaves.** The first adapted layer is the only one whose recorded count is the image count, its
 certificate holds to ~1e-14 at every training length, and its conditions land on raw pixels with no chart. So the

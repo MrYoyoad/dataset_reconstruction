@@ -4070,3 +4070,51 @@ whole caveat: (i) it is a Jacobian rank at the truth, so it counts what the rele
 and says nothing about whether an attacker can find it; (ii) the ranks that reach the interesting fractions
 (`r ≥ 256` on a 784-wide input) are a third of full rank and above — this is a statement about wide adapters, and
 the low-rank regime that motivates LoRA sits at the left end of the table where the fraction is a few percent.
+
+## RESULT — the deep-conv regime, with drift switched off: the audit's prediction holds, and a single rule falls out (job 205887)
+
+Deep-channel conv net `1→64→128→256→256`, stride 2 throughout, trained to a working backbone. Patch spans on the
+**frozen** backbone, `N = 8`:
+
+| conv layer | input dim `d` | positions `P` | `N·P` | patch span rank | output width |
+|---|---|---|---|---|---|
+| 1 | 9 | 196 | 1568 | **9 = d** | 64 |
+| 2 | 576 | 49 | 392 | 232 | 128 |
+| 3 | 1152 | 16 | 128 | 117 | 256 |
+| 4 | 2304 | 4 | 32 | 32 | 256 |
+
+**Solo arms** — one layer adapted, everything else frozen, so the adapted layer's input cannot move and drift is
+off by construction. At `r = 256`:
+
+| layer | `N′` | rank `C` | conditions per image | certificate residual at the truth | |
+|---|---|---|---|---|---|
+| conv 1 | 9 | **0** | 0 | — | VACUOUS at every rank, as predicted |
+| conv 2 | 128 | 128 | 6272 | **5.5e-06** | margin real, condition FAILS |
+| conv 3 | 117 | 139 | 2224 | **3.2e-11** | **survives** |
+| conv 4 | 32 | 224 | 896 | **1.5e-11** | **survives** |
+| head | 8 | 248 | 248 | 5.7e-12 | survives |
+
+**The audit was right and the earlier claim is corrected in full: deep convolutional layers DO carry a
+certificate.** Conv layer 1 is vacuous at every rank because its recorded patch span is exactly its 9-dimensional
+input — structural, decided before training. Conv layers 3 and 4, where `N·P < d`, are non-vacuous and the
+condition holds at the truth to ~1e-11.
+
+**The unifying rule, which covers every cell measured today.** A layer's certificate is usable when all three hold:
+
+1. **margin** — `r` exceeds the recorded count;
+2. **the recorded count is DATA-limited, not WIDTH-limited** — `rank B_T ≤ min(r, output width)`, and when the
+   output width is what truncates it, `row(B_T)` no longer contains the recorded directions, so `C h ≠ 0` at the
+   truth. Conv 2 at `r = 256` is exactly this case: `N′ = 128 =` its output width, margin 128, residual 5.5e-6.
+   Conv 3 (`N′ = 117 <` 256) and conv 4 (`N′ = 32 <` 256) are data-limited and hold. So does the MLP's first layer
+   (`N′ = 8 <` 1000, residual 1e-14) and the head (`N′ = 8 <` 10);
+3. **the input is frozen** — see the all-adapted arm below.
+
+What the recorded count *is* also follows: for a dense layer with a frozen input it is the **image count**; for a
+convolution it is the **patch span rank** (117 and 32 here, not 8). Weight sharing costs the attacker the span of
+distinct patch directions rather than the number of images, which is affordable exactly when `d` is large.
+
+**All-adapted arm — drift is the second, independent killer.** With every layer adapted, the deep conv layers are
+vacuous at `r ≤ 128`, and at `r = 256` they keep margins but their residuals run 8e-6 … 3e-4, and the head's runs
+1e-3. Compare the solo head at 6e-12. **Two separate mechanisms, now measured apart: saturation is structural and
+decided by `N·P ≥ d`; drift is dynamic and decided by what was adapted upstream.** The earlier shallow run
+conflated them and its conv verdict is superseded by this one.
