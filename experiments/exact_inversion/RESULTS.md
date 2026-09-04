@@ -2353,8 +2353,10 @@ fp16, none — the file is zero.
 ### Flowers on CIFAR, corrected design (job 656205; old-head and mixed batches rerun as 762253 after a save-path crash)
 
 Eight flowers (new class, m = 11) and eight CIFAR digits on the extended head, both charts (flower PCA / CIFAR PCA,
-k = 16), both head inits, r = 16, N = 8: every *near-start* cell (a) reaches residual ~1e-30 with chart error
-≤ 1e-12 (σ_min at the truth 1e-6 … 2e-5 — identifiable, rank 8 in every release, imprints O(1)); every *random-start*
+k = 16), both head inits, r = 16, N = 8. **Start models, stated explicitly since both appear here and the
+distinction decides what each row can support:** cell (a) starts at the truth plus 10% noise — *not
+attacker-buildable, so its rows are identifiability results*; cell (b) starts randomly — attacker-buildable, so its
+rows are attack results. Every *near-start* cell (a) reaches residual ~1e-30 with chart error ≤ 1e-12 (σ_min at the truth 1e-6 … 2e-5 — identifiable, rank 8 in every release, imprints O(1)); every *random-start*
 cell (b, 2 restarts, 600 iterations) stops at residual 5e-5 … 5e-3 with chart error 0.07 … 0.59 — search failure
 (residual not zero), no alias. Chart ceilings vs the raw images: .31/.38 (flowers), .24/.26 (CIFAR). Same picture as
 the first flowers job: recorded and identifiable, not reachable by the recipe route from random starts at k = 16.
@@ -2986,8 +2988,10 @@ digits flatten as predicted: rank 8 on mid and weak (margins −1.7 … +0.6: th
 own digits) against rank 6 on the strong model. Recipe-route cells: near-start exact everywhere (1e-30); random
 starts fail everywhere (chart errors 1–5). The weak model's mixed batch is still running.
 
-**OOD inversion grids (644064, three encoders × three sets, k = 16, N = 8, near start and random start).** Recipe
-route: every near-start cell reaches 1e-30 (chart error ≤ 1e-9) except the two strong on-chart cells, which stall
+**OOD inversion grids (644064, three encoders × three sets, k = 16, N = 8).** *Both start models appear and are
+labelled per row: the near-start cells (truth + 10% noise) are **identifiability** results and not attacks; the
+random-start cells are attack results.* Recipe route: every near-start cell reaches 1e-30 (chart error ≤ 1e-9)
+except the two strong on-chart cells, which stall
 at 2e-16 / 1.9e-15 with chart error 0.10–0.13 (σ_min 1e-18 — rank-deficient because part of the batch is
 invisible); every random-start cell fails (chart error 0.4 … 13).
 
