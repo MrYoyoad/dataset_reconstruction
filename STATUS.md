@@ -141,8 +141,11 @@ yoado-d0); four errors caught and fixed before shipping are logged in LESSONS_LE
 
 ### THE HEADLINE (2026-09-03, jobs 760909 / 764976 / 771329) — the claim to lead with
 
-> **SCOPE, added 2026-09-04 and required wherever this channel is described.** This is the **recipe-free
-> certificate** channel, and its demonstrated surface is **dense, non-weight-shared layers** — an MLP layer, a
+> **THE CHANNEL'S SURFACE, added 2026-09-04 — this is part of the claim, not a caveat appended to it.** The
+> **recipe-free certificate** channel operates on **non-weight-shared modules: classification heads, dense MLP
+> layers, and deep convolutions at sufficient rank.** **LoRA on attention and on block MLP projections — the
+> dominant deployment pattern — is outside it**, by two orders of magnitude rather than marginally. Its
+> demonstrated surface is dense, non-weight-shared layers — an MLP layer, a
 > classification head, or a deep convolutional layer where the recorded patch count stays below the input
 > dimension. It is **not** a general "LoRA leaks" claim. On weight-shared modules the channel is identically zero
 > at deployed settings: one image records one direction per token or per position, so a single image floods a

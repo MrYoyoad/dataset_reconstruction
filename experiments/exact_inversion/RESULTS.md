@@ -4409,6 +4409,14 @@ verdict and deep conv layers the opposite one.
 actually go — attention and MLP projections inside blocks, at ranks 8 to 64 — the recipe-free channel does not
 exist, and it fails by two orders of magnitude rather than marginally.
 
+## The channel's surface, stated as part of the channel rather than as a caveat
+
+**The recipe-free certificate channel operates on non-weight-shared modules: classification heads (transformer or
+pooled CNN), dense MLP layers, and deep convolutions at sufficient rank.** On weight-shared modules it is
+identically zero at deployed rank — **LoRA on attention and block MLP projections, the dominant deployment
+pattern, is outside the channel**, by two orders of magnitude rather than marginally. This sentence belongs
+wherever the channel is described; it is not a scope note to be appended at the end.
+
 ## The counting rule — the project's most portable output, validated in three architectural regimes
 
     recorded directions per layer  =  min( r,  d,  rank{ h_ip : recorded i, every position/token p } )
@@ -4518,4 +4526,20 @@ trivial attack is perfect, no method can beat it and the comparison can only be 
 the graded score does not *dominate* the baseline, but it cannot establish where the two rank against each other,
 because the test was too easy. **The comparison must be redone in a regime where the loss baseline is not
 saturated** — more members, fewer steps, a genuinely fine-tuned rather than memorised release — and until that
-lands the graded score has no established standing either way. Queued as job 283618.
+lands the graded score has no established standing either way. Jobs 283618 and 284393.
+
+**A PRE-REGISTERED VALIDITY BAND, fixed before the redo so it cannot land in the opposite ceiling** (yoado-cd
+relaying yoado-81): the trivial loss-threshold baseline must itself score **AUC 0.6–0.9** for a cell to count.
+Above that the baseline is saturated and nothing can beat it, only tie — which is exactly what job 280255
+measured. Below it the release is too weak for anything to be detectable and a tie means nothing either. Cells
+outside the band are emitted as **VOID and are not scored**, the baseline's own AUC is reported beside every row
+so the regime is visible, and the private-set size and step count are swept in order to *land* in the band rather
+than hoped to. Implemented as `--baseline-band` in `graded_imprint.py`.
+
+**And the comparator is named:** the graded imprint is a **membership** statistic, so it is judged against the
+membership literature's baselines — a loss threshold here, ideally a shadow-model/LiRA-style one if it can be made
+cheap — and never against a reconstruction metric. If it beats the loss threshold *inside the informative band*,
+the claim is "a statistic derived from the deterministic channel beats the standard membership baseline precisely
+where the channel itself is unavailable", which is a genuine result **because** the saturation section says the
+channel is gone there. The head arm runs beside it as the positive control, since the head is the one module where
+the certificate is non-vacuous and the graded score must reproduce it.

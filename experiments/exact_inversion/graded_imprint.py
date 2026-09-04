@@ -62,9 +62,20 @@ def main():
     ap.add_argument("--N", type=int, default=8); ap.add_argument("--n-nonmember", type=int, default=64)
     ap.add_argument("--r", nargs="*", type=int, default=[8, 16, 64])
     ap.add_argument("--block", type=int, default=6)
+    ap.add_argument("--module", default="qkv", choices=["qkv", "head"],
+                    help="qkv: a weight-shared block linear, where the span saturates and the certificate is the "
+                         "zero matrix. head: the pooled classification head, the ONE non-shared module, where the "
+                         "recorded count is N and the certificate is non-vacuous whenever r > N. The head arm is "
+                         "the positive control for the graded statistic AND the deployment-relevant attack cell.")
     ap.add_argument("--T", type=int, default=100); ap.add_argument("--lr", type=float, default=0.05)
     ap.add_argument("--classes", type=int, default=102); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--baseline-band", nargs=2, type=float, default=[0.6, 0.9],
+                    help="the band of TRIVIAL-BASELINE performance in which this comparison is meaningful, fixed "
+                         "in advance (yoado-cd/81). Above it the baseline is saturated and nothing can beat it, "
+                         "only tie -- which is what job 280255 measured. Below it the release is too weak for "
+                         "anything to be detectable and a tie means nothing either. Cells outside the band are "
+                         "reported VOID and are NOT scored.")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(); dev = torch.device(a.device)
     import timm
@@ -84,8 +95,12 @@ def main():
         if a.out:
             with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
 
-    qkv = model.blocks[a.block].attn.qkv
-    d_in, d_out = qkv.in_features, qkv.out_features
+    if a.module == "qkv":
+        target = model.blocks[a.block].attn.qkv
+        d_in, d_out = target.in_features, target.out_features
+    else:
+        target = None                                   # the head is applied by hand below, so hook it directly
+        d_in, d_out = feat, a.classes
     print(f"# graded imprint: {a.model} block {a.block} qkv {d_in}->{d_out}, N={a.N} members, "
           f"{a.n_nonmember} non-members, FP64  git={git_hash()} host={socket.gethostname()}", flush=True)
 
@@ -94,56 +109,92 @@ def main():
         A = ((torch.randn(r, d_in, generator=gA) / math.sqrt(d_in)).to(dev)).requires_grad_(True)
         B = torch.zeros(d_out, r, device=dev, requires_grad=True)
         state = {"A": A, "B": B}
-        def hook(mod, inp, out): return out + torch.nn.functional.linear(inp[0], state["A"]) @ state["B"].T
-        h = qkv.register_forward_hook(hook)
+        if a.module == "qkv":
+            def hook(mod, inp, out): return out + torch.nn.functional.linear(inp[0], state["A"]) @ state["B"].T
+            h = target.register_forward_hook(hook)
+        else:
+            h = None
+        def fwd(Z):
+            f = model(Z)
+            z = f @ Whead.T
+            if a.module == "head":
+                z = z + torch.nn.functional.linear(f, state["A"]) @ state["B"].T
+            return z, f
         t0 = time.time()
         for t in range(a.T):
-            logits = model(Xm) @ Whead.T
+            logits, _ = fwd(Xm)
             loss = torch.nn.functional.cross_entropy(logits, y)
             gA_, gB_ = torch.autograd.grad(loss, [state["A"], state["B"]])
             state["A"] = (state["A"] - a.lr * gA_).detach().requires_grad_(True)
             state["B"] = (state["B"] - a.lr * gB_).detach().requires_grad_(True)
         A_T, B_T = state["A"].detach(), state["B"].detach()
         with torch.no_grad():
-            final_loss = float(torch.nn.functional.cross_entropy(model(Xm) @ Whead.T, y))
+            final_loss = float(torch.nn.functional.cross_entropy(fwd(Xm)[0], y))
         U, S, Vh = torch.linalg.svd(B_T, full_matrices=False)
         rank_B = int((S > 1e-12 * S[0]).sum()) if float(S[0]) > 0 else 0
         V = Vh.T                                                      # (r, r): adapter-space directions
 
+        # the recipe-free CERTIFICATE itself, which is non-vacuous exactly when rank B_T < min(r, d_in)
+        Q = Vh[:rank_B].T
+        C = A_T - Q @ (Q.T @ A_T)
+        svC = torch.linalg.svdvals(C)
+        rank_C = int((svC > 1e-10 * float(torch.linalg.svdvals(A_T)[0])).sum())
         caps = {}
         def cap(mod, inp, out): caps["h"] = inp[0].detach()
-        h2 = qkv.register_forward_hook(cap)
+        h2 = target.register_forward_hook(cap) if a.module == "qkv" else None
 
         def scores(Z, bs=8):
-            graded, losses = [], []
+            graded, losses, cert = [], [], []
             for i in range(0, Z.shape[0], bs):
                 xb = Z[i:i + bs]
                 with torch.no_grad():
-                    logits = model(xb) @ Whead.T
-                    hb = caps["h"]                                    # (b, tokens, d_in)
+                    logits, f = fwd(xb)
+                    hb = caps["h"] if a.module == "qkv" else f[:, None, :]   # (b, tokens, d_in)
+                    if rank_C:                                        # ||C h|| / ||A_T h||: 0 for a recorded item
+                        cn = torch.linalg.norm(torch.einsum("btd,kd->btk", hb, C), dim=-1)
+                        an = torch.linalg.norm(torch.einsum("btd,kd->btk", hb, A_T), dim=-1) + 1e-300
+                        cert += (cn / an).mean(-1).tolist()
+                    else:
+                        cert += [float("nan")] * xb.shape[0]
                     proj = torch.einsum("btd,kd->btk", hb, A_T) @ V   # (b, tokens, r)
                     e = proj ** 2
                     num = (e * S[None, None, :]).sum(-1)
                     den = e.sum(-1) + 1e-300
                     graded += (num / den).mean(-1).tolist()
                     losses += (-torch.logsumexp(logits, -1) + logits.max(-1).values).tolist()
-            return graded, losses
-        gm, lm = scores(Xm); gn, ln = scores(Xn)
-        h.remove(); h2.remove()
+            return graded, losses, cert
+        gm, lm, cm = scores(Xm); gn, ln, cn_ = scores(Xn)
+        if h is not None: h.remove()
+        if h2 is not None: h2.remove()
         a_graded = auc(gm, gn); a_loss = auc(lm, ln)
-        emit(dict(part="GRADED", model=a.model, block=a.block, r=r, N=a.N, n_nonmember=a.n_nonmember,
-                  rank_B_T=rank_B, saturated=bool(rank_B >= r), final_loss=final_loss,
-                  auc_graded_imprint=a_graded, auc_loss_baseline=a_loss,
-                  beats_baseline=bool(a_graded > a_loss),
+        # the certificate is SMALL for members, so members are the low tail: flip the direction
+        a_cert = (auc([-v for v in cm], [-v for v in cn_]) if rank_C else float("nan"))
+        emit(dict(part="GRADED", model=a.model, module=a.module, block=a.block, r=r, N=a.N,
+                  n_nonmember=a.n_nonmember, rank_B_T=rank_B, rank_C=rank_C,
+                  certificate_vacuous=bool(rank_C == 0),
+                  saturated=bool(rank_B >= r), final_loss=final_loss,
+                  auc_certificate=a_cert, auc_graded_imprint=a_graded, auc_loss_baseline=a_loss,
+                  beats_baseline=bool(max(a_graded, a_cert if a_cert == a_cert else 0) > a_loss),
+                  cert_median_member=(float(sorted(cm)[len(cm) // 2]) if rank_C else None),
+                  cert_median_nonmember=(float(sorted(cn_)[len(cn_) // 2]) if rank_C else None),
                   median_member=float(sorted(gm)[len(gm) // 2]), median_nonmember=float(sorted(gn)[len(gn) // 2]),
-                  reading=("GRADED" if a_graded > 0.6 and a_graded > a_loss else "DEAD"),
+                  baseline_band=a.baseline_band,
+                  cell_valid=bool(a.baseline_band[0] <= a_loss <= a.baseline_band[1]),
+                  reading=("VOID (baseline outside the pre-registered band; measures the baseline's ceiling or "
+                           "floor, not this statistic)" if not (a.baseline_band[0] <= a_loss <= a.baseline_band[1])
+                          else "BEATS BASELINE" if max(a_graded, a_cert if a_cert == a_cert else 0) > a_loss
+                          else "LOSES TO BASELINE"),
+                  comparator="membership baselines (loss threshold here); this is a MEMBERSHIP statistic, not a "
+                             "reconstruction metric, and must be judged against that literature",
                   note="the certificate is the sigma_k = 0 limit of this score; a saturated release has no null "
                        "space, so this is the only form in which the recipe-free test can survive",
                   start_model="n/a (scoring, no solve)", claim_class="membership signal",
                   seconds=time.time() - t0, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
-        print(f"  r={r:3d}  rank B_T={rank_B}/{r} {'SATURATED' if rank_B >= r else ''}  final loss {final_loss:.3e}"
-              f"   AUC graded {a_graded:.3f}   AUC loss-baseline {a_loss:.3f}"
-              f"   {'BEATS baseline' if a_graded > a_loss else 'does NOT beat baseline'}", flush=True)
+        print(f"  [{a.module}] r={r:3d}  rank B_T={rank_B}/{r} rank C={rank_C} "
+              f"{'SATURATED' if rank_B >= r else ''}  final loss {final_loss:.3e}"
+              f"   AUC cert {a_cert:.3f}   AUC graded {a_graded:.3f}   AUC loss-baseline {a_loss:.3f}"
+              f"   {'VOID (baseline outside band)' if not (a.baseline_band[0] <= a_loss <= a.baseline_band[1]) else ('BEATS baseline' if max(a_graded, a_cert if a_cert == a_cert else 0) > a_loss else 'LOSES to baseline')}",
+              flush=True)
 
 
 if __name__ == "__main__":
