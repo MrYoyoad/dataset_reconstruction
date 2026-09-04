@@ -579,6 +579,33 @@ pixels up to that layer — created by pooling, striding, downsampling, or any n
     and `rank DF_1` is a property of the frozen stem alone — not of the adapters,
     not of their ranks, and not of how many layers were adapted.
 
+**Where the bound actually bites is an architecture question, and the answer is not "adapt late
+and you are safe".** `rank DF_1` is capped by the narrowest Jacobian rank along the path from
+pixels to the first adapted layer, so it depends entirely on whether the frozen stem has a
+dimensional bottleneck at all. Computed from architecture arithmetic (`224×224×3 = 150528` pixels):
+
+| stem below the first adapted layer | dimension at that point | ratio to pixels |
+|---|---|---|
+| ResNet-18, adapters on the head | 512 (global-pooled) | 0.003 |
+| ResNet-50, adapters on the head | 2048 (global-pooled) | 0.014 |
+| ViT-B/32, adapters in any block | 49 × 768 = 37632 | 0.25 |
+| **ViT-B/16, adapters in any block** | **196 × 768 = 150528** | **1.00** |
+| ViT-L/16, adapters in any block | 196 × 1024 = 200704 | 1.33 |
+| adapters on embeddings / block 1 | — | ≈1 |
+
+**The ViT-B/16 row is the one to notice, and it is not a coincidence.** Its patch embedding maps a
+`16×16×3 = 768`-dimensional patch to a `768`-dimensional token: a *square* map, dimension-preserving
+by construction. ViT-L/16 embeds into 1024 and therefore *expands*. So in the most common vision
+transformer configuration there is **no bottleneck anywhere in the stack**, and the cap does not
+bite until the head — while a pooled CNN caps at the pooled width, two to three orders below the
+pixel count. The honest headline is therefore not "adapting late protects you" but:
+
+> **The cap is the narrowest point of the frozen stem below the first adapted layer. Pooled
+> convolutional stems have one and it is severe; standard ViT stems do not have one at all.**
+
+That is a design statement, it names which architectures are actually protected, and it does not
+overclaim for the family most people are adapting.
+
 Two consequences worth stating in the paper:
 
 - **A bottleneck below the adapters caps pixel-space leakage through this channel**, and adding
