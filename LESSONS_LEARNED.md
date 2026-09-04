@@ -4,6 +4,37 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A threshold below the solver's own achievable floor is not a test (2026-09-04)
+
+Found three times in one day, in three unrelated places, always by an auditor and never by the
+author. The pattern: a criterion is written in absolute terms, the cell's arithmetic or solver
+cannot reach it, and the run then returns the *same* answer whatever the science does.
+
+1. **Subset ladder.** Discrimination between a recorded subset and a one-swapped one died at
+   `repeated N'=6` — not because the rule failed, but because the swapped subset's predicted floor
+   (3.8e-19) sat *below* what the recorded subset actually achieved (3.4e-17). A solver cannot
+   resolve a floor beneath its own achievable residual. Restated as a law: the discrimination ratio
+   tracks `residual_floor_pred(one-swapped)` against the achievable residual and is lost when that
+   floor falls below it — monotone over nine orders across four cells, and falsifiable *before* a
+   run from a number that needs no solve.
+2. **k=32 matched column.** Reported errors were compared across formats whose floors differ by
+   four orders; the comparison only means something relative to each format's own floor.
+3. **Chain pre-registration.** Branch 1 was written as `residual ≤ 1e-28` for a cell specified as
+   fp32, whose objective floors at 1.1e-14 and image error at 3.0e-7. Every start would have scored
+   as branch 3 — "basin failure, the initialiser is missing" — with the basin never tested. Caught
+   before launch.
+
+**Rules.** (a) Before writing any absolute threshold, measure the cell's own floor with a gate row
+(the solve from the truth, in that arithmetic) and check the threshold is reachable. (b) Prefer
+thresholds stated as a fixed multiple of that measured floor; the multiplier is pre-registered, the
+floor comes from a row that does not depend on the outcome, so it is still a genuine
+pre-registration. (c) Name the field: `residual` and `objective` differ by a square, and 1e-28 is
+unreachable on the first even in FP64 (which floors at 1e-15) while being routine on the second.
+(d) A criterion that cannot return its positive branch is not conservative — it manufactures a
+specific wrong conclusion.
+
+---
+
 ## A multi-edit patch script that writes once discards every edit when a later anchor misses (2026-09-04)
 
 - **Presented as:** I reported three RESULTS.md edits as applied. The script had asserted on the *second* anchor, so it never reached its single `write` — the file was unchanged, and I had already told the auditor it was done. (The write-up lane hit the same failure from the opposite direction the day before: a commit message claiming a paragraph the file did not contain.)
