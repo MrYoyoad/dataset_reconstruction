@@ -5532,3 +5532,32 @@ uninformatively. **Pre-registered: void the decile analysis when the floor-reach
 the separation bar, recorded as "residual spread insufficient to resolve the bar" — NOT as DEGRADES.** Those are
 different findings and only one of them is about the certificate. The spread is now measured and emitted on every
 row, and the provenance sentence is attached automatically wherever `N′ = 1`.
+
+## RESULT — enumeration does not reach the bar at any buildable group size (jobs 349362, 357537)
+
+The distribution method answers what counting could not. With **zero** false positives at every group size, a count
+yields only a bound set by the non-member population. The **minimum non-member score** is a continuous quantity and
+its trend extrapolates the crossing without ever observing a false positive.
+
+| \|G\| | minimum | 1st pct | median | margin to the bar | measured FPR | union bound |
+|---|---|---|---|---|---|---|
+| 1 | 0.1143 | 0.1264 | 0.1510 | 1.06 orders | 0/1500 | 3.7e-4 |
+| 2 | 0.1143 | 0.1240 | 0.1485 | 1.06 | 0/1500 | 7.5e-4 |
+| 10 | 0.1135 | 0.1233 | 0.1468 | 1.06 | 0/1500 | 3.7e-3 |
+| 25 | **0.1113** | 0.1201 | 0.1453 | **1.05** | 0/1500 | 9.3e-3 |
+
+**The minimum is essentially flat: a 25× increase in group size moves it by 2.6%.** Regressed against `log|G|` the
+slope is −0.002 per decade, so the extrapolated crossing sits at **|G| ≈ 10⁵²** — which is not a group size, it is
+a statement that **enumeration does not get there.**
+
+**The pre-registered shape holds.** Under independent draws the minimum of `|G|` samples falls far faster than
+this; the measured decline is nearly flat, which is exactly what strong correlation between augmented candidates
+predicts. **That correlation is also why the union bound was infinitely loose** — the same structure, measured two
+ways.
+
+**This is the third and final position on the enumeration question tonight, and the first two were mine.** I said a
+250-candidate stack defeats the test at 53% false positives; that was a bound set by having 1,000 non-members. I
+then said 8,000 non-members reversed it, which was true but still only a bound. **The measurement says the question
+was never close:** the best non-member an attacker can find remains an order of magnitude above the bar however
+many transformations they try. The single-candidate population, at 0 of 8,000, gives a per-candidate bound of
+**3.7e-4**, itself limited by the dataset having only 8,189 images.
