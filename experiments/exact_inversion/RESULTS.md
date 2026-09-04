@@ -3453,3 +3453,24 @@ landing on ranks 19–20 of twenty is p ≈ 0.005 for a pattern spotted after th
 the same direction after a threshold law and a single-phenomenon reading both failed — the point at which a
 hypothesis surviving in progressively weaker forms is more likely to be pattern-matching than structure. Anyone
 rediscovering it should know it was seen and set aside.
+
+### The k = 16 knee sweep, complete (89853): a knee exists there too, and it is shallow
+
+| stop target | residual reached | iterations | image error (median) |
+|---|---|---|---|
+| 0.04 | 3.23e-2 | 2 | 4.044e-2 |
+| 0.02 | 1.51e-2 | 3 | 3.444e-2 |
+| 0.012 | 9.20e-3 | 4 | 2.768e-2 |
+| 0.008 | 6.24e-3 | 5 | 2.537e-2 |
+| 0.005 | 4.31e-3 | 8 | 1.197e-2 |
+| **0.003** | **2.59e-3** | 11 | **0.954e-2** ← best |
+| 0.00205 (its floor) | 2.03e-3 | 19 | 0.973e-2 |
+
+So the well-conditioned chart **does** have a knee, at residual ≈ 2.6e-3, and fp16's floor (2.03e-3) sits just
+below it — an over-descent cost of **1.02×**, against 1.78× at k = 32. This refines the pre-registered prediction
+rather than confirming it as stated: I had predicted the k = 16 knee would lie *at or below* fp16's floor with a
+shallow-to-absent right arm, and it lies just *above* the floor with a right arm that exists and is negligible.
+The synthesis is unchanged and now measured at both charts — **conditioning lifts the knee: 2.6e-3 at k = 16
+against ≈ 4e-3 … 2.8e-3 at k = 32 in absolute terms, but relative to fp16's floor it moves from 1.3× above it to
+2× above it, and the penalty grows from 2% to 78%.** What matters for the attacker is not the knee's absolute
+position but how far above the reachable floor it sits, and that gap widens with conditioning.
