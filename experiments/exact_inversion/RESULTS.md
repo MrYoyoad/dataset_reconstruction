@@ -3034,7 +3034,15 @@ column-sum error almost exactly — fp64 2.1e-16 against 1.5e-16, fp32 1.5e-7 ag
 exactly as derived: roundoff breaks `1ᵀD = 0`, an all-ones component leaks into `B_T`, and the simplex cap is
 violated numerically.
 
-**Two corrections to "subtract one from every half-precision N′" (yoado-7e's fix).** (i) *It is necessary but not
+**The conclusion is not "subtract one" but "a half-precision N′ is not a physical rank" (yoado-7e, adopting the
+corrections below): do not quote it as a recorded-image count and do not derive a certificate line from it — only
+the FP64 rank is clean.** That is also the stronger basis for withdrawing the "widened line" reading: the line is
+not off by one, it is non-physical on any half-precision release. **It does not touch the recovery results** — the
+letters still recover 8 of 8 at k = 16 from the fp32-trained release and 4.6% at k = 32 from the bf16-trained one,
+because the spurious directions are sub-roundoff and do not unseat the true images as minimisers of
+`‖Cφ‖/‖A_Tφ‖`. Rank readout unreliable in half precision; recovery intact; the two are separate.
+
+**The two corrections that force it (to "subtract one from every half-precision N′").** (i) *It is necessary but not
 sufficient.* Removing the all-ones component takes bf16 and fp16 from 11 to **10**, not to the true 8 — the two
 remaining extra directions are ordinary roundoff filling, not the simplex break. A corrected N′ is still inflated
 by two on these cells. (ii) *In half precision the all-ones is not an isolated small direction:* its overlap is
@@ -3070,5 +3078,10 @@ errors are uniform (4.1–7.7%) and the Z error falls with the residual (0.076 a
 Consequences: (i) an attacker at an ill-conditioned chart should stop at the release's own floor rather than
 minimise, and the floor is *knowable* — it is the matched residual at any candidate; (ii) the flush-to-zero
 reading (fp16 zeroing 28–35% of residual entries) and the dynamic-range reading (σ_min 1e-5 near fp16's normal
-floor) are not needed to explain the reversal, though neither is excluded as a contributor. The mirror cell
-(bf16 stopped at fp16's residual, which it cannot reach) is running as a control.
+floor) are not needed to explain the reversal, though neither is excluded as a contributor. **On the 2×2 (yoado-7e):** the decomposition is right — any residual-determined part is over-descent, any
+format-locked gap at matched residual is flush-to-zero — but the fourth cell cannot be measured: bf16's own A₀
+floor is 0.0227 and its full descent stops at 0.0124, so it can never reach fp16's 0.0025. The one comparison the
+design does support is the matched-residual one, and it is already in: **fp16 at 0.0107 → 4.72%, bf16 at 0.0124 →
+4.56%**, a 3.5% relative gap, smaller than the per-letter scatter in either row. So over-descent accounts for the
+reversal to within the resolution available, and the flush component is bounded above by that gap rather than
+measured. The mirror run is kept as a control that bf16 stopped early does not improve either.
