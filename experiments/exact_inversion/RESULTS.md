@@ -3147,3 +3147,14 @@ labelled as such or it would spuriously reopen the format-effect question. **A t
 exactly that prediction: coincidence on the shared left arm and a monotone descent with no upturn.** Any persistent
 vertical gap in the shared left arm is the flush-to-zero contribution, measured instead of bounded by the current
 ≤ 3.5% scatter.
+*Where to read the plot first (yoado-c9).* fp32's missing right arm is a near-certain confirmation rather than a
+live risk — both endpoints are already known (4.6% near the knee, 5.8e-6 at its floor), so that arm only tests
+monotonicity *between* them, and the sole surprise available is a mid-curve upturn (image worse at some
+intermediate residual than at both the knee and the floor), which would mean a non-monotone residual→image
+trajectory. **The stringent test is the LEFT arm**: it re-tests the dynamic-range hypothesis, which the early-stop
+row excluded from a single point, across the whole shared range. If all three formats coincide *above* the knee,
+format genuinely does not matter where everything is still converging toward the truth and the hypothesis is
+doubly dead. If any format is already off there — fp16 worse than fp32 at, say, residual 0.05, well above the knee
+— that is a format effect operating *before* any over-descent, and it reopens the question the early-stop row
+closed. **The over-descent account needs the left arms to coincide, not merely the right arms to diverge**, so
+that is the first thing to read.
