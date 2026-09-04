@@ -5292,3 +5292,44 @@ perfectly separable at a tuned one. What augmentation does buy the defender reli
 it moves the features between steps and breaks the closure the certificate needs. **And the attacker must apply
 the victim's own preprocessing pipeline** for a candidate's activations to land in the neighbourhood at all —
 that assumption belongs on the row.
+
+## The enumerability argument, COSTED — "enumerable therefore free" holds only for small groups (job 317543)
+
+yoado-cd's argument is right in form: the certificate is a **per-candidate** test, so an attacker facing an
+augmentation they cannot invert simply tests every element of the group — if the victim trained on `flip(x)` and
+the attacker holds `x`, they test both. Transformation robustness only matters for transformations the attacker
+cannot enumerate. **But "free" is a claim that needs a number, and at a measured false-positive rate of exactly
+zero the binding quantity is the bound, not the point estimate.**
+
+With 0 false positives over 1,000 non-members, the one-sided 95% upper bound on the per-candidate rate is
+**2.99e-3** — the rate is not zero, it is *unmeasured below 3e-3*, and that is what a multiplier multiplies:
+
+| augmentation group | \|G\| | bound at \|G\| candidates | reading |
+|---|---|---|---|
+| horizontal flip | 2 | 0.006 | **free** |
+| flip × a 5-parameter blur family | 10 | 0.030 | cheap |
+| 5×5 crop grid | 25 | 0.072 | **a real cost** |
+| flip × 5×5 crop grid | 50 | 0.139 | a real cost |
+| flip × crop × blur | 250 | 0.527 | **defeats the test** |
+| flip × crop × blur × scale | 1,250 | 0.976 | defeats the test |
+| a full RandAugment-scale stack | 10,000 | 1.000 | defeats the test |
+
+**So the corrected general statement is:** *transformation robustness matters only for transformations the
+attacker cannot enumerate, and enumeration is free only while the group is small. A flip is free. A realistic
+augmentation stack of a few hundred combinations already carries a false-positive budget above one half, and
+~10⁴ combinations defeats the test outright.* **And the limit is our measurement, not the attacker's cleverness:**
+the bound is `1/n`-limited by the 1,000 non-members, so tightening it requires a larger non-member population,
+not a better argument.
+
+**The defender ledger, short and honest.** Augmentation does not buy tolerance evasion at small group size — a
+flip is enumerable at no cost. What it buys is (i) a genuine false-positive budget once the stack is realistic,
+and (ii) the second mechanism, which is the reliable one: **moving the features between steps and breaking the
+closure the certificate requires**. The tolerance-based reading is dropped entirely.
+
+**One lesson that runs OPPOSITE to today's others, and both belong on the record.** Every other threshold lesson
+today was about a criterion that was too *permissive* — a bar a vacuous test would pass, a rank call that read
+full for a zero matrix, a positive-side number forced by construction. This one is the reverse: **the
+pre-registered 1e-2 bar was CONSERVATIVE, and reporting the curve rather than the point revealed a materially
+stronger result** — perfect separation out to a 90% crop at a 1% false-positive rate, where the fixed bar had said
+"rejected". A pre-registered threshold protects against over-claiming and can equally hide a real effect;
+**reporting the curve alongside the chosen point costs nothing and is the only way to see which has happened.**
