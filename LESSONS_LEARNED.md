@@ -2702,3 +2702,18 @@ statistic both populations share, which is always the weaker one.
 **The habit.** Construct the member and non-member populations to be identical in everything except membership,
 before choosing any statistic. If the baseline you can compute is weaker than the literature's standard one, that
 is a fact about your harness, not about the baseline — say so in the row rather than reporting the number.
+
+## 2026-09-04 — check POPULATION SYMMETRY IN METADATA before trusting any baseline number
+
+Generalising the label-free-baseline error above, because it will recur outside membership inference. **When two
+populations being compared differ in the metadata they carry — labels, timestamps, provenance, anything — every
+baseline is silently pushed onto the weakest statistic the two share.** The comparison then looks favourable to
+whichever method exploits the metadata only one side has.
+
+Concretely: our members had assigned labels and our non-members had none, so the only computable baseline was a
+label-free confidence and it scored at chance. With both populations labelled, the same trivial threshold scored
+0.59 and 0.93. Nothing about the attack changed; only the symmetry of the populations did.
+
+**The check is one question, asked before any statistic is chosen:** *are my two populations identical in
+everything except the property under test?* If not, either fix the construction or state in the row that the
+baseline is weaker than the literature's standard — never report the number as if it were that standard.

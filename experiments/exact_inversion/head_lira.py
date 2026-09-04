@@ -33,6 +33,34 @@ from experiments.exact_inversion.graded_imprint import auc
 torch.set_default_dtype(torch.float64)
 
 
+def shadow_pool(source, n, size, dev, data_root):
+    """The attacker's OWN pool, at four levels of mismatch with the private distribution.
+
+    LiRA's precondition is a sample from the private data distribution. The certificate has no such precondition,
+    so the whole surviving contribution is what happens to LiRA when that precondition degrades -- and that is a
+    measurement, not an argument. The candidate is present in the shadows either way (an attacker testing an image
+    has that image); the MISMATCH is in the co-training data around it, which is what the attacker cannot obtain.
+    """
+    import torchvision.transforms as T
+    if source in ("same", "near"):
+        from experiments.exact_inversion.vit_token_span import load_images
+        X, _ = load_images(f"{data_root}/flowers-102/jpg", n * 2, size, dev)
+        return X[n:] if source == "near" else X[:n]        # 'near' = same distribution, DISJOINT photographs
+    import torchvision
+    tf = T.Compose([T.Resize(size), T.CenterCrop(size), T.ToTensor(),
+                    T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
+    if source == "far":                                    # natural photographs, different content and resolution
+        ds = torchvision.datasets.CIFAR100(root=data_root, train=True, download=False, transform=tf)
+    elif source == "gross":                                # greyscale, not natural images at all
+        tf = T.Compose([T.Resize(size), T.CenterCrop(size), T.Grayscale(3), T.ToTensor(),
+                        T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
+        ds = torchvision.datasets.FashionMNIST(root=data_root, train=True, download=False, transform=tf)
+    else:
+        raise SystemExit(f"unknown shadow source {source}")
+    step = max(1, len(ds) // n)
+    return torch.stack([ds[i][0] for i in range(0, step * n, step)][:n]).to(dev).double()
+
+
 def train_head_lora(F, y, Whead, r, T, lr, seed, classes):
     """Head-only LoRA on CACHED features F (n, d). Identical recipe to graded_imprint's head arm."""
     d = F.shape[1]
@@ -65,6 +93,14 @@ def main():
     ap.add_argument("--N", type=int, default=32); ap.add_argument("--r", type=int, default=64)
     ap.add_argument("--shadows", type=int, default=128)
     ap.add_argument("--Ts", nargs="*", type=int, default=[5, 20, 50, 100, 200, 400])
+    ap.add_argument("--shadow-sources", nargs="*", default=["same"],
+                    help="same = shadows drawn from the candidate pool (exact distributional access, the control "
+                         "and the WRONG description of a real attacker); near = same distribution, disjoint "
+                         "photographs; far = CIFAR-100, natural but different; gross = FashionMNIST, greyscale. "
+                         "The certificate is unchanged across all of them because it uses none of this.")
+    ap.add_argument("--k-cand", type=int, default=16,
+                    help="candidates per shadow training set; the remaining N-k come from the shadow pool, so k "
+                         "controls how much of the co-training data the attacker actually has")
     ap.add_argument("--lr", type=float, default=0.02)
     ap.add_argument("--classes", type=int, default=102); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -91,13 +127,29 @@ def main():
             with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
 
     gsel = torch.Generator().manual_seed(a.seed + 5)
-    for T in a.Ts:
+    Fsh = {}
+    for src in a.shadow_sources:
+        if src == "same":
+            Fsh[src] = None                                            # shadows drawn from the candidate pool
+        else:
+            Xs = shadow_pool(src, a.pool, 224, dev, os.path.dirname(a.data_root.rstrip("/").rsplit("/", 1)[0]))
+            with torch.no_grad():
+                Fsh[src] = torch.cat([model(Xs[i:i + 16]) for i in range(0, Xs.shape[0], 16)])
+            print(f"# shadow pool '{src}': {Fsh[src].shape[0]} images cached", flush=True)
+    for src in a.shadow_sources:
+     for T in a.Ts:
         t0 = time.time()
         phis, masks = [], []
+        k = a.N if src == "same" else min(a.k_cand, a.N)
         for s in range(a.shadows):
-            idx = torch.randperm(a.pool, generator=gsel)[:a.N].to(dev)
+            idx = torch.randperm(a.pool, generator=gsel)[:k].to(dev)
             m = torch.zeros(a.pool, dtype=torch.bool, device=dev); m[idx] = True
-            A, B = train_head_lora(F[idx], y_all[idx], Whead, a.r, T, a.lr, a.seed + 1000 + s, a.classes)
+            Ftr, ytr = F[idx], y_all[idx]
+            if k < a.N:                                                # pad with the ATTACKER'S OWN pool
+                j = torch.randperm(Fsh[src].shape[0], generator=gsel)[:a.N - k].to(dev)
+                Ftr = torch.cat([Ftr, Fsh[src][j]])
+                ytr = torch.cat([ytr, (j % a.classes)])
+            A, B = train_head_lora(Ftr, ytr, Whead, a.r, T, a.lr, a.seed + 1000 + s, a.classes)
             phis.append(phi_of(F, y_all, Whead, A, B)); masks.append(m)
         P = torch.stack(phis); M = torch.stack(masks)                  # (S, pool)
 
@@ -132,7 +184,14 @@ def main():
         neg = lambda v: [float(v[i]) for i in range(a.pool) if not mi[i]]
         a_cert = auc([-x for x in pos(cert)], [-x for x in neg(cert)]) if rank_C else float("nan")
         a_lira = auc(pos(lira), neg(lira)); a_loss = auc(pos(lossv), neg(lossv))
-        emit(dict(part="LIRA", T=T, N=a.N, r=a.r, pool=a.pool, shadows=a.shadows,
+        emit(dict(part="LIRA", shadow_source=src, k_candidates_per_shadow=k, T=T, N=a.N, r=a.r,
+                  pool=a.pool, shadows=a.shadows,
+                  assumptions_certificate=["released factors", "public model"],
+                  assumptions_lira=["shadow training budget", "the recipe", "a sample from the private data "
+                                    "distribution"],
+                  assumption_note="ASSUMPTIONS FIRST, cost second: compute is purchasable, distributional access "
+                                  "often is not -- against one person's photographs, one hospital's scans or one "
+                                  "artist's style there is no distribution to draw shadows from.",
                   rank_B_T=rank_B, rank_C=rank_C, certificate_vacuous=bool(rank_C == 0),
                   auc_certificate=a_cert, auc_lira=a_lira, auc_loss_threshold=a_loss,
                   cert_beats_lira=bool(a_cert == a_cert and a_cert > a_lira),
@@ -140,7 +199,7 @@ def main():
                                    "no distributional assumption",
                   cost_lira=f"{a.shadows} shadow releases + the recipe + a sample from the data distribution",
                   seconds=time.time() - t0, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
-        print(f"  T={T:4d}  rank C={rank_C}  AUC cert {a_cert:.3f}   AUC LiRA {a_lira:.3f}   "
+        print(f"  [{src}] T={T:4d}  rank C={rank_C}  AUC cert {a_cert:.3f}   AUC LiRA {a_lira:.3f}   "
               f"AUC loss {a_loss:.3f}   ({time.time()-t0:.0f}s)", flush=True)
 
 
