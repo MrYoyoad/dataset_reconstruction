@@ -238,8 +238,16 @@ def main():
             with torch.no_grad():
                 Uc, _ = qr_canon(bb.phi(chart.psi(Wv.reshape(k, -1))))
                 return (A_T @ Uc).reshape(-1)
+        START_MODEL = {"d0": ("near-truth (walked along Z_C from the truth)", a.init_noise),
+                       "constrained": ("certificate landing (attacker-buildable)", 0.0),
+                       "unconstrained": ("certificate landing (attacker-buildable)", 0.0),
+                       "scrambled_manifold": ("certificate landing (attacker-buildable)", 0.0),
+                       "random": ("random public-scale (attacker-buildable)", 0.0)}
+
         def run(v0, constrained, tag, start_err, gfun=None):
             gfun = gfun if gfun is not None else g_of
+            start_kind, start_noise = START_MODEL[tag]
+            attacker_buildable = "attacker-buildable" in start_kind
             v = v0.clone(); jac = tf.jacfwd(replay_res)
             with torch.no_grad(): F = replay_res(v)
             fval = float(F @ F); lam = a.lm_lambda; t1 = time.time(); used = 0; trace = [fval]
@@ -311,6 +319,8 @@ def main():
             if not in_band_row:
                 verdict = "NOT IN BAND -- no chain verdict is emitted from this cell (" + verdict + " below/above the band)"
             return dict(part="B", arm=tag, set=a.set, k=k, r=a.r, N=a.N, n_prime=Np, seed=a.seed, constrained=constrained,
+                        start_model=start_kind, start_noise=start_noise, start_attacker_buildable=attacker_buildable,
+                        claim_class=("attack" if attacker_buildable else "identifiability (near-truth start)"),
                         in_band=in_band_row, cert_line=cert_line_certified, replay_line=replay_line_certified,
                         n_prime_certified=n_strong, cert_at_truth_strong_only=cert_at_truth_strong,
                         fwd_check=fwd, res_at_truth=fwd, jac_sigma_min_truth=smin_truth, jac_sigma_max_truth=smax_truth,
