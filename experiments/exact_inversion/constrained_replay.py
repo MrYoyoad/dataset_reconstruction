@@ -140,22 +140,24 @@ def main():
         if Np != 1:
             print(f"  [k={k}] N'={Np} != 1: the cell is not the one-image band; running anyway, rows carry N'", flush=True)
 
-        nW = k
 
         # ---- the two maps: g (certificate, r x 1 per image) and the replay residual
         def g_of(w):                                                    # certificate map at one image
             f = bb.phi(chart.psi(w.reshape(k, 1)))
             return (C @ f).reshape(-1) / torch.linalg.norm(A_T @ f)
 
-        def replay_res(v):                                              # v = [w (k), X (r*Np)]
-            w = v[:nW].reshape(k, 1); Xc = v[nW:].reshape(a.r, Np)
-            Hc = bb.phi(chart.psi(w))
-            Bs, Xis, Uc = simulate_sgd_reduced(Hc, Xc, bb.W0, y[top:top + 1], bb.m, a.T, a.lr * Np / a.N, 0.0)
+        rec_t = torch.tensor(rec, device=dev); nrec = len(rec)           # JOINT subset solve over the recorded set
+        nW = k * nrec
+
+        def replay_res(v):                                              # v = [W (k x nrec), X (r x nrec)]
+            Wc = v[:nW].reshape(k, nrec); Xc = v[nW:].reshape(a.r, nrec)
+            Hc = bb.phi(chart.psi(Wc))
+            Bs, Xis, Uc = simulate_sgd_reduced(Hc, Xc, bb.W0, y[rec_t], bb.m, a.T, a.lr * nrec / a.N, 0.0)
             return torch.cat([((Bs - B_T) / torch.linalg.norm(B_T)).reshape(-1),
                               ((Xis - A_T @ Uc) / torch.linalg.norm(A_T)).reshape(-1)])
 
         # fwd_check: the simulator at the TRUE latents and the true span-block (read first, ground rule 5)
-        w_true = W_all[:, top].reshape(k, 1)
+        w_true = W_all[:, rec_t]                                        # (k, nrec) -- the recorded set's coordinates
         H_true1 = bb.phi(chart.psi(w_true)); U_true, _ = qr_canon(H_true1); X_true = (A0 @ U_true)
         v_true = torch.cat([w_true.reshape(-1), X_true.reshape(-1)])
         with torch.no_grad(): fwd = float(torch.linalg.norm(replay_res(v_true)))
@@ -192,10 +194,23 @@ def main():
                     lam *= 5
                 used = it + 1; trace.append(fval)
                 if fval < 1e-30 or not accepted or lam > 1e12: break
-            xh = chart.psi(v[:nW].reshape(k, 1))[:, 0]
-            e_on = float(torch.linalg.norm(xh - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
-            e_all = [float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in range(a.N)]
-            e_raw = float(torch.linalg.norm(xh - X_real[:, top]) / torch.linalg.norm(X_real[:, top]))
+            Xh = chart.psi(v[:nW].reshape(k, nrec))                     # (784, nrec) the returned set
+            # (yoado-b9) OPTIMAL ONE-TO-ONE ASSIGNMENT, never greedy nearest-match: a joint solve with a mixing
+            # symmetry can return several near-copies of the easiest image, and greedy matching would score that
+            # well. The number of DISTINCT truths matched is reported separately as mode collapse.
+            Cst = torch.zeros(nrec, nrec)
+            for ii in range(nrec):
+                for jj, tj in enumerate(rec):
+                    Cst[ii, jj] = torch.linalg.norm(Xh[:, ii] - X_on[:, tj]) / torch.linalg.norm(X_on[:, tj])
+            from scipy.optimize import linear_sum_assignment
+            ri, ci = linear_sum_assignment(Cst.cpu().numpy())
+            per_image = [float(Cst[i_, j_]) for i_, j_ in zip(ri, ci)]
+            e_on = max(per_image); n_under = sum(1 for e in per_image if e <= 1e-10)
+            # label-blind SET error: the same assignment ignoring which truth carries which label (a permutation-only
+            # failure is a leakage SUCCESS -- the attacker has the images)
+            n_distinct = len(set(int(j_) for j_ in ci))
+            e_raw = max(float(torch.linalg.norm(Xh[:, i_] - X_real[:, rec[j_]]) / torch.linalg.norm(X_real[:, rec[j_]]))
+                        for i_, j_ in zip(ri, ci))
             with torch.no_grad(): gnorm = float(torch.linalg.norm(g_of(v[:nW])))
             # Pre-registered thresholds (yoado-b9): the cell is FP64 throughout, so the absolute form applies --
             # branch 1 is OBJECTIVE <= 1e-28 (not `residual`, which is its square root and floors at 1e-15 even in
@@ -203,9 +218,10 @@ def main():
             # cannot be tightened after the fact if this cell's own floor turns out worse than the letters cell's.
             at_floor_abs = fval <= 1e-28; at_floor_rel = fval <= 100 * fwd ** 2
             at_floor = at_floor_abs or at_floor_rel
-            verdict = ("recovered" if at_floor and e_on <= 1e-10 else
-                       "recovered (loose: image error < 1e-2)" if at_floor and e_on < 1e-2 else
-                       "alias (residual zero, wrong image)" if at_floor else
+            verdict = ("recovered (all N')" if at_floor and n_under == nrec and n_distinct == nrec else
+                       "mode collapse (returned set covers fewer truths)" if at_floor and n_distinct < nrec else
+                       f"partial ({n_under} of {nrec} under 1e-10)" if at_floor and n_under > 0 else
+                       "alias (residual zero, wrong images)" if at_floor else
                        "optimisation failure (residual not zero)")
             return dict(part="B", arm=tag, set=a.set, k=k, r=a.r, N=a.N, n_prime=Np, seed=a.seed, constrained=constrained,
                         fwd_check=fwd, res_at_truth=fwd, jac_sigma_min_truth=smin_truth, jac_sigma_max_truth=smax_truth,
