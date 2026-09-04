@@ -743,7 +743,15 @@ conditioning — while $k=16$ does not reach it even then ($1.6\times10^{-14}$
 at the cap), so the budget needed is climbing faster than linearly in $k$; so they are search failures at one budget and recoveries at
 another, as at $(14,21)$ synthetically; only $k=18$ is an alias. A trained
 encoder does not move the capacity line; it makes the line progressively
-harder to reach, three orders of magnitude by $k=17$. \emph{The picture is the chart's}, and on the converged cells the identity is
+harder to reach, three orders of magnitude by $k=17$. These are
+\emph{identifiability} cells and not attacks: like every capacity, alias and
+recipe cell in this section they are solved from the truth plus $10\%$ latent
+noise (\S\ref{sec:measured}, the convention above), so ``$k=10$ and $k=14$ go
+to the floor'' means the truth is an isolated zero a solver can reach when
+placed beside it. It is \textbf{not} release-only recovery, and none of these
+numbers should be read as MNIST reconstructed from the adapter alone. The
+cells in this study that do run from starts an attacker can build are the
+certificate cells, and they are marked as such wherever they appear. \emph{The picture is the chart's}, and on the converged cells the identity is
 exact. At $k=6$, $10$ and $14$ the coordinates are recovered to
 $10^{-13}$--$10^{-11}$, so the returned image is the chart point the adapter
 was trained on; its \emph{median} error against the real digits is then
