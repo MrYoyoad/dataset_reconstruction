@@ -3681,3 +3681,21 @@ is explained by the same rows: at r = 64 what changes with `k` is how many *marg
 threshold, so the count includes a tail the certificate cannot certify, while at r = 8 it does not. **Cells are
 comparable by their imprint spectrum, not by `N′`**, and the spectrum should be reported beside the count wherever
 cells are compared.
+
+**And the recount moves the lines, which changes which cells are in band (yoado-b9).** The lines are functions of
+`N′`, so certifying five rather than seven moves them from 57 … 66 to **59 … 68**. My reading of k = 68 — "the
+certificate is gone at 0.92, consistent with that cell being above the line" — **does not survive the recount**:
+at the certified count that cell is *inside*, at its last admissible `k`, and the 0.918 belongs to a marginal image
+of imprint 1.5e-11, the same diagnosis as the other three cells rather than a different one.
+
+**What is real at k = 68 appears only on the certified five.** Maximum certificate residual over the top five by
+imprint: **9.8e-11 (k = 62), 2.0e-10 (64), 6.4e-11 (66), 8.9e-8 (68)** — flat at ~1e-10 through the band and then a
+**~400× jump exactly at the last identifiable value**. That is the boundary showing itself on the images the
+certificate actually certifies, uncontaminated by the marginal tail, and it is far better evidence than the
+worst-case number was. It also gives the in-band cells a health check that does not depend on the marginal images
+at all. *(Verified independently: the imprint gap after the fifth image is 4.6 / 5.0 / 5.2 / 5.8 orders at
+k = 62 / 64 / 66 / 68, so the cut at five is unambiguous in every cell.)*
+
+Every row now carries **the raw rank, the certified count, and the lines derived from the second**, and `in_band` is
+computed from the certified count — the same off-by-one shape as the earlier control, where a cell's in/out status
+was only as good as the `N′` used to compute it.
