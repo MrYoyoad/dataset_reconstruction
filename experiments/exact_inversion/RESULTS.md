@@ -1986,7 +1986,20 @@ The sharper statement, from the twentieth image: what decides individual recover
 `k` (job 722950):* `rank B_T = 9` and `rank C = 55` at every `k ∈ {8, 12, 16, 20, 24, 32, 40}`, all twenty imprints
 present, certificate residual 0.3–0.5 throughout — the cap is `m − 1` exactly and independent of the chart.
 
-## Step 23 — HEADLINE: instance-identifying private images from random starts, no recipe, no labels (jobs 728592 and 721391)
+## Step 23 — the exact-arithmetic existence corner: instance-identifying private images from random starts, no recipe, no labels (jobs 728592 and 721391)
+
+> **This cell was titled HEADLINE and is not one — read it with its scope, which was measured after it was written.**
+> The confident batch's release at r = 64, k = 32 has **‖B_T‖ = 7.6e-18** with absolute imprints down to **2e-29**
+> (job 752500); the adapter never moves the logits there (feedback 4e-19, `A_T = A_0` to working precision), so this is
+> the closed-form one-step gradient, not a trajectory. The recoveries below are exact because the certificate is an
+> angle, and the imprint-sum mismatch at this cell is 6e-32 — fourteen orders below the release — so the release is
+> genuine signal, not roundoff. But every rank here is read at a *relative* tolerance off a numerically vanishing σ₁
+> (Step 18's own warning), and the cell is precision-fragile: **fp16 storage zeroes the whole file (0 of 8), bf16
+> storage finds 3, fp32/tf32 storage 5, and fp32 *training* of the same batch leaves 5 of 8** (Steps 24–25).
+> **The robust, lead result is the new class (Step 25): letters at r = 64, k = 32, trained in fp32 — all eight
+> recovered from random starts at the tight tolerance, imprints of order one, an adapter that moves the logits by
+> 43%.** STATUS.md leads with that cell; this one is the exact-arithmetic corner that says the channel is sharp when
+> the arithmetic is.
 
 Strong 98% MNIST model, LoRA `r = 64`, eight private test digits (`confident` batch — the ones the model was
 *most* sure about at `r = 16`; on-chart at `k = 32` all eight are recorded), chart = 32-component PCA of the public
@@ -2852,12 +2865,25 @@ residual below the truth's floor by the same 1.8× as at k = 16, raw error at th
 chart-conditioning amplification from k = 16 to 32 is **1.5×**, not the 6× read off the FP64-simulator alias
 (yoado-ed's 19% pre-registration is falsified toward the attacker; yoado-6e's refinement — the A₀-floor
 perturbation lives mostly in well-conditioned directions, expect a single-digit factor — is the one that held,
-and bf16 did not cross into alias). (ii) **fp16 at k = 32: 7.5%, worse than bf16** — but its endpoint residual
-(2.5e-3) sits *above* its floor (1.9e-3): the solver stalled (no accepted step from the FP64-surrogate Jacobian
-against the fp16 residual) before reaching the floor, so the 7.5% is a stalled endpoint, not the floor expressed in
-image space; the verdict form is "residual not at the floor" (optimisation), and the k = 16 mantissa ordering
-(bf16 3% > fp16 1%) is not contradicted by a stalled row — one cell, recorded as such, not as a reversal. (iii)
-fp32: 5.8e-6 median (20× its k = 16 value), the chart's amplification visible where the floor is tiny. (iv) The
+and bf16 did not cross into alias). (ii) **The ordering inverts between the charts and my first reading of it was wrong.** I wrote fp16's 7.5% off
+as a stall because its endpoint residual (2.5e-3) sits above its floor (1.9e-3) — but *every* low-precision row
+ends on `no_accept` with a flat trace (bf16 at k = 32 plateaus at 1.5358e-4 for its last three iterations, fp16 at
+6.2227e-6, fp32 at k = 16 at 1.1415e-14), so a plateau is the normal termination here and does not distinguish
+fp16. Withdrawn. What the rows say: **fp16 3.1× better than bf16 at k = 16 (0.97% vs 3.0%), bf16 1.6× better than
+fp16 at k = 32 (4.6% vs 7.5%)** — the ordering reverses with the chart. Two mechanisms are on the table and this
+cell does not separate them: *over-descent* (yoado-7e — fp16 reaches a 5× lower residual and a 3× better A₀
+reconstruction yet lands worse, having bought that decade by travelling the flat σ_min direction, so bf16's coarse
+floor acts as an implicit regulariser), and *flush-to-zero* (yoado-81 — fp16 flushes 28–35% of residual entries to
+exactly zero at these margins against bf16's 1–2%, the precision/range split again). Both are consistent with the
+logged fields; neither is tested. The k = 16 "error ≈ few × training-ε" observation is a *well-conditioned-chart*
+statement and does not survive to k = 32. (iii)
+fp32: 5.8e-6 median (20× its k = 16 value), the chart's amplification visible where the floor is tiny. (iv) **The reported rank of a half-precision release exceeds the m − 1 cap and must not be used** (found by
+yoado-81, verified in my own rows): the letter cells have m = 11, so the softmax simplex caps N′ at 10, and FP64
+gives rank 8 — but the bf16 and fp16 releases report **rank 11** at every tolerance and every k (fp32 reports 10 at
+1e-10, 11 at 1e-12). That is impossible under exact softmax: unit roundoff zeroes the own-class entry of the
+residual while the off-class entries survive, so the residual columns no longer sum to zero and B_T acquires the
+component the cap forbids. Every N′ and every certificate line read off a low-precision release is inflated by it —
+a second reason, beside the moved directions, that the certificate route misreads such releases. (v) The
 two-dimensional statement that survives: *fidelity from a half-precision-trained adapter ≈ the A₀ floor set by
 the training ε, amplified by the chart mildly (1.5× for bf16 from k = 16 to 32)*; the attacker's best k is bounded
 by conditioning as well as by the line, but on this cell k = 32 is still inside the recoverable range for every
