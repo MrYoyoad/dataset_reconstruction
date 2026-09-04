@@ -161,7 +161,8 @@ def main():
             return ((C @ F) / torch.linalg.norm(A_T @ F, dim=0)).reshape(-1)   # constrained replay is confined to
 
         rec_t = torch.tensor(rec, device=dev); nrec = len(rec)           # JOINT subset solve over the recorded set
-        nW = k * nrec
+        kept, nkept = rec, nrec                                          # narrowed to the COVERED subset below if the
+        nW = k * nrec                                                    # certificate did not cover the whole set
 
         def replay_res(v):                                              # v = [W (k x nrec), X (r x nrec)]
             Wc = v[:nW].reshape(k, nrec); Xc = v[nW:].reshape(a.r, nrec)
@@ -389,12 +390,34 @@ def main():
                   git=git_hash()))
         print(f"  [k={k}] certificate covers {n_cov}/{nrec} recorded images; joint starts assemblable: "
               f"{min((len(v) for v in by_image.values()), default=0) if n_cov == nrec else 0}", flush=True)
+        # (GM/Yoad) coverage is a SAMPLING COST, not a structural blocker. N' is read off the release as rank(B_T)
+        # -- a MILD assumption, not an oracle (unlike a near-truth start) -- so knowing it gives the stopping rule
+        # "draw starts until N' distinct landings", and landings are deduplicated by comparing recovered images,
+        # which the attacker can do unaided. An incomplete cover is reported as a cost curve and the chain still runs
+        # on the images actually covered, at N'_kept = the covered count with the step rescaled accordingly.
         if n_cov < nrec:
-            print(f"  [k={k}] INCOMPLETE COVER -- no joint start can be assembled; chain not testable at this cell", flush=True)
-            continue
-        for j in range(min(a.n_landings, min(len(v) for v in by_image.values()))):
-            W0j = torch.stack([by_image[i][j][0].reshape(-1) for i in rec], dim=1)   # (k, nrec) one landing per image
-            landings.append((W0j, max(by_image[i][j][1] for i in rec), max(by_image[i][j][2] for i in rec), None))
+            print(f"  [k={k}] cover not achieved in {a.cert_starts} starts: {n_cov} of {nrec} distinct images "
+                  f"-- running the chain on the covered subset (N'_kept = {n_cov})", flush=True)
+        kept = covered if n_cov < nrec else rec
+        nkept = len(kept)
+        if nkept != nrec:
+            # narrow the solve to the covered subset: the residual, the constraint and BOTH gates must be those of
+            # the subset actually solved, not of the full recorded set (the step rescales as lr * N'_kept / N).
+            rec, nrec, rec_t, nW = kept, nkept, torch.tensor(kept, device=dev), k * nkept
+            w_true = W_all[:, rec_t]; H_t = bb.phi(chart.psi(w_true)); U_t, _ = qr_canon(H_t)
+            v_true = torch.cat([w_true.reshape(-1), (A0 @ U_t).reshape(-1)])
+            with torch.no_grad(): fwd = float(torch.linalg.norm(replay_res(v_true)))
+            sv2 = torch.linalg.svdvals(tf.jacfwd(replay_res)(v_true).detach())
+            smin_truth, smax_truth = float(sv2[-1]), float(sv2[0])
+            emit(dict(part="SGATE", set=a.set, k=k, r=a.r, n_prime=Np, n_recorded=nkept, subset_of=len(covered),
+                      note="re-gated on the COVERED subset", fwd_check=fwd, jac_sigma_min_truth=smin_truth,
+                      jac_sigma_max_truth=smax_truth, passed=bool(smin_truth > 1e-12), git=git_hash()))
+            print(f"  [k={k}] re-gated on the covered subset: fwd {fwd:.2e}, sigma_min {smin_truth:.3e}", flush=True)
+            if smin_truth <= 1e-12:
+                print(f"  [k={k}] covered subset unidentifiable -- skipping", flush=True); continue
+        for j in range(min(a.n_landings, min(len(by_image[i]) for i in kept))):
+            W0j = torch.stack([by_image[i][j][0].reshape(-1) for i in kept], dim=1)
+            landings.append((W0j, max(by_image[i][j][1] for i in kept), max(by_image[i][j][2] for i in kept), None))
         print(f"  [k={k}] certificate: {n_land}/{a.cert_starts} landings ({time.time()-t0:.0f}s), assembled {len(landings)} joint starts", flush=True)
         if n_land == 0:
             print(f"  [k={k}] NO LANDINGS -- outcome (4): the chain test did not run here; not a replay failure", flush=True)
