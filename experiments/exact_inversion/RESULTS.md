@@ -2792,3 +2792,48 @@ directions). Held loosely: fp16/fp32 still recover at k = 32 (~5% / ~1e-6); bf16
 landing at 10–20% and possibly crossing from recovery into alias — which would not contradict the k = 16 law but
 refine it to two dimensions, *fidelity ≈ (training-ε floor) × (chart-conditioning amplification)*. Read off the same
 key: image-error magnitude and uniformity across letters, with the A₀ reconstruction.
+
+**READ (job 782682, the four k = 32 matched rows; scored by yoado-b9 against the pre-registration above).**
+Measured on the same key as the k = 16 column, `err_vs_chart_median`: fp64 **1.54e-14** · fp32 **5.81e-6** ·
+fp16 **7.47%** · bf16 **4.56%**.
+
+| | pre-registered | measured | verdict |
+|---|---|---|---|
+| fp16 | ~6% (yoado-ed) / ~5% (yoado-6e) | **7.47%** | hit, within 1.5× |
+| bf16 | ~19% (yoado-ed) / 10–20% (yoado-6e) | **4.56%** | **miss, 2.2–4.2× low** |
+| fp32 | ~1e-6 (yoado-6e) | 5.81e-6 | same order |
+
+(i) **The split fires the pre-registration's own escape clause.** bf16 came in *much better* than predicted,
+and the registered rule for that branch was "something protects the matched solver from its own floor and must
+be understood before it is celebrated". Scored as a miss, not averaged with the fp16 hit.
+
+(ii) **The ordering reverses between the two charts, which neither prediction anticipated.** At k = 16 bf16
+(3.02%) was 3.1× worse than fp16 (0.97%); at k = 32 fp16 (7.47%) is 1.6× worse than bf16 (4.56%).
+
+(iii) **"The cost is set by the chart's conditioning" is falsified as stated,** because a conditioning-only
+mechanism predicts one amplification factor for every format. Measured k = 16 → k = 32: **fp32 19.3× · fp16
+7.7× · bf16 1.5×** — a thirteenfold spread in a quantity the mechanism calls a property of the chart. Measured
+above each format's own A₀ floor it is worse: fp16 4.7× → 39.8× against bf16 1.3× → 2.0×.
+
+(iv) **Half the mechanism survives cleanly.** `B_T_rel_dev_from_fp64` is k-independent (fp16 0.0258 → 0.0273,
+bf16 0.1218 → 0.1146) and so are the A₀ floors (fp16 2.05e-3 → 1.88e-3, bf16 2.31e-2 → 2.27e-2). The mismatch
+size is genuinely not what changed; the chart does set the cost. It is simply not a scalar amplification and
+not the same for every format.
+
+(v) **What the rows point at is the precision/range split, arriving in the matched route.**
+`residual_entries_exactly_zero_frac`: fp16 0.281 → **0.354**, bf16 0.021 → **0.011**. At k = 32 fp16 flushes a
+third of the residual entries to zero while bf16 — carrying fp32's exponent range — flushes one percent. fp16's
+extra amplification tracks a *range* failure that grows with k, not a precision one, and bf16's mildness is that
+effect absent. Same reversal as the certificate route's storage ordering, now in the matched route, and it is
+the standing candidate for what "protects the matched solver from its own floor". Already logged; needs no run.
+
+(vi) **Caveat limiting all eight numbers.** `stopped` is `converged` only for the two fp64 rows; fp32, fp16 and
+bf16 all read `no_accept` at both k — the solver stalled. Every low-precision figure is where LM gave up, so
+comparing formats partly compares stall points. bf16's objective trace is flat at 1.5358e-4 for its last three
+iterations, so that one is a genuine stall rather than a budget cut — but "stalled at a good place" and
+"converged to a good place" support different claims about what an attacker gets, and the bf16 result is a claim
+that it did *better* than expected.
+
+**Net:** the k = 32 column confirms that a richer chart costs the matched attacker something real (both half
+formats degrade, 4.6% and 7.5% against 1.0% and 3.0%), refutes the specific claim that conditioning alone sets
+the cost, and exposes a format-dependent second axis — underflow — whose direction reverses the ordering.
