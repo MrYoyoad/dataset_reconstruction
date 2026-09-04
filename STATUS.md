@@ -20,11 +20,14 @@ Jacobian rank at the true image, no solve and no start — so none of it is an a
    conditions, condition number 1.7 → 5.9 → 51. So the earlier "layers are additive in rank" is **scoped, not
    withdrawn**: it is a low-drift statement, not an architectural one, and the deep certificate survives exactly
    when the adapter rank exceeds the accumulated drift span.
-3. **Convolutions carry nothing at all.** On a 98.63% conv net, `r ∈ {8 … 512}`, the verdict is CONV-VACUOUS at
-   every rank, by two independent routes. Eight images supply 1568 patch vectors into conv layer 1's
-   9-dimensional input, so its recorded span fills the layer before any adapter is trained. Where margins do
-   appear (`r ≥ 128`, and only because `rank B_T` is capped by the output width), the certificate residual at the
-   truth is 6e-2 to 7e-1 — the condition does not hold. **The recipe-free channel is a dense-layer phenomenon.**
+3. **Early convolutional layers carry nothing — and that scope matters, because it inverts at depth.** On a
+   98.63% conv net, `r ∈ {8 … 512}`, the verdict is CONV-VACUOUS at every rank by two independent routes. Eight
+   images supply 1568 patch vectors into conv layer 1's 9-dimensional input, so its recorded span fills the layer
+   before any adapter is trained. **But saturation is a computable condition, `N × positions ≥ C_in·k²`, not an
+   architectural fact** (audit 02b93e8): it holds in early layers and fails in deep ones, where the certificate is
+   predicted to survive. On ResNet-50 at `N = 8` the first two stages are full and the last two are partial. The
+   claim is therefore scoped to early-channel layers, and the deep-regime run with drift switched off by freezing
+   everything upstream is job 205887.
 
 **What this leaves.** The first adapted layer is the only one whose recorded count is the image count, its
 certificate holds to ~1e-14 at every training length, and its conditions land on raw pixels with no chart. So the

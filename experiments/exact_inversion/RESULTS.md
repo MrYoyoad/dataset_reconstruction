@@ -4019,10 +4019,28 @@ width** 64, so a wide adapter always leaves room the data never touched, and the
 truth is **6e-2 to 7e-1**. The condition does not hold. The head has the usual `N′ ≤ m − 1 = 9` cap and a margin up
 to 503, and its residual runs 8e-4 to 9e-1 because the convs beneath it were adapted and its input drifted.
 
-**Verdict CONV-VACUOUS at every rank tried, by two independent routes: no margin where the certificate is exact,
-and no certificate where the margin exists.** The recipe-free channel is a dense-layer phenomenon. On a
-downsampling convolutional path there is nothing to have. Weight sharing is not a detail here — it is the thing
-that kills it, because sharing multiplies what each image records without changing what it can constrain.
+**Verdict CONV-VACUOUS at every rank tried on THIS cell, by two independent routes: no margin where the
+certificate is exact, and no certificate where the margin exists.**
+
+**SCOPE CORRECTION (audit 02b93e8, yoado-cd relaying yoado-81), applied before any of this is written up
+anywhere.** "Convolutions carry nothing" is over-general and it inverts. Saturation is a **computable condition**,
+not an architectural fact: the recorded patch span can only fill the layer where
+
+    N × positions  ≥  C_in · k²
+
+which is true in **early** conv layers (many positions, few channels) and false in **deep** ones. On ResNet-50
+3×3 at `N = 8`: layer1 (2304-dim input against 25088 patch vectors) and layer2 (4608 against 6272) are full and
+vacuous, while **layer3 (9216 against 1568) and layer4 (18432 against 392) are partial, and the certificate is
+predicted to survive there.** The crossover moves with `N`. Stated unqualified beside an architecture cap table,
+the claim would tell a practitioner that adapting deep convolutions is safe, which is the opposite of the truth.
+
+Note also that this cell's own layer 3 (`d = 576`, `N·P = 128`) was already in the partial regime and still
+failed — but for the *other* reason, drift, since every layer was adapted and its input moved. **The two
+mechanisms were conflated here and are now separated by construction** (job 205887): solo arms adapt one layer
+with everything else frozen, so the adapted layer's input cannot move, on a deep-channel spec with
+`d = 9, 576, 1152, 2304` against `N·P = 1568, 392, 128, 32`. Pre-registered there: layers 3 and 4 non-vacuous
+with the condition holding to ~1e-15; layer 1 vacuous at every rank. Until those rows land, the conv statement in
+this ledger is scoped to **early-channel layers with every layer adapted**, and goes no further.
 
 ## RESULT — the constraint count on raw pixels is set by the ADAPTER RANK, and it runs to the ceiling (job 202172)
 
