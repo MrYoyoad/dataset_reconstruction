@@ -12,7 +12,15 @@
 # Reporting: per-cell verdicts and the attributive contrast are DIFFERENT CLAIMS ON DIFFERENT EVIDENCE and get two
 # rows -- the contrast does not inherit the per-cell bar, and the three onsets are named either way.
 # hard1_diff is a certified N' = 1 cell, so anything scored on it is NEGATIVE-SIDE ONLY: the algebraic identity
-# makes the member residual zero whatever the release contains.
+# makes the member residual zero whatever the release contains. It is also the CLEANEST per-cell version of the
+# in-band question, because every multi-image confound the pre-audit named -- which landing picks which image,
+# coverage of the recorded set, one-to-one matching, imprint alignment -- vanishes at one recorded image. The
+# three-batch sweep and that cleanliness are compatible: the sweep carries the ATTRIBUTION and hard1_diff carries
+# the cleanest PER-CELL verdict, so both are run rather than one chosen.
+# PROVENANCE, required on every row from this cell: FOUND, NOT CONSTRUCTED. A natural batch at r = 64 happened to
+# record a single image and we used it. The earlier conclusion that such a cell could not be CONSTRUCTED at rank 8
+# stands and is unaffected; a write-up saying "we obtained the one-image in-band cell" would imply a capability
+# the record does not support.
 # STILL OUTSTANDING before this runs: 7e's exact form for the matched scramble arm, and the achievability-floor
 # companion solve (a from-truth start under the same solver and budget), which this harness does not yet have.
 # =====================================================================

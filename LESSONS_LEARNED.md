@@ -2862,3 +2862,22 @@ a metric whose threshold was unreachable by construction (every cell failed, inc
 **The fix, which is one line per cell:** **log the realised pool size beside the requested one on every row.** A
 silent cap then shows up in the row rather than in a rerun three hours later. Any loader with an internal limit
 should either raise when it truncates or return the count it actually loaded.
+
+## 2026-09-05 — a claim carries the parameter range actually measured, INSIDE the claim
+
+**Second instance this week.** The record said *"the one-image regime and the band are mutually exclusive at a
+deployable rank"*. It was true, it was measured, and it generalised **one word too far**: the evidence was from
+rank 8, and *"at a deployable rank"* was doing work that only *"at rank 8"* could support. A probe at rank 64 then
+found a certified one-image cell sitting inside the band, and the meeting document was carrying the unscoped form.
+
+**The earlier instance was the word "recognisable"**, withdrawn for the same reason — a qualifier that sounded like
+a measurement and was not one.
+
+**The rule:** *state the parameter range inside the claim, not around it.* Not "at a deployable rank" but "at rank
+8, the only rank tested". Not "on natural images" but "on the 8 MNIST digits measured". The cost is a few words;
+the benefit is that the claim fails honestly when someone tests outside the range instead of being quietly wrong.
+
+**A corollary that came with it:** when a cell arrives by luck, say so **on the row**. The one-image in-band cell
+was **found, not constructed** — a by-product of a probe run for an unrelated purpose — and the earlier finding
+that it could not be *constructed* at rank 8 is untouched by having *found* one at rank 64. Writing "we obtained
+the cell" would imply a capability the record does not support.
