@@ -4937,3 +4937,34 @@ why those cells are arithmetic rather than experiment and are not being run.
    carries the claim that *the release* contributed, and there is no dose axis to corroborate it. The row leads
    with `score(full)` against `score(constraints-only)`, reporting both the difference and the **ratio**, since the
    success bar is stated as a ratio and a fixed difference means different things at different baseline levels.
+
+## The DOSE, published before any attack (job 299928) — and it does not clear the scoreability bar
+
+Best `s`-term approximation error at `s = 50`, computed on **public splits only**, so nothing here can be tuned on
+an outcome. Primary axis is the **basis at fixed data** (yoado-cd's decision, from yoado-b9's confound): changing
+the *dataset* changes how the base model classifies it, hence the margins, hence the imprints, hence whether the
+certificate records anything at all — so a non-sparse dataset failing could be a recording difference wearing
+compressibility's clothes. The dataset arm is kept and **labelled confounded**.
+
+| dataset | pixel | DCT | public PCA dictionary |
+|---|---|---|---|
+| MNIST | 0.648 | 0.395 | 0.311 |
+| EMNIST letters | 0.737 | 0.304 | 0.256 |
+| FashionMNIST | 0.861 | 0.232 | 0.284 |
+| CIFAR grey | 0.914 | **0.127** | 0.289 |
+
+**The span across all twelve cells is ×7.2, and yoado-b9's pre-registered bar is one order of magnitude. So the
+dose-response is NOT SCOREABLE at this `s`, determined before the attack rather than after it.** Only per-cell
+verdicts would stand.
+
+**The `s` at which the dose is quoted is a free parameter and the span depends on it, so I am not choosing it.**
+Picking the `s` that clears the bar is exactly the gaming the bar exists to prevent. Job 299928's sweep publishes
+the span as a function of `s` (10 … 300) so the choice can be fixed by a stated rule, by the audit lane, with the
+whole curve visible. **The PCA dictionary is fitted on public data only** — fitted on the private images it is an
+oracle and the easiest possible way to fake this result — and each basis's **recovery conditioning will be
+reported beside its `s`**, so "recovery tracks sparsity" can be distinguished from "recovery tracks how
+well-conditioned that basis makes the solve".
+
+Note also, per yoado-cd: the required-rank table (MNIST ≈ 256, CIFAR ≈ 1100, 224² ≈ 54,000) is **arithmetic from
+published sparsity estimates, not an experimental claim**, so it needs no cells and nothing in this run is to be
+presented as testing it.
