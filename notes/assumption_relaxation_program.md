@@ -1086,3 +1086,36 @@ It consumes a single token per image (CLS), so its recorded count is `N`, not `1
 of this project's MLP experiments live in, and where the head-width cap `N′ ≤ m−1` applies. If that holds, the honest
 surviving surface is **head adaptation on a transformer** (plus dense MLPs and deep convs), while **LoRA on attention —
 the dominant deployment pattern — is out of reach for this channel.**
+
+## 22. The rule in final form — and the surviving surface is head adaptation
+
+**22a. The head survives, confirmed exactly.** Span = **batch size**, exactly, on both transformers and both ResNets,
+against input dimensions 512–2048. Margin 8 at `r = 16`, 56 at `r = 64`. **So head adaptation sits in exactly the
+regime all this project's MLP work covers, and every result transfers to it.**
+
+**22b. THE RULE, final form — and it needs no measurement.** A margin needs `r > span`; `span ≥ min(batch × positions,
+input dim)`; every weight-shared module in these four real pretrained models has **≥ 49 positions**; deployed ranks
+stop at 64. Therefore:
+
+> **At deployed rank the recipe-free channel exists only where positions per image = 1.**
+
+Checkable from an architecture diagram, with no release, no training and no measurement. Confirmed across four real
+pretrained models: every weight-shared module has margin zero at every deployed rank.
+
+**22c. Two corrections to earlier wording, both of which had been ASSERTED rather than measured (41's own catch, and
+one of them corrects my §21 framing too).**
+- **Early convolutions do not always saturate.** ResNet-18's first conv is *deficient* — span 477 of 576 — despite
+  25,000 recorded vectors.
+- **Deficiency is not margin.** ResNet-18's stage 4 is deficient by ~1900 and still has **margin zero**, because its
+  span (392) exceeds any deployed rank.
+- **THE BINDING COMPARISON IS SPAN AGAINST RANK, NEVER SPAN AGAINST INPUT DIMENSION.** My §21 "saturates the input"
+  framing reached the right verdict by the wrong route: early convs fail because `span > r`, and the saturation is
+  incidental.
+
+**22d. The graded-certificate attempt is IN LIMBO, not a result either way.** Since the certificate is a null-space
+test and a saturated release has no null space, 41 tried its graded continuation (singular-value-weighted share of a
+candidate's energy in adapter space, reducing exactly to the certificate when unsaturated). It carries real signal
+(AUC 0.61–0.97) but loses in every cell to a plain loss threshold, which scored a perfect 1.0 — a negative by the
+pre-registered control. **However the control has a ceiling effect**: a baseline at 1.0 cannot be beaten, only tied or
+lost to, and the release had memorised 8 images to loss 4e-3. Being redone on *fine-tuned* rather than memorised
+releases, larger private sets, fewer steps. **Not reportable as success or failure until that lands.**
