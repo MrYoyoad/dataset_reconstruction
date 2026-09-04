@@ -44,6 +44,10 @@ def main():
     ap.add_argument("--n-fit", type=int, default=50000)
     ap.add_argument("--data-root", default="dataset_reconstruction/data")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--pixel-rank", action="store_true", help="the KEY measurement: rank of the stacked per-layer "
+                    "certificate Jacobian with respect to PIXELS rather than chart coordinates -- chart-space rank "
+                    "saturates at k by construction (I chose k), so it cannot argue about leakage; pixel-space rank "
+                    "is a property of the release and the network alone, with the pixel count as its ceiling")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(); dev = torch.device(a.device)
     Xtr, _ = read_idx(a.data_root, "train"); Xte, yte = read_idx(a.data_root, "test")
@@ -115,6 +119,37 @@ def main():
                   start_model="n/a (Jacobian at the truth, no solve)", claim_class="algebraic check", git=git_hash()))
         print(f"  RANK over layers {[l+1 for l in layers]}: {rk_med} independent conditions "
               f"(sum of margins {budget_L}, ceiling k={a.k})", flush=True)
+
+    # ---- THE KEY MEASUREMENT: how many independent constraints does the release place on the RAW IMAGE?
+    if a.pixel_rank:
+        npix = X_on.shape[0]
+        for L in range(1, len(usable) + 1):
+            layers = usable[:L]
+            def g_pix(x):                                              # pixels -> stacked per-layer certificate maps
+                hs = inputs_of(x.reshape(npix, 1))
+                return torch.cat([(Cs[l] @ hs[l]).reshape(-1) / torch.linalg.norm(As[l] @ hs[l]) for l in layers])
+            out = []
+            for i in range(a.N):
+                J = tf.jacfwd(g_pix)(X_on[:, i].contiguous()).detach()  # (conditions x 784)
+                sv = torch.linalg.svdvals(J)
+                for rtol, lab in ((1e-10, "1e-10"), (1e-8, "1e-8"), (1e-6, "1e-6")):
+                    pass
+                rk = {lab: int((sv > tol * sv[0]).sum()) if float(sv[0]) > 0 else 0
+                      for tol, lab in ((1e-10, "1e-10"), (1e-8, "1e-8"), (1e-6, "1e-6"))}
+                out.append(dict(image=i, rank_by_tol=rk, n_rows=int(J.shape[0]),
+                                sigma_rel=[float(v / sv[0]) for v in sv[:min(24, len(sv))]] if float(sv[0]) > 0 else []))
+            med = {lab: sorted(o["rank_by_tol"][lab] for o in out)[len(out) // 2] for lab in ("1e-10", "1e-8", "1e-6")}
+            budget_L = sum(margins[l] for l in layers)
+            emit(dict(part="PIXELRANK", layers_in_objective=[l + 1 for l in layers], n_layers=L,
+                      independent_conditions_on_pixels_median=med, n_conditions_supplied=budget_L,
+                      pixel_count=npix, fraction_of_pixels=med["1e-10"] / npix, per_image=out,
+                      r=a.r, N=a.N, k=a.k, chart_dim_for_comparison=a.k,
+                      note="ceiling is the PIXEL COUNT; chart-space rank saturates at k by construction and cannot "
+                           "argue about leakage, since k is the attacker's choice",
+                      start_model="n/a (Jacobian at the truth, no solve)", claim_class="algebraic check", git=git_hash()))
+            print(f"  PIXEL RANK over layers {[l+1 for l in layers]}: {med['1e-10']} independent conditions on "
+                  f"{npix} pixels ({100*med['1e-10']/npix:.1f}%), conditions supplied {budget_L}, "
+                  f"ranks at looser tolerances {med['1e-8']}/{med['1e-6']}", flush=True)
 
     # ---- recovery with the objective built from the first `L` usable layers, L = 1, 2, ...
     for L in range(1, len(usable) + 1):
