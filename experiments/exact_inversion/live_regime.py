@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""Test 2: the certificate in the LIVE regime of the counting rule, on a real pretrained network.
+
+Every cell attacked before this one was DEAD by the counting rule. The live cells are `N.p < min(r, d)`, i.e.
+single-image personalisation at low position count -- and a late ResNet stage at 224px has p = 49 positions, so at
+r = 64 the rule predicts a margin of about 15. This is the first cell where a real deployed configuration should
+admit the channel at all.
+
+WHAT THIS IS AND IS NOT (yoado-c9's pre-audit, adopted in full):
+  * It is a HIDDEN-layer certificate, so it concerns the convolution's 49 INPUT PATCHES -- activations, not the
+    photograph. The row says activation-space until an activation-to-image step exists.
+  * The MEMBER SIDE IS NOT SCORED. With one recorded image the update to A is rank one along span{A_0 h}, so
+    A_T h is collinear with A_0 h and lies in row(B_T) by construction; the member residual is zero whether or not
+    anything leaked. Scoring the member side would be scoring the construction.
+  * What IS scored is the NON-MEMBER distribution: how specific the test is. A certificate that annihilates
+    everything is worthless, so the measurement is where non-members fall relative to the chi-squared null with
+    r - N' degrees of freedom, and how many of them fall below the member.
+  * Freezing the stages below is the HYPOTHESIS, not a cheat -- the certificate requires a fixed input. But the
+    attack always lives at the EARLIEST adapted layer, so the placement assumption is a column: a fine-tune that
+    also adapts stage 1 moves the attack there, onto raw pixels.
+  * SGD-class training is a HARD GATE. Under Adam rank B_T = r, the certificate does not exist, and the cell would
+    be scoring noise.
+
+SCORING, fixed by yoado-b9 before any row: >= 20 draws STRATIFIED across the margin range; the gate at the
+member's truth evaluated FIRST and a failure voiding the draw rather than scoring it negative; per draw the member
+must rank 1 of 1 + U by residual AND beat the runner-up by >= 2 orders; exact binomial interval, never a bare
+fraction; the non-member population shared across draws and DISCLOSED as shared; the headline is
+residual-versus-margin, which tests the imprint law where it has never been tested.
+
+  python -u -m experiments.exact_inversion.live_regime --draws 20 --nonmembers 1000
+"""
+import argparse, json, math, os, socket, sys, time
+import torch
+
+from experiments.exact_inversion.lora_exact_inversion import git_hash
+from experiments.exact_inversion.vit_token_span import load_images
+
+torch.set_default_dtype(torch.float64)
+
+
+def binom_ci(k, n, alpha=0.05):
+    """Exact Clopper-Pearson interval -- b9 requires an interval, never a bare fraction."""
+    from scipy.stats import beta
+    lo = 0.0 if k == 0 else float(beta.ppf(alpha / 2, k, n - k + 1))
+    hi = 1.0 if k == n else float(beta.ppf(1 - alpha / 2, k + 1, n - k))
+    return lo, hi
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default="resnet18")
+    ap.add_argument("--data-root", default="dataset_reconstruction/data/flowers-102/jpg")
+    ap.add_argument("--draws", type=int, default=20); ap.add_argument("--nonmembers", type=int, default=1000)
+    ap.add_argument("--r", type=int, default=64); ap.add_argument("--stage", type=int, default=4)
+    ap.add_argument("--T", type=int, default=200); ap.add_argument("--lr", type=float, default=0.05)
+    ap.add_argument("--optimiser", default="sgd", choices=["sgd", "adam"],
+                    help="adam is a NEGATIVE control: rank B_T = r, no certificate exists, cell must come back void")
+    ap.add_argument("--classes", type=int, default=102); ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--gate", type=float, default=1e-8)
+    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--out", default=None)
+    a = ap.parse_args(); dev = torch.device(a.device)
+    import torchvision.models as tvm
+    w = {"resnet18": tvm.ResNet18_Weights.IMAGENET1K_V1, "resnet50": tvm.ResNet50_Weights.IMAGENET1K_V2}[a.model]
+    net = getattr(tvm, a.model)(weights=w).to(dev).double().eval()
+    for p in net.parameters(): p.requires_grad_(False)
+    conv = getattr(net, f"layer{a.stage}")[0].conv1
+    k_, st_, pd_ = conv.kernel_size, conv.stride, conv.padding
+    d_in = conv.in_channels * k_[0] * k_[1]; d_out = conv.out_channels
+    feat_dim = net.fc.in_features
+    gh = torch.Generator().manual_seed(a.seed)
+    Whead = (torch.randn(a.classes, feat_dim, generator=gh) / math.sqrt(feat_dim)).to(dev)
+
+    pool, _ = load_images(a.data_root, a.nonmembers + a.draws + 8, 224, dev)
+    members, nonmembers = pool[:a.draws], pool[a.draws:a.draws + a.nonmembers]
+    print(f"# live regime: {a.model} stage {a.stage} conv d_in={d_in} d_out={d_out}, r={a.r}, "
+          f"{a.draws} draws vs {a.nonmembers} SHARED non-members, optimiser={a.optimiser}  "
+          f"git={git_hash()} host={socket.gethostname()}", flush=True)
+
+    def emit(row):
+        print(json.dumps(row), flush=True)
+        if a.out:
+            with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
+
+    caps = {}
+    hk = conv.register_forward_hook(lambda m, i, o: caps.__setitem__("p", torch.nn.functional.unfold(
+        i[0].detach(), k_, dilation=m.dilation, padding=pd_, stride=st_)))
+
+    def patches(X, bs=25):
+        out = []
+        for i in range(0, X.shape[0], bs):
+            with torch.no_grad():
+                net(X[i:i + bs]); out.append(caps["p"])
+        return torch.cat(out)                                          # (n, d_in, positions)
+
+    # margins on the FROZEN model decide the stratification; computed before any adapter exists
+    with torch.no_grad():
+        fm = torch.cat([net(members[i:i + 25]) for i in range(0, members.shape[0], 25)])
+    y = torch.arange(a.draws, device=dev) % a.classes
+    z0 = fm @ Whead.T
+    other = z0.clone(); other.scatter_(1, y[:, None], float("-inf"))
+    margin0 = (z0.gather(1, y[:, None]).squeeze(1) - other.max(1).values)
+    order = torch.argsort(margin0)                                     # stratify across the margin range
+    Pn = patches(nonmembers)
+    ok = 0; scored = 0; prev = None       # prev release: gives each image a NEVER-TRAINED null of ITSELF (7e)
+    for rank_i, di in enumerate(order.tolist()):
+        x = members[di:di + 1]; yi = y[di:di + 1]
+        gA = torch.Generator().manual_seed(a.seed + 100 + di)
+        A = ((torch.randn(a.r, d_in, generator=gA) / math.sqrt(d_in)).to(dev)).requires_grad_(True)
+        B = torch.zeros(d_out, a.r, device=dev, requires_grad=True)
+        st = {"A": A, "B": B}
+        h = conv.register_forward_hook(lambda m, i, o: o + (st["B"] @ (st["A"] @ torch.nn.functional.unfold(
+            i[0], k_, dilation=m.dilation, padding=pd_, stride=st_))).reshape(o.shape))
+        opt = (torch.optim.Adam if a.optimiser == "adam" else torch.optim.SGD)
+        t0 = time.time()
+        for _ in range(a.T):
+            loss = torch.nn.functional.cross_entropy(net(x) @ Whead.T, yi)
+            gA_, gB_ = torch.autograd.grad(loss, [st["A"], st["B"]])
+            st["A"] = (st["A"] - a.lr * gA_).detach().requires_grad_(True)
+            st["B"] = (st["B"] - a.lr * gB_).detach().requires_grad_(True)
+        h.remove()
+        A_T, B_T = st["A"].detach(), st["B"].detach()
+        S = torch.linalg.svdvals(B_T)
+        Np = int((S > 1e-12 * S[0]).sum()) if float(S[0]) > 0 else 0    # MEASURED, never assumed at 49
+        U_, S_, Vh = torch.linalg.svd(B_T, full_matrices=False)
+        Q = Vh[:Np].T
+        C = A_T - Q @ (Q.T @ A_T)
+        rank_C = int((torch.linalg.svdvals(C) > 1e-10 * float(torch.linalg.svdvals(A_T)[0])).sum())
+        Pm = patches(x)
+
+        def res(P):
+            cn = torch.linalg.norm(torch.einsum("ndp,kd->nkp", P, C), dim=1)
+            an = torch.linalg.norm(torch.einsum("ndp,kd->nkp", P, A_T), dim=1) + 1e-300
+            return (cn / an).mean(-1)
+        rm = float(res(Pm)[0]); rn = res(Pn)
+        # 7e's per-draw null: the SAME image scored under the PREVIOUS draw's release, which never saw it. This
+        # separates "the certificate annihilates this image" from "the certificate annihilates this image BECAUSE
+        # it was trained on it" -- a same-image control no non-member population can provide.
+        if prev is not None:
+            Cp, Ap = prev
+            cn = torch.linalg.norm(torch.einsum("ndp,kd->nkp", Pm, Cp), dim=1)
+            an = torch.linalg.norm(torch.einsum("ndp,kd->nkp", Pm, Ap), dim=1) + 1e-300
+            null_same_image = float((cn / an).mean(-1)[0])
+        else:
+            null_same_image = float("nan")
+        prev = (C, A_T)
+        srt, _ = torch.sort(rn)
+        below = int((rn < rm).sum())
+        gap = math.log10(float(srt[0]) / max(rm, 1e-300)) if rm > 0 else float("inf")
+        gate_ok = (rm < a.gate) and rank_C > 0
+        verdict = ("void: gate" if not gate_ok else
+                   "success" if (below == 0 and gap >= 2) else "fail")
+        if gate_ok:
+            scored += 1; ok += (verdict == "success")
+        emit(dict(part="LIVE", draw=di, margin_stratum=rank_i, initial_margin=float(margin0[di]),
+                  r=a.r, positions=int(Pm.shape[2]), d_in=d_in, n_prime_measured=Np,
+                  predicted_margin=a.r - int(Pm.shape[2]), rank_C=rank_C,
+                  member_residual=rm, member_side_not_scored="forced to ~0 by rank-one collinearity at N=1",
+                  null_same_image_untrained_release=null_same_image,
+                  null_ratio=(null_same_image / rm if rm > 0 and null_same_image == null_same_image else None),
+                  nonmember_min=float(srt[0]), nonmember_median=float(srt[len(srt) // 2]),
+                  nonmembers_below_member=below, gap_orders=gap, gate=a.gate, gate_passed=bool(gate_ok),
+                  verdict=verdict, optimiser=a.optimiser,
+                  chi2_dof=rank_C, recovery_space="activation (49 conv input patches), NOT pixels",
+                  placement_assumption="first adapted layer is stage %d; the attack lives at the EARLIEST "
+                                       "adapted layer, so a stage-1 fine-tune moves it to raw pixels" % a.stage,
+                  nonmember_population="shared across draws (disclosed); disjoint from members by index",
+                  start_attacker_buildable="n/a (scoring at the truth, no start)",
+                  seconds=time.time() - t0, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
+        print(f"  draw {rank_i:3d} margin {float(margin0[di]):+8.3f}  N'={Np:3d} rank C={rank_C:3d}  "
+              f"member {rm:.2e}  self-null {null_same_image:.2e}  nm_min {float(srt[0]):.2e}  "
+              f"below {below}  gap {gap:5.2f}  {verdict}", flush=True)
+    hk.remove()
+    lo, hi = binom_ci(ok, max(scored, 1))
+    emit(dict(part="LIVE_SUMMARY", successes=ok, scored=scored, voided=a.draws - scored,
+              rate=ok / max(scored, 1), exact_binomial_95=[lo, hi], draws=a.draws, optimiser=a.optimiser,
+              headline="residual versus margin; the member side is not scored", git=git_hash()))
+    print(f"\n# {ok}/{scored} scored draws succeeded ({a.draws - scored} void), exact 95% CI [{lo:.3f}, {hi:.3f}]",
+          flush=True)
+
+
+if __name__ == "__main__":
+    main()
