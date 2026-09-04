@@ -107,3 +107,76 @@ better conditioned, and it isolates the prior where it can be audited. Also the 
 
 **Value ranked by robustness (not by excitement):** imprint law > capacity bound > certificate > chart-based
 reconstruction demo. The excitement runs in the opposite order; know which you are selling.
+
+---
+
+## §9 — theorem-side verification (yoado-81, write-up lane). Algebra checked independently.
+
+### (1) Minibatching — **CONFIRMED, and it relaxes further than the note claims**
+
+The induction goes through. With a per-step mask, `D_t → D_t^m := D_t·diag(mask_t)`:
+
+    ∇_B L = s D^m Hᵀ A_tᵀ = s D^m Hᵀ(I + H M_tᵀ Hᵀ)A_0ᵀ = s D^m (I + G M_tᵀ)(A_0H)ᵀ
+    ⇒ B_{t+1} = [P_t − ηs D^m (I + G M_tᵀ)](A_0H)ᵀ                    ✓ same shape
+    ∇_A L = s B_tᵀ D^m Hᵀ = s (A_0H) P_tᵀ D^m Hᵀ
+    ⇒ A_{t+1} = A_0(I + H[M_t − ηs P_tᵀ D^m]Hᵀ)                        ✓ same shape
+
+so `P_{t+1}=P_t−ηs D^m(I+GM_tᵀ)` and `M_{t+1}=M_t−ηs P_tᵀ D^m`, identical but for the mask. Note
+`D_t` itself is still the *full* residual `D(W_0H+sP_tQ(I+M_tG))` — masking is applied only where
+the gradient uses it, so the recurrence stays closed.
+
+**It relaxes further than masking.** The same algebra holds for `D·diag(w_t)` with arbitrary
+per-example weights `w_t ≥ 0` (masking is the 0/1 case), and for a per-step scalar `η_t` (the
+recurrences simply carry `η_t s`). So the honest hypothesis is:
+
+> **(A1′)** a *fixed pool* of examples with fixed features `H`; per-step selection, per-example
+> reweighting, and a per-step learning rate are all permitted.
+
+That covers minibatching, sample weighting, gradient accumulation, and any schedule — a large
+realism gain over "the same batch every step". **The simplex proposition survives**: masking zeroes
+whole columns of `D`, so `1ᵀD^m = 0` still holds and `1ᵀB_t = 0` with it. The `−1` in the capacity
+count is unaffected. Note the batch-size normalisation folds into `η_t` and is therefore covered by
+R5: the trajectory still sees only one scalar per step.
+
+### (2) Multi-layer — **RIGHT CONCLUSIONS, WRONG HYPOTHESIS**; state it as "first adapted layer"
+
+The shape survives with a backpropagated `Δ_t` in place of `D_t`, since the derivation used only
+the bilinear gradient form and `B_0=0`. But **self-containedness needs everything above frozen**:
+`D_t` was a function of `P_t,M_t,Q,G` alone, whereas `Δ_t` depends on the layers above, so if those
+are *also* adapted the system couples into a joint recurrence over every layer's `(P,M)`. Still
+finite-dimensional and still batch-sized — worth saying — but not the clean closure. This is
+consistent with the measured multi-layer cells sitting 20 orders off the floor with the oracle arm
+nearly as bad.
+
+So the hypothesis to write is **not** "one adapted layer" but **"the first adapted layer, with the
+network below it frozen"** — which is what makes its inputs fixed. That is the real scope gain: the
+certificate applies to the first adapted layer of *any* stack, whatever is above it.
+
+The consequences in the note are correct, and one is stronger than stated:
+
+- **The imprint law's structure transfers, its interpretation does not.** `C_i = −η s Σ_t Δ_t[:,i](A_th_i)ᵀ`
+  is still a sum of one rank-one term per example with no cross term — so additivity, the rank
+  reading, and `B_T=Σ_iC_i` all survive. What does *not* transfer is `‖C_i‖ ∼ e^{−margin}`, which
+  came from `D = softmax − E`. **"What leaks is what the model had to learn" is an output-layer
+  statement.**
+- **The `N′ ≤ m−1` cap is output-layer-bound and vanishes deeper — more strongly than "loosens".**
+  It came from `1ᵀD = 0`; a backpropagated `Δ` carries no such constraint, so the cap becomes
+  `N′ ≤ min(m_ℓ, r, N)` with `m_ℓ` that layer's output width and **no `−1`**. At a hidden layer of
+  width ~10³ the cap is `min(r,N)` — i.e. not binding at all. The head-width protection is a
+  property of adapting the *head*, and an adapter on a hidden layer does not have it.
+
+### (3) Recipe fitted — **split it; only half is a proposition**
+
+Two different statements are being merged. The first is derived and belongs as a proposition: `η`,
+`s` and `N` enter every recurrence only through one scalar (R5), so the release cannot determine
+them separately and an attacker needs only the product. The second — that the product is
+*identifiable and fitted to 1e-15*, and that seven wrong recipes are rejected — is **measured**, and
+calling it a proposition would claim a uniqueness result nobody has proved. State the product
+structure as a proposition; keep the fittability in the measured section, cross-referenced.
+
+### §6 comparison — needs the same normalisation on both sides
+
+`m·n` against `N((m−1)+r−N)` compares a *total* parameter count with a *manifold dimension*. The
+paper's count is per-example — `(m−1)+r−N` coordinates — so the honest comparison is per-example on
+both sides, and the full-head figure has to be derived in the same units before the ratio means
+anything. Worth doing; not worth quoting until it is.
