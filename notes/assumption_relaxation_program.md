@@ -9,17 +9,39 @@ every step, `B₀ = 0`, output layer. Real LoRA is AdamW, minibatched, augmented
 
 ---
 
-## 0. Why the recipe is not the barrier it looks like (threat-model argument, Yoad 2026-09-04)
-Three independent reasons, worth stating in the paper's threat model rather than defending case by case:
-1. **It is usually published.** A released LoRA ships `adapter_config.json` (rank, alpha, target modules, dropout),
-   and model cards routinely state optimiser, schedule, learning rate and epochs.
-2. **Defaults dominate.** A large share of real fine-tunes use the framework defaults or a popular script verbatim.
-3. **The space is small AND the attacker has an exact verifier.** Optimiser ∈ a handful; schedule ∈ {constant,
-   linear, cosine, …}; lr in a log range; epochs, batch size, seed. That is a small discrete search — and the
-   release residual *decides* each guess (7 wrong recipes at 6e-8…4.9 against 5e-31 correct; lr recovered
-   continuously from a 2×-wrong start). A search with a decisive oracle is a different problem from an unknown.
-**Consequence for framing:** recipe knowledge should be presented as *recoverable*, not assumed — and the
-adversary who matters (someone attacking data that is worth real compute) will sweep it.
+## 0. The recipe question — CORRECTED (81's audit, commit 0e09360; my first version over-claimed)
+
+**The sentence that needs none of the disputed legs, and is the strongest one available:**
+> The certificate is **recipe-free by construction** and is the only route that runs from random starts. So recipe
+> knowledge is a hypothesis of the **wide** channel (replay), not of the **narrow** one. The recipe question is moot
+> for the route that matters.
+
+**Three legs of my original argument, as corrected:**
+
+1. **What a release actually ships.** `adapter_config.json` reliably carries the **architecture** — `r`, `alpha`
+   (hence the scale `s`), target modules, dropout. That is a real, citable gain because those are hypotheses of the
+   theory and they arrive with the file. It does **NOT** carry optimiser, learning rate or epochs; model cards state
+   those only when authors choose to. **Do not claim both — it weakens the half that is solid.**
+2. **"Defaults dominate" is an unsurveyed prior.** State it as a declared threat-model assumption, or survey it
+   (a scan of public LoRA adapters' configs would make it empirical and is a cheap self-contained study). A referee
+   will otherwise ask for the survey.
+3. **The oracle leg is CIRCULAR as measured — this is the important one.** R1's seven recipe rejections were run
+   from `--init-noise 0.10` (verified at `recipe_robustness.py:90`, not from the summary), i.e. in the regime where
+   the inversion already succeeds. From attacker-buildable starts no replay cell reaches the floor at all, and there
+   **a wrong recipe and a right recipe with a bad start produce the same observation** — a high residual. So the
+   attacker who needs the oracle cannot evaluate it. **The recipe oracle is DOWNSTREAM of the start problem, not
+   independent of it**; it becomes available only if the start problem is solved (e.g. by the chain, if the in-band
+   handoff holds, or by a learned initialiser).
+
+**Corrected general principle (the seed argument, which as I first wrote it proved too much).** An unknown a
+framework derives from a seed is a **discrete search**, not a continuous one — but its cost is
+`|plausible seeds| × (cost of one oracle call)`, **and it is only usable where the oracle is evaluable at all**.
+A 32-bit seed is 4×10⁹ candidates and a 64-bit seed 1.8×10¹⁹, each needing a full inversion, so this is cheap only
+when the plausible set is small (defaults, conventional values), which collapses it back into leg 2. **Never cost a
+seeded quantity by the dimension of what it expands into — but do attach cardinality, per-call cost, and oracle
+availability.**
+**Corollary for 41's queued check: run it on the DEFAULT seed specifically.** "A default-seeded shuffle is
+recoverable" is a real result; "a shuffle is recoverable given the seed" is not.
 
 ## 1. Learning rate and batch size — SETTLED, not an assumption
 *(81: the PRODUCT STRUCTURE is derived → a proposition. That the product is identifiable and fitted to 1e-15 is
