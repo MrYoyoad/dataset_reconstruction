@@ -38,6 +38,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="models/exact_inversion/mnist_mlp_strong.pth")
     ap.add_argument("--set", default="confident", help="batch composition; the recorded member is the low-margin one")
+    ap.add_argument("--sets", nargs="*", default=None, help="probe several batches (Part A + gate only) to find the N'=1 cell")
     ap.add_argument("--ks", nargs="*", type=int, default=[8, 10, 12, 14])
     ap.add_argument("--r", type=int, default=8); ap.add_argument("--N", type=int, default=8)
     ap.add_argument("--T", type=int, default=400); ap.add_argument("--lr", type=float, default=0.01)
@@ -68,6 +69,22 @@ def main():
         if a.out:
             with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
 
+    if a.sets:                                                          # probe mode: which batch gives N' = 1 on-chart?
+        for sname in a.sets:
+            idxp = torch.tensor(pick_batch(sname, bb, Xte_t, yte_t, a.N, perm), device=dev)
+            Xp = Xte_t[idxp].T.contiguous(); yp = yte_t[idxp]
+            for k in a.ks:
+                chartp = PCAChart(Xtr_t, k, dev); Xonp = chartp.psi(chartp.coords_of(Xp)); Hp = bb.phi(Xonp)
+                gp = torch.Generator().manual_seed(a.seed + 7); A0p = (a.sigma0 * torch.randn(a.r, bb.n, generator=gp)).to(dev)
+                A_Tp, B_Tp, impp, sBp, _ = release_and_imprints(bb, Xonp, yp, A0p, a)
+                Cp, Npp, _ = certificate(A_Tp, B_Tp)
+                resp = torch.linalg.norm(Cp @ Hp, dim=0) / torch.linalg.norm(A_Tp @ Hp, dim=0)
+                topp = int(torch.argmax(impp))
+                emit(dict(part="PROBE", set=sname, k=k, r=a.r, N=a.N, m=bb.m, n_prime=Npp, cert_line=a.r - Npp,
+                          replay_line=bb.m + a.r - Npp, band_lo=a.r - Npp, band_hi=(bb.m - 1) + a.r - Npp,
+                          sigma2_over_sigma1=float(sBp[1] / sBp[0]), imprint_rel=[float(v / impp.max()) for v in impp],
+                          cert_at_truth_top=float(resp[topp]), git=git_hash()))
+        return
     idx = torch.tensor(pick_batch(a.set, bb, Xte_t, yte_t, a.N, perm), device=dev)
     X_real = Xte_t[idx].T.contiguous(); y = yte_t[idx]
 
@@ -88,6 +105,7 @@ def main():
                   margins=[float(v) for v in mar], imprint_rel=[float(v / imp.max()) for v in imp],
                   B_T_norm=float(torch.linalg.norm(B_T)), B_T_sigma=[float(v) for v in sB],
                   cert_residual_per_image=[float(v) for v in cert_res], git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
+        top = int(torch.argmax(imp))                                     # the recorded (low-margin) image
         # CERTIFICATE GATE (yoado-b9): the band premise {rho=0} subset {Ch=0} is numerical, not formal. If the
         # certificate does not vanish at the truth in this cell, Z_C does not contain the truth and every branch of
         # the pre-registration is void -- the analogue of fwd_check, for the constraint rather than the simulator.
@@ -102,7 +120,6 @@ def main():
         if Np != 1:
             print(f"  [k={k}] N'={Np} != 1: the cell is not the one-image band; running anyway, rows carry N'", flush=True)
 
-        top = int(torch.argmax(imp))                                    # the recorded (low-margin) image
         nW = k
 
         # ---- the two maps: g (certificate, r x 1 per image) and the replay residual
