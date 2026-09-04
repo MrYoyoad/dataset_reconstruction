@@ -5222,3 +5222,37 @@ false-positive rate reported separately, since its population arm WAS evaluable.
 and nothing unmeasured is counted. **The exclusion was structural and predictable** — `n` draws give `n − 1`
 null-testable draws — **and should have been pre-registered; it was not.** Fixed in v2 by training one extra
 release on a held-out image first, purely to give draw 1 a null, so all `n` draws are evaluable.
+
+## RESULT — near-duplicate specificity: the tolerance is proportional to ACTIVATION distance, single boundary (job 313899)
+
+Six transformations of the private photograph, ordered by **measured** feature distance rather than by intuition,
+each with its own paired negative. The pre-registered prediction was that pass and fail fall at a **single
+boundary** in that measured order — one monotone claim that can fail, not six binaries.
+
+| transformation | feature distance | `q` under the member's release | paired null | reads as |
+|---|---|---|---|---|
+| 8-bit requantisation | **0.000** | 1.6e-14 … 2.0e-14 | 0.10 – 0.11 | **MEMBER** |
+| brightness +10% | **0.05 – 0.07** | 6.2e-3 … 9.4e-3 | 0.10 – 0.11 | **MEMBER** |
+| downsample to 200 | 0.22 – 0.27 | 2.8e-2 … 3.7e-2 | 0.10 – 0.11 | reject |
+| Gaussian blur | 0.36 – 0.41 | 4.3e-2 … 5.4e-2 | 0.10 – 0.11 | reject |
+| 90% centre crop | 0.57 – 0.60 | 7.2e-2 | 0.10 – 0.11 | reject |
+| horizontal flip | 0.82 – 1.01 | 8.6e-2 … 9.7e-2 | 0.10 – 0.11 | reject |
+
+**The prediction holds exactly: a single boundary, between feature distance 0.07 and 0.22, with `q` rising
+monotonically in feature distance across all six.** And the paired nulls are flat at ~0.10 throughout, so the low
+scores for requantisation and brightness are specific to the release that saw the image, not an image-independent
+artefact — which is precisely what the paired control was added to exclude.
+
+**So the claim sharpens from a binary to a quantity:** *the certificate is specific to the image **as the encoder
+sees it**, with a tolerance proportional to activation distance and a threshold measured between 0.07 and 0.22 in
+relative feature distance.* Requantising the file does not evade it. Flipping, cropping, blurring or downsampling
+does.
+
+**yoado-cd's guessed ordering was right at both ends and wrong in the middle:** predicted requantise, brightness →
+crop, downsample → blur, flip; measured requantise, brightness → downsample, blur → crop, flip. Crop moves two
+places. **The single-boundary prediction survives that**, which is the point of predicting the *shape* rather than
+the individual placements.
+
+**Bug found and fixed in the same job:** the same-class cell died because the shared image loader caps at 2,000
+sorted filenames, which silently excluded most of the set and made the class pool unreachable. The same-class run
+now loads only the class's own files and is rerunning as job 316123.

@@ -98,12 +98,17 @@ def main():
     if a.same_class:
         import glob as _g, numpy as _np
         from scipy.io import loadmat
+        from PIL import Image
+        import torchvision.transforms as _T
         lab = loadmat(os.path.join(os.path.dirname(a.data_root.rstrip("/")), "imagelabels.mat"))["labels"].ravel()
         files = sorted(_g.glob(os.path.join(a.data_root, "*.jpg")))
         cls = int(_np.bincount(lab).argmax())                       # the most populous class: the largest pool
         idx = [i for i, f in enumerate(files) if i < len(lab) and lab[i] == cls]
-        pool, _ = load_images(a.data_root, len(files), 224, dev)
-        sel = pool[torch.tensor(idx, device=dev)]
+        # load ONLY the same-class files. The shared loader caps at 2000 sorted filenames, which silently excluded
+        # most of the set and made the class pool unreachable -- job 313899 died on exactly that.
+        tf = _T.Compose([_T.Resize(256), _T.CenterCrop(224), _T.ToTensor(),
+                         _T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])])
+        sel = torch.stack([tf(Image.open(files[i]).convert("RGB")) for i in idx]).to(dev).double()
         members, nonmembers = sel[:a.draws], sel[a.draws:]
         print(f"# SAME-CLASS cell: class {cls}, {len(idx)} images, {a.draws} members vs "
               f"{nonmembers.shape[0]} same-class non-members (a smaller pool than the mixed cell, so the "
