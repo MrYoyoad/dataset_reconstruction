@@ -83,6 +83,8 @@ t=1 rising to +6…+14 by t=T. Chart error 0.235 → instance-level.
 | New-class exposure independent of model quality | **[M]** | 658575 (digits rank 6, cosine 0.04; letters rank 8, cosine 0.52) |
 | Recipe is fitted and verifiable, not assumed | **[M]** | 484255 (η to 5e-16; 7 wrong recipes at 6e-8…4.9 vs 5e-31) |
 | Certificate quality set by imprint **spread**, degrading with chart size | **[M]** | wide head: separation 1000×/117×/10× then overlap at k=32, 40 |
+| Certificate landings are usable **below its line**, uniformly across residual deciles | **[M]** *below-line only, `in_band: false`* | job 159323 at k=16 against a certificate line of 61: deciles 0–7 all land within 1e-2 and all beat the norm-matched control (100%); deciles 8–9 fall to 20% and 0% |
+| An attacker can pick the good landings **with no private knowledge** | **[M]** *below-line only* | same job: certificate residual alone separates them — median 3.6e-15…7.7e-11 across deciles 0–7 against 0.12 and 0.48 at deciles 8–9, a nine-order gap |
 | **Minibatching preserves the closure** | **[D]** unrun | derivation in `assumption_relaxation_program.md` §2; the induction never inspects `D_t` |
 | **Certificate localises to the first adapted layer** | **[C]** untested | §3 |
 | **Cap loosens from class count to layer width at a hidden layer** | **[C]** on a **[C]** | §3; needs a cell with `N ≥ m` or it cannot fire |
@@ -180,9 +182,14 @@ picture.
 the line: `S_chain = S_ρ` exactly (Prop. 13 `prop:chain`, Cor. 14 `cor:chainbasin`, commit bb323ac), so its
 entire possible value is basin — reaching solutions, never reaching further ones. What is *unproved and
 unmeasured* is that it buys any basin at all. The handoff gate is the measurement that will decide it, and
-**no valid reading of it exists yet**: the first version scored every start against a single fixed recorded
-image rather than the one it landed on, so genuine landings on the other two scored as failures; it is being
-recomputed (job 156607). **So the chain's upside is bounded above by theory and, as yet, unmeasured below.** The reusable general form is worth carrying: `C` is a function of the
+**no in-band reading of it exists yet.** The first attempt was scored against a single fixed recorded image
+rather than the one each start landed on and is void; the corrected run (job 159323) is clean but sits at
+**k=16 against a certificate line of 61 — `in_band: false`**, forty-five units below the band, where the
+certificate already isolates the images unaided, so it measures the certificate working below its line rather
+than the handoff the chain needs. The one *above*-line measurement that exists points the other way: at k=58,
+one unit past the line, 14.3% of 5,000 starts reach an exact certificate zero but only **0.04%** land on a
+recorded image, with the best point 0.84 away (job 753886). In-band cells (k = 62–68) are queued.
+**So the chain's upside is bounded above by theory and, in band, unmeasured below.** The reusable general form is worth carrying: `C` is a function of the
 release, so *any* derivation in which a chain widens the admissible `k` has counted the release twice.
 
 - **The chain test** (certificate landings handed to replay). Three branches — floor at the truth / floor at a
