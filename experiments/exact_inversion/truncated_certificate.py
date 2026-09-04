@@ -90,23 +90,38 @@ def main():
             spec = [float(v / S[0]) for v in S]
             tail = [float((S[k:] ** 2).sum().sqrt() / (S ** 2).sum().sqrt()) for k in range(len(S))]
 
-            def resid(H, k):
-                Q = Vh[:k].T
+            # SCRAMBLED-B_T CONTROL (yoado-7e, mandatory): the SAME singular values with RANDOM singular vectors.
+            # If the truncated certificate separates because of the spectrum's shape rather than because the top
+            # directions are the RECORDED ones, this arm separates too and the treatment arm means nothing.
+            gsc = torch.Generator().manual_seed(a.seed + 777)
+            Vs, _ = torch.linalg.qr(torch.randn(r, r, generator=gsc).to(dev))
+            def resid(H, k, V=None):
+                Q = (Vh[:k].T if V is None else V[:, :k])
                 Ck = A_T - Q @ (Q.T @ A_T)
                 cn = torch.linalg.norm(torch.einsum("btd,kd->btk", H, Ck), dim=-1)
                 an = torch.linalg.norm(torch.einsum("btd,kd->btk", H, A_T), dim=-1) + 1e-300
-                return (cn / an).mean(-1)
+                return (cn / an).mean(-1), float(torch.linalg.norm(Ck))
             rows = []
+            nB = float(torch.linalg.norm(B_T))
             for k in range(1, r):
-                rm, rn = resid(Hm, k), resid(Hn, k)
+                (rm, nCk), (rn, _) = resid(Hm, k), resid(Hn, k)
+                (rm_s, _), (rn_s, _) = resid(Hm, k, Vs), resid(Hn, k, Vs)
                 rows.append(dict(k=k, conditions=r - k, tail_energy=tail[k],
+                                 tail_norm_over_C=float((S[k:] ** 2).sum().sqrt()) / max(nCk, 1e-300),
                                  member_median=float(rm.median()), nonmember_median=float(rn.median()),
                                  ratio=float(rn.median() / (rm.median() + 1e-300)),
-                                 auc=auc([-float(v) for v in rm], [-float(v) for v in rn])))
+                                 auc=auc([-float(v) for v in rm], [-float(v) for v in rn]),
+                                 scrambled_member_median=float(rm_s.median()),
+                                 scrambled_nonmember_median=float(rn_s.median()),
+                                 scrambled_auc=auc([-float(v) for v in rm_s], [-float(v) for v in rn_s])))
             best = max(rows, key=lambda z: z["auc"])
             emit(dict(part="TRUNCATED", block=blk, r=r, N=a.N, d_in=d_in, rank_B_T=rank_B,
                       exact_certificate_vacuous=bool(rank_B >= min(r, d_in)),
                       spectrum_rel=spec, per_k=rows, best_k=best["k"], best_auc=best["auc"],
+                      scrambled_control="matched spectrum, random singular vectors; separation here would mean "
+                                        "the spectrum's shape does the work, not the recorded directions",
+                      best_scrambled_auc=max(z["scrambled_auc"] for z in rows),
+                      start_attacker_buildable="n/a (scoring at the truth, no start)",
                       best_ratio=best["ratio"], spectrum_flat=bool(spec[min(len(spec) - 1, r // 2)] > 0.5),
                       reading=("SEPARATES" if best["auc"] > 0.9 else "PARTIAL" if best["auc"] > 0.7 else "FLAT"),
                       note="C_k is a PROJECTOR with computable error (the discarded tail), not the graded-energy "
@@ -115,7 +130,8 @@ def main():
                       seconds=time.time() - t0, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
             print(f"  block {blk:2d} r={r:3d}  rank B_T={rank_B} (exact cert {'VACUOUS' if rank_B >= min(r,d_in) else 'alive'})"
                   f"  sigma_r/sigma_1={spec[-1]:.2e}  best k={best['k']} AUC {best['auc']:.3f} "
-                  f"ratio {best['ratio']:.2e} tail {best['tail_energy']:.2e}  -> "
+                  f"ratio {best['ratio']:.2e} tail {best['tail_energy']:.2e}  "
+                  f"scrambled-best {max(z['scrambled_auc'] for z in rows):.3f}  -> "
                   f"{'SEPARATES' if best['auc']>0.9 else 'PARTIAL' if best['auc']>0.7 else 'FLAT'}", flush=True)
 
 

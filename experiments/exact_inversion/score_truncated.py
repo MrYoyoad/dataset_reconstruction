@@ -35,7 +35,7 @@ def main():
     if not rows:
         print("no TRUNCATED rows found"); return
     print(f"{'block':>5s} {'r':>4s} {'rankB':>6s} {'k(rule)':>8s} {'gap_dec':>8s} {'conds':>6s} "
-          f"{'member':>10s} {'nonmember':>10s} {'orders':>7s} {'verdict':>10s}")
+          f"{'member':>10s} {'nonmember':>10s} {'orders':>7s} {'scrAUC':>7s} {'verdict':>10s}")
     for r in sorted(rows, key=lambda z: (z["block"], z["r"])):
         M, U = r["N"], r.get("n_nonmember", 64)
         k, gapdec = choose_k(r["spectrum_rel"])
@@ -46,6 +46,8 @@ def main():
             verdict = "VOID:alive"                       # premise of the test is that the exact certificate is 0
         elif M < 5 or U < 5:
             verdict = "VOID:n"
+        elif row.get("scrambled_auc", 0.0) >= 0.9:
+            verdict = "VOID:scr"                          # the matched-spectrum control separates too (7e's arm)
         else:
             orders = math.log10(row["nonmember_median"] / max(row["member_median"], 1e-300))
             perfect = (row["auc"] >= 1.0)                 # AUC 1.0 == every member below every non-member
@@ -53,7 +55,8 @@ def main():
         orders = math.log10(row["nonmember_median"] / max(row["member_median"], 1e-300))
         chance = 1.0 / math.comb(M + U, M)
         print(f"{r['block']:5d} {r['r']:4d} {r['rank_B_T']:6d} {k:8d} {gapdec:8.2f} {row['conditions']:6d} "
-              f"{row['member_median']:10.2e} {row['nonmember_median']:10.2e} {orders:7.2f} {verdict:>10s}"
+              f"{row['member_median']:10.2e} {row['nonmember_median']:10.2e} {orders:7.2f} "
+              f"{row.get('scrambled_auc', float('nan')):7.3f} {verdict:>10s}"
               + ("" if verdict != "SUCCESS" else f"   (chance {chance:.1e})"))
     print("\nk is chosen by the FIXED rule (largest log-spectrum gap), never by the best AUC. "
           "The rows' own best_k field is a fit and is not used here.")
