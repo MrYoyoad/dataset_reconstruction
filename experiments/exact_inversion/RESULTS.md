@@ -4785,3 +4785,35 @@ are superseded by the LiRA harness, which uses the symmetric-labelling setup and
 comparison; their baselines are the label-free statistic whose weakness is documented above, so their rows would
 have needed a caveat larger than their content. The certificate's flatness across training length, which was the
 trajectory's remaining purpose, is already established by the LiRA run (1.000 at every `T` from 5 to 400).
+
+## RESULT — the capacity table: how many private images the channel admits, per architecture (job 296789)
+
+The counting rule as a formula rather than a case list. `margin = min(r,d) − min(N·p, d)`, so the channel admits
+`N ≤ ⌊(min(r,d) − 1) / p⌋` images. Arithmetic from published specs; **every row with a measured position count is
+checked against its measurement and all four anchors reproduce exactly** (head margin 8 at `r`=16 and 56 at `r`=64
+for a batch of 8, as measured on both transformers and both ResNets).
+
+| architecture · cell | module | `p` | admitted at `r`=8 / 16 / 32 / 64 |
+|---|---|---|---|
+| ViT-B/16 · 224px | block linear | 197 | 0 / 0 / 0 / **0** |
+| ViT-B/16 · 112px, ViT-B/32 · 224px | block linear | 50 | 0 / 0 / 0 / **1** |
+| ViT-B/32 · 128px, ViT-Ti/16 · 64px | block linear | 17 | 0 / 0 / 1 / **3** |
+| ViT-S/16 · 32px | block linear | 5 | 1 / 3 / 6 / **12** |
+| ResNet-18 · 224px | layer4 conv | 49 | 0 / 0 / 0 / **1** |
+| ResNet-18 · 32px | layer4 conv | 16 | 0 / 0 / 1 / **3** |
+| ResNet-18 · 32px, 2×2 stage | layer4 conv | 4 | 1 / 3 / 7 / **15** |
+| MobileNet / EfficientNet | **depthwise 3×3** | 49 | **0 at every rank — `d` = 9, dead by construction** |
+| any model | **head / pooled fc** | **1** | 7 / 15 / 31 / **63** |
+
+**Resolution and patch size are the dial, and this is the deployment answer.** The same rank-64 adapter reads
+nothing on a ViT-B/16 at 224, one image on a 7×7 final ResNet stage, three on a small-input ResNet, and 63 on a
+head. **The channel is not dead on real architectures — it is dead at high position counts and alive at low ones**,
+and single-image personalisation on a late-stage adapter sits inside it.
+
+**Depthwise convolutions are dead by construction**, which is a clean architectural statement: a 3×3 depthwise has
+input dimension 9, so `min(r, d) ≤ 9` while the recorded span is 9 at any realistic batch. No rank helps.
+
+Two caveats carried in every row: a margin that exists only because `r` exceeds the module's **output width** is not
+backed by a condition that holds at the truth (measured: residual 5.5e-6 there against 3e-11 where the count is
+data-limited); and admitted counts assume the exact certificate — see the truncated-certificate run below, which
+tests whether that requirement can be weakened.
