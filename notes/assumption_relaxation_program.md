@@ -1011,3 +1011,42 @@ image and the prior supplies the remainder"), **firing at the DEPLOYMENT level w
 That is the precise statement: the channel carries the image in principle, and does not in practice at the
 configurations people ship. Hence §12's ordering stands and is now *measured* rather than argued —
 **membership and instance-identification are the deliverable; pixel reconstruction is not, at deployed settings.**
+
+## 20. Can it be optimised? — what theory LOCKS vs what is SLACK (Yoad, 2026-09-04)
+
+**LOCKED by theory — no attacker effort changes these:**
+- **`rank Dφ_d`, the frozen path's transmitted rank at the FIRST adapted depth.** Everything factors through it
+  (81's `rank K ≤ rank DF_1`), measured tight at depth 7 (transmits 138, delivers 138). Set by the victim's
+  architecture, their training, and where they put adapters.
+- **`r − N′_ℓ` per layer**, and **which images are recorded at all** (imprint law). Both properties of the release.
+
+**SLACK — and (1) is the big one.**
+
+1. **CONSTRAINT STRUCTURE BEYOND RANK — rank is the wrong measure of recoverability for an object with structure.**
+   248 linear conditions on a 784-dim image leaves 536 free *directions*, but an image is not a free vector: it lies in
+   `[0,1]^784`, is sparse in a basis, and lies on a realisable-image manifold. Convex/structural constraints cut the
+   feasible set in ways a rank count cannot see. **This project already demonstrates it in a restricted setting:** the
+   `A₀ = 0` row-span result recovers near-exact PIXELS (SSIM 1.00 at `N ≤ 4`) by intersecting a subspace with the box
+   and a sparsity preference, via an LP — no chart, no learning
+   (`notes/lora_span_leakage_note.md`). **So "the release pins 7% of the directions" is a LOWER bound on what is
+   determined, not an upper one.** The theoretical question this poses, and it is a good one:
+   > *Given `r − N′` linear conditions plus box, sparsity and manifold constraints, when is the image determined?*
+   That is a compressed-sensing question with an existing literature (restricted isometry / phase transitions), and it
+   is the natural way to turn a rank count into a recoverability statement.
+2. **Drop the useless conditions.** Deep adapted layers add rows but no rank (their encoders nest inside the shallower
+   ones — measured: 96 and 85 inside 138). Keeping them enlarges the system and hurts conditioning for nothing.
+   **Selecting the non-nested layers is free and should improve `σ_min` directly.**
+3. **Conditioning is a property of the PARAMETRISATION, not of the information.** `σ_min` 4e-6 at four layers is a
+   statement about the coordinates chosen, not about what the release knows. Preconditioning, whitened coordinates and
+   reformulation are all available and none of them changes the rank.
+4. **The start problem** — still the binding practical constraint, and entirely separate from any of the above.
+5. **Multiple releases on DIFFERENT base models.** Within one network the transmitted subspaces are nested, so extra
+   releases of the same model buy nothing. Across *different* base models fine-tuned on the same private set the
+   encoders differ and the subspaces need not nest — **the union can exceed any single `rank Dφ_d`.** Realistic
+   (people fine-tune one dataset on several bases) and untested.
+6. **Reduce `N′` by subset selection**, which raises `r − N′` directly — the mechanism already validated by the
+   subset re-simulation route.
+
+**Summary:** the ceiling on *directions* is locked by the frozen network; the slack is in *how much of an image a given
+set of directions determines*, which is a structured-recovery question, not a rank question — and it is the one avenue
+that could change the deployment verdict without changing the release.
