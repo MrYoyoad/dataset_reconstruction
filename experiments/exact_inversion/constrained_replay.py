@@ -214,7 +214,7 @@ def main():
             return w
         d0_radius = None
         if "d0" in a.arms:
-            gd = torch.Generator().manual_seed(a.seed + 991); ok = []
+            gd = torch.Generator().manual_seed(a.seed + 991); ok = []; stations = []
             for dist in a.d0_steps:
                 w_st = walk(w_true.reshape(-1), dist, gd)
                 if w_st is None:
@@ -223,16 +223,23 @@ def main():
                 e_st = float(torch.linalg.norm(chart.psi(w_st.reshape(k, 1))[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
                 r0 = run(torch.cat([w_st, torch.zeros(a.r * Np, device=dev)]), False, "d0", e_st)
                 emit(dict(part="D0", dist=dist, station_cert_norm=cert_st, station_err=e_st, **r0))
+                stations.append((dist, e_st))
                 if r0["verdict"].startswith("recovered"): ok.append((dist, e_st))
             # (yoado-c9) the basin radius and the landing distribution must be in ONE metric or their intersection is
             # an eyeball across units. IMAGE ERROR is the primary here -- it is what the handoff row reports and the
             # attacker-meaningful quantity -- with the latent step size kept alongside for the walk's own bookkeeping.
             d0_radius_img = max((e for _, e in ok), default=0.0)
             d0_radius = max((d for d, _ in ok), default=0.0)
+            # (yoado-c9) the basin is anisotropic -- wide along truth-directions, narrow in attacker-reachable ones --
+            # so a single max radius is an optimistic CEILING, not a threshold. The honest object is the
+            # recover-fraction-vs-image-error CURVE over stations, with the landing distribution overlaid on it; the
+            # gap between the ceiling's overlap and D1's actual fraction from the real landings IS the anisotropy.
             emit(dict(part="D0SUM", set=a.set, k=k, r=a.r, n_prime=Np,
                       in_manifold_basin_radius_IMAGE_ERR=d0_radius_img, in_manifold_basin_radius_latent=d0_radius,
                       metric="image error vs the on-chart truth (same metric as the HANDOFF row's landing_err)",
                       stations_recovered=[dict(latent=d, image_err=e) for d, e in ok],
+                      recover_curve=[dict(latent=d, image_err=e, recovered=bool((d, e) in ok)) for d, e in stations],
+                      n_stations=len(stations),
                       gate_threshold=a.d0_min_radius, passed=bool(d0_radius >= a.d0_min_radius), git=git_hash()))
             print(f"  [k={k}] D0: replay recovers out to image error {d0_radius_img:.4f} along Z_C "
                   f"(latent step {d0_radius}; gate {a.d0_min_radius})", flush=True)
