@@ -83,8 +83,8 @@ t=1 rising to +6…+14 by t=T. Chart error 0.235 → instance-level.
 | New-class exposure independent of model quality | **[M]** | 658575 (digits rank 6, cosine 0.04; letters rank 8, cosine 0.52) |
 | Recipe is fitted and verifiable, not assumed | **[M]** | 484255 (η to 5e-16; 7 wrong recipes at 6e-8…4.9 vs 5e-31) |
 | Certificate quality set by imprint **spread**, degrading with chart size | **[M]** | wide head: separation 1000×/117×/10× then overlap at k=32, 40 |
-| Certificate landings are usable **below its line**, uniformly across residual deciles | **[M]** *below-line only, `in_band: false`* | job 159323 at k=16 against a certificate line of 61: deciles 0–7 all land within 1e-2 and all beat the norm-matched control (100%); deciles 8–9 fall to 20% and 0% |
-| An attacker can pick the good landings **with no private knowledge** | **[M]** *below-line only* | same job: certificate residual alone separates them — median 3.6e-15…7.7e-11 across deciles 0–7 against 0.12 and 0.48 at deciles 8–9, a nine-order gap |
+| Landings uniform across the good residual deciles below the line | **[M]**, but **confirmation of (b), not a new result** | job 159323, k=16 against a certificate line of 61, `in_band: false`: deciles 0–7 land within 1e-2 at rate 1.0 and beat the norm-matched control at rate 1.0; deciles 8–9 fall to 0.2 and 0.0. The kernel count already says every floor-reacher below the line is a private image, so the certificate is separating reachers from non-reachers rather than ranking landings — uniformity is what that predicts |
+| **Operational corollary: below the line the attacker has a calibration-free selection rule** | **[M]** *below-line only* | the certificate residual **is** the floor-reaching test the kernel count licenses, and it is attacker-computable: a nine-order cut at the decile 7/8 boundary (median 7.66e-11 across deciles 0–7 against 0.123 at decile 8). The difference between an attacker having to guess which landings are good and reading it off — following from the mechanism rather than adding to it |
 | **Minibatching preserves the closure** | **[D]** unrun | derivation in `assumption_relaxation_program.md` §2; the induction never inspects `D_t` |
 | **Certificate localises to the first adapted layer** | **[C]** untested | §3 |
 | **Cap loosens from class count to layer width at a hidden layer** | **[C]** on a **[C]** | §3; needs a cell with `N ≥ m` or it cannot fire |
@@ -197,6 +197,13 @@ release, so *any* derivation in which a chain widens the admissible `k` has coun
   constrained arm required to beat **the scrambled manifold** (same dimension, wrong subspace), not merely the
   unconstrained one. Success = all `N′` images clear under a one-to-one assignment; partials reported
   separately with the prediction that recovered images are the higher-imprint ones.
+- **The in-band handoff (k = 62–68), pre-registered now.** Above the certificate line spurious zeros exist, so
+  the residual can no longer be a clean floor-reaching test and would have to do real *ranking* work.
+  **Prediction: the decile structure degrades from a clean cut to a graded, calibration-dependent signal, and
+  the selection rule loses its calibration-free property.** If instead the cut survives in band, that is a
+  genuinely new finding rather than a restatement of the kernel count — and it would be the most
+  attacker-relevant result in the chain work, because it would mean an attacker can identify good starts in
+  exactly the regime where the certificate alone does not suffice.
 - **Minibatch masking**, both arms (schedule known and schedule wrong).
 - **Multi-layer localisation and the cap**, gated on a cell with `N ≥ m` and on the certificate vanishing at the
   hidden layer, with the magnitude predicted (cap from class count to layer width) rather than the direction.
