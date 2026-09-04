@@ -4,6 +4,18 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A rank read off a low-precision release breaks the m − 1 cap — rounding destroys the softmax's zero column sum (2026-09-04)
+
+- **Presented as:** the letter cells have m = 11, so the simplex caps N′ at 10 and the FP64 release has rank 8 — but every bf16- and fp16-trained release reports **rank 11** at every tolerance and both k (fp32: 10 at 1e-10, 11 at 1e-12). Found by the write-up lane in the Step 26 rows, verified in the executor's own.
+- **Cause:** unit roundoff zeroes the own-class entry `p_y − 1` of the residual while the off-class entries survive, so the residual columns stop summing to zero and B_T acquires the component the simplex forbids.
+- **Consequence:** every N′, every certificate line `k < r − N′`, and every "below the line" claim read off a low-precision release is inflated. Check a release's rank against `m − 1` before using it; a rank above the cap means the arithmetic, not the data.
+
+## A flat objective trace is the normal LM termination on a mismatched residual — it does not mark one row as stalled (2026-09-04)
+
+- **Presented as:** I read fp16's worse image error at k = 32 as a stall, because its endpoint residual sat above its own floor.
+- **Cause:** every low-precision row terminates on `no_accept` with a plateaued trace (bf16 1.5358e-4 for three iterations, fp16 6.2227e-6, fp32 1.1415e-14). A plateau is what a surrogate-Jacobian LM does against a residual it cannot descend further; it distinguishes nothing.
+- **Fix:** compare each row's endpoint to *its own* floor and to the other rows' plateaus before calling one a stall, and keep the last few trace values in the row so the check is possible without a rerun.
+
 ## A large deviation between two arithmetics is not a rugged landscape — bias is shared by nearby inputs, noise is not (2026-09-03)
 
 - **Presented as:** the pre-registration predicted that a bf16 training loop, whose release deviates 12% from FP64's, would respond at 1e-2 … 1e-1 to a 1e-6 perturbation (a rounding cascade → a needle landscape, no matched solver possible). Measured (779207/779969): response 4.4e-6, a rounding floor of 2–4e-3 at δ ≈ 1e-4, linear beyond, and a monotone residual from a 0.1 start to the truth at every window size.
