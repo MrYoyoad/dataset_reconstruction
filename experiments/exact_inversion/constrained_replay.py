@@ -308,7 +308,7 @@ def main():
                 e_st = max(float(torch.linalg.norm(Xst[:, q] - X_on[:, rec[q]]) / torch.linalg.norm(X_on[:, rec[q]]))
                            for q in range(nrec))                        # worst image at the station
                 r0 = run(torch.cat([w_st, torch.zeros(a.r * nrec, device=dev)]), False, "d0", e_st)
-                emit(dict(part="D0", dist=dist, station_cert_norm=cert_st, station_err=e_st, **r0))
+                emit({**r0, "part": "D0", "dist": dist, "station_cert_norm": cert_st, "station_err": e_st})
                 stations.append((dist, e_st))
                 if r0["verdict"].startswith("recovered"): ok.append((dist, e_st))
             # (yoado-c9) the basin radius and the landing distribution must be in ONE metric or their intersection is
@@ -438,16 +438,16 @@ def main():
         gx = torch.Generator().manual_seed(a.seed + 77)
         for j, (w_l, obj_l, err_l, near_l) in enumerate(landings):
             v0 = torch.cat([w_l.reshape(-1), torch.zeros(a.r * nrec, device=dev)])   # X unknown: start at zero
-            if "constrained" in a.arms: emit(dict(landing=j, cert_objective=obj_l, landing_err=err_l, landing_nearest=near_l, **run(v0, True, "constrained", err_l)))
-            if "unconstrained" in a.arms: emit(dict(landing=j, cert_objective=obj_l, landing_err=err_l, landing_nearest=near_l, **run(v0, False, "unconstrained", err_l)))
+            if "constrained" in a.arms: emit({**run(v0, True, "constrained", err_l), "landing": j, "cert_objective": obj_l, "landing_err": err_l})
+            if "unconstrained" in a.arms: emit({**run(v0, False, "unconstrained", err_l), "landing": j, "cert_objective": obj_l, "landing_err": err_l})
             if "null" in a.arms:
-                emit(dict(landing=j, arm_note="constrained onto a RESAMPLED B_T's zero set (same dim, wrong subspace)",
-                          n_prime_null=Np_null, **run(v0, True, "scrambled_manifold", err_l, gfun=g_null)))
+                emit({**run(v0, True, "scrambled_manifold", err_l, gfun=g_null), "landing": j,
+                      "arm_note": "constrained onto a RESAMPLED B_T's zero set (same dim, wrong subspace)", "n_prime_null": Np_null})
         if "random" in a.arms:
             for j in range(min(4, a.n_landings)):
                 w0 = (torch.randn(k, 1, generator=gx).to(dev) * coord_std).reshape(-1)
                 e0 = float(torch.linalg.norm(chart.psi(w0.reshape(k, 1))[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
-                emit(dict(landing=-1, **run(torch.cat([w0, torch.zeros(a.r * Np, device=dev)]), False, "random", e0)))
+                emit({**run(torch.cat([w0.reshape(-1).repeat(nrec) if w0.numel() == k else w0, torch.zeros(a.r * nrec, device=dev)]), False, "random", e0), "landing": -1})
 
 
 if __name__ == "__main__":
