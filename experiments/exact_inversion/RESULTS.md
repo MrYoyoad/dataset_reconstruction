@@ -4779,3 +4779,9 @@ shadow attack in separation, at any training length, and its assumption advantag
 argued — reduced from three requirements to two, neither of them prohibitive. **On the head, this channel is not
 currently a better attack than what already exists; it is a cheaper one that needs less setup.** That is worth a
 sentence in a paper, not a section.
+
+**Jobs 286191 (head trajectory) and 283618 (graded, fair baseline) were killed rather than left to finish.** Both
+are superseded by the LiRA harness, which uses the symmetric-labelling setup and is therefore the authoritative
+comparison; their baselines are the label-free statistic whose weakness is documented above, so their rows would
+have needed a caveat larger than their content. The certificate's flatness across training length, which was the
+trajectory's remaining purpose, is already established by the LiRA run (1.000 at every `T` from 5 to 400).
