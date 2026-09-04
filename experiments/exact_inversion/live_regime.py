@@ -68,6 +68,8 @@ def main():
     k_, st_, pd_ = conv.kernel_size, conv.stride, conv.padding
     d_in = conv.in_channels * k_[0] * k_[1]; d_out = conv.out_channels
     feat_dim = net.fc.in_features
+    net.fc = torch.nn.Identity()          # the model must return FEATURES; with the 1000-way head left in place
+                                          # every forward returned logits and the fresh head could not be applied
     gh = torch.Generator().manual_seed(a.seed)
     Whead = (torch.randn(a.classes, feat_dim, generator=gh) / math.sqrt(feat_dim)).to(dev)
 
