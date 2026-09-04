@@ -4167,3 +4167,35 @@ was running, and the runner re-launches `python` per cell — so cells `T ≤ 16
 at `57b7221` (CLAUDE.md ground rule 2 forbids exactly this). The edit added a frozen-layer option and an encoder
 diagnostic; with every layer adapted, the `live` index list is all layers and the gradient and update path is
 arithmetically identical, so the table above is unaffected. Recorded rather than quietly relied on.
+
+## RESULT — what the encoder costs, measured (job 207671): the frozen encoder's Jacobian rank is the real ceiling
+
+The replacement for the withdrawn raw-pixel sweep. Each cell adapts **exactly one layer** with everything else
+frozen, so the encoder below it is nonlinear and frozen and the adapted layer's input cannot drift. Its recorded
+count is then the image count (`N′ = 8`) at every depth and rank, and the certificate holds at the truth
+(4e-13 … 2e-12). `rank Dφ` is measured at each image's truth in the same run.
+
+| adapted layer | frozen layers below | `rank Dφ` of 784 | pixel rank at `r = 64 / 256 / 600 / 900` | encoder cost at `r = 900` |
+|---|---|---|---|---|
+| 1 (control) | 0 | — (identity) | 56 / 248 / 592 / — | 0 |
+| 2 | 1 | **784** | 56 / 248 / 592 / **784** | 108 |
+| 3 | 2 | **784** | 56 / 248 / 592 / **784** | 108 |
+| 5 | 4 | **220** | 56 / **220** / **223** / **223** | 669 |
+| 8 | 7 | **96** | 56 / **96** / **96** / **96** | 796 |
+
+**The gap opens exactly where pre-registered, and it is governed by the encoder, not the adapter.** The pixel rank
+is `min(r − N′, rank Dφ)`: below the encoder's rank the adapter binds, above it the encoder does, and no amount of
+extra adapter rank buys anything past that ceiling — layer 8 stops at 96 conditions whether the adapter has rank
+256 or 900. **A shallow frozen encoder costs nothing in rank** (one or two layers stay full rank 784 at every
+image), **and a deep one costs almost everything**: 784 → 784 → 220 → 96 at 1, 2, 4 and 7 frozen nonlinear layers.
+
+**The conditioning cost arrives well before the rank cost, and it is the more dangerous of the two.** At a fixed
+`r = 256`, σ_min at the rank runs 1.16e-2 (1 frozen layer) → 6.9e-4 (2) → 1.19e-10 (4) → 5.6e-11 (7), i.e. the
+condition number goes 51 → 888 → 7.4e9 → 5.6e9. From four frozen layers on, the **usable** rank falls below the
+formal rank (210 of 220; 86 of 96) — the conditions exist and are not resolvable against the release's own floor.
+
+**Read together with the withdrawal above, the honest statement is:** the raw-pixel cell (adapting the first
+layer) is simultaneously the best case for the attacker and the least representative placement, and its count was
+an identity. Once anything nonlinear sits between the certificate and the pixels, **the encoder's Jacobian rank at
+the truth is the ceiling on pixel-space determination**, it collapses quickly with depth, and the conditioning
+collapses faster than the rank does.
