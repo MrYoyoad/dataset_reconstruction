@@ -1627,12 +1627,36 @@ the solution by $0.074$ at $k=16$ and by $0.47$ at $k=32$, where
 $\sigma_{\min}$ of the pull-back is $10^{-5}$. A richer chart buys fidelity in
 exact arithmetic and pays for it by amplifying every arithmetic error into a
 displacement, so under imperfect arithmetic the attacker's best $k$ is bounded
-by conditioning and not only by the line. Whether the matched attacker's
-$1$--$3\%$ survives at $k=32$ is therefore not a foregone extension of the
-$k=16$ column: scaling those errors by the same amplification predicts roughly
-$6\%$ for FP16 and $19\%$ for bfloat16, which would still be a recovery but a
-visibly degraded one. Those rows are running, and the prediction is recorded
-here so that a better outcome is a finding rather than a relief.
+by conditioning and not only by the line. Scaling the $k=16$ column by that amplification
+predicted roughly $6\%$ for FP16 and $19\%$ for bfloat16 at $k=32$. The rows
+give $7.5\%$ and $4.6\%$: right for FP16, wrong by a factor of four for
+bfloat16, and the reason is worth more than the prediction was.
+
+Image error is the larger of two terms, not one. A \emph{floor} term set by
+how well $A_0$ can be reconstructed, which does not depend on the chart; and a
+\emph{conditioning} term, the arithmetic mismatch amplified by
+$1/\sigma_{\min}$ of the pull-back, which does. The measured amplification
+from $k=16$ to $k=32$ separates them cleanly: $8.9\times$ for FP64,
+$19\times$ for FP32, $7.7\times$ for FP16 --- and $1.5\times$ for bfloat16,
+whose error was already sitting on its own floor ($3.0\%$ against a floor of
+$2.3\%$) and so had nothing to amplify. My prediction applied a conditioning
+factor to a quantity that was floor-dominated.
+
+One consequence is that \emph{the format ordering inverts with $k$}. FP16
+recovers better at $k=16$ ($0.97\%$ against bfloat16's $3.0\%$) and worse at
+$k=32$ ($7.5\%$ against $4.6\%$), because FP16's error amplifies while
+bfloat16's is pinned. Underneath, FP16's narrow exponent range flushes
+$28$--$35\%$ of the residual entries to exactly zero at these margins ---
+destroyed information rather than noise --- while bfloat16 zeroes $1$--$2\%$
+and merely coarsens the rest. There is no format that is safer than another
+here; there is a floor, a conditioning factor, and a chart dimension that
+decides which of the two you meet.
+
+What survives all of it is the claim: at $k=32$, the instance-identifying
+chart, a matched attacker recovers the private letters to $5.8\times10^{-6}$
+from an FP32-trained release and to $4.6\%$ and $7.5\%$ from the
+half-precision ones --- against a chart whose own error is $0.235$. Even the
+worst of those is a third of what the chart costs anyway.
 
 \emph{The three attackers on this one release are the clearest lesson in the
 section.} The certificate recovers none of the eight. The recipe route with an
