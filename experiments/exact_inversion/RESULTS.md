@@ -3616,3 +3616,25 @@ to. Before any in-band chain verdict is possible, one of these must be establish
 still vanishes to machine precision in band, or a soft-constraint formulation (the plan's D3) that tolerates a
 surface known only to 1e-5. The pre-registered in-band handoff prediction is therefore **not yet testable**, and
 none of the three in-band cells is scored either way.
+
+### A general form worth stating: a framework-derived unknown is a discrete search with an oracle, not a continuous one
+
+Raised by Yoad against my own objection to the minibatch relaxation, and it is right. I had costed the per-step
+shuffle as `T × N` free bits (3,200 in the standard cell) against a per-image identifiable budget of order 100, and
+concluded that relaxing the data assumption merely *swaps* it for a schedule assumption. That costing treats the
+schedule as an arbitrary function. **It is not: frameworks derive it deterministically from a small seed** (a
+DataLoader generator seeded by one integer, often combined with the epoch), so the unknown is one conventional
+small integer plus a known algorithm — **low-entropy and discrete, with an exact test attached**, since the release
+residual already separates a wrong recipe from the right one by twenty orders.
+
+**The general statement, which reaches further than shuffling:** *any unknown a framework derives deterministically
+from a small seed or a short configuration is a discrete search with a decisive oracle, not a continuous unknown,
+and must not be costed by its expanded dimension.* That covers the shuffle order, the initialisation seed, dropout
+masks, and an augmentation sequence if one is used. The relevant cost is the number of plausible seeds times one
+simulation, not the dimension of what the seed expands into.
+
+*Pre-registered check, queued (cheap):* generate a minibatched release with a known shuffle seed, sweep candidate
+seeds through the simulator, and confirm that **only the true seed reaches the floor while wrong seeds sit ≥ 6
+orders above it**; report the separation. If it holds, the minibatch relaxation is close to free for replay as well
+as for the certificate, and my "swap, not removal" objection is withdrawn to a much narrower one: the attacker pays
+a seed search, not a schedule reconstruction.

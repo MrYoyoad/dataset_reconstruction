@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Do not cost a framework-derived unknown by its expanded dimension (2026-09-04)
+
+- **What I got wrong:** I costed a minibatch shuffle as `T × N` free bits (3,200) against an identifiable budget of ~100 and concluded the data assumption was merely being swapped for a schedule assumption.
+- **Why it is wrong:** the schedule is not an arbitrary function. Frameworks derive it deterministically from a small seed plus a known algorithm, so the unknown is one conventional integer with an exact test attached — the release residual already separates a wrong recipe from the right one by twenty orders.
+- **General rule:** *any unknown a framework derives deterministically from a small seed or a short config is a discrete search with a decisive oracle, not a continuous unknown.* Cost it as plausible-seeds × one simulation. Applies to the shuffle order, the initialisation seed, dropout masks and augmentation sequences.
+
 ## A guard written for one private image becomes a bug when the cell records several (2026-09-04)
 
 - **What happened:** an audit rightly warned against crediting a landing by post-hoc nearest match, since a start drifting toward an *unrecorded* image would score as a pass. I implemented that guard by measuring against a **fixed** target — correct when one image is recorded, wrong when several are. At a cell with three recorded images, two thirds of genuine landings were scored against the wrong image and read as failures: median landing error 0.71 instead of 2.6e-13, and the handoff appeared to beat chance by 12% when it in fact beats it by a factor of 3e12.
