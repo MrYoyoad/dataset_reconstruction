@@ -3709,3 +3709,20 @@ k = 62 / 64 / 66 / 68, so the cut at five is unambiguous in every cell.)*
 Every row now carries **the raw rank, the certified count, and the lines derived from the second**, and `in_band` is
 computed from the certified count — the same off-by-one shape as the earlier control, where a cell's in/out status
 was only as good as the `N′` used to compute it.
+
+### The two channels have two different single dependencies — the correct form of "the start problem is underneath everything"
+
+I wrote that every claim of the form "the attacker can find or verify X from the release" inherits the start
+problem. That is **too strong and would undercut the lead result** (yoado-cd). It is true of everything that goes
+through **replay** and false of the **certificate**, which is the one route measured to run from random starts and
+reach its floor — 51% of 2,000 starts at k = 6 with all seven recorded images found, and the letters cell at 8 of 8.
+
+| | pins per image | single dependency | what inherits it |
+|---|---|---|---|
+| **Replay** (wide channel) | `(m−1) + r − N′` | **the START** — no cell has ever reached the floor from an attacker-buildable start | the recipe rejections, the learning-rate fit, the seed sweep, the capacity results, the basin work |
+| **Certificate** (narrow channel) | `r − N′` | **the line and the chart** — needs `k < r − N′` and the images renderable in that many coordinates; needs no start | the from-nothing recoveries, the imprint readings, the membership tests |
+
+So the programme is two routes with two cleanly separable limitations, not one dependency underneath everything —
+and that is precisely **why the certificate is the lead result and replay is the identifiability story**. The
+circular-oracle finding therefore scopes the *recipe* claims (all of which are replay claims) and leaves the
+certificate results untouched.
