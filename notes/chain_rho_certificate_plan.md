@@ -493,3 +493,75 @@ Options "use k = 18, outside the band" and "loosen the tolerance to get N′ = 2
 tolerance are not traded for arity. **The pre-registered question is now the multi-image chain, and the arity
 premise is retired**: the lanes score reachability (D2 vs D1, handoff proximity against the chart baseline, the
 wrong-manifold arm), not a one-image mechanism.
+
+## 7. Final pre-registration terms (2026-09-04, b9's amendment adopted; supersedes §2/§2b where they differ)
+
+**The arity premise is dead.** No natural batch at r=8 gives N′=1; the constructed one-image cell was falsified too
+(fillers must be confidently classified ON-CHART, and small charts destroy that — traces within 2× of the target
+instead of 1000× beneath; the gap opens only at k=18, above the band). N′ is not an independent knob: for a fixed
+batch it FALLS as the chart grows. In-band cells that exist: N′=7 at k=6 and k=8, N′=6 at k=10, N′=5 at k=10 and
+k=12, N′=4 at k=12. Counts 1–2 never occur; 3 only out of band. **The question is therefore the MULTI-IMAGE chain**,
+replay = joint subset solve over the recorded images (step η·N′/N, seed mixing N′×N′).
+
+**PRIMARY (per cell, unconfounded — every comparison at fixed batch, k, N′):**
+- **Branch 1 = D2 > SCRAMBLED** (true manifold beats a random subspace of the same dimension and conditioning).
+  This is the test of whether the certificate's *information* does the work.
+- **D2 > D1 is a necessary precondition, not the criterion.** D2 > D1 with D2 ≈ scrambled is a **negative**: the gain
+  was dimension reduction, which needs no certificate.
+- Branch 2 (floor at a wrong image) ⇒ chart/prior constraint missing. Branch 3 (above the floor) ⇒ initialiser missing.
+  Branch 4 (no landings) ⇒ not scored.
+- Branch-1 fraction must be reported **against the per-landing certificate residual** (median split or plot);
+  concentration in the best decile is a different result and is reported as one.
+- Chart-geometry baseline **norm-matched** (reuse the handoff-gate control): a solve that shrinks ‖w‖ approaches
+  everything without learning anything.
+- **Headline requires the primary in ≥2 cells**, not one (six cells, chance).
+
+**SECONDARY (observational, confound stated in the same sentence):** how the gain varies with the recorded count
+across cells — confounded with chart size by construction. The N′=7 pair at k=6/k=8 is the only partial decoupling.
+
+**Scope:** landings are wherever the certificate solver converged, not a uniform sample of the manifold — the right
+population for an attack, since that is all an attacker has.
+
+### §7 Multi-image pre-registration, frozen before launch (b9 + c9 + GM; executor build note)
+
+**Branch 1's discriminator is `D2 > scrambled`, not `D2 > D1`.** D2 searches `k − (r − N′)` unknowns against D1's
+`k`, so at a fixed budget the smaller problem wins whether or not the constraint carries information — and a
+smaller search space is available from any random subspace with no certificate at all. The scrambled arm matches
+dimension and conditioning and differs only in being the wrong subspace, so it is the only comparison that isolates
+the certificate's *information*. **`D2 > D1` is demoted to a necessary precondition; `D2 > D1` with
+`D2 ≈ scrambled` is a NEGATIVE** (the gain was dimension reduction) and would have scored as a pass under the
+earlier wording. Bars unchanged: ≥ 3× and ≥ 3 successes, **per landing**.
+
+**Success over a set.** The joint solve returns `N′` images, so scoring is an **optimal one-to-one assignment**
+(Hungarian), never greedy nearest-match — a solve returning near-copies of the easiest image would otherwise score
+well. Three further guards, all implemented: an image counts as recovered only if its assignment is **unambiguous**
+(its matched error at least 10× below that return's second-best truth), the **number of distinct truths matched**
+is logged so mode collapse is its own outcome, and **branch 1 requires all `N′`** with anything less reported as
+labelled *partial*. Alongside, the **count-normalised** statistic: the distribution of `j` (images recovered per
+landing) and its median `j/N′`, D2 against scrambled — reported as a distribution, since bimodal and uniform carry
+the same mean.
+
+**Coverage is a distinct outcome.** The certificate is per-image: each random start descends to *one* recorded
+image, and basins are uneven, so the landings may not cover the recorded set. A joint start requires one landing
+per recorded image, so **an incomplete cover means no joint start can be assembled and the chain is not testable at
+that cell** — reported as `COVER`, never as a chain failure. Per-image coverage separates "no landing reached it"
+from "covered but not recovered".
+
+**Two gates, both fwd_check-style.** (i) The certificate must vanish at every recorded truth (`GATE`), else `Z_C`
+does not contain the truth and every branch is void. (ii) **The joint `σ_min(Dρ)` at the truth is the sufficiency
+gate** (`SGATE`): the count is necessary, `σ_min` sufficient, and imprint alignment or the `r(N − N′)` free seed
+directions (8–40 across these cells; the handoff fixes only the recorded directions, so D4's "N′×N′ mixing" is not
+what a multi-image cell has) can collapse it where the counting guard holds. A cell with `σ_min ≈ 0` is
+unidentifiable and its chain rows are uninterpretable.
+
+**Read every null against the imprint Gram** (logged per cell: median and max off-diagonal |cos|, `σ_N/σ_1`).
+"Too aligned to separate" is a different verdict from "the chain does not help".
+
+**Reporting requirements fixed now:** branch-1 fraction split at the **median landing certificate residual** (if
+success concentrates in the best-converged landings, "10% of landings work" is really "the best decile works" and
+the number moves with the certificate solve's budget); the chart-geometry baseline is the **norm-matched** control
+already built for the handoff; and a **headline claim requires the primary to hold in at least two cells**, since
+six cells with a 3-success bar make one chance pass non-negligible.
+
+**Scope sentence to carry:** the landings are wherever the certificate solver converged, not a uniform sample of
+the manifold — which is the right population for an attack, since an attacker has only what a solver produces.
