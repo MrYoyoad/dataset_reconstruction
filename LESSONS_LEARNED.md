@@ -2642,3 +2642,20 @@ luck, not method — and the check is only possible at all because the diff was 
 with adapted layers below it, the encoder Jacobian at layer 6 has rank **187 of 784**, varying 92 … 272 across the
 eight images. So the encoder does collapse rank with depth, which is precisely the quantity the withdrawn
 raw-pixel sweep could not see.
+
+## 2026-09-04 — on a shared-weight layer, one image is not one recorded item
+
+**The finding, in the form that generalises.** `N′ = rank B_T` counts recorded **directions**, and a layer whose
+weights are shared across positions or tokens receives one direction per position per image. Measured on frozen
+pretrained transformers at real photographs, the span is `min(N · tokens, d)` **exactly**: a single image supplies
+197 independent directions into a 768-dimensional input. So on a ViT block, one private image floods any deployed
+adapter rank, and the recipe-free certificate is identically zero before the batch size is even a question.
+
+**The belief that turned out to be wrong.** I pre-registered a REDUNDANT branch on the grounds that trained
+transformers have famously redundant token activations. At the level of linear span they do not — the activations
+are in general position. Redundancy in the sense of "attention heads are prunable" is not redundancy in the sense
+of "these vectors span a small subspace", and I had conflated the two.
+
+**The habit.** Before assuming a shared-weight layer behaves like a dense one, count the vectors it actually
+records: `N × positions` against the input dimension. That single inequality decided the conv result, the deep-conv
+reversal, and this one, and it is computable from the architecture and the batch size with no training at all.

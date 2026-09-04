@@ -4365,3 +4365,46 @@ geometry and should not be read off a single checkpoint.
 **Why this is the load-bearing run for deployment.** Every certificate result in this ledger is on an MLP or a
 conv net trained here. A transformer is where adapters actually go, and the token-sharing count decides whether
 any of this transfers before questions of rank, depth or conditioning even arise.
+
+## RESULT — the recipe-free certificate does NOT exist on a real transformer at any deployed setting (job 273322)
+
+Frozen pretrained ViT-B/16 (supervised) and ViT-S/16 (DINO), real photographs at native resolution, token span
+measured at the input of every candidate adapted linear. **The pre-registered SATURATED branch fired, and the
+REDUNDANT branch is dead — there is no token redundancy at all.**
+
+**The measured span is `min(N · tokens, d)` exactly, in every module of both models.**
+
+| module (ViT-B/16) | `d` | N=1 | N=2 | N=4 | N=8 | N=16 |
+|---|---|---|---|---|---|---|
+| `attn.qkv`, `attn.proj`, `mlp.fc1` | 768 | 197 | 393 | **768** | **768** | **768** |
+| `mlp.fc2` | 3072 | 197 | 394 | 788 | 1576 | **3072** |
+
+Every one of the 197 tokens of a *single* image contributes an independent direction to the recorded span. The
+folk belief I cited when pre-registering this — that trained transformers have redundant token activations —
+is false at the level that matters here: these activations are in general position.
+
+**What that does to the margin, which is the whole point.** The certificate needs `r > ` the recorded span:
+
+| adapter rank | margin at N=1 | margin at N≥2 |
+|---|---|---|
+| `r = 8, 16, 64` (the deployed range) | **0** | **0** |
+| `r = 256` | 59 | **0** |
+
+**One private image already floods any deployed adapter.** A rank-16 adapter on a ViT block records 197
+directions from a single image into a 16-dimensional row space, so `C = 0` and there is nothing to test, invert or
+certify. Even at `r = 256` — four times the largest deployed rank — the channel survives only for a batch of
+exactly one, and dies at two. Surviving at `N = 8` would need `r > 1576`, which is twice the model's own width.
+
+DINO ViT-S/16 is worse, not better: at `d = 384` the attention modules saturate by `N = 2`, and its `fc2`
+(`d = 1536`) saturates by `N = 8`, so on that model **no module survives at any batch size above one**. The result
+is not an artefact of one checkpoint or one pretraining objective.
+
+**Scope, stated precisely.** This kills the **recipe-free certificate channel** on transformers, which is the
+narrow channel that needs only the release and a public model. It says nothing about the **replay channel**, whose
+per-image budget is a different count and which is limited by the start problem instead. And it is a statement
+about weight sharing, not about transformers being safe: the same arithmetic gave early conv layers the same
+verdict and deep conv layers the opposite one.
+
+**This is the clearest deployment-relevant statement in the ledger, and it is a negative one.** Where adapters
+actually go — attention and MLP projections inside blocks, at ranks 8 to 64 — the recipe-free channel does not
+exist, and it fails by two orders of magnitude rather than marginally.

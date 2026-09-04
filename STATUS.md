@@ -1,5 +1,22 @@
 # Project Status
 
+## The recipe-free certificate does NOT exist on a real transformer at any deployed setting (2026-09-04, job 273322)
+
+Frozen pretrained ViT-B/16 and DINO ViT-S/16, real photographs, measured before any adapter is trained. A shared
+linear inside a block is applied at every token, so one image contributes one recorded direction **per token**.
+**The measured span is `min(N · tokens, d)` exactly** — 197 independent directions from a *single* image, in every
+module of both models. There is no token redundancy to hide in.
+
+Consequence, and it is not marginal: the certificate needs the adapter rank to exceed that span, so at the
+deployed range `r` = 8–64 the margin is **zero for every batch size including one**. At `r = 256`, four times the
+largest deployed rank, it survives only at `N = 1` and dies at `N = 2`. Surviving at `N = 8` would need `r > 1576`,
+twice the model's width. DINO ViT-S/16 is worse: no module survives above `N = 1`.
+
+**Scope.** This kills the *recipe-free* channel on transformers — the narrow one needing only the release and a
+public model. It says nothing about the replay channel, which has a different budget and is limited by the start
+problem. It is a statement about weight sharing, not about transformers being safe: the same arithmetic condemned
+early conv layers and exonerated deep ones.
+
 ## Where the adapter STARTS sets the ceiling, and the deployment gap is now a number (2026-09-04; jobs 218345, 218346)
 
 Both algebraic checks at the truth — Jacobian ranks at the true images, no solve, no start, not attacks.
