@@ -1,4 +1,47 @@
-# Handover — 2026-09-03 22:39
+# Handover — 2026-09-04 14:14
+
+## State
+Branch `step1-activation-rescore-retrieval`. Executor session of the exact-inversion thread (now **yoado-41**; the
+lanes were renamed by a restart — write-up is **yoado-81** (`notes/exact_channel_rev10.tex`, 36 pp), genuineness
+audit **yoado-7e**, theory/source-verify **yoado-c9**, claims audit **yoado-b9**, deck/supervision **yoado-cd**,
+explainer artifacts **yoado-21**). All of yesterday's jobs have finished and are written up; four are in flight, three
+of them a knee-curve experiment that is the live question.
+
+## The live question (Step 26, RESULTS)
+The matched-arithmetic attacker recovers the private letters from a bf16-TRAINED adapter, and the k = 32 fidelity
+reversal (bf16 4.6% better than fp16 7.5%, inverting the k = 16 order) was traced to **over-descent**: stopping fp16
+at bf16's residual gives 4.72% against bf16's 4.56% (job 85300). Generalised as *the image finishes long before the
+residual does* — a lower floor is a liability, the stopping rule is the **knee**, not the floor. Three sweeps now
+measure the knee and test the mechanism: **86888** (fp16, stops 0.08 → 0.0019), **87369** (bf16, 0.08 → 0.0124),
+**88743** (fp32, 0.08 → 1e-6). Pre-registered in RESULTS: U-shape with a minimum ~4.6% near residual ~0.011;
+coincidence of all three on the shared **left arm** (residual above the knee); divergence of the right arms by
+format; and **fp32 has no right arm** — a monotone descent to ~1e-6. An fp32 upturn would falsify the
+distance-to-minimiser reading. Also still running: **650890** (most-leaking) and **658575** (weak model's letter ladder).
+
+## Settled since the last note (all in RESULTS, STATUS, LESSONS)
+- **The lead result** is the new class: letters at r = 64, k = 32, trained in fp32 — all eight recovered from random
+  starts, recipe-free, tight tolerance. Step 23 (confident batch) is retitled *the exact-arithmetic existence corner*
+  with both disqualifiers inline (frozen adapter `A_T = A_0`, feedback 4e-19; release 7.6e-18 with 2e-29 imprints).
+- **Matched-arithmetic recovery from half-precision training:** bf16-trained 4.6% at k = 32 and 3.0% at k = 16,
+  fp16-trained 7.5% / 0.97%, fp32-trained 6e-6 / 3e-7. Half-precision training is not protection.
+- **A rank read off a low-precision release is not physical:** the cap-violating direction is the all-ones vector
+  (σ tracks the softmax column-sum error), removing it leaves 10 not 8, and **no release-agnostic tolerance
+  recovers the true rank** — 10ε under-counts even in FP64 (reads 3), tight tolerances over-count (11).
+- Withdrawn on evidence: "fp16 stalled"; "the bf16 cells sit below a widened line"; "records what it gets wrong"
+  (it is the margin-order law); "approximately and rarely" for the above-line cells (the argmin is a post-hoc
+  nearest match, 113% from its intended target, zero landings in 5,000); the dynamic-range reading of the reversal.
+- Closures: control ladder complete; wide-head ladder 18/15/13/12/9 of 20 at k = 8…40; subset selection rule holds
+  while the omitted imprint exceeds the achievable residual; negative controls pass; OOD grids confirm the
+  margin-order law across three encoders; the 3,000-iteration chart reruns rank nothing (only PCA converges).
+
+## Gotchas
+- Compute nodes cannot see the session scratchpad — inline diagnostics in the bsub heredoc.
+- Every figure has had **one reader**; yoado-81's image reads time out. A third check is needed before any figure
+  goes to the supervisor (STATUS carries this).
+- `train_precision.py` is the executor's own module (matched route, landscape, knee sweeps); `certificate.py`,
+  `subset_and_ood.py`, `lora_exact_inversion.py`, `vae_chart.py` are shared — do not edit while multi-invocation
+  jobs hold them.
+
 ## State
 Branch `step1-activation-rescore-retrieval`, HEAD `9edcbd2`. Executor session of the exact-inversion thread
 (write-up: yoado-ed owns `notes/exact_channel_rev10.tex`; auditor: yoado-6e). Every result up to the start-scale
@@ -39,74 +82,6 @@ Job 728592 landed and is the thread's HEADLINE (RESULTS Step 23, commit 19170d3)
 66% land on a private digit, all eight found, argmin correct, chart instance-identifying (.94); reproduced in
 721391. Also in: wide-head twenty-image cell 18 of 20 from 10,000 starts (725918); per-rank sweep table; k=10
 bracket. Next step 1 below is DONE; continue from step 2.
-
-## Update 2 (after the headline)
-- Start-scale cell (737516), subset one-swapped control (706597), the 98% sweep closure (614344: no alias form),
-  the k=6 replication on hard1_diff (706721) and wide-head k=16 (725918: 15/20) are in RESULTS/STATUS (commit
-  9edcbd2) and were sent to yoado-ed with the ladder-figure path.
-- Ladder job 721391 died on `subset_and_ood.release_and_imprints`'s assertion (`||sum_i C_i - B_T||/||B_T|| < 1e-10`)
-  at `mnist_control r=64` on the cell AFTER k=16 (ks were 16 24 32 40 48 56; the on-chart batch depends on k, so the
-  release differs per k). All confident rows and mnist_control k=8 (r=16/32/64) and k=16 (r=64) are on disk and
-  unaffected (the assertion is at release time). Resolved: FP64 roundoff on a release that shrinks 4 orders at k>=24 (control digits become confident on-chart); assertion floored (bc0f907); the five control cells resubmitted as job 749362 (`step69_cert_rank_ctrl_749362.jsonl`). Diagnostic job 748065 printed ||B_T||, the absolute and relative
-  mismatch and the imprints at k=16..56 (`scripts/wexac_logs/imprint_chk_748065.out`). Suspected: roundoff on a tiny
-  B_T (well-classified projected digits) — if so, relax the assertion to an absolute floor and log it; do NOT edit
-  `subset_and_ood.py` while 706597/644064 (its main module) or 706721/725918 (import it, multi-invocation job
-  scripts) are running.
-- Diagnostic scripts must be inlined in the bsub heredoc: compute nodes cannot see the session scratchpad (/tmp is
-  node-local); job 747682 died on "No such file".
-
-- Auditor ask (yoado-6e): when 749362's rows land, read ‖B_T‖ and rank from THAT job's saved release tensors under `results/exact_inversion/step69_ctrl_749362_r64/` (not from the CPU diagnostic) before writing the collapse-along-k finding beside its Part B rows.
-
-## Update 3 (the release-vs-k finding and the precision programme)
-- **Job 752500 (RESULTS "The release against k"):** the confident batch's release collapses monotonically with the
-  chart — ‖B_T‖ 0.47 (k=8) → 0.08 (16) → 1.6e-13 (24) → **7.6e-18 (32, the HEADLINE cell)** → 2.8e-24 (56), tracking
-  the projections' margins 11 → 60; the control plateaus at 1e-6…1e-4 (margins 11–15). No "window"; the rank dip at
-  k=16 is a relative artefact. The headline number now carries "release norm 7.6e-18" (STATUS scope caveat).
-- **Mechanism, corrected before any row (RESULTS Step 24 continued):** off-class softmax entries exp(−margin) survive
-  to a format's subnormal floor (fp32/bf16: margins ~100; fp16: ~16.6); unit roundoff only zeroes the own-class
-  entry; the release never feeds back (1e-18 vs logits 40, below the ulp even in FP64) so A_T = A0 and B_T is the
-  one-step gradient × T. Predicted: headline survives fp32/bf16 TRAINING, erased by fp16's range; fp16 STORAGE zeroes
-  the whole file (0 found); spectrum (primary predictor) and imprints agree in this cell: fp32 5, tf32 2, bf16 2.
-- **Jobs in flight for this:** 753371 (headline cell from a quantised release, 9 cells; the fp64 cell first),
-  753886 (bf16 vs fp64 at k=58/60 — relabelled "is a bf16 release attackable where the chart is faithful"; the
-  "widen the line" trade hypothesis was withdrawn: on-chart the fidelity is the training k), 760909 (letters 'a'
-  as an 11th class, loop run in fp64/fp32/bf16/fp16, search from each — the decisive arm), 760912 (confident k=32,
-  control k=32, confident k=8 in the four formats), 749362 (control ladder k=24…56). Read rows against the
-  pre-registrations; the letters' projected margins at t=1 are read from the fp64 row first.
-- `train_precision.py` is new (no shared module edited — 753371/753886 are multi-invocation jobs holding
-  certificate.py; do not edit certificate.py / lora_exact_inversion.py / subset_and_ood.py until they finish).
-- **Step 24 results so far (753371):** fp64 8/8 (reproduces the headline); fp32 and tf32 at a TIGHT tolerance 5/8
-  (the three weakest directions destroyed, residual 0.9 at their truths); the "noise-matched" tolerance loses images
-  (use the noise rank); fp16 file underflows to exactly zero, 0/8; bf16 pending. Lesson: the quantised spectrum's floor
-  is ~3 orders below the unit roundoff — predict from the measured spectrum. k=10 bracket (706721) closed: floor and
-  recorded fractions separate 6x AT the line. Flowers corrected design (656205): identifiable near the truth,
-  search failure from random starts; mixed batches rerunning (762253, save-path bug fixed a18893a).
-- **Step 25 (760909/760912/763805, RESULTS):** the LEAD result — letters as a new class, all 8 from random starts at
-  FP64 (k=32, release 1.0, adapter moving 43%); fp32 training: 8/8 at k=16, 6/8 at k=32 (10ε tol; tight-tol job
-  764976 pending — if 8/8 the sentence for Gal is unqualified); bf16/fp16 TRAINING keep the norm, degrade directions
-  2–25%, certificate finds 0. Headline cell: fp32 exact, mismatch 6e-32 (signal). Landing error ≈ 5× residual at truth.
-  Figure: figures/exact_inversion/letters_recovery_k32_760909.png.
-- **Step 26 (771329, pre-registered):** recipe route (FP64 simulator, near start) vs the bf16/fp16-trained letter
-  releases — decides whether "recorded but not certificate-recoverable" is an extraction gap or a demonstrated
-  non-protection. 764976 (tight-tolerance certificate search from fp32/bf16-trained releases) still running; 763805
-  (random head row) done: reproduces the zero row. Script freeze: certificate.py / lora_exact_inversion.py /
-  subset_and_ood.py / vae_chart.py until 753886 and 749362 finish (multi-invocation); train_precision.py is safe to edit
-  between its jobs (single invocation each).
-- **CLOSED (764976):** letters k=32 from the fp32-TRAINED release at the tight tolerance — ALL 8 from random starts
-  (32.8%); the unqualified sentence holds at the instance-identifying chart. **Step 26 (771329) k=16 so far:** recipe
-  route recovers fp32-trained letters to 2e-6; on bf16-trained it lands on an ALIAS (residual 240× below the truth's
-  floor, wrong images) — recorded, recoverable by neither route we ran, an open; fp16 and k=32 rows pending.
-- **779207 (Step 26 addendum):** matched-arithmetic landscape of the bf16/fp16/fp32 letter releases (response to
-  perturbations; residual along start→truth). Pre-registered: bf16 map responds 1e-2…1e-1 to a 1e-6 perturbation →
-  no differentiable matched solver exists (verification oracle only); falsifier: linear response → run a matched LM.
-- **Landscape (779207/779969) FALSIFIED the needle prediction toward the attacker:** the bf16 training map is smooth
-  (response 4.4e-6 to δ=1e-6; rounding floor 2–4e-3; monotone start→truth at every window). The pre-committed
-  matched-arithmetic recipe route is running (782682: `matched_lm`, Z-parametrised A₀ candidate, FP64 Jacobian
-  surrogate, bf16 residual). Pre-registered: recovery to ≲5e-2 → "not protection" demonstrated; falsifier: alias
-  persists (A₀ floor). Control ladder complete; ladder figure has the control cells. bf16 k=58: 0 of 5,000, near-miss 7.8%.
-- **Step 26 RESULT (782682, bf16-trained letters k=16, matched-arithmetic route): recovered to 3% median image
-  error (max 6.9%), raw error at the chart floor; residual 0.014 vs the truth's A₀ floor 0.023; Z error 0.13 —
-  not protection, DEMONSTRATED. fp16/fp32 and k=32 rows pending.**
 
 ## Write-up lane (yoado-ed's state, folded in at their request)
 `notes/exact_channel_rev10.tex` (33 pp; builds via `bash scripts/rev10_figs/build_pdf.sh`; the PDF is gitignored, the
