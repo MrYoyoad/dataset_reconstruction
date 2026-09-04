@@ -4221,3 +4221,45 @@ layer) is simultaneously the best case for the attacker and the least representa
 an identity. Once anything nonlinear sits between the certificate and the pixels, **the encoder's Jacobian rank at
 the truth is the ceiling on pixel-space determination**, it collapses quickly with depth, and the conditioning
 collapses faster than the rank does.
+
+## RESULT — the extended-layer curve, redone ABOVE the drift plateau (job 212444): additive, and it reaches the pixel count
+
+Same 15-layer stack, every layer adapted, `r = 256` — above the ~90–110 drift plateau, so all fifteen layers are
+live. `N = 8`. Two training lengths.
+
+| layers in objective | 1 | 2 | 3 | 4 | 6 | 8 |
+|---|---|---|---|---|---|---|
+| pixel rank, `T = 100` | 248 | 446 | 637 | **784** | 784 | 784 |
+| pixel rank, `T = 400` | 248 | 416 | 569 | 709 | **784** | 784 |
+| usable above 1e-8, `T = 100` | 248 | 446 | 637 | 784 | 784 | 784 |
+| σ_min at the rank, `T = 100` | 9.9e-2 | 1.2e-2 | 2.9e-4 | 3.8e-6 | 4.8e-6 | 4.8e-6 |
+| condition number, `T = 100` | 3.5 | 50 | 2.2e3 | 2.1e5 | 1.7e5 | 1.7e5 |
+
+**The curve is additive and it reaches the ceiling: at four adapted layers the release pins the entire raw image**
+(784 of 784 directions, every one usable above the release's own noise floor), and at `T = 400` it takes six.
+Beyond that, extra layers add nothing — the encoder cost column goes 38 → 380 → 707 as the supplied count runs to
+1491 against a rank stuck at 784. So the earlier FLATTENING verdict was an artefact of `r = 64` sitting below the
+drift plateau, and is superseded.
+
+**Two things stop this being read as an attack result, and the first is structural.** (i) Layer 1's own
+contribution, 248, is the identity `rank(C) = r − N′` again, since its input is the image; and the additivity of
+layers 2–4 is what matrices in general position do. **The measured content is the absence of degeneracy and the
+encoder ranks, not the arithmetic.** (ii) It is a Jacobian rank at the truth — it counts what the release pins
+*around* the true image and says nothing about finding it.
+
+**What is genuinely new here is the depth profile of the encoder, measured at the truth in the same run** — the
+rank of `Dφ` below each adapted layer:
+
+| below layer | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `rank Dφ` of 784 | 784 | 784 | 692 | 219 | 187 | 138 | 104 | 85 | 72 | 60 | 50 | 30 | 23 | 19 |
+
+**Only the first three or four adapted layers can contribute at pixel level at all.** From layer 5 down the frozen
+path transmits at most 219 of 784 directions and it decays to 19 at the head, so those layers' conditions live
+inside a subspace the earlier layers already pin — which is exactly why the curve saturates at four layers rather
+than continuing. The stack is not deep in any way that matters to pixel-space leakage; **the network's own
+forward map is the bottleneck, not the adapter and not the number of adapted layers.**
+
+**Conditioning is the price and it is steep.** Reaching the full pixel count costs five orders of σ_min (9.9e-2 at
+one layer to 3.8e-6 at four) and at `T = 400` the six-layer cell sits at σ_min 1.3e-7 with condition number 4.0e6.
+The conditions are all above the noise floor, but a system at 1e6 is not one an attacker inverts casually.

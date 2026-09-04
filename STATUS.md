@@ -11,7 +11,12 @@ Jacobian rank at the true image, no solve and no start — so none of it is an a
    conditions from 112 supplied, of which **69 are usable** at condition number 9.0e9. **But at `r = 256` on the
    same stack, all fifteen layers are usable at every training length from T = 10 to T = 3200** — the drift
    plateau is ~90–110 directions and 64 sits below it. So the curve has never been measured with the layers live;
-   job 212444 does that. The chart-free reading of the 3-layer result stays out of every document either way.
+   **job 212444 has now done that, and the curve is ADDITIVE: 248 → 446 → 637 → 784 pixel conditions at 1, 2, 3, 4
+   adapted layers, i.e. the entire raw image is pinned at four layers, every condition above the noise floor.**
+   It saturates there because the frozen encoder below layer 5 transmits only 219 of 784 directions, decaying to
+   19 at the head — **only the first three or four adapted layers can contribute at pixel level at all.** The
+   price is conditioning: σ_min falls 9.9e-2 → 3.8e-6 over those four layers. Layer 1's own 248 is still the
+   identity, so the measured content is the absence of degeneracy and the encoder depth profile. The chart-free reading of the 3-layer result stays out of every document either way.
    **Exact arithmetic for the r = 64 cell, since it has been mis-summarised:** `N = 8`, layer 1 alone gives 56
    usable conditions, all three live layers give 69 — the extra layers added 13, a **23% gain**. Modest, not zero;
    "multi-layer is dead" is the wrong phrase for it.
