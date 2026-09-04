@@ -4340,3 +4340,28 @@ rank, which is not low-rank adaptation in any meaningful sense.
 **Conditioning moves the opposite way and that is the honest trade:** the low-rank cells are beautifully
 conditioned (1.7 at `r = 64`) and pin almost nothing; the cells that pin the image are at 2e5 and climbing. There
 is no rank at which this release both determines the image and is comfortable to invert.
+
+## Pre-registered — does the recipe-free certificate exist on a REAL transformer? (job 273322)
+
+Today's convolutional result generalises to a question about transformers with no changes: a shared linear inside
+a block is applied at every **token**, so one image contributes `T` vectors to the recorded span, exactly as a
+shared kernel contributes one per spatial position. For ViT-B/16 at `N = 8` that is `8 × 197 = 1576` vectors into
+`d = 768` for the attention `qkv`, the attention `proj` and the MLP `fc1`; only `fc2` (`d = 3072`) has an input
+dimension above the vector count.
+
+Measured on **frozen pretrained weights at real photographs** (flowers-102 at native resolution — deliberately not
+upsampled CIFAR, which would manufacture token redundancy and bias every number toward the optimistic answer). No
+recipe, no release, no solve; the answer depends on the architecture and the data alone.
+
+| reading | what the rows would show | what it means |
+|---|---|---|
+| **SATURATED** | token span reaches `d` on `qkv` / `proj` / `fc1` | the certificate is the zero matrix at every adapter rank on those modules, and the recipe-free channel does not exist there. `fc2` would be the only survivor — a very specific and easily falsified prediction. |
+| **REDUNDANT** | the span sits far below both `N·T` and `d` | trained transformers have famously redundant token activations; the margin is then set by the number of **distinct** token directions, the channel survives, and the **crossover `N`** — the largest private batch still leaving a margin — is the number to hand a defender. |
+
+`N` is swept over 1, 2, 4, 8, 16 to locate that crossover, and a second model with a different pretraining
+objective (DINO ViT-S/16) is run beside the supervised one, because the answer is a property of the learned token
+geometry and should not be read off a single checkpoint.
+
+**Why this is the load-bearing run for deployment.** Every certificate result in this ledger is on an MLP or a
+conv net trained here. A transformer is where adapters actually go, and the token-sharing count decides whether
+any of this transfers before questions of rank, depth or conditioning even arise.
