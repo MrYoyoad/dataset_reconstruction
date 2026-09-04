@@ -15,6 +15,12 @@ data and are what is recovered; against a raw image the residual error is the ch
 
 ## 1. The spine, in one page
 
+> **Document order is not pitch order.** This section runs measured-breadth → single-cell demonstration, which
+> is right for a state-of-science record. **In the meeting the certificate leads as the *tool* and the letters
+> cell (e) is its demonstration**, because the supervisor's stated objection was "no tool", not "no result".
+> Anyone building the talk from this file should invert §1's order.
+
+
 **The setting.** A LoRA adapter `(A_T, B_T)` released after fine-tuning is a deterministic function of the
 private data, the public recipe and the seed. Because `B₀ = 0`, the seed enters only through `X = A₀U`, `rN`
 numbers; the rest of `A₀` is released verbatim. **[M]** (Theorem G; gauge invariance verified job 487882,
@@ -152,7 +158,10 @@ picture.
    rank-deficient Jacobian reported as "no tangent directions"; an `lstsq` default driver assuming full rank,
    putting stations at image error 1e7; and a seed block started at zero instead of the span estimate. Rule now
    enforced in code: **a null from a constrained search is not reportable unless the same pipeline reproduces a
-   known positive end to end.**
+   known positive end to end.** **That control now exists and passes** (job 156607, `--positive-control`,
+   r=64, k=16, three recorded images): 172 of 200 random starts land, best error 9.5e-16, with the certificate
+   gate at the truth 9.3e-11 and `fwd_check` 1.1e-15. So the negatives above are bounded — a null from this
+   harness is now reportable — rather than standing as open doubt about the pipeline.
 4. **A threshold below the solver's own achievable floor is not a test** (LESSONS_LEARNED, same date). Found
    three times in one day, including a pre-registration whose success branch could not have fired.
 
