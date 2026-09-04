@@ -3054,8 +3054,26 @@ gap between the last real direction and the first spurious one is eleven orders 
 k = 16 it is **3×** (σ_8 = 5.8e-4, σ_9 = 1.9e-4), in fp16 **4×** (2.0e-4 → 5.2e-5); at k = 32, bf16 4× and fp16 2×.
 Note also that σ_9…σ_11 sit *below* the format's unit roundoff (bf16 1.9e-4 … 1.5e-5 against ε = 7.8e-3), so the
 10ε discipline does not reach them either. Rounding has compressed the spectral gap from eleven orders to a factor
-of two to four: **no tolerance separates the recorded directions from the spurious ones on a half-precision
-release**, and any N′ or certificate line read off one is unreliable in a way no threshold choice fixes.
+of two to four.
+
+**"Rank 11 at every tolerance" was too strong and the accurate version is sharper (yoado-c9).** Sweeping the
+tolerance over the stored spectra gives the rank actually read (true value 8 in every cell):
+
+| k | format | 10ε (7.8e-2) | ε (7.8e-3) | 1e-3 | 3e-4 | 1e-4 | 1e-12 |
+|---|---|---|---|---|---|---|---|
+| 16 | fp64 | 3 | 5 | 6 | 6 | 6 | **8** |
+| 16 | bf16 | 3 | 6 | 7 | **8** | 9 | 11 |
+| 16 | fp16 | 3 | 5 | 7 | 7 | **8** | 11 |
+| 32 | bf16 | 3 | 6 | 7 | **8** | 8 | 11 |
+| 32 | fp16 | 3 | 5 | 6 | 7 | 7 | 11 |
+| 32 | fp32 | 3 | 4 | 5 | 5 | 6 | 11 |
+
+So the read is not 11 everywhere: it climbs from 3 to 11 as the tolerance tightens and it *does* pass through the
+true 8 — but only inside a narrow, unmarked band (for bf16 at k = 16, between σ₉ = 1.9e-4 and σ₈ = 5.8e-4) that
+nothing in the release identifies. **No release-agnostic tolerance recovers the true rank: the principled choices
+under-count badly (10ε → 3 in every cell, including FP64's), tight ones over-count on any inexact release, and the
+truth sits in a band you would have to already know the answer to find.** That is the "unreliable in both
+directions" caveat occurring inside a single release, and it is why a half-precision N′ is not a physical rank.
 
 ### The k = 32 reversal is over-descent, not information loss (job 85300, yoado-7e's test)
 
@@ -3088,7 +3106,10 @@ does). The general statement is that **at an ill-conditioned chart the attacker 
 which they can do at any precision** — and low precision does it by accident when its floor coincides with the
 knee. Nobody should read "train in bf16 and the attacker does worse". (iii) The flush-to-zero reading (fp16
 zeroing 28–35% of residual entries) and the dynamic-range reading (σ_min 1e-5 near fp16's normal floor) are not
-needed to explain the reversal, though neither is excluded; the matched-residual gap of 3.5% bounds them. **On the 2×2 (yoado-7e):** the decomposition is right — any residual-determined part is over-descent, any
+needed to explain the reversal, though neither is excluded; the matched-residual gap of 3.5% bounds them — and even that
+gap is partly the 16% residual mismatch between the two stopping points (0.0107 against 0.0124) rather than pure
+format, which tightens the conclusion further (yoado-7e). The bound's resolution is the per-letter scatter; a
+tighter bound would need more seeds and letters, not another experiment. **On the 2×2 (yoado-7e):** the decomposition is right — any residual-determined part is over-descent, any
 format-locked gap at matched residual is flush-to-zero — but the fourth cell cannot be measured: bf16's own A₀
 floor is 0.0227 and its full descent stops at 0.0124, so it can never reach fp16's 0.0025. The one comparison the
 design does support is the matched-residual one, and it is already in: **fp16 at 0.0107 → 4.72%, bf16 at 0.0124 →
