@@ -2837,3 +2837,53 @@ that it did *better* than expected.
 **Net:** the k = 32 column confirms that a richer chart costs the matched attacker something real (both half
 formats degrade, 4.6% and 7.5% against 1.0% and 3.0%), refutes the specific claim that conditioning alone sets
 the cost, and exposes a format-dependent second axis — underflow — whose direction reverses the ordering.
+
+### Step 26, the k = 32 matched rows (782682) — against both pre-registrations
+
+| trained in | A₀ floor (matched residual at the truth) | A₀ unexplained | endpoint residual | image error vs on-chart truth (median / max) | raw (floor .235) | Z error | k = 16 value |
+|---|---|---|---|---|---|---|---|
+| fp64 (gate) | 8e-16 | 1e-15 | 1e-15 (converged, 48 it.) | 1.5e-14 / 1.0e-13 | .235 | 9e-15 | 2e-15 |
+| **bf16** | 0.0227 | 2.0% | 0.0124 (17 it., no accepted step) | **4.6% / 8.6%** | .239 | 0.16 | 3.0% |
+| **fp16** | 0.0019 | 0.64% | **0.0025** (23 it., no accepted step — *above* its floor) | **7.5% / 10.4%** | .256 | 0.047 | 0.97% |
+| fp32 | 1.3e-7 | 1.4e-6 | 1.1e-7 (62 it.) | 5.8e-6 / 3.8e-5 | .235 | 2.9e-6 | 3e-7 |
+
+**Reads.** (i) **bf16 at the instance-level chart: recovered at 4.6%** — uniform across the letters (3.3–8.6%),
+residual below the truth's floor by the same 1.8× as at k = 16, raw error at the chart floor. The
+chart-conditioning amplification from k = 16 to 32 is **1.5×**, not the 6× read off the FP64-simulator alias
+(yoado-ed's 19% pre-registration is falsified toward the attacker; yoado-6e's refinement — the A₀-floor
+perturbation lives mostly in well-conditioned directions, expect a single-digit factor — is the one that held,
+and bf16 did not cross into alias). (ii) **fp16 at k = 32: 7.5%, worse than bf16** — but its endpoint residual
+(2.5e-3) sits *above* its floor (1.9e-3): the solver stalled (no accepted step from the FP64-surrogate Jacobian
+against the fp16 residual) before reaching the floor, so the 7.5% is a stalled endpoint, not the floor expressed in
+image space; the verdict form is "residual not at the floor" (optimisation), and the k = 16 mantissa ordering
+(bf16 3% > fp16 1%) is not contradicted by a stalled row — one cell, recorded as such, not as a reversal. (iii)
+fp32: 5.8e-6 median (20× its k = 16 value), the chart's amplification visible where the floor is tiny. (iv) The
+two-dimensional statement that survives: *fidelity from a half-precision-trained adapter ≈ the A₀ floor set by
+the training ε, amplified by the chart mildly (1.5× for bf16 from k = 16 to 32)*; the attacker's best k is bounded
+by conditioning as well as by the line, but on this cell k = 32 is still inside the recoverable range for every
+format. **Closing sentence for the lead cell:** from an adapter trained in bf16 on a class the base model did not
+have, an attacker who simulates in bf16 recovers every private letter to 4.6% at the instance-identifying chart;
+trained in fp32, to 6e-6; the certificate alone, nothing; the FP64 simulator, a confident alias.
+
+### 753886, the FP64 control above its line and the bf16 release below its wider one (k = 58, 60; 5,000 starts each)
+
+| release | k | N′ (line) | position | on a recorded image | at the floor | found | argmin |
+|---|---|---|---|---|---|---|---|
+| fp64 | 58 | 7 (57) | **one above** | 0.04% (2 landings) | **14.3%** | 1 of 7 | spurious exact zero (4e-31), error 0.84 |
+| fp64 | 60 | 7 (57) | three above | 0 | **36.4%** | 0 | spurious (1e-30), error 1.18 |
+| bf16 (tol .08) | 58 | 3 (61) | three below | 0 | 0 | 0 | 7.8% from a recorded image (obj 9e-8); 229 near-blank starts excluded |
+| bf16 (tol .08) | 60 | 3 (61) | one below | 0 | 0 | 0 | 10.3% from a recorded image (obj 2e-12); 289 excluded |
+
+The FP64 line is sharp as pre-registered: one unit above it the certificate's exact zeros are dense (14%) and
+spurious (argmin 0.84 from any recorded image), three above 36%. The bf16 release's wider line (61) does put
+k = 58/60 below it, and its argmin is a near-miss at 8–10% from a recorded image with residual 2e-3 at those
+truths — degraded directions plus a basin that at k ≥ 56 is already < 1% per image on the FP64 release. So "is a
+bf16 release attackable where the chart is faithful?" reads: *approximately and rarely* — a 10% near-miss is the
+best 5,000 starts produce, no landing within 1%; the widened line is real but buys a degraded, unsampled target.
+The near-blank guard is load-bearing here (5–6% of starts degenerate at k ≥ 58).
+
+### Wide head, k = 40 (725918, last row)
+N′ 14 (line 50); 11.3% of 10,000 starts on a recorded image; **9 of 20 found**, more than half the images with zero
+landings (median 0, max 678); argmin on a recorded image; chart class accuracy .75. The twenty-digit ladder is
+complete: 18 / 15 / 13 / 12 / 9 of 20 at k = 8 / 16 / 24 / 32 / 40 with N′ 19 / 17 / 16 / 15 / 14 — the release
+losing rank and the basin losing coverage together as the chart sharpens.
