@@ -4544,7 +4544,7 @@ where the channel itself is unavailable", which is a genuine result **because** 
 channel is gone there. The head arm runs beside it as the positive control, since the head is the one module where
 the certificate is non-vacuous and the graded score must reproduce it.
 
-**A tension pre-registered before the head run (job 284393 / 284xxx), because it bounds what is reachable.** The
+**A tension pre-registered before the head run (job 285127), because it bounds what is reachable.** The
 head records one vector per image, so its span is `N` and the certificate needs `r > N`. The validity band
 meanwhile wants **many** members, since a handful of memorised images makes the trivial attack perfect. Those pull
 opposite ways. The reachable window is `N` below `r = 64` with the release fine-tuned rather than memorised, so
