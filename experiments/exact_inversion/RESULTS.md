@@ -4543,3 +4543,25 @@ the claim is "a statistic derived from the deterministic channel beats the stand
 where the channel itself is unavailable", which is a genuine result **because** the saturation section says the
 channel is gone there. The head arm runs beside it as the positive control, since the head is the one module where
 the certificate is non-vacuous and the graded score must reproduce it.
+
+**A tension pre-registered before the head run (job 284393 / 284xxx), because it bounds what is reachable.** The
+head records one vector per image, so its span is `N` and the certificate needs `r > N`. The validity band
+meanwhile wants **many** members, since a handful of memorised images makes the trivial attack perfect. Those pull
+opposite ways. The reachable window is `N` below `r = 64` with the release fine-tuned rather than memorised, so
+`N` = 8, 16, 32 at `r` = 64 is the window; `N` = 64 and 128 are run to show the certificate going vacuous as the
+batch reaches the rank — **the head's own version of the saturation result**.
+
+**Every row reports the membership AUC two ways** (yoado-cd, and it is better than reporting either alone): over
+**all** members, and over **recorded** members only — `N′` by the rank, gated on each member's own certificate
+residual. The gap between them is the imprint law appearing in a membership metric:
+
+> the channel gives near-perfect membership for the images the model had to learn, and nothing at all for the rest.
+
+Reporting only the first makes a low AUC read as "the attack is weak" when the truth is that most of those images
+were never in the release; reporting only the second is cherry-picking. Both together, with the ratio `N′/N`, are
+the result. `N′`, the head width `m` and the cap `N′ ≤ m − 1` are logged per row — on a 102-way head the cap does
+not bind, and the contrast with a small or binary head is deployment-relevant. Each member's certificate residual
+and final margin are logged in the same cell so the imprint law is visible there rather than cited from elsewhere.
+**Regime label, stated rather than hidden:** a fresh public-seeded head with labels outside the base model's output
+space — the new-class regime, where `N′ = N` and the channel looks strongest, and also the canonical reason people
+fine-tune.

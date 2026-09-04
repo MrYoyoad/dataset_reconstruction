@@ -164,12 +164,37 @@ def main():
                     losses += (-torch.logsumexp(logits, -1) + logits.max(-1).values).tolist()
             return graded, losses, cert
         gm, lm, cm = scores(Xm); gn, ln, cn_ = scores(Xn)
+        # WHICH members are recorded, and the imprint law visible in this same cell (yoado-cd, §22 follow-up).
+        # Recorded = certificate residual at the member's own truth below the gate; N' is rank B_T. Reporting the
+        # membership AUC over ALL members alone would read as "the attack is weak" when the truth is that most of
+        # those images were never in the release; over recorded members alone it would read as cherry-picking.
+        with torch.no_grad():
+            logit_m, feat_m = fwd(Xm)
+            true_l = logit_m.gather(1, y[:, None]).squeeze(1)
+            other = logit_m.clone(); other.scatter_(1, y[:, None], float("-inf"))
+            margin_m = (true_l - other.max(1).values).tolist()
+        gate = 1e-6
+        rec_idx = [i for i, v in enumerate(cm) if v == v and v < gate] if rank_C else []
+        a_cert_rec = (auc([-cm[i] for i in rec_idx], [-v for v in cn_]) if rec_idx else float("nan"))
+        a_graded_rec = (auc([gm[i] for i in rec_idx], gn) if rec_idx else float("nan"))
         if h is not None: h.remove()
         if h2 is not None: h2.remove()
         a_graded = auc(gm, gn); a_loss = auc(lm, ln)
         # the certificate is SMALL for members, so members are the low tail: flip the direction
         a_cert = (auc([-v for v in cm], [-v for v in cn_]) if rank_C else float("nan"))
         emit(dict(part="GRADED", model=a.model, module=a.module, block=a.block, r=r, N=a.N,
+                  n_prime_rank_B=rank_B, n_recorded_by_gate=len(rec_idx), recorded_fraction=len(rec_idx) / a.N,
+                  m_head_width=a.classes, head_width_cap=a.classes - 1,
+                  head_cap_binds=bool(rank_B >= a.classes - 1),
+                  auc_certificate_recorded_only=a_cert_rec, auc_graded_recorded_only=a_graded_rec,
+                  recorded_indices=rec_idx, per_member_cert_residual=cm, per_member_final_margin=margin_m,
+                  imprint_law_note="recorded members carry a near-zero certificate residual and the SMALLEST "
+                                   "final margins; unrecorded members are the confident ones. Report the AUC over "
+                                   "ALL members and over RECORDED members together -- the gap IS the imprint law "
+                                   "in a membership metric, and N'/N is what makes it interpretable.",
+                  label_regime="fresh public-seeded head, labels outside the base model's output space (the "
+                               "new-class regime, where N' = N and the channel looks strongest -- labelled, not "
+                               "hidden, and it is also the canonical reason people fine-tune)",
                   n_nonmember=a.n_nonmember, rank_B_T=rank_B, rank_C=rank_C,
                   certificate_vacuous=bool(rank_C == 0),
                   saturated=bool(rank_B >= r), final_loss=final_loss,
@@ -192,7 +217,8 @@ def main():
                   seconds=time.time() - t0, git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
         print(f"  [{a.module}] r={r:3d}  rank B_T={rank_B}/{r} rank C={rank_C} "
               f"{'SATURATED' if rank_B >= r else ''}  final loss {final_loss:.3e}"
-              f"   AUC cert {a_cert:.3f}   AUC graded {a_graded:.3f}   AUC loss-baseline {a_loss:.3f}"
+              f"   recorded {len(rec_idx)}/{a.N}   AUC cert {a_cert:.3f} (recorded-only {a_cert_rec:.3f})"
+              f"   AUC graded {a_graded:.3f}   AUC loss-baseline {a_loss:.3f}"
               f"   {'VOID (baseline outside band)' if not (a.baseline_band[0] <= a_loss <= a.baseline_band[1]) else ('BEATS baseline' if max(a_graded, a_cert if a_cert == a_cert else 0) > a_loss else 'LOSES to baseline')}",
               flush=True)
 
