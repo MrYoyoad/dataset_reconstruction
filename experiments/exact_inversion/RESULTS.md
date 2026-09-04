@@ -4260,6 +4260,26 @@ inside a subspace the earlier layers already pin — which is exactly why the cu
 than continuing. The stack is not deep in any way that matters to pixel-space leakage; **the network's own
 forward map is the bottleneck, not the adapter and not the number of adapted layers.**
 
+**The profile is the finding; the 784 is the profile's consequence.** Since layer 1's own count is an identity and
+the additivity of layers 2–4 is general-position behaviour, the two things this run actually measured are (a) that
+no degeneracy occurs anywhere in the stacking, and (b) the encoder's transmitted rank at each depth. Everything
+else follows from those two.
+
+**Two numbers decide what this means in practice, both pre-registered and running:**
+- **Depth of first adaptation (job 218345).** Every cell above starts adaptation at the pixel-input layer; real
+  adapters sit on blocks whose input is already a feature. The profile then says the whole stack is capped by what
+  the frozen path *below the first adapted layer* transmits — so adaptation starting at depth 4 should cap at
+  ~219 and at depth 7 at ~104, whatever the rank and however many layers follow. Adapting `d … d+3` with
+  everything below frozen, `d ∈ {1, 2, 4, 7}`. **Pre-registered: the saturation equals the transmitted rank at
+  depth `d`, not 784.** If it holds, the headline becomes *the release determines the image only when adaptation
+  reaches near the input*, which is both more honest and actionable for a defender.
+- **Rank threshold (job 218346).** `r = 256` is a third of full rank against a deployed 8–64. Sweeping
+  `r ∈ {64, 128, 192, 256}` at four adapted layers turns the deployment gap into a number. `r = 64` sits below the
+  90–110 drift plateau and is labelled a starvation floor rather than a point on the curve.
+
+`σ_min` is reported beside every saturation number in both, because a cap reached at 1e-10 and a cap reached at
+1e-2 are not the same result and only one survives contact with an actual inversion.
+
 **Conditioning is the price and it is steep.** Reaching the full pixel count costs five orders of σ_min (9.9e-2 at
 one layer to 3.8e-6 at four) and at `T = 400` the six-layer cell sits at σ_min 1.3e-7 with condition number 4.0e6.
 The conditions are all above the noise floor, but a system at 1e6 is not one an attacker inverts casually.
