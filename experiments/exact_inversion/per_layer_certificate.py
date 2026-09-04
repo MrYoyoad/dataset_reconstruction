@@ -55,7 +55,8 @@ def main():
     m = Ws[-1].shape[0]
     if a.sigma0 is None: a.sigma0 = 1.0 / math.sqrt(Ws[0].shape[1])
     g = torch.Generator().manual_seed(a.seed + 7)
-    idx = torch.randperm(Xte_t.shape[0], generator=g)[:a.N].to(dev)
+    perm_all = torch.randperm(Xte_t.shape[0], generator=g)
+    idx = perm_all[:a.N].to(dev); nonmem = perm_all[a.N:a.N + 12].to(dev)      # held-out non-members
     chart = PCAChart(Xtr_t, a.k, dev)
     X_real = Xte_t[idx].T.contiguous(); X_on = chart.psi(chart.coords_of(X_real)); y = yte_t[idx]
     print(f"# per_layer_certificate  m={m} N={a.N} r={a.r} k={a.k} lrs={a.lrs} git={git_hash()} dev={dev}", flush=True)
@@ -82,12 +83,28 @@ def main():
             input_drift = float(torch.linalg.norm(H_end[l] - H_start[l]) / torch.linalg.norm(H_start[l]))
             C, Np, sB = certificate(As[l], Bs[l])
             res = torch.linalg.norm(C @ H_end[l], dim=0) / torch.linalg.norm(As[l] @ H_end[l], dim=0)
+            # NON-MEMBER control, in the same row: held-out images pushed to this layer's inputs. A certificate that
+            # annihilates non-members too is VACUOUS -- which happens exactly when rank(B_T) = r, since row(B_T) is
+            # then everything and C = 0.
+            Hn0 = chart.psi(chart.coords_of(Xte_t[nonmem].T.contiguous()))
+            hn = Hn0
+            for j in range(l):
+                hn = GELU(Ws[j] @ hn + (b1[:, None] if j == 0 else 0) + Bs[j] @ (As[j] @ hn))
+            res_non = torch.linalg.norm(C @ hn, dim=0) / torch.linalg.norm(As[l] @ hn, dim=0)
+            C_norm = float(torch.linalg.norm(C)); A_norm = float(torch.linalg.norm(As[l]))
+            vacuous = bool(Np >= a.r or C_norm <= 1e-12 * A_norm or float(res_non.median()) < 1e-6)
             width = Ws[l].shape[0] if l < 2 else m
             emit(dict(part="LAYER", layer=l + 1, exact=(l == 0), lr=lr, T=a.T, N=a.N, r=a.r, k=a.k, m=m,
                       layer_width=width, cap_is=("m-1" if l == 2 else "layer width"),
                       cap_value=(m - 1 if l == 2 else width), rank_B_T=Np, cap_binds=bool(Np >= (m - 1 if l == 2 else width)),
                       lower_adapter_drift=drift_below, input_drift=input_drift,
                       cert_residual_median=float(res.median()), cert_residual_max=float(res.max()),
+                      nonmember_residual_median=float(res_non.median()), nonmember_residual_min=float(res_non.min()),
+                      separation_orders=float(torch.log10(res_non.median() / res.median())) if float(res.median()) > 0 else float("inf"),
+                      C_norm_over_A_norm=C_norm / A_norm, rank_C=int(torch.linalg.matrix_rank(C, rtol=1e-10)),
+                      VACUOUS=vacuous, vacuity_reason=("rank(B_T) = r: row(B_T) is everything, C = 0" if Np >= a.r else
+                                                       ("C is numerically zero" if C_norm <= 1e-12 * A_norm else
+                                                        ("non-members annihilated too" if vacuous else ""))),
                       cert_residual_per_image=[float(v) for v in res],
                       B_T_sigma_rel=[float(v / sB[0]) for v in sB[:min(12, len(sB))]] if float(sB[0]) > 0 else None,
                       start_model="n/a (projection only, no solve)", claim_class="algebraic check",
