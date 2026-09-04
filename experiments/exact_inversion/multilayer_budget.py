@@ -91,6 +91,31 @@ def main():
     print(f"  usable layers {[l+1 for l in usable]}  budget sum(r - N') = {budget} conditions per image "
           f"(replay's per-image budget for comparison: {(m-1) + a.r - Nps[-1]})", flush=True)
 
+    # ---- PRIMARY: rank of the stacked per-layer Jacobian at the truth, layer by layer
+    for L in range(1, len(usable) + 1):
+        layers = usable[:L]
+        def g_stack(w):
+            hs = inputs_of(chart.psi(w.reshape(a.k, 1)))
+            return torch.cat([(Cs[l] @ hs[l]).reshape(-1) / torch.linalg.norm(As[l] @ hs[l]) for l in layers])
+        ranks = []
+        for i in range(a.N):                                            # per recorded image, at ITS truth
+            w_i = chart.coords_of(X_on[:, i:i + 1]).reshape(-1)
+            J = tf.jacfwd(g_stack)(w_i).detach()
+            sv = torch.linalg.svdvals(J)
+            rk = int((sv > 1e-10 * sv[0]).sum()) if float(sv[0]) > 0 else 0
+            ranks.append(dict(image=i, rank=rk, sigma_max=float(sv[0]), sigma_min_nonzero=float(sv[rk - 1]) if rk else 0.0,
+                              sigma_rel=[float(v / sv[0]) for v in sv[:min(12, len(sv))]] if float(sv[0]) > 0 else []))
+        rk_med = sorted(x["rank"] for x in ranks)[len(ranks) // 2]
+        budget_L = sum(margins[l] for l in layers)
+        emit(dict(part="RANK", layers_in_objective=[l + 1 for l in layers], n_layers=L, k=a.k, r=a.r, N=a.N,
+                  budget_sum_margins=budget_L, ceiling_k=a.k, independent_conditions_median=rk_med,
+                  per_image=ranks, saturated_below_sum=bool(rk_med < budget_L), saturated_at_k=bool(rk_med >= a.k),
+                  generalised_line_holds=bool(a.k < budget_L),
+                  note="independent conditions on the candidate cannot exceed k; the honest budget is min(sum margins, k)",
+                  start_model="n/a (Jacobian at the truth, no solve)", claim_class="algebraic check", git=git_hash()))
+        print(f"  RANK over layers {[l+1 for l in layers]}: {rk_med} independent conditions "
+              f"(sum of margins {budget_L}, ceiling k={a.k})", flush=True)
+
     # ---- recovery with the objective built from the first `L` usable layers, L = 1, 2, ...
     for L in range(1, len(usable) + 1):
         layers = usable[:L]
