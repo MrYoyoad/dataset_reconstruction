@@ -3881,3 +3881,40 @@ layers, the implication is not that the chart is generous but that **a chart may
 conditions against 784 pixels is 20% of a chart-free determination of the raw image with no prior. Three points do
 not support that, which is why the 4/6/8/10/14-layer curve and the conv-net comparison run before it is written
 anywhere.
+
+## The extended-layer curve — pre-registered before the run (job to follow)
+
+Three points are three points. `experiments/exact_inversion/layer_curve.py` runs the same pixel-rank measurement
+at adapted depths `L = 1, 2, 3, 4, 6, 8, 10, 12, 14, D` on a deep backbone (`784 → 1000 × (D−1) → 10`, GELU, bias
+on the first layer only — the same family as the 3-layer cell so the numbers stay on one axis), `r = 64`, `N = 8`,
+`T = 400`. Depth-generic forward, unrolled release and checkpoint IO are in `deep_stack.py`; the backbone is
+trained by `train_deep_backbone.py` (plain; a residual fallback exists and is **flagged**, because a residual path
+changes the pixel Jacobian's rank for reasons unrelated to the certificate).
+
+**Every row is an algebraic check at the truth — a Jacobian rank at the true image, no solve and no start.** It
+counts what the release pins *around* the true image. It is not an attack and cannot become one by being repeated
+at more depths.
+
+Pre-registered readings, in the order they would be believed:
+
+1. **ADDITIVE.** Per-layer rank increments stay within a factor of two of the first three layers' mean (58, 44, 56
+   → ≈53/layer) until the curve meets `rank DF_1`. The three points were a line, and the line is the whole story.
+2. **FLATTENING.** Increments decay geometrically and the curve saturates well below `rank DF_1`. The three points
+   were the early part of a curve, and the chart-free reading dies here — this is the outcome that kills it.
+3. **Independently of which:** `σ_min` at the rank fell ~4× per added layer over the first three
+   (2.77e-1 → 6.94e-2 → 1.15e-2). If that continues, formal rank keeps growing while the **usable** rank —
+   conditions above the release's own noise floor, reported as its own column — flattens. *That column is the
+   honest number*, and a curve that is additive in formal rank and flat in usable rank counts as FLATTENING, not
+   as a success.
+
+`rank DF_1` is measured in the same run and printed beside every row. Every adapted layer's pixel map factors
+through the first layer, so `rank K ≤ rank DF_1` always; the ceiling is reported rather than assumed, and the
+headroom to it is a column. At width 1000 that ceiling is generically the pixel count, so the architecture does
+not cap the curve before the pixel count does — which is the point of choosing width ≥ 784.
+
+**Known scope, recorded now rather than after the numbers:** the per-layer certificate residual at the truth is
+already only ~1e-3 at layers 2 and 3 of the 3-layer cell (1.29e-9 at layer 1), because adapting the first layer
+moves the later layers' features during training — (A1) fails, exactly as `multilayer_lora.py` says. The
+conditions are therefore *approximate* at depth, and a rank measured on an approximately-satisfied condition is a
+rank of the linearisation, not of an exactly-vanishing map. The curve does not resolve this and must not be
+reported as if it did.
