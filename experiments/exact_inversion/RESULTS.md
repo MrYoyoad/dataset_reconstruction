@@ -3424,3 +3424,23 @@ survives and shrinks with conditioning:** fp16's advantage over bf16 is 3.1× at
 knee-to-knee amplification 4.40× against 1.50×, so about 2.9× of format-dependence remains after the stopping rule
 has done all its work. The first is an artefact of not stopping; the second is not an artefact at all. Precision
 still matters — just less at an ill-conditioned chart.
+
+*The separation degrades monotonically with k, and the ladder is not the same phenomenon (yoado-b9's two items).*
+Writing the gap as the ratio of the smallest below-gap imprint to the largest above-gap one: **1000× (k = 8),
+117× (16), 10× (24), 0.6× (32), 0.4× (40)** — monotone across all five charts, three orders of decline, crossing
+into overlap between k = 24 and k = 32. So the separation is not absent but *narrows with chart dimension and is
+lost between 24 and 40 on this head*, which is what the mechanism predicts (more chart dimensions, a relatively
+less dominant numerical row space, a blurrier boundary) and predicts further: **a wider head at fixed k, or a
+smaller k on this head, should widen the gap again.**
+
+**But the found-count ladder is a different quantity, and the per-image check says so.** The suggestion was that
+18 / 15 / 13 / 12 / 9 and the gap's decline might be one phenomenon. Ranking the twenty images by imprint (1 =
+strongest) and listing which are never landed on: at k = 8 the two not found are ranks **19, 20** — clean, the
+faintest. At every larger chart it is interleaved: k = 16 not-found ranks 15, 16, 18, 19, 20 while rank 17 *is*
+found; k = 24 not-found from rank 12 while rank 18 is found; k = 32 not-found from rank 11 while rank 17 is found;
+k = 40 not-found from rank **6** while rank 12 is found. So beyond k = 8 the images that stop being found are *not*
+simply the faintest — a strongly recorded image can go unlanded while a fainter one is recovered. The ladder's
+decline is therefore basin geometry (which targets random starts reach), not the certificate's separation
+(which images it annihilates); the two monotone sequences are two phenomena that happen to fall together. That
+also fits the earlier landing counts, where the per-image distribution is dominated by one or two targets with
+most images at zero.
