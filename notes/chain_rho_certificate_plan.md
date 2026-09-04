@@ -67,7 +67,13 @@ Log per start: certificate residual at landing, replay residual, image error vs 
 - **(4) No landings** ⇒ test did not run; not scored.
 `fwd_check` at machine precision before any row counts. Controls: unconstrained replay from the same landings
 (D1); unconstrained replay from random starts (known 0/20); one cell below the certificate line (k = 6) where the
-certificate alone must already succeed; one above replay's line (k = 16) where (2) is the predicted outcome.
+certificate alone must already succeed; one above replay's line (k = 18; k = 16 sits AT the line, where counting predicts nothing — 41's correction) where (2) is the predicted outcome.
+
+**Scope of the chain (41):** every design assumes the truth lies ON the certificate's zero set, which is exact only where the
+certificate vanishes at recorded images to machine precision — not on a wide head (residual 0.05–0.20 there) and not
+under half-precision training. The chosen cell is inside the exact regime; the chain is a method "wherever the
+certificate vanishes", not a general one. Projection recomputed EVERY step (curved Z_C, GELU encoder) with a
+correction step back onto the surface; certificate residual logged at the end so drift is visible.
 
 ## 3. Order of work
 D0 → (D1 + D2 in one job) → D3 only if D2 stalls (branch 3) → D5 only if D2 works and N′ ≥ 2 is wanted.
@@ -127,3 +133,122 @@ the truth at all, and every design here silently optimises within a manifold tha
 (strong model, m = 10, FP64, on-chart) is safely inside the exact regime, so this is not a problem for the test —
 but the chain's *scope* should be stated as "wherever `C h_i ≈ 0` holds to machine precision", not as a general
 method, and D0's station log gives the diagnostic for it (`cert_norm` at the truth itself).
+
+### From the explainer lane (yoado-21) — three items not covered by D0–D6
+
+**(i) Arity mismatch, and assembling a joint start.** The certificate is a per-image test: below its line a start
+descends to *one* recorded image, chosen by where it began, with basins measured 40× uneven. Replay's residual is
+*joint* over the whole recorded set. So for `N′ ≥ 2` there is a step between the two that no design names: collect
+landings until every recorded image is covered, deduplicate them into one joint start, then run replay once. Its
+cost is set by the rarest basin rather than the mean, and coverage — not landing rate — is the quantity to log.
+D5 sidesteps this by peeling one image at a time, which trades the joint constraint away; the assembled-joint-start
+variant keeps it. Worth a line in the pre-registration either way: for `N′ = 1` the two coincide, so the planned
+cell cannot distinguish them and the choice only bites when the band is extended.
+
+**(ii) A hard constraint mis-specifies its own dimension if `N′` is off by one.** D2 and D6 project onto the tangent
+space of `Z_C`, whose dimension is `k − (r − N′)` and therefore depends on the *estimated* `N′`. That estimate is a
+threshold on a decaying spectrum, and the twenty-image cell already showed a borderline member (imprint present,
+singular value seven orders below it). If `N′` is over-estimated the projection deletes directions that are genuinely
+free, and the constrained solve cannot recover them by construction — it will stall with a clean-looking residual and
+no indication of why. Under-estimating leaves the search too large and is benign by comparison. Cheap guard: run D2 at
+`N′` and `N′ ± 1` and compare achievable residuals, the same "level of the floor" discrimination the subset test
+already uses.
+
+**(iii) The hard constraint destroys the independent check; the soft one keeps it.** Under D2/D6 the certificate
+residual is zero by construction at every iterate, so the quantity that made the algebraic route self-certifying is no
+longer available as a diagnostic *during* the replay phase — the only signal left is replay's own residual. D3 keeps
+`‖Ch‖` free to drift and therefore retains a second, independent number to watch, which is worth more than it looks
+given how often in this project a single residual has been read as evidence of correctness. Suggests logging `‖Ch‖`
+under D3 not only as a falsifier for leaving the manifold, but as the running sanity signal D2 lacks.
+
+*(No numbers of my own; the band and nesting statements above are restatements of §0.)*
+
+---
+
+## §4 answer — the theorem side (yoado-81, write-up lane; notation of `notes/exact_channel_rev10.tex`)
+
+**The one fact that governs all three questions.** `C` is built *from* the release,
+`C = Π_{row(B_T)^⊥} A_T`. So `Cφ(ψ(w)) = 0` is a consequence of the release, not information
+beside it. Concretely, if `ρ(w,X) = 0` then the simulated release equals the actual one, so the
+simulated `A_T h_i` lies in the simulated row space, which *is* `row(B_T)`. Therefore
+
+    {ρ = 0}  ⊆  Z_C      (on the recorded set)
+
+— the replay solution set is **contained in** the certificate manifold. Everything below follows.
+
+### (a) Replay restricted to `Z_C`: the counting, and the line
+
+Above the certificate line the manifold `Z_C` is positive-dimensional: `ker C` has dimension
+`N' + (n−r)`, i.e. codimension `r−N'` in feature space, so a k-dimensional chart meets it in
+`k − (r−N')` dimensions per image. Restricting replay to `Z_C` therefore leaves
+
+    unknowns per image:  k − (r−N')        (was k)
+    seed unknowns:       unchanged (see (b))
+    B-block conditions:  unchanged, N((m−1)+r−N)
+
+**The chain's line coincides with replay's, and must.** Since `{ρ=0} ⊆ Z_C`, restricting to `Z_C`
+removes no solution and adds no constraint that `ρ = 0` did not already impose. The capacity count
+is unchanged and the boundary stays `k < (m−1)+r−N'`. **A chain cannot move the line** — if it
+appeared to, the derivation would be double-counting the release.
+
+What the restriction *does* change is the dimension of the space searched, from `k` to
+`k − (r−N')` per image, at no cost in identifiability. That is a **basin claim, not an
+identifiability claim**, and it should be pre-registered as one: the chain's whole hypothesis is
+that a smaller search space is easier to search, and nothing in the theorems guarantees it.
+
+Note the regime: **below** the certificate line `Z_C` is generically the isolated recorded points
+themselves, so the certificate alone already finishes and there is nothing to chain. The chain is
+only interesting in the band `r−N' ≤ k < (m−1)+r−N'`, which is exactly §0's band.
+
+### (b) The seed handoff — exact under (A4), and NOT an `N'×N'` mixing when (A4) fails
+
+Theorem `thm:quot` gives `row(B_T) = col(A_0H)` under (A1)–(A5), and `H = U R_H` with `R_H`
+invertible, so `col(A_0H) = col(X)`. The handoff is therefore **exact, not generic** — it is a
+subspace identity read off the release, not a statement that holds off a measure-zero set.
+
+Its effect on the unknowns: writing `Ξ` for a known orthonormal basis of `row(B_T)`, `X = Ξ M`
+with `M` an `N×N` unknown, so the seed block falls from `rN` to `N²`. And `M` is then
+over-determined by the other block: `A_T U = X Ω` gives `Ξᵀ A_T U = M Ω`, i.e. `N²` equations.
+
+**But the premise in the question is wrong when (A4) fails.** If `rank P_T = N' < N`, then
+`row(B_T)` is an `N'`-dimensional *subspace of* `col(X)` and does not determine it. The handoff
+then fixes only `N'` directions and leaves the other `N−N'` columns' worth entirely free:
+
+    seed unknowns after handoff:  N'² (mixing)  +  r(N−N')  (the unrecorded directions)
+
+So it is **not** an `N'×N'` mixing — the `r(N−N')` term is the one that matters, and it is
+precisely the invisible examples' directions. Since the interesting regime for the chain is a
+strong model, where `N' < N` is the common case, this term will usually be present.
+
+**Precedent worth weighing before building on (b).** Reducing the seed unknowns has been tried:
+the Q-parametrisation (`S = XᵀX` on `Sym⁺_N`, `rN → N(N+1)/2`) was measured **not to widen the
+basin**. The handoff is a different reduction, but it is the same *kind* of reduction, and the one
+data point we have says this kind does not buy basin. Pre-register accordingly.
+
+### (c) Does anything relate `Z_C` to replay's basin? — No, and there is a measured warning
+
+The theorems give **containment** (`{ρ=0} ⊆ Z_C`) and nothing else. Containment is about where
+solutions *are*; a basin is about where descent *converges from*. No result here connects them.
+
+And the measured behaviour warns specifically against the chain's implicit premise. Above the
+certificate line, a point can sit at an **exact** certificate zero and be far from every private
+image: at `k=58` (one above its line) 14.3% of starts reach an exact zero, 0.04% land on a
+recorded image, and the argmin is a spurious solution **0.84 away** from any of them (job 753886).
+So **`Z_C` membership is not proximity to the truth.** A chain that lands on `Z_C` and hands off
+to replay may hand off a point as bad as a random one, and the above-line regime is exactly where
+the chain is supposed to operate.
+
+That is not an argument against trying it — it is the argument for what the pre-registration must
+measure: not "does the chain reach `Z_C`" (it will), but **the distribution of image error at the
+handoff point**, against random-start controls at the same `k`. If handoff points are no closer to
+the truth than random ones, the chain is a smaller search of an equally bad space.
+
+### Summary for §0's band
+
+| | replay alone | chained |
+|---|---|---|
+| line | `k < (m−1)+r−N'` | **same** (forced: `C` is a function of the release) |
+| unknowns/image | `k` | `k − (r−N')` |
+| seed unknowns | `rN` | `N'² + r(N−N')` (exact under (A4): `N²`) |
+| what is hoped for | — | basin only |
+| what is warranted | — | nothing yet; `Z_C` membership ≠ proximity (753886) |

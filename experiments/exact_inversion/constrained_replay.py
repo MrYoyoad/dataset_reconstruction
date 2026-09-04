@@ -84,6 +84,17 @@ def main():
                   margins=[float(v) for v in mar], imprint_rel=[float(v / imp.max()) for v in imp],
                   B_T_norm=float(torch.linalg.norm(B_T)), B_T_sigma=[float(v) for v in sB],
                   cert_residual_per_image=[float(v) for v in cert_res], git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
+        # CERTIFICATE GATE (yoado-b9): the band premise {rho=0} subset {Ch=0} is numerical, not formal. If the
+        # certificate does not vanish at the truth in this cell, Z_C does not contain the truth and every branch of
+        # the pre-registration is void -- the analogue of fwd_check, for the constraint rather than the simulator.
+        cert_at_truth = float(cert_res[top])
+        print(f"  [k={k}] certificate gate at the truth: ||Ch||/||A_T h|| = {cert_at_truth:.3e}", flush=True)
+        if cert_at_truth > 1e-6:
+            emit(dict(part="GATE", set=a.set, k=k, r=a.r, n_prime=Np, cert_at_truth=cert_at_truth, passed=False,
+                      note="Z_C does not contain the truth at this k; chain branches void", git=git_hash()))
+            print(f"  [k={k}] GATE FAILED -- skipping (not scored as a replay outcome)", flush=True); continue
+        emit(dict(part="GATE", set=a.set, k=k, r=a.r, n_prime=Np, cert_at_truth=cert_at_truth, passed=True,
+                  fwd_check_pending=True, git=git_hash()))
         if Np != 1:
             print(f"  [k={k}] N'={Np} != 1: the cell is not the one-image band; running anyway, rows carry N'", flush=True)
 
@@ -170,8 +181,15 @@ def main():
             e_all = [float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in range(a.N)]
             e_raw = float(torch.linalg.norm(xh - X_real[:, top]) / torch.linalg.norm(X_real[:, top]))
             with torch.no_grad(): gnorm = float(torch.linalg.norm(g_of(v[:nW])))
-            verdict = ("recovered" if fval <= max(1e-28, 100 * fwd ** 2) and e_on < 1e-2 else
-                       "alias (residual zero, wrong image)" if fval <= max(1e-28, 100 * fwd ** 2) else
+            # Pre-registered thresholds (yoado-b9): the cell is FP64 throughout, so the absolute form applies --
+            # branch 1 is OBJECTIVE <= 1e-28 (not `residual`, which is its square root and floors at 1e-15 even in
+            # FP64) AND image error <= 1e-10. The relative form `100 x fwd^2` is carried alongside so the scoring
+            # cannot be tightened after the fact if this cell's own floor turns out worse than the letters cell's.
+            at_floor_abs = fval <= 1e-28; at_floor_rel = fval <= 100 * fwd ** 2
+            at_floor = at_floor_abs or at_floor_rel
+            verdict = ("recovered" if at_floor and e_on <= 1e-10 else
+                       "recovered (loose: image error < 1e-2)" if at_floor and e_on < 1e-2 else
+                       "alias (residual zero, wrong image)" if at_floor else
                        "optimisation failure (residual not zero)")
             return dict(part="B", arm=tag, set=a.set, k=k, r=a.r, N=a.N, n_prime=Np, seed=a.seed, constrained=constrained,
                         fwd_check=fwd, res_at_truth=fwd, jac_sigma_min_truth=smin_truth, jac_sigma_max_truth=smax_truth,
@@ -179,7 +197,8 @@ def main():
                         start_err_vs_truth=start_err, residual=fval ** 0.5, objective=fval,
                         lm_iters_used=used, verdict=verdict, err_vs_chart_truth=e_on, err_vs_chart_all=e_all,
                         nearest_image=int(min(range(a.N), key=lambda i: e_all[i])), err_vs_raw=e_raw,
-                        cert_norm_at_end=gnorm, objective_trace_full=[float(x) for x in trace],
+                        cert_norm_at_end=gnorm, at_floor_abs=at_floor_abs, at_floor_rel=at_floor_rel,
+                        cert_at_truth=cert_at_truth, objective_trace_full=[float(x) for x in trace],
                         seconds=time.time() - t1, git=git_hash(), host=socket.gethostname())
 
         gx = torch.Generator().manual_seed(a.seed + 77)
