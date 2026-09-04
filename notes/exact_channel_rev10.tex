@@ -22,7 +22,8 @@
 %     Def 1 def:setup, Lem 2 lem:grad, Thm 3 thm:traj, Cor 4 cor:seed,
 %     Thm 5 thm:quot, Def 6 def:rho, Prop 7 prop:simplex, Thm 8 thm:cap,
 %     Rem 9 rem:distance, Thm 10 thm:suff, Ex 11 ex:T1, Cor 12 cor:two,
-%     Cor 13 cor:general.  VERIFIED against the compiled PDF; the Remark and
+%     Prop 13 prop:chain, Cor 14 cor:chainbasin, Cor 15 cor:general.
+%     VERIFIED against the compiled PDF; the Remark and
 %     Example share the counter, so a list that omits them shifts every number
 %     after 8.  Cite by LABEL when merging, not by number.)
 %    Rev 9 Lemma 2 (factor invariants)        -> Theorem 3 (with the recurrences written out)
@@ -429,6 +430,64 @@ Theorem~\ref{thm:suff}.
 certificate (Thm~\ref{thm:quot}) & $\operatorname{row}(B_T)$; $\Pi_{\operatorname{row}(B_T)}A_T$ & $r-N$ & (A1)--(A5)\\
 exact (Thms~\ref{thm:cap}, \ref{thm:suff}) & all of $B_T$; $A_TU_c(w)$ & $(m-1)+r-N$ & (A1)--(A3), (A6); the recipe, checked or fitted (\S\ref{sec:measured}); a solver and a start\\ \bottomrule
 \end{tabular}
+
+\begin{proposition}[chaining the two channels does not move the line]
+\label{prop:chain}
+Let $\mathcal S_\rho:=\{(w,X):\rho(w,X)=0\}$ be the release-consistent set of
+Definition~\ref{def:rho}, let $Z_C:=\{w:C\varphi(\psi(w))=0\}$ be the
+certificate manifold, and let
+$\mathcal S_{\mathrm{chain}}:=\mathcal S_\rho\cap(Z_C^{\times N}\times\mathbb R^{rN})$
+be the solution set of the chained problem --- replay restricted to candidates
+whose images satisfy the certificate. Assume (A1)--(A6) hold for the
+attacker's own simulated trajectory. Then
+\[
+  \mathcal S_\rho\subseteq Z_C^{\times N}\times\mathbb R^{rN},
+  \qquad\text{hence}\qquad
+  \mathcal S_{\mathrm{chain}}=\mathcal S_\rho ,
+\]
+and the boundary of exact identifiability is therefore unchanged at
+$k<(m-1)+r-N'$.
+\end{proposition}
+
+\begin{proof}
+Let $\rho(w,X)=0$ and write $\hat H$, $\hat A_T$, $\hat B_T$ for the
+candidate's own features and released factors. Vanishing of the first block
+gives $\hat B_T=B_T$; vanishing of the second gives
+$\hat A_TU_c=A_TU_c$, and since each $\hat h_i$ lies in
+$\operatorname{col}(U_c)$ by construction, $\hat A_T\hat h_i=A_T\hat h_i$.
+The candidate's trajectory satisfies the hypotheses, so
+Theorem~\ref{thm:quot} applies to it and gives
+$\Pi_{\operatorname{row}(\hat B_T)^\perp}\hat A_T\hat h_i=0$. Substituting the
+two equalities, $\Pi_{\operatorname{row}(B_T)^\perp}A_T\hat h_i=C\hat h_i=0$,
+so $w\in Z_C^{\times N}$. The intersection defining
+$\mathcal S_{\mathrm{chain}}$ is therefore all of $\mathcal S_\rho$, and
+identifiability --- whether the truth is isolated in the solution set --- is a
+property of that set alone, so Theorems~\ref{thm:cap} and \ref{thm:suff}
+apply verbatim.
+\end{proof}
+
+A dimension count reaches the same place, which is worth recording because it
+is the form in which the question is usually asked. On $Z_C$ each recorded
+image retains $k-(r-N')$ free coordinates, and of the $B$-block's
+$N'\bigl((m-1)+r-N'\bigr)$ conditions the certificate has already consumed
+$N'(r-N')$, leaving $N'(m-1)$. Closure requires
+$N'\bigl(k-(r-N')\bigr)\le N'(m-1)$, i.e. $k\le(m-1)+r-N'$ --- replay's own
+line. Two independent routes to one boundary.
+
+\begin{corollary}[the chain is a basin claim]\label{cor:chainbasin}
+Chaining reduces the dimension of the search from $Nk$ to $N\bigl(k-(r-N')\bigr)$
+coordinates, plus the seed block, while leaving the solution set unchanged.
+Any advantage it confers is therefore a property of the optimisation and not
+of identifiability. In particular a chained attack cannot reach charts richer
+than $k=(m-1)+r-N'-1$, and it is only defined in the band
+$r-N'\le k<(m-1)+r-N'$: below $r-N'$ the certificate already isolates the
+recorded images and there is nothing to chain.
+\end{corollary}
+
+\noindent A corollary of the proposition worth stating separately: because
+$C$ is a function of the release, no construction built from $C$ can add
+information to $\rho$. Any derivation in which a chain \emph{widens} the
+admissible $k$ has counted the release twice.
 \end{center}
 Both capacities are statements about the chart coordinates $w\in\mathbb R^{Nk}$
 of Definition~\ref{def:setup}: the unknown is $w$, the theorems pin $w$, and
