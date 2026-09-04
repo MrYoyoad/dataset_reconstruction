@@ -3205,3 +3205,15 @@ full-descent comparison, so "the precision ordering holds at every k" is establi
 k = 16 — it holds there only if that chart's knee lies below fp16's floor (2.05e-3), which no row tests. A k = 16
 knee sweep would settle it; until then the statement is "at k = 32, measured; at k = 16, consistent with the
 full-descent rows".
+
+*Synthesis, pre-registered before ei85d lands (yoado-c9).* The controlling quantity is not `k` but **where each
+chart's knee sits relative to the formats' floors**, and that position moves with the chart's conditioning. At
+k = 32 (σ_min ~1e-5) the knee is shallow — about 7e-3, *above* fp16's floor of 1.9e-3 — so fp16 has room to
+over-descend and does. **Prediction for k = 16:** since fp16's full-descent error there is already 0.97%, there is
+little room for an over-descent penalty, so the k = 16 knee should lie *at or below* fp16's floor (2.05e-3) with a
+shallow-to-absent right arm; then the two charts bracket the mechanism — *conditioning lifts the knee up into the
+reachable residual range, and that lift is what turns precision from an asset into a liability.* **If instead the
+k = 16 knee comes back above fp16's floor**, fp16 over-descends there too, its 0.97% is not its optimum, and the
+honest statement becomes "precision is an asset up to each chart's knee" with k = 16 a mild over-descent case as
+well — still fp16 ahead of bf16 at matched stops, but with no clean "ordering preserved" shortcut. The right-arm
+shape at both charts is what decides it.
