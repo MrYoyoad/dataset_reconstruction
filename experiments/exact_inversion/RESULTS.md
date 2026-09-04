@@ -3217,3 +3217,42 @@ k = 16 knee comes back above fp16's floor**, fp16 over-descends there too, its 0
 honest statement becomes "precision is an asset up to each chart's knee" with k = 16 a mild over-descent case as
 well — still fp16 ahead of bf16 at matched stops, but with no clean "ordering preserved" shortcut. The right-arm
 shape at both charts is what decides it.
+
+### Knee sweep, fuller rows — the knee at k = 32 is SHARP, and fp32 has no right arm
+
+k = 32, image error against the residual actually reached (same start, seed, solver; one row per stopping target):
+
+| residual reached | fp16 | bf16 | fp32 |
+|---|---|---|---|
+| 4.2e-2 | — | 5.239e-2 | — |
+| 3.6e-2 / 3.4e-2 | 5.252e-2 | — | 5.259e-2 |
+| 2.3e-2 | — | 5.080e-2 | — |
+| 1.8e-2 | — | 4.653e-2 | — |
+| 1.5e-2 | — | 4.534e-2 | — |
+| 1.2e-2 | — | **4.558e-2** (its floor) | 5.134e-2 |
+| 1.07e-2 | 4.724e-2 | — | — |
+| 7.0e-3 / 7.4e-3 | **4.274e-2** | — | 4.752e-2 |
+| 4.2e-3 | **4.196e-2** | — | — |
+| 2.5e-3 | **7.471e-2** (its floor) | — | — |
+| 1.1e-7 | — | — | **5.810e-6** (its floor) |
+
+**The knee is sharp and lies between 4.2e-3 and 2.5e-3.** fp16 improves monotonically down to 4.196e-2 at
+residual 4.2e-3 and then jumps to 7.471e-2 at 2.5e-3 — the image error nearly doubles over a factor of 1.7 in
+residual. There is no flat bottom: **an attacker must tune the stop**, and a rule of "descend as far as you can"
+loses almost half the fidelity. (The exact location needs the 0.003 row, still running.)
+
+**fp32 has no right arm, as predicted:** it descends monotonically from 5.259e-2 at 3.6e-2 through 4.752e-2 at
+7.0e-3 to **5.810e-6** at its floor of 1.1e-7 — no upturn anywhere, because its minimiser is essentially the truth.
+The distance-to-minimiser reading is confirmed from the one format that has no displaced minimiser to travel to.
+
+**One honest discrepancy on the left arm.** At nearly the same residual, fp32 is *worse* than fp16: 4.752e-2 at
+6.99e-3 against 4.274e-2 at 7.38e-3 — an 11% relative gap in the wrong direction for strict residual-determinism
+(the lower residual should not have the higher error). The gap at the coarse stops is under 0.4%, so this appears
+only near the knee. Two readings, neither tested: the iterates differ in path (each format takes a different
+number of LM steps to reach the same residual — 4 against 5 here), or residual-determinism holds only away from
+the knee, where the image error is changing fastest with the residual. It is small, it does not affect the
+ordering conclusions, and it is recorded rather than smoothed.
+
+*k = 16 so far:* fp16 4.044e-2 at residual 3.2e-2, 3.444e-2 at 1.5e-2, **0.973e-2 at its floor 1.87e-3** — still
+descending at the floor, no right arm yet, consistent with the pre-registered prediction that the k = 16 knee lies
+at or below fp16's floor. The remaining stops (0.012 … 0.00205) will show whether it turns up at all.
