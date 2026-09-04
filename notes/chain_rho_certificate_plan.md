@@ -2,6 +2,18 @@
 
 **User directive (Yoad):** "let's make a plan on how to chain ρ and C together to work; ask peers too."
 
+## 00. The structural fact (yoado-81) — read first
+`C` is built from the release, so **`{ρ = 0} ⊆ Z_C`** exactly: restricting replay to the certificate manifold removes no
+solution and adds no condition. Hence (a) the chain's line is replay's line — the chain is a **basin claim, not an
+identifiability claim** and is pre-registered as one; (b) `Z_C` membership is NOT proximity: above the certificate line
+exact certificate zeros sit far from every private image (k=58: 14.3% of starts at an exact zero, 0.04% on a recorded
+image, argmin 0.84 away — job 753886), and the band is exactly where the chain must work; (c) the cheap falsifier is
+therefore **the distribution of image error AT THE HANDOFF POINT vs random starts at the same k** — if certificate
+landings are no closer to the truth than random starts, the chain is a smaller search of an equally bad space.
+Measure this before D2 (it is a by-product of D1's landings). Seed handoff: exact (`row(B_T)=col(X)`) but with `N′<N`
+it leaves `r(N−N′)` free seed numbers for the unrecorded images — so the chain cell's replay is the **subset solve
+(N′_kept = 1, step rescaled η·N′/N)**, where those unknowns do not exist.
+
 ## 0. Why chain at all — the band
 `{truth} ⊆ {ρ = 0} ⊆ {Ch = 0}`. The certificate is the A-block of ρ with the seed block and the trajectory
 projected out; it drops the `m−1` error-size conditions per image that live in the B-block.
@@ -292,3 +304,86 @@ the truth than random ones, the chain is a smaller search of an equally bad spac
 5. **The k = 16 control is at the replay line, not above it** (`(m−1) + r − N′ = 16` at r = 8, N′ = 1), and the
    counting argument says nothing about equality. Use **k = 18** for an unambiguous above-the-line control, or label
    k = 16 "at the line, outcome not predicted".
+
+---
+
+## 5. Genuineness controls (auditor lane, yoado-7e, 2026-09-04)
+
+**The two failure modes to defeat (per Yoad/cd):** (a) a constrained design reaching "the floor" because the
+constraint trivially shrank the residual; (b) landings near the truth by CHART GEOMETRY, not by the certificate.
+
+**Universal (every design):**
+- **U1 — image-error is the verdict, never the residual alone.** Score by image-error vs the on-chart truth,
+  always paired with the residual. Small residual + large image-error = a `Z_C` alias, not a recovery (branch 2).
+  Pre-reg (1) already does this — enforce it on EVERY design and control row, not just the headline.
+- **U2 — pre-handoff vs post-handoff image-error.** Log image-error AT the certificate landing (before replay)
+  and after. The chain is real only if PRE is LARGE (landing on the `Z_C` manifold, off the truth) and POST is
+  SMALL (replay pinned it). If PRE is already small, either the certificate alone did it (below-line regime, not
+  a chain) or geometry put the landing near truth (failure mode b). Report the PRE-error distribution.
+- **U3 — chart-geometry baseline (defeats mode b).** Report image-error-to-truth of RANDOM on-chart points
+  (uniform in `w` at the coordinate scale). If random chart points are already as near the truth as the
+  certificate landings, the CHART is doing the work, not the certificate — the chain claim collapses. Certificate
+  landings must beat this baseline by more than the per-image scatter.
+
+**Constrained designs D2 / D3 / D6 (defeat mode a):**
+- **C1 — WRONG-MANIFOLD control (the decisive one).** Rerun each with a RANDOM null-space constraint of the SAME
+  dimension `k − (r − N′)` (scrambled certificate: random `C'` of matched rank). If the design reaches the floor
+  on the random manifold TOO, the "floor" is a dimensional artifact of searching a smaller space, not the
+  certificate. Genuine chain ⇒ succeeds on the real `Z_C`, FAILS (image-error stays large) on the random one.
+- **C2 — truth-under-constraint floor.** Report the residual AT THE TRUTH under the same constraint. "Reaching the
+  floor" counts only if it equals the truth's floor; a constrained residual BELOW the truth's own is over-fitting
+  to a `Z_C` alias (pair with U1).
+- **C3 — counting (open Q5).** State `m−1` vs `k − (r − N′)` per cell. Where `m−1 < k − (r − N′)` the B-block
+  cannot pin the manifold → aliases are EXPECTED (branch 2), not a chain failure; don't score them as such. Only
+  `m−1 ≥ k − (r − N′)` cells can close branch 1.
+
+**D0 (basin diagnostic):**
+- **B1 — measure the `Z_C` walk in IMAGE space, not parameter space.** If walking `Z_C` by parameter-distance `d`
+  moves the image by `≪ d`, the manifold runs near the truth-directions and the in-manifold basin is INFLATED.
+  Report the basin as an image-space radius, directly comparable to the landings' image-space distances (U2).
+  (D0 starts from the TRUTH — it is a diagnostic, never the attack; keep its near-truth scope visible.)
+
+**D3 (homotopy) — free hyperparameter:**
+- **H1 — fix the λ schedule before the run** (pre-register it), never tune per-cell; report survival under a
+  second, coarser schedule. A per-cell-tuned schedule that reaches the floor is a researcher DOF, not an attack.
+  Keep the existing "path leaves `Z_C` by more than the certificate floor" falsifier.
+
+**D5 (peeling):**
+- **P1** — per-peel image-error vs truth AND `rank(B_T)` drops by exactly 1 after each subtraction (verify a
+  DISTINCT image was removed, not a re-find). **P2** — the subtracted imprint is from the RECOVERED image, so
+  errors compound: report the residual after each peel (must return to the floor if clean) and the image-error of
+  the LAST-peeled image, not just the first; report imprint-cosine separability (plan notes ~0.04).
+
+**Affirm — already correct, keep:** the three-branch verdict (floor-at-truth / floor-at-wrong-image=alias /
+residual-above-floor=basin) is exactly the right skeleton — it already separates recovery from alias from
+basin-failure. The random-start baseline (0/20), the k=6 (below-line) and k=16 (above-line) brackets, and
+`fwd_check` at machine precision are all correct; keep them.
+
+**Attack vs identifiability (per Yoad's start directive):** only D1/D2 from RANDOM certificate landings are
+attacker-realizable. D0 (from truth) and any D2/D3 run from a near-truth start are IDENTIFIABILITY diagnostics —
+they say whether a handoff CAN work, not that the attack does. Every row must carry which start it used.
+
+### §2 further amendments (b9's counting correction + cd/81 items; executor build note, 2026-09-04)
+
+6. **k = 16 is the LAST IDENTIFIABLE value, not one above the line** (b9). With m = 10, r = 8, N′ = 1 the strict
+   simplex form gives `k ≤ (m−1) + r − N′ = 16`, and this project's own bracket convention reads first collapse at
+   `k = m + r − N′ = 17`. So §0's band is `7 ≤ k ≤ 16`, not `[7, 16)`, and **branch (1) is what the counting predicts
+   at k = 16** — the earlier note that branch (2) was expected there inverted it. Controls become **k = 17** (where
+   the theory says it flips: the sharp test) and **k = 18** (unambiguously past it). If compute is tight, {16, 17}
+   is worth more than {18} alone: 16-succeeds-with-17-collapsed is a positive statement about the line, while 18
+   collapsing confirms only what nobody doubts. Both are cheap here, so the run carries k ∈ {8, 10, 12, 14, 16, 17, 18}.
+7. **Null-manifold arm** (cd): D2's construction repeated with `Z_C` built from a resampled `B_T` — same dimension
+   and conditioning, wrong subspace. If constrained replay works there too, the constraint is not doing the work.
+   Implemented as the `null_manifold` arm on the same landings.
+8. **D0 is a gate, not a diagnostic** (cd): D1 and D2 do not launch at a k where replay's in-manifold basin radius
+   is below `--d0-min-radius` (default 0.05 of the latent std). The walk takes random tangent steps with a
+   Gauss–Newton pull-back and logs the certificate residual at every station, so a station that has drifted off
+   `Z_C` is visible rather than silently counted.
+9. **The handoff falsifier is the first number after `fwd_check`** (81): for every start, the image error before the
+   certificate solve and after it, reported as two distributions plus the fraction of landings closer than the best
+   random start. If the certificate does not move starts closer to a private image, the chain is a smaller search of
+   an equally bad space and D2 is pointless. Emitted as the `HANDOFF` row.
+10. **The replay in this cell is the SUBSET solve** (81): `N′_kept = 1`, step rescaled `η·N′/N`, one label, one
+    image — so the 56 free seed numbers of the seven unrecorded images do not exist, and the seed handoff
+    `row(B_T) = col(X)` leaves a 1×1 mixing. Confirmed in the build
+    (`simulate_sgd_reduced(Hc, Xc, W0, y[top:top+1], m, T, lr·N′/N)`).
