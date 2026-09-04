@@ -5405,3 +5405,46 @@ its line rather than hoped for**. No verdict is emitted from it.
 
 **If no second batch is affordable**, the pre-registration is that the arm reports per-cell verdicts, states the
 confound explicitly, and **does not claim the degradation is caused by crossing the line.**
+
+## Round-2 design refinements after the theory desk answer (yoado-c9 via yoado-cd) — all held for the scoring update
+
+**Test 5 is cleared with a derivation rather than merely permitted.** The generative compressed-sensing guarantee
+needs the measurement matrix to satisfy S-REC over the generator's range. Ours is Gaussian off `col(H)` and zero
+on it, so S-REC holds iff generator-output **differences** keep a bounded-below component off `col(H)` — which
+they do for a `G` fitted on diverse public data, since those differences spread across the space and lose only
+their small `N`-dimensional projection. The counting then gives the prediction directly: the certificate cuts
+codimension `r − N′`, `G`'s range is a `k_g`-manifold, so the intersection is isolated **iff `k_g ≤ r − N′`** and
+positive-dimensional above it. **The crossing sits at `r − N′`, not at the sparsity threshold of ~250.**
+
+**Status change I am implementing: two of test 5's controls stop being row fields and become BLOCKING GATES.** The
+single case that breaks S-REC is a generator whose range is aligned with the private-feature span, which happens
+only if `G` is effectively fitted on the private data — and that shows up precisely as a trivially-close nearest
+output or an unpublishable representation error. So the oracle detector and the published representation error are
+**the theorem's hypothesis made empirical**: if either fires, the cell has **failed the hypothesis and is void, not
+a null**.
+
+**Test 5 reports two axes, never one.** The on-manifold arm is **identifiability** — a unique point in `G`'s range
+intersected with `ker C`. The off-manifold arm adds the generator's representation error as a **fidelity floor**.
+Count-crossing and representation error are separate axes; conflating them would repeat the on-chart/off-chart
+confusion from the letters cell.
+
+**Test 6 runs D0 first.** Basin extent *along* `Z_C` is the cheap decisive negative and it gates the rest. Two
+things kept from the original pre-audit: the **landing image-error distribution is overlaid on the recover-fraction
+curve**, because the basin is anisotropic and a scalar radius is a ceiling rather than the number; and **the
+pre-registered default is the null** — the seed-parameter reduction gave no basin widening, and membership of
+`Z_C` is not proximity. **If the cut survives in band it needs D0 and the landings behind it, not the decile cut
+alone.**
+
+**Test 7's baseline was specified wrongly and the correction is mine to absorb.** I had planned a *random-start*
+baseline in the real-data setting. That is the wrong comparator: it would measure "structured image versus random
+start", not the label. The right one is **random photographs from a GENERAL public pool** — concept-specific
+photos would not isolate the label, and noise would isolate "structured image versus noise", a weaker claim. So:
+concept photographs as starts against general-pool photographs as starts, same cell, same replay, same budget,
+same number of starts. **And the number of candidates needed is quoted as the attacker's cost, not just a success
+flag.**
+
+**Test 8, two fixes.** The random-refit control must be **same-kind** — same resolution and preprocessing — so the
+only variable is recovery versus random rather than image shape. And any gain is framed as **fidelity at fixed
+budget, never as budget**: bootstrapping renders the same `k` coordinates as a better image and cannot recover
+more coordinates, because the capacity line is untouched. That is round 1's carried-forward issue and the sentence
+most likely to be got wrong.
