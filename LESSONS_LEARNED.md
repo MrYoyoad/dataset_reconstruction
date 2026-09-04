@@ -2583,13 +2583,17 @@ until it fills the rank.
 image count, at every training length. Layer 2 goes 32 → 37 → 42 → 63 and layer 3 goes 36 → 44 → 47 → 64 over the
 same sweep. At T = 400, twelve of fifteen layers have `N′ = r` and their certificates are identically zero.
 
-**Why it matters beyond this run.** Every margin, every capacity line and every "conditions supplied" count in
-this project is a statement about a layer whose input is fixed, unless drift was checked. Two habits follow:
+**What this does and does NOT touch** (audit 02b93e8, correcting an over-correction of mine). The capacity line
+`k < r − N′` is **untouched**: `N′` is defined operationally as `rank B_T`, so the inequality never depended on
+what that rank counts. What needed the frozen-input condition is only the *gloss* — "`N′` = the number of
+examples recorded". The bound is general; the headcount reading is not. Two habits follow:
 - Read `N′` as **recorded directions**, never as an image count, and say which it is in every table.
 - A certificate margin means nothing on its own. **Check the condition actually holds at the truth** — the conv
   rows had margins of 64, 192 and 448 with residuals of 6e-2 to 7e-1. A margin plus a failing residual is not a
   weak certificate; it is not a certificate.
 
-**Corollary that is now the live thread.** The first adapted layer is the only one immune, because its input is
-the image itself. Whatever the recipe-free channel can do to raw pixels, it does there, and it scales with the
+**Corollary that is now the live thread.** The immunity belongs to a layer whose **input is frozen**, not to the
+layer that happens to be first — the distinction matters in branching architectures, where several layers can each
+sit on a frozen path. In a plain stack the first adapted layer is the only one, because its input is the image
+itself. Whatever the recipe-free channel can do to raw pixels, it does there, and it scales with the
 adapter rank rather than with depth.
