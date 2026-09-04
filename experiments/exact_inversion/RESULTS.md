@@ -3116,3 +3116,14 @@ design does support is the matched-residual one, and it is already in: **fp16 at
 4.56%**, a 3.5% relative gap, smaller than the per-letter scatter in either row. So over-descent accounts for the
 reversal to within the resolution available, and the flush component is bounded above by that gap rather than
 measured. The mirror run is kept as a control that bf16 stopped early does not improve either.
+
+*Knee sweep, pre-registered (jobs 86888 fp16, and the bf16 mirror over the overlap band).* fp16-trained letters,
+k = 32, matched route, the LM stopped at residuals 0.08, 0.04, 0.02, 0.012, 0.008, 0.005, 0.003, 0.0019 (its floor);
+bf16 at 0.08, 0.04, 0.02, 0.016, 0.0124 (it cannot go lower). **Predicted (yoado-7e):** image error against
+stopping residual is U-shaped — high at 0.08 (barely descended), a minimum near 4.6% at a knee around 0.011, rising
+to 7.5% at fp16's floor; the two points already in hand (0.0124 → 4.56%, 0.0025 → 7.5%) forbid a monotone curve,
+so what the sweep decides is *where* the knee sits and *how sharp* it is — a flat bottom is a wide safe-stopping
+band for the attacker, a sharp one means they must tune the stop. **And the two formats plotted on the same axes
+close the mechanism:** in the overlap (residual 0.012 … 0.08) the curves must *coincide* if fidelity is purely
+residual-determined, which proves format-independence directly rather than by inference; any persistent vertical
+gap there **is** the flush-to-zero contribution, measured instead of bounded by the current ≤ 3.5% scatter.
