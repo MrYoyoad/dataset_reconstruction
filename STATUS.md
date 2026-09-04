@@ -5,12 +5,16 @@
 Three pre-registered runs, all landing against the optimistic branch. Each is an algebraic check at the truth — a
 Jacobian rank at the true image, no solve and no start — so none of it is an attack result.
 
-1. **The extended-layer curve lands on FLATTENING.** On a 15-layer MLP (97.38% test accuracy) with every layer
-   adapted at `r = 64`, **twelve of the fifteen layers are vacuous**: `N′ = rank B_T = 64 = r`, so `C = 0`. Only
-   layer 1, layer 2 and the head carry anything. Stacking them gives 80 independent pixel conditions from 112
-   supplied, of which only **69 are usable above 1e-8**, at condition number **9.0e9**. The usable rank falls
-   below the formal rank for the first time in this project. The chart-free reading of the 3-layer result is dead
-   in this form and stays out of every document.
+1. **The extended-layer curve at `r = 64` lands on FLATTENING — and that was RANK STARVATION, not depth.** On a
+   15-layer MLP (97.38% test accuracy) with every layer adapted at `r = 64`, twelve of fifteen layers are vacuous
+   (`N′ = 64 = r`, so `C = 0`); only layers 1, 2 and the head carry anything, giving 80 independent pixel
+   conditions from 112 supplied, of which **69 are usable** at condition number 9.0e9. **But at `r = 256` on the
+   same stack, all fifteen layers are usable at every training length from T = 10 to T = 3200** — the drift
+   plateau is ~90–110 directions and 64 sits below it. So the curve has never been measured with the layers live;
+   job 212444 does that. The chart-free reading of the 3-layer result stays out of every document either way.
+   **Exact arithmetic for the r = 64 cell, since it has been mis-summarised:** `N = 8`, layer 1 alone gives 56
+   usable conditions, all three live layers give 69 — the extra layers added 13, a **23% gain**. Modest, not zero;
+   "multi-layer is dead" is the wrong phrase for it.
 2. **The mechanism.** `N′` counts recorded **(image, step)** directions, not images, at every layer whose input
    moves. Layer 1's input is the image and never moves, so its `N′` is exactly the image count at every training
    length (8 at T = 25, 50, 100, 400). Layer 2 runs 32 → 63 and layer 3 runs 36 → 64 over the same sweep.

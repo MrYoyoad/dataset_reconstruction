@@ -3960,7 +3960,10 @@ Deep backbone `784 → 1000 × 14 → 10`, GELU, plain, trained to **97.38%** te
 | margin `r − N′` | 56 | 1 | **0 — VACUOUS** | 55 |
 | certificate residual at the truth | 2.7e-14 | 9.7e-07 | (C = 0) | 1.1e-02 |
 
-**Twelve of fifteen adapted layers supply nothing at all.** The stacked pixel rank:
+**Twelve of fifteen adapted layers supply nothing at all — AT THIS RANK, and that qualifier turned out to be the
+whole story.** See the correction below the table: at `r = 256` on the same stack, all fifteen layers are usable
+at every training length from `T = 10` to `T = 3200`. `r = 64` sits *below* the drift plateau of ~90–110 recorded
+directions, so this cell measured rank starvation and I reported it as depth. The stacked pixel rank here:
 
 | layers in the objective | supplied | pixel rank | usable above 1e-8 | σ_min at the rank | cond |
 |---|---|---|---|---|---|
@@ -3971,6 +3974,25 @@ Deep backbone `784 → 1000 × 14 → 10`, GELU, plain, trained to **97.38%** te
 The pre-registered **FLATTENING** branch, on both of its stated tests at once: the increments collapse, and the
 usable rank (69) falls below the formal rank (80) for the first time in this project while the condition number
 goes to 9e9. **The chart-free reading is dead in this form** and stays out of every document, as pre-registered.
+
+**CORRECTION (raised by yoado-cd, confirmed from the rows).** Two things in the paragraph above are over-stated.
+
+*First, the arithmetic of what the extra layers bought.* With `N = 8`, layer 1 alone supplies 56 usable conditions
+in this very cell. Layers 1+2 give 57. All three live layers give **69 usable** (80 formal). So the second layer
+and the head together added **13 usable conditions, a 23% gain** over the first layer alone — modest rather than
+multiplicative, but **not zero**, and "multi-layer is dead" is the wrong phrase for a 23% gain. Any document
+carrying that phrasing should be corrected.
+
+*Second, and larger: 12-of-15 was rank starvation, not depth.* At `r = 256` on the same 15-layer stack, **all
+fifteen layers are usable at every training length tested, T = 10 through T = 3200** (job 205888). The drift
+plateau is ~90–110 recorded directions, and `r = 64` is below it. So the extended-layer curve has never yet been
+measured in a configuration where the layers are actually live. That measurement is job 212444.
+
+**What died is only "adapt every layer and harvest all of them at a rank below the drift plateau."** What did not
+die: the first adapted layer always has a frozen input in any configuration, so it is always harvestable; the
+deep-conv solo arms work, with layers 3 and 4 holding to 11 digits; and drift is a function of training length
+rather than a binary, so at a quarter of the training length the additivity was exact. **The governing statement
+is the three-part criterion, not a verdict on depth.**
 
 ## RESULT — why: `N′` counts recorded (image, step) directions, not images, at every layer whose input MOVES (job 200956)
 
