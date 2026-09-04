@@ -3158,3 +3158,24 @@ doubly dead. If any format is already off there — fp16 worse than fp32 at, say
 — that is a format effect operating *before* any over-descent, and it reopens the question the early-stop row
 closed. **The over-descent account needs the left arms to coincide, not merely the right arms to diverge**, so
 that is the first thing to read.
+
+### Knee sweep, partial rows (86888 fp16, 87369 bf16, 88743 fp32; k = 32, one row per stopping target)
+
+| stop target | fp16: residual reached → image error | bf16 | fp32 |
+|---|---|---|---|
+| 0.08 | 3.4e-2 → **5.252e-2** | 4.2e-2 → **5.239e-2** | 3.6e-2 → **5.259e-2** |
+| 0.04 | 3.4e-2 → 5.252e-2 | 2.3e-2 → 5.080e-2 | 3.6e-2 → 5.259e-2 |
+| 0.02 | 1.37e-2 → 5.123e-2 | 1.83e-2 → 4.653e-2 | — |
+| 0.016 / 0.012 | 1.07e-2 → 4.724e-2 | 1.49e-2 → 4.534e-2 | — |
+| 0.008 | 7.4e-3 → **4.274e-2** | (floor 1.24e-2) | — |
+| full descent | 2.5e-3 → 7.471e-2 | 1.24e-2 → 4.558e-2 | 1.1e-7 → 5.8e-6 |
+
+**The left arms coincide** — at matched targets the three formats agree to within 0.4% relative (5.239 … 5.259e-2
+at 0.08), and where the reached residuals differ the ordering follows the residual, not the format. No format is
+off above the knee, so the dynamic-range reading is excluded a second time, now across the whole shared range
+rather than at one point. **And the knee is lower than the ~0.011 both the write-up and the audit had asserted:**
+fp16 stopped at 0.008 reaches 7.4e-3 and gives **4.274e-2**, better than bf16's best (4.534e-2 at 1.49e-2) and than
+fp16's own 0.012 stop. So **bf16's floor (1.24e-2) sits *above* the knee, not at it** — bf16 is slightly
+under-recovering rather than landing on the optimum, which corrects the "lucky landing" clause: coarse arithmetic
+stops a little short of the best point rather than exactly on it. The remaining fp16 stops (0.005, 0.003, 0.0019)
+locate the minimum and its sharpness.
