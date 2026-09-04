@@ -308,24 +308,35 @@ What the section establishes, in order — every label as in the .tex:
   against †1.43e-2 past the line (8,32, 25 steps) and †3.84e-2 at the line (14,22, 25 steps, final). Same procedure,
   only the side of the boundary changes, twelve orders apart: the direct experimental form of the capacity law.
 
-## HEADLINE (2026-09-03 night, jobs 728592/721391, RESULTS Step 23): private images recovered from RANDOM starts, no recipe, no labels
+## HEADLINE (2026-09-03/04, jobs 760909 / 764976, RESULTS Step 25): a new class is handed back from RANDOM starts, no recipe, no labels
 
-> **SCOPE on every half-precision replay recovery (2026-09-04):** the matched-arithmetic recoveries (bf16-trained
-> 3.0% at k = 16 and 4.6% at k = 32, fp16 4.2% at its knee, fp32 6e-6) all start from `init near` — truth plus 10%
-> noise — and **no replay cell in this study has ever reached the floor from an attacker-buildable start** (the
-> twenty such starts of jobs 408560–63: 0 of 20). Meanwhile the certificate, the only random-start route, returns
-> **0 of 8 on exactly those bf16- and fp16-trained releases**. So "low-precision training is not a defence" is an
-> *identifiability* statement conditional on a near start. The honest sentence: **half-precision training does not
-> destroy the information — matched replay from a near start recovers to a few percent — but it breaks the only
-> route that currently works without a start, so today, for a bf16-trained adapter, nobody can begin the search.**
->
-> **Attacker's stopping rule (2026-09-04, jobs 85300/86888/87369/88743/89853):** the image finishes long before the residual does. At the instance-level chart the image error falls to 4.2% at residual 4.2e-3 and jumps to 7.5% by 2.8e-3 — a sharp knee, no flat bottom, so the attacker must tune the stop; "descend as far as the arithmetic allows" loses almost half the fidelity. The knee is per-format and rises with both the training roundoff and the chart's conditioning; at the coarser chart the knee exists but sits just above the floor, so the penalty is 2% rather than 78%. Above the knee three different releases in three arithmetics agree to 0.4% (fidelity is set by the residual, not the format); below it they diverge by 2× as each veers toward its own minimiser.
+**Teach a strong model a class it does not have, and the adapter returns every private example of it.** EMNIST
+letter 'a' as an eleventh output on the 98% MNIST model (zero head row), LoRA r = 64, eight private letters, a
+32-component chart of public letters: the release has norm 1.0, the adapter moves the logits by 43%, every letter
+carries an imprint of order one, and the certificate-only inversion **from random public-scale starts finds all
+eight** — 38.4% of 500 starts in FP64, and **32.8% of 500 from a release trained in ordinary single precision**,
+with the argmin on a letter at 1.1e-6. No recipe, no labels, no knowledge of the batch. The chain that explains it
+was measured first and separately: the **imprint law** (what is recorded is what the model had to learn — rank
+`B_T` = the number of examples above the floor in all 40 batches, and the dropouts are the highest-margin ones
+9 times in 9), the **certificate** (`C = P_{row(B_T)⊥}A_T` annihilates recorded features using no recipe, no
+labels and no seed), and the **counting** (`k < r − N′`, sharp to one unit; second cap `N′ ≤ m − 1`).
 
-> **Figures caveat:** every figure under `figures/exact_inversion/` produced today (`certificate_ladder.png`, `letters_recovery_k32_760909.png`, `letters_matched_k16_782682.png`, the k=6 and r64k32 recovery panels) has been looked at by ONE session only — the write-up session's image reads timed out four times. Before any of them goes in front of the supervisor, a third pair of eyes that is neither session should check it against the rows.
+**The open problem is the START, not numerics.** The replay route is limited by its initialiser — no replay cell in
+this study has reached the floor from an attacker-buildable start — and the certificate is the only route that
+needs none. Where the certificate's exact zero survives, the attack begins from nothing; where it does not, nothing
+begins. That is where the work is: the chart and the prior, and the certificate → replay chain at low rank.
 
-> **Scope caveat (2026-09-03, job 752500):** the headline cell's release has norm **7.6e-18** (imprint-sum mismatch 6e-32 — fourteen orders below: signal, not roundoff; feedback on the logits 4e-19) — the confident batch's projections at k = 32 have margins 42–60 and the strong model records only their 1e-18 softmax residuals. The certificate is scale-free in FP64, so the recoveries are exact, the release survives fp32 and bf16 *training* arithmetic (the off-class softmax entries exp(−margin) stay representable to margins ~100; the release never feeds back into the logits, so `A_T = A_0` and `B_T` is the closed-form one-step gradient × T) and is erased only by fp16's range (exp(−42) underflows) — pre-registered, RESULTS Step 24 continued; fp16 storage zeroes the file outright (measured, 753371: 0 found); fp32/tf32 storage keeps five of eight (the three recorded at 1e-11…1e-12 relative are destroyed — residual 0.9 at their truths); bf16 pending. The control batch (margins 11–15) keeps a 1e-6…1e-4 release at every k. The leakage-vs-k picture is therefore: what the model still had to learn about the projections, which vanishes as the chart sharpens for a confident batch.
->
-> **Decisive robust cell (760909, RESULTS Step 25):** a NEW CLASS (EMNIST 'a' as an eleventh output, zero head row) at r = 64, k = 32 — release norm 1.0, adapter moves the logits by 43%, margins −9…−3 → +6…+14 — **all eight letters recovered from random starts, no recipe, no labels (38% of 500 starts)**, certificate residuals 1e-12 at the truths with a moving adapter. Under fp32 TRAINING at the tight tolerance: **8 of 8 at k = 32** (32.8% of 500 starts, residuals 3e-7…1e-5) and 8 of 8 at k = 16 (82.6%) — the sentence holds without qualification at the instance-identifying chart; the recipe route from a near start also recovers the fp32-trained letters to 2e-6; half-precision training keeps the release's norm but degrades its directions 2–25%: the certificate search finds nothing (bf16/fp16: 0 of 8) — and note a rank read off such a release breaks the m−1 cap (the all-ones direction leaks in: rank 11 against a true 8) and cannot be repaired by any tolerance — and the FP64-simulator recipe route lands on an alias (residual 240× below the truth's mismatch floor, wrong images, k=16); the bf16 training map is nevertheless SMOOTH at the attacker's scale (response 4e-6 to a 1e-6 perturbation, monotone landscape start→truth, rounding floor 2e-3 — pre-registration falsified toward the attacker), and **the matched-arithmetic recipe route recovers every letter from the bf16-trained adapter to 3% median image error (782682, k=16; raw error at the chart's floor)** — half-precision training is not protection, demonstrated; its cost to the attacker is the A₀ reconstruction floor (2e-2); random head row reproduces the zero row in every number; bf16 training moves the release 12–72% (accumulation), fp16 training zeroes any release whose update lr·R/N underflows (margin ≳ 10). Landing error ≈ 5 × certificate residual at the truth, in every cell.
+*Limitation, scoped and not pursued: everything here is measured in FP64; half-precision training breaks the
+certificate's exact zero (rows in RESULTS, unpromoted).*
+
+> **Figures caveat:** every figure under `figures/exact_inversion/` produced on 2026-09-03/04 has been looked at by
+> ONE session only — the write-up session's image reads timed out four times. Before any of them goes in front of
+> the supervisor, a third pair of eyes should check it against the rows.
+
+> **The earlier headline is demoted (2026-09-03, job 752500):** the confident-digit cell at r = 64, k = 32 is the
+> exact-arithmetic existence corner, not the lead — its release has norm 7.6e-18 with imprints to 2e-29, and the
+> adapter never moves the logits there (feedback 4e-19, `A_T = A_0`), so `B_T` is T copies of one gradient step.
+> Its recoveries are exact and stand; they are a corner. RESULTS Step 23 carries the same demotion inline.
 
 Strong 98% MNIST model, LoRA r = 64, eight private digits it was confident about, 32-component public PCA chart:
 the certificate-only inversion from 500 random public-scale starts lands on a private digit **66% of the time,
