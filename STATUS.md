@@ -19,11 +19,17 @@ training length here where the certificate reads membership and LiRA does not.
 confidence statistic, because non-members in that harness had no labels. With the standard label-aware loss the
 same trivial threshold reaches 0.591 and 0.932. Those VOID cells were void for two reasons, and I had reported one.
 
-**What survives, without inflation.** The certificate needs the released factors, the public model, and one forward
-pass — **no shadow budget, no recipe, no sample from the private data distribution.** LiRA needs all three, and the
-third is the one an attacker often cannot buy: against one person's photographs, one hospital's scans or one
-artist's style there is no distribution to draw shadows from. That is the contribution on this surface —
-**applicability where the statistical attack cannot be instantiated, at equal separation where both can.**
+**The assumption argument was then MEASURED, and it did not survive (job 289251).** Shadows co-trained on
+progressively mismatched pools — same distribution, disjoint photographs, CIFAR-100, and greyscale FashionMNIST —
+leave LiRA at **0.996–1.000 throughout**. It does not degrade at all. The reason is that in membership inference
+the attacker **has the candidate by definition**, so it can be placed in half the shadows regardless; only the
+co-training data around it is missing, and that turns out to be substitutable with any images at all. **The
+precondition I called unpurchasable is purchasable with FashionMNIST.**
+
+**What actually remains, at its true size.** LiRA still needs a shadow budget and **the recipe**; the certificate
+needs neither. That is two requirements rather than three, and neither is a barrier that prevents instantiation.
+**On the head surface this channel is not a better attack than what exists — it is a cheaper one that needs less
+setup.** A sentence in a paper, not a section.
 
 **And the complementarity result, which protects the claim.** At `batch = rank` the certificate is identically
 vacuous while LiRA stays at 0.994–1.000. **Satisfying the counting rule closes this channel and leaves a

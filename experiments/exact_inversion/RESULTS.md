@@ -4726,3 +4726,41 @@ contribution of this channel on the head surface: applicability in threat models
 cannot be instantiated, at equal separation where both can.** Note also that this comparison was maximally
 favourable to LiRA — its shadows were drawn from the same 256-image pool as the target, i.e. exact distributional
 access — which is the right way to run the control and the wrong way to describe a real attacker.
+
+## RESULT — the distributional-access argument does NOT survive measurement (job 289251)
+
+The applicability claim was the last surviving contribution on the head surface, and it rested on LiRA's
+precondition being unobtainable in the threat models that matter. Measured across four levels of mismatch in the
+attacker's own co-training pool, `N = 32`, `r = 64`, 256 shadows, certificate unchanged throughout:
+
+| attacker's shadow pool | `T = 5` | `T = 50` | `T = 200` |
+|---|---|---|---|
+| **same** (exact access, the control) | cert 1.000 · **LiRA 0.997** | 1.000 · **1.000** | 1.000 · **1.000** |
+| **near** (same distribution, disjoint photographs) | 1.000 · **0.996** | 1.000 · **0.999** | 1.000 · **1.000** |
+| **far** (CIFAR-100) | 1.000 · **0.998** | 1.000 · **1.000** | 1.000 · **1.000** |
+| **gross** (FashionMNIST, greyscale) | 1.000 · **0.998** | 1.000 · **1.000** | 1.000 · **1.000** |
+
+**LiRA does not degrade at all.** It holds 0.996–1.000 with shadows co-trained on **greyscale clothing images**
+against a private set of flower photographs. The pre-registered branch — *"if it never falls, the applicability
+claim is weak and we should say so plainly"* — is the one that fired, and I am saying so.
+
+**Why, and this is the part I got wrong.** I argued that an attacker targeting one person's photographs has "no
+distribution to draw shadows from". But in membership inference the attacker **has the candidate image by
+definition** — that is what they are testing — so the candidate can be placed into half the shadows regardless.
+The only thing they lack is the *co-training data around it*, and this measurement shows that is nearly
+irrelevant: the candidate's own imprint on a head adapter is what LiRA reads, and it survives an arbitrary
+co-training pool. **The precondition I described as unpurchasable turns out to be substitutable with any images at
+all.**
+
+**What actually remains, stated at its true size.** Two requirements survive for LiRA and not for the certificate:
+a **shadow-training budget**, and **the recipe** — the attacker must know how the release was produced in order to
+train shadows that resemble it. Those are real, and the recipe requirement is the more interesting of the two
+because it is the same assumption the replay channel needs and the certificate was introduced to avoid. But
+neither is the "cannot be instantiated at all" barrier I claimed an hour ago, and the claim should not be made in
+that form.
+
+**Bottom line for the head surface, without inflation.** The certificate gives no demonstrated advantage over a
+shadow attack in separation, at any training length, and its assumption advantage is materially smaller than
+argued — reduced from three requirements to two, neither of them prohibitive. **On the head, this channel is not
+currently a better attack than what already exists; it is a cheaper one that needs less setup.** That is worth a
+sentence in a paper, not a section.
