@@ -4071,7 +4071,7 @@ recorded count is the image count at every rank; its certificate holds at the tr
 > any rank, including the marginal `r = d` cell. **The informative version needs a frozen nonlinear encoder below
 > the adapted layer**, where the condition is `C φ(x)`, the pixel Jacobian is `C · Dφ(x)`, and its rank can be
 > strictly less than `r − N′`. **That gap is the measurement** — it is what the encoder costs — and this cell has no
-> encoder, so it cannot show it. Queued as job 206712.
+> encoder, so it cannot show it. Job **207671**.
 >
 > **A deployment caveat that is now the main point rather than a footnote:** the right end of this table is outside
 > the regime the method is about. A rank-`n` adapter on an `n`-input layer is not low-rank adaptation; it is that

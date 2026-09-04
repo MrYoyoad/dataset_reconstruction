@@ -2597,3 +2597,29 @@ layer that happens to be first — the distinction matters in branching architec
 sit on a frozen path. In a plain stack the first adapted layer is the only one, because its input is the image
 itself. Whatever the recipe-free channel can do to raw pixels, it does there, and it scales with the
 adapter rank rather than with depth.
+
+## 2026-09-04 — measure the map you think you are measuring: a linear condition's "pixel rank" is its own rank
+
+**What happened.** A rank sweep produced a beautiful table — independent conditions on raw pixels equal to the
+adapter rank minus the image count at every rank from 16 to 900, running to 776 of 784 pixels — and it was very
+nearly written up as a scaling law. A sibling session's audit killed it in one step, and the code confirmed it.
+
+**Why it was empty.** In those cells the adapted layer was the **first** layer, whose input *is* the image. The
+condition is then `g(x) = C x / ‖A_T x‖`, and at the truth `C x = 0`, so the quotient's second term vanishes and
+the Jacobian is exactly `C / ‖A_T x‖`. Its rank is `rank(C) = r − N′` **by construction**. The sweep confirmed
+that `A₀` is non-degenerate and the recorded directions independent. It discovered nothing about pixels.
+
+**The tell I missed.** `encoder_cost` — a column already in the output, defined as the feature-space codimension
+minus the pixel rank — was **0 at every single row**. A cost of exactly zero everywhere is not a strong result; it
+is the signature of there being nothing between the condition and the input to charge for. A column that is
+identically zero across a sweep is evidence about the setup, not about the world.
+
+**The general habit.** Before reporting a Jacobian rank, ask what map it is the Jacobian *of*, and whether the
+answer is forced. If the composition between the condition and the variable is the identity, the rank is the
+condition's own rank and the experiment is a non-degeneracy check. Say so in that language. The informative
+version puts something between them — here a frozen nonlinear encoder, where the pixel Jacobian is `C·Dφ(x)` and
+`rank(C·Dφ)` can fall strictly below `r − N′`. **The gap is the result; the identity is not.**
+
+**Process note.** Two documents needed the same withdrawal and one of the two patches missed its anchor, so a
+commit landed with the correction in `RESULTS.md` and not in `STATUS.md`. Same failure mode as the multi-edit
+patch logged earlier. Verify every anchor and re-grep both files before committing a correction.

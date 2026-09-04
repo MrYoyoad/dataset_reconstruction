@@ -50,6 +50,11 @@ def main():
     ap.add_argument("--N", type=int, default=8); ap.add_argument("--r", type=int, default=64)
     ap.add_argument("--T", type=int, default=400); ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--k", type=int, default=16)
+    ap.add_argument("--adapt", nargs="*", type=int, default=None,
+                    help="1-indexed layers to adapt; everything else is FROZEN. Adapting a layer with a frozen "
+                         "NONLINEAR encoder below it is the only cell that can charge the encoder: the condition "
+                         "is C phi(x), the pixel Jacobian is C.Dphi(x), and rank(C.Dphi) can be strictly less "
+                         "than r - N'. The gap is the measurement. Default: every layer.")
     ap.add_argument("--layers", nargs="*", type=int, default=None,
                     help="adapted-depths L to measure (default 1,2,3,4,6,8,10,12,14,depth)")
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
@@ -80,8 +85,10 @@ def main():
     print(f"# layer_curve depth={D} width={Ws[0].shape[0]} backbone_acc={ck.get('test_acc')} "
           f"m={m} N={a.N} r={a.r} k={a.k} T={a.T} lr={a.lr} pixels={npix} git={git_hash()} dev={dev}", flush=True)
 
+    adapted = set((x - 1 for x in a.adapt)) if a.adapt else set(range(D))
     gA = torch.Generator().manual_seed(a.seed + 11)
-    A0s = [(a.sigma0 * torch.randn(a.r, W.shape[1], generator=gA)).to(dev) for W in Ws]
+    A0s = [((a.sigma0 * torch.randn(a.r, W.shape[1], generator=gA)).to(dev) if l in adapted else None)
+           for l, W in enumerate(Ws)]
     t0 = time.time()
     As, Bs = run_training_deep(X_on, Ws, b1, A0s, y, m, a.T, a.lr)
     print(f"# release trained on all {D} layers in {time.time()-t0:.1f}s", flush=True)
@@ -89,13 +96,15 @@ def main():
     H_true = inputs_of(X_on, Ws, b1, As, Bs)
     Cs, margins, Nps = [], [], []
     for l in range(D):
+        if As[l] is None:
+            Cs.append(None); Nps.append(-1); margins.append(0); continue
         C, Np, _ = certificate(As[l], Bs[l]); Cs.append(C); Nps.append(Np); margins.append(a.r - Np)
         res = torch.linalg.norm(C @ H_true[l], dim=0) / torch.linalg.norm(As[l] @ H_true[l], dim=0)
         emit(dict(part="LAYER", layer=l + 1, depth=D, r=a.r, n_prime=Np, certificate_margin=a.r - Np,
                   usable=bool(a.r - Np > 0), cert_residual_median=float(res.median()),
                   cert_residual_max=float(res.max()), git=git_hash()))
         print(f"  layer {l+1:2d}: N'={Np} margin={a.r-Np} cert residual median {float(res.median()):.2e}", flush=True)
-    usable = [l for l in range(D) if margins[l] > 0]
+    usable = [l for l in range(D) if Cs[l] is not None and margins[l] > 0]
     print(f"  usable layers {[l+1 for l in usable]} of {D}", flush=True)
 
     # rank DF_1 = the architecture's own ceiling on every deeper layer's pixel map
@@ -109,6 +118,20 @@ def main():
               note="every adapted layer's pixel map factors through the first, so rank K <= rank DF_1",
               git=git_hash()))
     print(f"  rank DF_1 = {rank_df1} of {npix} pixels -- the ceiling on rank K at every depth", flush=True)
+
+    for l in usable:                                                   # what the ENCODER below layer l can carry
+        if l == 0: continue
+        def enc(x, _l=l): return inputs_of(x.reshape(npix, 1), Ws, b1, As, Bs)[_l].reshape(-1)
+        rks = []
+        for i in range(a.N):
+            sv = torch.linalg.svdvals(tf.jacfwd(enc)(X_on[:, i].contiguous()).detach())
+            rks.append(int((sv > 1e-10 * sv[0]).sum()) if float(sv[0]) > 0 else 0)
+        emit(dict(part="ENCODER", layer=l + 1, rank_Dphi_median=med(rks), per_image=rks, pixel_count=npix,
+                  margin=margins[l], n_prime=Nps[l],
+                  note="rank(C.Dphi) <= min(r - N', rank Dphi); the GAP against r - N' is what the encoder costs",
+                  git=git_hash()))
+        print(f"  encoder below layer {l+1}: rank Dphi = {med(rks)} of {npix}   (margin r-N' = {margins[l]})",
+              flush=True)
 
     for L in Ls:
         layers = [l for l in usable if l < L]
@@ -133,6 +156,8 @@ def main():
         feat_codim = int(sum(int(torch.linalg.matrix_rank(Cs[l], rtol=1e-10)) for l in layers))
         emit(dict(part="PIXELRANK", n_layers=len(layers), layers_in_objective=[l + 1 for l in layers], depth=D,
                   independent_conditions_on_pixels_median=ranks, n_conditions_supplied=supplied,
+                  encoder_gap=supplied - ranks["1e-10"], adapted_layers=[l + 1 for l in sorted(adapted)],
+                  raw_pixel_cell=bool(0 in layers),
                   feature_space_codimension_exact=feat_codim, encoder_cost=feat_codim - ranks["1e-10"],
                   all_supplied_independent=bool(ranks["1e-10"] >= min(supplied, rank_df1)),
                   rank_DF1_median=rank_df1, headroom_to_DF1=rank_df1 - ranks["1e-10"],

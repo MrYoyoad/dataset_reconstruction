@@ -48,7 +48,7 @@ the marginal `r = d` cell.
 
 **The measurement that was actually wanted** is the gap between `r − N′` and `rank(C·Dφ)` with a frozen **nonlinear
 encoder** below the adapted layer, where the condition is `C φ(x)`. That gap is what the encoder costs, and the
-raw-pixel cell has no encoder to charge for. Job 206712, pre-registered: the gap is zero where `Dφ` is full rank at
+raw-pixel cell has no encoder to charge for. Job **207671**, pre-registered: the gap is zero where `Dφ` is full rank at
 the truth and grows with any rank deficiency in the encoder. **A second reason the old table's right end is out of
 scope:** a rank-`n` adapter on an `n`-input layer is not low-rank adaptation, it is that layer fine-tuned.
 

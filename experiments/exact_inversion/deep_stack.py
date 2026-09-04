@@ -20,7 +20,7 @@ def inputs_of(x, Ws, b1, As=None, Bs=None):
     h = x
     for l in range(len(Ws) - 1):
         z = Ws[l] @ h + (b1[:, None] if l == 0 else 0)
-        if As is not None:
+        if As is not None and As[l] is not None:            # None = this layer is FROZEN (part of the encoder)
             z = z + Bs[l] @ (As[l] @ h)
         h = GELU(z)
         hs.append(h)
@@ -32,16 +32,17 @@ def forward_deep(x, Ws, b1, As=None, Bs=None):
     hs = inputs_of(x, Ws, b1, As, Bs)
     h = hs[-1]
     z = Ws[-1] @ h
-    if As is not None:
+    if As is not None and As[-1] is not None:
         z = z + Bs[-1] @ (As[-1] @ h)
     return z
 
 
 def run_training_deep(x, Ws, b1, A0s, y, m, T, lr, create_graph=False):
     """Plain unrolled SGD on all LoRA factors of every layer; B starts at zero (so the certificate exists)."""
-    As = [a if a.requires_grad else a.detach().requires_grad_(True) for a in A0s]
-    Bs = [torch.zeros(w.shape[0], a.shape[0], dtype=x.dtype, device=x.device, requires_grad=True)
-          for w, a in zip(Ws, A0s)]
+    As = [None if a is None else (a if a.requires_grad else a.detach().requires_grad_(True)) for a in A0s]
+    Bs = [None if a is None else torch.zeros(w.shape[0], a.shape[0], dtype=x.dtype, device=x.device,
+                                             requires_grad=True) for w, a in zip(Ws, A0s)]
+    live = [i for i, a in enumerate(As) if a is not None]
     Y = torch.eye(m, device=x.device)[y].T
     N = x.shape[1]
     with torch.enable_grad():
@@ -50,15 +51,18 @@ def run_training_deep(x, Ws, b1, A0s, y, m, T, lr, create_graph=False):
             zs = z - z.max(dim=0, keepdim=True).values
             p = torch.exp(zs); p = p / p.sum(dim=0, keepdim=True)
             loss = -(Y * torch.log(p + 1e-300)).sum() / N
-            gs = torch.autograd.grad(loss, As + Bs, create_graph=create_graph)
-            nA = len(As)
-            As = [a - lr * g for a, g in zip(As, gs[:nA])]
-            Bs = [b - lr * g for b, g in zip(Bs, gs[nA:])]
-            if not create_graph:
-                As = [a.detach().requires_grad_(True) for a in As]
-                Bs = [b.detach().requires_grad_(True) for b in Bs]
+            params = [As[i] for i in live] + [Bs[i] for i in live]
+            gs = torch.autograd.grad(loss, params, create_graph=create_graph)
+            n = len(live)
+            for j, i in enumerate(live):
+                As[i] = As[i] - lr * gs[j]
+                Bs[i] = Bs[i] - lr * gs[n + j]
+                if not create_graph:
+                    As[i] = As[i].detach().requires_grad_(True)
+                    Bs[i] = Bs[i].detach().requires_grad_(True)
     if not create_graph:
-        As = [a.detach() for a in As]; Bs = [b.detach() for b in Bs]
+        As = [None if a is None else a.detach() for a in As]
+        Bs = [None if b is None else b.detach() for b in Bs]
     return As, Bs
 
 
