@@ -3586,3 +3586,33 @@ land" to something much weaker.*
 deciles** rather than concentrated in a top slice, and **an attacker can select the good landings using the
 certificate residual alone**, with no private knowledge — the failing deciles are exactly those where the
 certificate solve had not converged.
+
+### In band, the certificate does not vanish at the truth — the chain's premise fails where the chain would live (job 160901)
+
+The in-band handoff characterisation was launched at k = 62, 64, 66, 68 for the r = 64 confident cell. **Every cell
+was refused by the certificate gate**, and that refusal is the result:
+
+| k | N′ | cert line | replay line | in band | ‖Ch‖/‖A_T h‖ at the recorded truths |
+|---|---|---|---|---|---|
+| 62 | 7 | 57 | 67 | yes | **1.1e-5** |
+| 64 | 7 | 57 | 67 | yes | **1.5e-5** |
+| 66 | 7 | 57 | 67 | yes | **4.4e-5** |
+| 68 | 6 | 58 | 67 | no (above) | **0.92** |
+
+Against **1.1e-12** at the same batch and rank below the line (k = 16). So the certificate's zero set contains the
+recorded images to machine precision below the line and only to about 1e-5 inside the band — seven orders worse,
+and past the gate that every chain design in the plan depends on. **`{ρ = 0} ⊆ {Ch = 0}` is exact as algebra and
+degrades numerically exactly where the chain would be needed**, which is the scope risk recorded in §4 of the plan
+before any of this ran, now measured rather than conjectured.
+
+Two further facts from the same rows. **`N′` rises with `k` here (3 at k = 16, 7 at k = 62), the opposite of its
+behaviour at r = 8** where it fell — so the direction of `N′(k)` is not universal and the band's edges move
+accordingly (57 … 67 here against 61 … 71 at the k = 16 reading). And at k = 68 the certificate is not merely
+degraded but gone (0.92), consistent with that cell being above the replay line.
+
+**What this does to the chain.** It does not refute it; it says the constrained search cannot be *built* on this
+cell in band, because a constraint surface that misses the truth by 1e-5 cannot be a surface the truth is confined
+to. Before any in-band chain verdict is possible, one of these must be established: a cell where the certificate
+still vanishes to machine precision in band, or a soft-constraint formulation (the plan's D3) that tolerates a
+surface known only to 1e-5. The pre-registered in-band handoff prediction is therefore **not yet testable**, and
+none of the three in-band cells is scored either way.
