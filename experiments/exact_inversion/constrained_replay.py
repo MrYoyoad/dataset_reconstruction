@@ -45,7 +45,11 @@ def main():
     ap.add_argument("--cert-starts", type=int, default=500); ap.add_argument("--cert-iters", type=int, default=300)
     ap.add_argument("--n-landings", type=int, default=8, help="distinct certificate landings carried into replay")
     ap.add_argument("--lm-iters", type=int, default=300); ap.add_argument("--lm-lambda", type=float, default=1e-2)
-    ap.add_argument("--arms", nargs="*", default=["constrained", "unconstrained", "random"])
+    ap.add_argument("--arms", nargs="*", default=["d0", "constrained", "unconstrained", "random", "null"])
+    ap.add_argument("--d0-steps", nargs="*", type=float, default=[0.02, 0.05, 0.1, 0.2, 0.4, 0.8],
+                    help="D0: distances along Z_C from the truth (relative to the latent std) at which replay is retried")
+    ap.add_argument("--d0-min-radius", type=float, default=0.05, help="D0 gate: if replay's in-manifold basin is below "
+                    "this, D1/D2 do not launch -- no handoff from certificate landings can work (plan section 3)")
     ap.add_argument("--n-fit", type=int, default=50000)
     ap.add_argument("--data-root", default="dataset_reconstruction/data")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -123,6 +127,40 @@ def main():
         print(f"  [k={k}] fwd_check at the truth (subset recipe, lr*N'/N): {fwd:.3e}", flush=True)
 
         # ---- certificate landings from random starts
+        # ---------- D0 (gating): replay's basin radius ALONG Z_C, measured before any landing is spent ----------
+        def walk(w0, dist, gen):
+            """one random tangent step of size `dist` (relative to the latent std), pulled back onto Z_C."""
+            w = w0.clone().reshape(-1)
+            Jg = tf.jacfwd(g_of)(w).detach()
+            _, _, Vh = torch.linalg.svd(Jg, full_matrices=True)
+            null = Vh[Jg.shape[0]:].T if Jg.shape[0] < k else None
+            if null is None or null.shape[1] == 0: return None
+            d = null @ torch.randn(null.shape[1], generator=gen).to(dev)
+            w = w + dist * float(W_all.std()) * d / torch.linalg.norm(d)
+            for _ in range(8):                                        # Gauss-Newton back onto the manifold
+                gv = g_of(w); Jg2 = tf.jacfwd(g_of)(w).detach()
+                w = w - torch.linalg.lstsq(Jg2, gv.unsqueeze(1)).solution.reshape(-1)
+                if float(torch.linalg.norm(g_of(w))) < 1e-12: break
+            return w
+        d0_radius = None
+        if "d0" in a.arms:
+            gd = torch.Generator().manual_seed(a.seed + 991); ok = []
+            for dist in a.d0_steps:
+                w_st = walk(w_true.reshape(-1), dist, gd)
+                if w_st is None:
+                    emit(dict(part="D0", set=a.set, k=k, r=a.r, n_prime=Np, dist=dist, note="Z_C has no tangent directions at this k")); continue
+                with torch.no_grad(): cert_st = float(torch.linalg.norm(g_of(w_st)))
+                e_st = float(torch.linalg.norm(chart.psi(w_st.reshape(k, 1))[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
+                r0 = run(torch.cat([w_st, torch.zeros(a.r * Np, device=dev)]), False, "d0", e_st)
+                emit(dict(part="D0", dist=dist, station_cert_norm=cert_st, station_err=e_st, **r0))
+                if r0["verdict"].startswith("recovered"): ok.append(dist)
+            d0_radius = max(ok) if ok else 0.0
+            emit(dict(part="D0SUM", set=a.set, k=k, r=a.r, n_prime=Np, in_manifold_basin_radius=d0_radius,
+                      gate_threshold=a.d0_min_radius, passed=bool(d0_radius >= a.d0_min_radius), git=git_hash()))
+            print(f"  [k={k}] D0: replay recovers along Z_C out to {d0_radius} (gate {a.d0_min_radius})", flush=True)
+            if d0_radius < a.d0_min_radius:
+                print(f"  [k={k}] D0 GATE FAILED -- D1/D2 not launched at this k (plan section 3)", flush=True); continue
+
         gs = torch.Generator().manual_seed(a.seed + 31); landings = []; n_land = 0; t0 = time.time()
         cert_objs = []; land_errs = []
         for s_i in range(a.cert_starts):
@@ -201,11 +239,26 @@ def main():
                         cert_at_truth=cert_at_truth, objective_trace_full=[float(x) for x in trace],
                         seconds=time.time() - t1, git=git_hash(), host=socket.gethostname())
 
+        # null manifold (yoado-cd): the same construction on a Z_C built from a RESAMPLED B_T -- same dimension and
+        # conditioning, wrong subspace. If constrained replay works there too, the constraint is not doing the work.
+        gn = torch.Generator().manual_seed(a.seed + 555)
+        perm_rows = torch.randperm(B_T.shape[0], generator=gn)
+        B_null = B_T[perm_rows][:, torch.randperm(B_T.shape[1], generator=gn)]
+        C_null, Np_null, _ = certificate(A_T, B_null)
+        def g_null(w):
+            f = bb.phi(chart.psi(w.reshape(k, 1)))
+            return (C_null @ f).reshape(-1) / torch.linalg.norm(A_T @ f)
+
         gx = torch.Generator().manual_seed(a.seed + 77)
         for j, (w_l, obj_l, err_l, near_l) in enumerate(landings):
             v0 = torch.cat([w_l.reshape(-1), torch.zeros(a.r * Np, device=dev)])   # X unknown: start at zero
             if "constrained" in a.arms: emit(dict(landing=j, cert_objective=obj_l, landing_err=err_l, landing_nearest=near_l, **run(v0, True, "constrained", err_l)))
             if "unconstrained" in a.arms: emit(dict(landing=j, cert_objective=obj_l, landing_err=err_l, landing_nearest=near_l, **run(v0, False, "unconstrained", err_l)))
+            if "null" in a.arms:
+                g_true, g_of = g_of, g_null                            # swap the constraint for the null one
+                emit(dict(landing=j, arm_note="constrained onto a RESAMPLED B_T's zero set (same dim, wrong subspace)",
+                          n_prime_null=Np_null, **run(v0, True, "null_manifold", err_l)))
+                g_of = g_true
         if "random" in a.arms:
             for j in range(min(4, a.n_landings)):
                 w0 = (torch.randn(k, 1, generator=gx).to(dev) * coord_std).reshape(-1)
