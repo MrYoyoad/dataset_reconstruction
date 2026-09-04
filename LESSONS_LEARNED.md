@@ -4,6 +4,11 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A multi-edit patch script that writes once discards every edit when a later anchor misses (2026-09-04)
+
+- **Presented as:** I reported three RESULTS.md edits as applied. The script had asserted on the *second* anchor, so it never reached its single `write` — the file was unchanged, and I had already told the auditor it was done. (The write-up lane hit the same failure from the opposite direction the day before: a commit message claiming a paragraph the file did not contain.)
+- **Fix:** apply edits one at a time, each with its own assertion *and its own write*, and verify by grepping the file afterwards — never by the script's exit status or its printed "ok" lines. If a claim about a file has already been sent to someone, re-verify before letting it stand.
+
 ## The image finishes long before the residual does — a lower floor is a liability (2026-09-04)
 
 - **Measured:** the same cell recovered to 4.7% when the solver was stopped at residual 1.1e-2 and to 7.5% when allowed to reach 2.5e-3 (job 85300). Two formats stopped at the same residual agree (4.72% vs 4.56%); the format matters only through how far it descends.
