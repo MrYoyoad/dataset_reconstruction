@@ -3982,6 +3982,12 @@ goes to 9e9. **The chart-free reading is dead in this form** and stays out of ev
 | layer 2 `N′` | 32 | 37 | 42 | 63 |
 | layer 3 `N′` | 36 | 44 | 47 | 64 |
 
+**Correction, from the higher-rank cells of the same sweep: the deep layers are rank-STARVED, not dead.** At
+`r = 128`, the same `T = 400` release gives layers 2 and 3 recorded counts of 83 and 96 — so the accumulated drift
+span at `T = 400` is about 90 directions, and `r = 64` was simply below it. Their margins are 45 and 32 with
+residuals ~1e-6. The deep certificate survives exactly when the adapter rank exceeds the drift span, which is why
+`r = 64` looked like death and was starvation.
+
 **Layer 1's recorded count is the image count, at every training length, exactly.** Its input is the image and
 never moves. Every deeper layer's input moves the moment an earlier layer is adapted, so its recorded span
 accumulates one direction per (image, step) rather than one per image, and fills the rank. Training longer

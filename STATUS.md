@@ -14,9 +14,12 @@ Jacobian rank at the true image, no solve and no start — so none of it is an a
 2. **The mechanism.** `N′` counts recorded **(image, step)** directions, not images, at every layer whose input
    moves. Layer 1's input is the image and never moves, so its `N′` is exactly the image count at every training
    length (8 at T = 25, 50, 100, 400). Layer 2 runs 32 → 63 and layer 3 runs 36 → 64 over the same sweep.
-   **Training longer destroys the deep certificate.** At T = 25 the additivity is back and exact — 56 → 88 → 116
+   **The deep layers are rank-STARVED, not dead** — at `r = 128` the same T = 400 release leaves margins of 45 and
+   32 with residuals ~1e-6, and the recorded counts read 83 and 96, so the drift span at T = 400 is about 90
+   directions and `r = 64` was simply below it. At T = 25 the additivity is back and exact — 56 → 88 → 116
    conditions, condition number 1.7 → 5.9 → 51. So the earlier "layers are additive in rank" is **scoped, not
-   withdrawn**: it is a low-drift statement, not an architectural one.
+   withdrawn**: it is a low-drift statement, not an architectural one, and the deep certificate survives exactly
+   when the adapter rank exceeds the accumulated drift span.
 3. **Convolutions carry nothing at all.** On a 98.63% conv net, `r ∈ {8 … 512}`, the verdict is CONV-VACUOUS at
    every rank, by two independent routes. Eight images supply 1568 patch vectors into conv layer 1's
    9-dimensional input, so its recorded span fills the layer before any adapter is trained. Where margins do
