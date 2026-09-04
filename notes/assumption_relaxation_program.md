@@ -672,29 +672,55 @@ and only ours:
 - **The observed object**: adapter-only vs their full weights. Ours is the weaker (harder) observation, so at matched
   `N` replay should do *worse* than SimuDy, not the same — less information in an adapter than in full weights.
 
-**Why SimuDy degrades with N (honest reading).** For FULL fine-tuning the system is hugely overdetermined (86M params
-≫ N·pixels), so information is not their wall — memory and optimisation are (they keep the whole graph; the mixing
+**Why SimuDy degrades with N (honest reading).** For FULL fine-tuning the system is *heavily* overdetermined — **but note this is my own double standard and is
+withdrawn as stated**: I counted raw parameters for them while insisting throughout that only the rank of independent
+conditions counts for us. The defensible version is only that **their own stated limitation is memory** (they keep the whole graph; the mixing
 symmetry gives the optimiser more ways to trade images off as N grows; SSIM 0.12 at N=120). For US the adapter has few
 parameters, so the INFORMATION wall arrives sooner — which is exactly what §11's per-image budget measures. So a better
 optimiser would extend SimuDy somewhat, but the small-N limit is partly fundamental for us in a way it is not for them.
 
-**The iteration idea (certificate → replay → re-certificate → …), formalised in three variants that differ in what they change:**
-1. **Same sets (homotopy / basin-hop).** `{ρ=0} ⊆ Z_C` (prop:chain), so alternating exact projections between replay
-   and the certificate CANNOT change the release-consistent set — no iteration recovers a point replay could not.
-   BUT prop:chain leaves the BASIN open, and iteration is a legitimate way to REACH a hard point in a fixed feasible
-   set (graduated non-convexity: descend the benign certificate landscape, warm-start replay, repeat). Ceiling =
-   replay's set; value = reachability only; lives or dies on the same in-band handoff number as the chain. This is D3.
-2. **Change the operator (PEELING).** Recover one image, SUBTRACT its imprint from `B_T`, re-form the certificate for
-   the rest, repeat. This is NOT alternating projection on fixed sets — each step changes `C`, because `row(B_T)`
-   shrinks. Genuinely different from 1, and it is how you turn the per-image budget (largest at `N′_kept=1`) into a
-   multi-image attack. This is D5, and Yoad's "search there again" is most naturally this.
-3. **Change the search space (BOOTSTRAP CHART) — the one variant prop:chain does NOT bound.** Use a coarse recovery to
-   fit a better chart, then re-search in it. prop:chain constrains start and operator, not the chart, and the chart is
-   the whole fidelity question — so a better chart genuinely changes what is reachable. RISK: self-confirmation
-   (fitting the chart to your own guesses). GUARD: the exact residual verifies, so a bad chart cannot manufacture a
-   floor — a bootstrapped candidate that does not drive `ρ`/`C` to the floor is rejected. This is the one worth
-   inventing, and it is where Yoad's "build a new chart on top" and the latent-feature idea (§5) meet: bootstrap in
-   FEATURE space, where the certificate condition is exact and linear, then invert to pixels once.
+**The iteration idea — CORRECTED after audit (81, theory side; c9's algebra check pending). My first version had a
+real error in variant 2 and cited the wrong theorem in variant 3.**
+
+1. **Homotopy / continuation — and it is NOT an alternating projection.** I first framed this as alternating
+   projection between `{ρ=0}` and `Z_C`. That is wrong *in kind*: alternating projection needs two available
+   projectors whose intersection is the target, but here one set contains the other, so the intersection is just
+   `{ρ=0}` — **and the projector onto `{ρ=0}` is the unsolved problem itself**, while the projector we do have lands
+   anywhere in a strictly larger manifold. No traction. The correct object is the RELAXATION: minimise
+   `ρ² + λ‖Cφ‖²`, `λ → 0`. At large `λ` it is certificate-dominated and lands in `Z_C`; at `λ = 0` it is pure replay,
+   so its limit set is exactly `S_ρ`. That is a continuation from an easy problem to the hard one — **a basin device
+   by construction**, hence squarely inside `cor:chainbasin`: it cannot move the line, and any gain is in where the
+   descent starts and how it is steered.
+
+2. **PEELING BY SUBTRACTION IS WRONG — replaced by subset re-simulation.** I wrote "recover one image, subtract its
+   imprint `C_1` from `B_T`, re-form the certificate". Two independent objections, one algebraic and one
+   theorem-level, and they agree:
+   - `C_i = −lr Σ_t D_t[:,i](A_t h_i)ᵀ` with `D_t[:,i]` a function of the logits, hence of `B_t, A_t`, hence of the
+     WHOLE batch — so `C_1` is not computable from image 1 alone. Circular.
+   - Worse (81): **`B_T − C_1` is not a release at all.** No run produces it; the remaining `C_i` would themselves
+     have been different had image 1 been absent. So `thm:quot`'s hypotheses do not hold for the peeled object, the
+     containment proof fails at its first step, and `prop:chain` is not merely inapplicable — for a peeled release
+     `{ρ=0}` may be empty and the statement is vacuous. **Subtraction is not the inverse of inclusion here**, and it
+     fails for exactly the reason the imprint law is a decomposition of ONE trajectory rather than a sum of separate
+     ones.
+   - **The correct mechanism, already in the repo and the paper: SUBSET RE-SIMULATION at step `η·N′/N` (R5).** That
+     object *is* a genuine release of a genuine smaller run, so every theorem applies with `N → N′`. Cost: the
+     omitted imprints act as a floor, so the subset is determined to about `√floor / σ_min` — measured image error
+     2.5e-2, not machine precision (706597). (R6) gives the selection rule and its boundary.
+   - Also corrected: the budget gain from removing one image is **exactly one dimension** of `k` for the certificate
+     (`r − N′ → r − N′ + 1`). The larger gain lives in replay's subset line `k < (m−1) + r − N′_kept` and comes from
+     *choosing* a smaller subset, which is a choice, not an iteration. I had blurred the two.
+
+3. **Bootstrap chart — right conclusion, WRONG THEOREM (81).** `prop:chain` is stated for a *fixed* chart: `S_ρ` is
+   defined relative to `ψ`, so changing the chart between iterations changes `S_ρ` and the proposition simply does not
+   speak to bootstrapping. What bounds it is **`thm:cap`, which is chart-INDEPENDENT** — it counts coordinates against
+   the release's dimension and never asks which chart supplied them. So a bootstrapped chart is bounded by the same
+   `k` as any other: **fidelity at fixed `k`, never budget.** Drop the formulation "prop:chain constrains start and
+   operator, not the chart" — the chart's *choice* is unconstrained by it, but the chart's *dimension* is constrained,
+   by a different theorem. Risk and guard unchanged: self-confirmation is the risk, the exact residual is the guard.
+   Precision: the certificate condition is exactly linear in `h`, but the feasible set is that affine subspace
+   **intersected with the manifold of realisable features**, which is not linear — "exact and linear in feature space"
+   describes the constraint, not the search.
 
 **Net:** iteration cannot beat replay's identifiability ceiling (variants 1–2) EXCEPT by improving the chart
 (variant 3), which is the same open problem as everywhere else — the chart — now reached from a different direction.
