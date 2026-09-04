@@ -3304,3 +3304,45 @@ protection**: it displaces the minimiser, but the attacker still recovers to wit
 own floor by stopping at the knee instead of at the release's floor. What coarse training costs is a tuning step
 and a few points of fidelity, not access — the same shape as the storage-precision result, and the same conclusion:
 "quantise for privacy" is not supported by any cell measured here.
+
+### The knee's cause: underflow, not displacement — and the two are anti-correlated here (yoado-b9's dose-response, checked)
+
+Over-descent cost = (error at the lowest-residual row) ÷ (error at the best stop), against the fraction of
+residual entries flushed to exactly zero and the release's own deviation from FP64:
+
+| cell | flush fraction | release deviation | over-descent cost | best error |
+|---|---|---|---|---|
+| fp32, k = 32 | **0.000** | 4.3e-7 | **1.00×** (no knee in range: 0.0526 → 1e-5 monotone) | 1e-5 |
+| bf16, k = 32 | 0.011 | **0.115** | 1.01× | 0.04534 |
+| fp16, k = 16 | 0.281 | 0.026 | 1.02× | 0.00954 |
+| fp16, k = 32 | **0.354** | 0.027 | **1.78×** | 0.04196 |
+
+**The cost is monotone in the flush fraction, and the zero-flush cell has no knee at all.** The reading: flushing
+residual entries to zero is what stops the residual being a faithful proxy for image error, and the knee is where
+that proxy fails; the stopping rule is the remedy, underflow is why a remedy is needed.
+
+**And the obvious confound is absent — in fact it points the other way.** Flush fraction and release displacement
+are *anti-correlated* across these cells: bf16 has the **larger** displacement (0.115 against fp16's 0.027) but
+almost no flush (0.011) and almost no knee (1.01×), while fp16 has the smaller displacement and a third of its
+entries flushed and pays 1.78×. So the over-descent cost follows the flush, not the displacement, and the two
+candidate causes are separated by the data rather than merely ordered by it. *Caveat kept (yoado-b9's own):* the
+jump from 1.02× to 1.78× spans a 26% change in flush, which is steep for two fp16 points — the ordering and the
+zero-flush control are what is claimed, not a functional relationship.
+
+**This also removes "luck" from the bf16 story.** The earlier text said bf16's floor "happens to land near the
+knee". It is not a coincidence: bf16 barely flushes, so its residual stays honest, so its knee is shallow and its
+floor can sit near it at almost no cost. The falsifiable form: **a format that flushes more should show a sharper
+knee sitting further above its floor.**
+
+**One correction to my own k = 16 claim.** I wrote "no upturn anywhere" at k = 16. There is a small one: fp16's
+best is 0.00954 at residual 2.6e-3 against 0.00973 at its floor 1.9e-3 — a 1.02× over-descent, not zero. The
+conclusion is unchanged (the k = 16 penalty is 2%, against 78% at k = 32) but "no right arm at k = 16" should read
+"a right arm too shallow to matter".
+
+**And the format-dependence shrinks rather than dissolves.** At the optimal stop the precision ordering is
+restored in *sign* but not in *magnitude*: fp16 beats bf16 by 3.1× at k = 16 and by only 1.08× at k = 32, and the
+knee-to-knee amplification from the easy chart to the hard one is 4.40× for fp16 against 1.50× for bf16 — still
+2.9× apart after the stopping rule has done all its work. Over-descent accounts for 1.78× of fp16's 7.68×
+full-descent amplification; the remaining 4.40× is not a stopping artefact. "The reversal dissolves at the optimal
+stop" is therefore too strong as I first wrote it: **the reversal in sign dissolves; the format-dependence shrinks
+by 1.75× and remains.**
