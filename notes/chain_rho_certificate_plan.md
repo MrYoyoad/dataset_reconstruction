@@ -387,3 +387,13 @@ they say whether a handoff CAN work, not that the attack does. Every row must ca
     image — so the 56 free seed numbers of the seven unrecorded images do not exist, and the seed handoff
     `row(B_T) = col(X)` leaves a 1×1 mixing. Confirmed in the build
     (`simulate_sgd_reduced(Hc, Xc, W0, y[top:top+1], m, T, lr·N′/N)`).
+11. **Two ways the handoff gate could fire trivially, both closed** (b9). *(a) Which image:* the landing distance is
+    measured against the **recorded** image specifically, never the post-hoc nearest one — the certificate has no
+    information about images it did not record, and a start drifting toward an unrecorded one would otherwise score
+    as a pass (the same fault as the "7.8% from the nearest recorded image" that was 113% from its intended target).
+    *(b) Shrinkage:* if the solve mostly pulls `‖w‖` toward the chart mean, every start moves closer to every image
+    without acquiring information — and the certificate rows already show fivefold norm drift elsewhere
+    (`argmin_feat_norm_ratio` 0.199 on an fp64 cell). So each start also draws a **random point of the same
+    post-solve norm** and measures its distance to the recorded image; the gate reports the landing distribution
+    against both the raw starts and that norm-matched control, plus the latent norm ratio itself. If the landing is
+    no closer than a random point of equal norm, the gate has fired on shrinkage and nothing downstream runs.
