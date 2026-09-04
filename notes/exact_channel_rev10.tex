@@ -2412,9 +2412,16 @@ rate.
   fixed $k$, three charts each recover their own representable image to
   $10^{-14}$ and differ by thirteen orders against the real digit. So
   reconstruction factorises as capacity $\times$ chart quality: this work
-  fixes the first exactly, and a prior supplies the second. Richness is free
-  in conditioning terms, so the instruction is to spend the coordinates on
-  the best chart available.
+  fixes the first exactly, and a prior supplies the second. Richness is free in
+  conditioning terms \emph{within a family at matched $\sigma_{\min}$}, which
+  is where that was measured --- but not across families or across $k$: the
+  learned charts have better ceilings and worse conditioning ($\sigma_{\min}$
+  $10^{-12}$--$10^{-11}$ against PCA's $10^{-8}$), and conditioning worsens as
+  $k$ grows. Since ill-conditioning amplifies any arithmetic mismatch into a
+  displacement, under a quantised release the best $k$ is bounded by
+  conditioning as well as by the line. Spend the coordinates on the best chart
+  available in exact arithmetic, and stop short of that under a low-precision
+  one.
 
 \item \textbf{The attack, and the trade it makes.} There are two routes and
   they buy opposite things. The \emph{recipe route} inverts the full residual
