@@ -932,3 +932,39 @@ left ambiguous; the same question asked as a **measurement** (sweep the rank aga
 - **Train longer** — **WITHDRAWN**, drift saturates (§16c).
 - **Adapt deeper** — a free design choice at no accuracy cost, **but bounded by the trained stem's contraction**, and
   the bound is what §17 explains rather than an independent lever.
+
+## 18. REVERSAL: multi-layer harvesting saturates the whole image — and the pre-registered negative did NOT fire
+
+**Measured (r = 256, all 15 layers live, N = 8).** Independent conditions on raw pixels as adapted layers are added:
+**248 → 446 → 637 → 784.** Seven hundred eighty-four of 784 is the entire image, every condition above the release's
+own noise floor. At 4× training length it takes six layers instead of four. Beyond that, nothing: by eight layers
+1,500 conditions are supplied against a rank stuck at the pixel count.
+
+**So the pre-registered negative branch — "if the count is tens against 784, the release does not contain the image and
+the prior supplies the remainder" — did NOT fire.** At sufficient rank and 3–4 adapted layers the release *locally
+determines the raw image, with no chart and no prior*. That is an identifiability statement, and it is the one the
+whole chart argument was waiting on.
+
+**Why it saturates, and it is not about the certificate.** The frozen forward map's own rank, measured at the true
+images: **784, 784, 692, 219, 187, 138, 104, 85, 72, 60, 50, 30, 23, 19** going up the stack. From the fifth layer on
+the encoder transmits at most 219 of 784 directions, decaying to 19 at the head. **Only the first three or four
+adapted layers can contribute at pixel level at all** — the deeper ones are not weak certificates, they are
+certificates on a subspace the earlier layers have already pinned. This is §17 quantified as a profile.
+
+**Caveats that must travel with it (41's, all correct).**
+- Layer 1's own 248 is the **identity I caught in §15** — its input is the image, so `rank = r − N` by construction.
+- The additivity of layers 2–4 is what matrices in general position do; **the measured content is the absence of
+  degeneracy plus the encoder depth profile, not the arithmetic.**
+- It is a **Jacobian rank at the truth**: local identifiability. It says nothing about *finding* the image, and
+  nothing about distant alternative solutions.
+- **Conditioning is the price and it is steep:** `σ_min` falls about five orders from ~1e-1 at one layer to ~4e-6 at
+  four; the six-layer cell at long training sits at condition number 4e6. Above the floor, but not a system anyone
+  inverts casually.
+
+**THE QUESTION THIS RAISES, AND IT DECIDES PRACTICAL RELEVANCE (mine).** Everything above assumes adaptation *starts
+at the pixel-input layer*. Real LoRA does not: adapters go on attention/MLP blocks, so **the first adapted layer's
+input is already a feature.** By the profile above, if adaptation starts at depth 4 the whole stack is capped at
+**219**, not 784 — and at depth 7, at 104. **So the 784 result is a property of adapting from the very first layer**,
+and the realistic configuration must be measured separately. Combined with §16's rank scope (`r = 256` is ~1/3 of full
+rank against a deployed 8–64), the two open practical numbers are: *at what rank does 3–4-layer saturation occur*, and
+*what is the cap when adaptation starts at depth `d > 1`*.
