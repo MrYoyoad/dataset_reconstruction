@@ -804,3 +804,40 @@ relative to its own largest singular value calls a **numerically zero matrix ful
 look like it had a healthy margin. Caught by the residual column beside it. **Second time this project has been bitten
 by a relative test with no absolute floor** (cf. the 1e-3 threshold that "manufactured a zero by construction").
 Standing rule: every rank/threshold test carries an absolute floor as well as a relative one.
+
+## 15. THE USABILITY CRITERION — three checkable conditions covering every cell measured (2026-09-04, late)
+
+**Withdrawn first:** §14d's "constraint count is set by the adapter rank and runs to the ceiling" is a **tautology**
+and is retracted. In those cells the adapted layer took the raw image, so the condition is linear in `x`, its Jacobian
+IS the certificate, and its rank is `r − N` by construction — the table could not have been anything else. Tell that
+was walked past: the "encoder cost" column read exactly **zero on every row**, which is the signature of nothing
+sitting between the condition and the input to charge for. **Standing rule: before reporting a Jacobian rank, ask what
+map it is the Jacobian of and whether the answer is forced.** What survives, labelled small: every condition clears
+the release's noise floor at every rank; the conditioning behaviour as `r` grows; no degeneracy anywhere. And the
+deployment point is now in the text — **a rank-`n` adapter on an `n`-input layer is not low-rank adaptation, it is
+that layer fine-tuned**, so the impressive end of that table is outside the regime the method is about.
+
+**The synthesis, and it covers every cell measured today.** A certificate is **usable** iff all three hold:
+
+1. **`r > rank(B_T)`** — otherwise the projector is zero and the test is empty (§10; the non-vacuity condition is the
+   budget `k < r − N′` at its endpoint).
+2. **The recorded count is limited by the DATA, not by the layer's OUTPUT WIDTH.** Where the output width truncates
+   the released factor's rank, `row(B_T)` is a lower-dimensional projection that **stops containing the recorded
+   directions**, so the condition fails at the true image — measured six digits worse than its neighbouring cell.
+   *(This is new and sharp, and it generalises the head-width cap `N′ ≤ m−1`: that cap was this condition at the
+   output layer. It also explains the early-conv vacuity — there the width/position ratio saturates the layer before
+   any adapter is trained.)*
+3. **The adapted layer's input is FROZEN** — no adapted layer below it. Otherwise the input drifts, the count grows
+   with training length as `row(B_T)` spans `(image, step)` pairs rather than images, and the certificate dies (§14b).
+
+**Confirmation from the deep-conv run (pre-registered, held):** with everything upstream frozen, conv layer 1 is
+vacuous at every rank (condition 2 fails — positions saturate it), while conv layers 3 and 4 are non-vacuous and their
+certificates hold at the true image to ~11 digits. So deep convolutions ARE attackable and the earlier "conv paths
+carry nothing" was an early-layer statement, now explained by condition 2 rather than asserted.
+
+**Why this is the useful form: all three are checkable with NO private data.** `rank(B_T)` and `r` come from the
+release; whether the count is width- or data-limited is `rank(B_T)` against the layer's output width; which layers have
+frozen inputs comes from the adapter config, which ships with the release. **So an attacker can determine before
+attempting anything whether the recipe-free channel is open — and a defender can check the same three conditions to
+know whether their release exposes one.** That symmetry is the paper's most practically usable statement, and it is
+the thing to put in front of the supervisor: not a result about one cell, but a criterion that decides every cell.
