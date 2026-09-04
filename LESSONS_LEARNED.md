@@ -2659,3 +2659,25 @@ of "these vectors span a small subspace", and I had conflated the two.
 **The habit.** Before assuming a shared-weight layer behaves like a dense one, count the vectors it actually
 records: `N × positions` against the input dimension. That single inequality decided the conv result, the deep-conv
 reversal, and this one, and it is computable from the architecture and the batch size with no training at all.
+
+## 2026-09-04 — a pre-registered rule whose LETTER and RATIONALE disagree: report as registered, replace the design
+
+**What happened.** To stop a comparison landing in a ceiling where the baseline is perfect and unbeatable, I
+pre-registered a validity band: the trivial baseline must score AUC 0.6–0.9 or the cell is VOID. The head run then
+produced certificate AUC **1.000** against a baseline at **chance** — outside the band, therefore VOID by the rule.
+
+**The awkward part.** The band's lower bound was justified as *"the release is too weak for anything to be
+detectable, so a tie means nothing"*. That justification is false in this cell: something was detectable, perfectly.
+The rule's letter and its stated rationale point in opposite directions, and the letter discards the most
+interesting outcome available.
+
+**What I did, and the reason.** Reported the cells as VOID, as registered. Amending a rule after seeing the numbers
+it would exclude is post-hoc, and the fact that the amendment would favour my own result is exactly why it cannot
+be made here. The mechanism was recorded instead — at 5–10 steps the release has barely moved, so a loss threshold
+has nothing to threshold.
+
+**The general habit.** When a pre-registered criterion misfires, do not repair the criterion on the data that
+exposed it. Report under the original rule, state precisely how the rationale and the letter diverged, and design
+the *replacement* so the question no longer depends on a threshold: here, sweeping training length so the baseline
+walks from chance through the band to saturation, and reporting the whole curve. **A trajectory cannot be voided by
+a band; it contains the band.**

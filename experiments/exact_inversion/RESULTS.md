@@ -4565,3 +4565,69 @@ and final margin are logged in the same cell so the imprint law is visible there
 **Regime label, stated rather than hidden:** a fresh public-seeded head with labels outside the base model's output
 space — the new-class regime, where `N′ = N` and the channel looks strongest, and also the canonical reason people
 fine-tune.
+
+## CONFIGURATION FACT — the classifier head is normally released as FULL WEIGHTS, not as LoRA factors (verified at source)
+
+yoado-cd asked whether this channel can even read a head in practice. Verified in the installed library rather than
+from memory (`peft` 0.7.1, `site-packages/peft`):
+
+- `PeftModelForSequenceClassification.__init__` sets `self.modules_to_save = {"classifier", "score"}`
+  **unconditionally** when the config does not name any (`peft_model.py:858`), and
+  `PeftModelForTokenClassification` does the same (`peft_model.py:1476`).
+- `save_and_load.py:120–123` then writes those modules' **full weights** into the adapter checkpoint, stripping the
+  `modules_to_save.` prefix.
+
+Twenty public `adapter_config.json` files were fetched from the most-downloaded PEFT adapters. **Every one targets
+attention or MLP projections; none targets a classifier.** Only one declares `modules_to_save` explicitly
+(`['classifier']`), and the classification-task adapters that do not declare it get the head saved in full anyway
+by the runtime default above — so the config's silence is not evidence of a factorised head, it is the opposite.
+
+**So the head is essentially never shipped as `(A, B)`.** Our channel needs factors to project; where there are
+none, it has nothing to read. This is a configuration fact, not an arithmetic failure.
+
+**And the consequence is not simply negative, which is the useful part.** A head released in full is *more*
+information, just not information this channel is built for — and a frozen encoder plus a fully-trained head is
+precisely the setting **Oz et al. (2024)** attack with the KKT scheme. The honest division of labour is therefore:
+
+> **full head → the KKT route (Oz et al.); LoRA'd non-weight-shared module → the certificate route (ours).**
+
+That is a clean statement of where each channel applies, it makes the relationship to that group's work
+complementary rather than competitive, and it belongs in the write-up regardless of how our head arm turns out.
+
+## RESULT — the head arm, and a collision with my own pre-registered band (job 285127)
+
+Real pretrained ViT-B/16, LoRA on the head at `r = 64`, FP64, members against 128 non-members never trained on.
+
+| `N` | `rank B_T` | `rank C` | recorded | **AUC certificate** | AUC graded | AUC loss baseline | registered verdict |
+|---|---|---|---|---|---|---|---|
+| 8 | 8 | 56 | 8/8 | **1.000** | 0.984 | 0.347 | **VOID** |
+| 16 | 16 | 48 | 16/16 | **1.000** | 0.979 | 0.436 | **VOID** |
+| 32 | 32 | 32 | 32/32 | **1.000** | 0.996 | 0.498 | **VOID** |
+| 64 | **64 = r** | **0** | 0/64 | vacuous | 0.944 | 0.438 | **VOID** |
+| 128 | **64 = r** | **0** | 0/128 | vacuous | 0.933 | 0.521 | **VOID** |
+
+**Two things happened, and they must be read separately.**
+
+*The head is the counting rule at positions = 1, demonstrated on a real model.* `rank B_T = N` exactly at
+`N` = 8, 16, 32 — the recorded count is the image count on a trained release, not only at initialisation — and at
+`N ≥ 64` it reaches `r` and the certificate becomes the zero matrix. **The boundary is a demonstration, not an
+edge case:** a head fine-tuned on 32 images at rank 64 is exposed and the same head on 64 is not.
+
+*Every cell is VOID under the band I registered, and I am reporting them as VOID.* The trivial loss baseline
+scored 0.35–0.52, i.e. **at or below chance**, which is outside the 0.6–0.9 window. The mechanism is plain: at 5–10
+steps and lr 0.002 the release has barely moved (final loss 4.4–5.7 against `ln 102 = 4.62`), so a loss-threshold
+attack has nothing to threshold.
+
+**Why this is awkward rather than convenient, stated plainly.** The band's *lower* bound was justified as "the
+release is too weak for anything to be detectable, so a tie means nothing". That justification does not hold here:
+the certificate is at **1.000** while the baseline is at chance. So the rule's letter and its rationale disagree in
+exactly this cell. **Amending the rule now, having seen the numbers, would be post-hoc**, and I am not doing it.
+The cells stand as VOID.
+
+**The clean, non-post-hoc replacement is a trajectory rather than a band.** Sweep training length so the baseline
+walks from chance, through the informative band, to saturation, and report the certificate's AUC across the whole
+path. The comparison is then read where the band says it is informative, and the rest of the curve is visible
+rather than discarded. Pre-registered before that run: if the certificate stays near 1.0 while the baseline passes
+through 0.6–0.9, the claim is "a statistic from the deterministic channel beats the standard membership baseline
+in the regime where the baseline is informative"; if the certificate degrades as the baseline improves, the two
+are measuring the same thing and there is no claim. Job 286191.
