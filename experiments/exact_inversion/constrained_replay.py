@@ -129,7 +129,7 @@ def main():
         # CERTIFICATE GATE (yoado-b9): the band premise {rho=0} subset {Ch=0} is numerical, not formal. If the
         # certificate does not vanish at the truth in this cell, Z_C does not contain the truth and every branch of
         # the pre-registration is void -- the analogue of fwd_check, for the constraint rather than the simulator.
-        cert_at_truth = float(cert_res[top])
+        cert_at_truth = float(max(cert_res[i] for i in rec))             # worst over the RECORDED set
         print(f"  [k={k}] certificate gate at the truth: ||Ch||/||A_T h|| = {cert_at_truth:.3e}", flush=True)
         if cert_at_truth > 1e-6:
             emit(dict(part="GATE", set=a.set, k=k, r=a.r, n_prime=Np, cert_at_truth=cert_at_truth, passed=False,
@@ -142,9 +142,13 @@ def main():
 
 
         # ---- the two maps: g (certificate, r x 1 per image) and the replay residual
-        def g_of(w):                                                    # certificate map at one image
+        def g_one(w):                                                   # certificate map at ONE image (the search)
             f = bb.phi(chart.psi(w.reshape(k, 1)))
             return (C @ f).reshape(-1) / torch.linalg.norm(A_T @ f)
+
+        def g_of(wv):                                                   # JOINT certificate map over the recorded set:
+            W = wv.reshape(k, -1); F = bb.phi(chart.psi(W))             # stacked, so Z_C is the joint zero set that
+            return ((C @ F) / torch.linalg.norm(A_T @ F, dim=0)).reshape(-1)   # constrained replay is confined to
 
         rec_t = torch.tensor(rec, device=dev); nrec = len(rec)           # JOINT subset solve over the recorded set
         nW = k * nrec
@@ -284,11 +288,11 @@ def main():
             if d0_radius < a.d0_min_radius:
                 print(f"  [k={k}] D0 GATE FAILED -- D1/D2 not launched at this k (plan section 3)", flush=True); continue
 
-        gs = torch.Generator().manual_seed(a.seed + 31); landings = []; n_land = 0; t0 = time.time()
+        gs = torch.Generator().manual_seed(a.seed + 31); landings = []; by_image = {}; n_land = 0; t0 = time.time()
         cert_objs = []; land_errs = []; start_errs = []; normmatch_errs = []; norm_ratios = []
         for s_i in range(a.cert_starts):
             w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
-            w, obj, _ = lm_cert(g_of, w0, a.cert_iters)
+            w, obj, _ = lm_cert(g_one, w0, a.cert_iters)
             xh = chart.psi(w.reshape(k, 1))[:, 0]
             e = min((float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])), i) for i in rec)
             cert_objs.append(obj)
@@ -305,7 +309,7 @@ def main():
             normmatch_errs.append(err_to_top(wr)); norm_ratios.append(nw / n0 if n0 > 0 else float("nan"))
             if e[0] < 1e-2:
                 n_land += 1
-                if len(landings) < a.n_landings: landings.append((w.detach(), obj, e[0], e[1]))
+                by_image.setdefault(e[1], []).append((w.detach(), obj, e[0]))
         edges = [1e-28, 1e-20, 1e-16, 1e-12, 1e-8, 1e-4, 1e-2, 1.0]      # the landing SPECTRUM (yoado-cd): tells
         hist = {f"<={e:.0e}": sum(1 for o in cert_objs if o ** 0.5 <= e) for e in edges}   # "the manifold misses the
         qs = sorted(o ** 0.5 for o in cert_objs)                          # basin" from "the landings were never on it"
@@ -332,7 +336,24 @@ def main():
                   cert_residual_quantiles=dict(min=qs[0], p1=qs[len(qs)//100], p10=qs[len(qs)//10], median=qs[len(qs)//2]),
                   landing_err_min=float(min(land_errs)), landing_err_median=float(sorted(land_errs)[len(land_errs)//2]),
                   seconds=time.time() - t0, git=git_hash(), host=socket.gethostname()))
-        print(f"  [k={k}] certificate: {n_land}/{a.cert_starts} landings ({time.time()-t0:.0f}s), carrying {len(landings)}", flush=True)
+        # A JOINT start needs one landing per recorded image. The certificate finds ONE image per start, so the
+        # handoff is only complete if the landings COVER the recorded set -- coverage is itself a result, and an
+        # incomplete cover means the chain cannot be assembled at all at this cell (reported, not patched).
+        covered = sorted(by_image); n_cov = len(covered)
+        emit(dict(part="COVER", set=a.set, k=k, r=a.r, n_prime=Np, n_recorded=nrec, images_covered=covered,
+                  n_images_covered=n_cov, complete_cover=bool(n_cov == nrec),
+                  landings_per_image={str(i): len(v) for i, v in by_image.items()},
+                  n_joint_starts=min((len(v) for v in by_image.values()), default=0) if n_cov == nrec else 0,
+                  git=git_hash()))
+        print(f"  [k={k}] certificate covers {n_cov}/{nrec} recorded images; joint starts assemblable: "
+              f"{min((len(v) for v in by_image.values()), default=0) if n_cov == nrec else 0}", flush=True)
+        if n_cov < nrec:
+            print(f"  [k={k}] INCOMPLETE COVER -- no joint start can be assembled; chain not testable at this cell", flush=True)
+            continue
+        for j in range(min(a.n_landings, min(len(v) for v in by_image.values()))):
+            W0j = torch.stack([by_image[i][j][0].reshape(-1) for i in rec], dim=1)   # (k, nrec) one landing per image
+            landings.append((W0j, max(by_image[i][j][1] for i in rec), max(by_image[i][j][2] for i in rec), None))
+        print(f"  [k={k}] certificate: {n_land}/{a.cert_starts} landings ({time.time()-t0:.0f}s), assembled {len(landings)} joint starts", flush=True)
         if n_land == 0:
             print(f"  [k={k}] NO LANDINGS -- outcome (4): the chain test did not run here; not a replay failure", flush=True)
             continue
@@ -350,7 +371,7 @@ def main():
 
         gx = torch.Generator().manual_seed(a.seed + 77)
         for j, (w_l, obj_l, err_l, near_l) in enumerate(landings):
-            v0 = torch.cat([w_l.reshape(-1), torch.zeros(a.r * Np, device=dev)])   # X unknown: start at zero
+            v0 = torch.cat([w_l.reshape(-1), torch.zeros(a.r * nrec, device=dev)])   # X unknown: start at zero
             if "constrained" in a.arms: emit(dict(landing=j, cert_objective=obj_l, landing_err=err_l, landing_nearest=near_l, **run(v0, True, "constrained", err_l)))
             if "unconstrained" in a.arms: emit(dict(landing=j, cert_objective=obj_l, landing_err=err_l, landing_nearest=near_l, **run(v0, False, "unconstrained", err_l)))
             if "null" in a.arms:
