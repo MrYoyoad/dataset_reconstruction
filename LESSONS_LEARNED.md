@@ -2433,3 +2433,27 @@ and `N` enter every recurrence only through `ηs/N`, **the batch size is not ide
 — only `N'`, the number recorded, is, via `rank B_T`. A batch of eight with two invisible members is
 indistinguishable from a batch of six at a proportionally smaller step. Unless weight decay is nonzero and
 published, in which case the two identifiable combinations `ηs/N` and `η·wd` give `N` away.
+
+## Cross-document numbering comes from the compiled output, never a source grep (2026-09-04)
+
+**The bug.** The Rev 10 note's MERGE NOTE maps Rev 9's theorem numbers onto this file's shared theorem
+counter, so the Overleaf merge depends on it. An audit derived the counter from a source grep matching only
+theorem-shaped environments (`theorem`, `corollary`, `lemma`, `definition`, `proposition`) and silently
+dropped the `remark` at #9 and the `example` at #11, which share the same counter. Everything after #8
+shifted by two, and the audit concluded that "Theorem 10" and "Corollary 12" were stale when both were
+exactly right (`thm:suff` and `cor:two`, verified against the compiled PDF).
+
+**Rules.**
+1. Derive numbering from the **compiled output**, or from a grep over every `\newtheorem`-registered type.
+   A partial enumeration of a shared counter is wrong by construction, and wrong silently.
+2. In any block whose job is to survive a merge, **cite by label, not by number**. Numbers go stale when a
+   document grows; labels do not. The MERGE NOTE now carries the label name on every entry plus a warning
+   that the remark and example share the counter.
+
+**The more general one, and it cuts both ways.** The audit hedged ("please verify against the compiled
+PDF") *and* proposed a specific correction ("→ 9", "→ 10 or 11"). The hedge is what a careful reader
+notices; the correction is what actually gets applied. **A confident specific fix offered beside a hedge is
+close to no hedge at all** — if you are not sure enough to apply it yourself, say what to check rather than
+what to change. This applies to my own output at least as much: three claims withdrawn on this document in
+one day (the format ordering inversion, "destroyed information", a 19% prediction) were each stated with
+more precision than the evidence carried, and precision reads as confidence.
