@@ -4904,3 +4904,36 @@ here only because the rescoped cell adapts the pixel-input layer, where `h = x`.
 rather than assumed — a claimed convex solve of a non-convex problem is its own artefact. (4) The learned
 initialiser needs **replay from random starts at the same cell** (the standing 0 of 20) as its attribution arm,
 since the decoder's only claimed value is the start.
+
+## Where the boundary actually sits — measured, not assumed (job 299634)
+
+Two lanes gave different compressed-sensing thresholds for the same cell, `≈250` and `≈137`, and the whole
+difference was an assumed sparsity. Measured on eight real MNIST test digits, `n = 784`:
+
+| definition of `s` | median `s` | threshold `s·log(n/s)` |
+|---|---|---|
+| pixels above 0.05 | 151 | **249** |
+| best `s`-term, 95% energy, pixel basis | 103 | **209** |
+| best `s`-term, 99% energy, pixel basis | 122 | **227** |
+| best `s`-term, 95% energy, DCT | 139 | **240** |
+| best `s`-term, 99% energy, DCT | 323 | **286** |
+
+**The `s ≈ 50` assumption behind the 137 figure is wrong for MNIST — the real figure is 103 to 151 depending on
+the definition, and every definition puts the threshold between 209 and 286.**
+
+**So the rescoped cell is genuinely marginal, and this is the pre-registration.** At `r = 256` with `N′ = 8` the
+cell supplies **248 conditions**, which is **NEAR the boundary on every definition tested** (within ±20%), and
+never above it. Therefore **both outcomes inform**: success says structure closes a gap the count leaves just
+barely open, failure says the release, the conditioning or the basis costs the attacker measurements the count
+says are available. At `r` = 16 and 64 the supplied conditions (8 and 56) are **BELOW** every threshold, which is
+why those cells are arithmetic rather than experiment and are not being run.
+
+**Two consequences of the rescope, recorded rather than allowed to vanish** (yoado-b9):
+1. **The dose-response is deferred, not attempted.** Tracking recovery against compressibility needs at least four
+   cells spanning an order of magnitude in best-`s`-term error; one cell gives one verdict. That was the result
+   meant to carry the theory line, and it should read as *deferred* rather than simply be absent in a week.
+2. **With one cell the constraints-only arm is not one baseline of three — it is the entire test.** The mean image
+   and the oracle-selected nearest neighbour establish only that a recovery beats public knowledge. Nothing else
+   carries the claim that *the release* contributed, and there is no dose axis to corroborate it. The row leads
+   with `score(full)` against `score(constraints-only)`, reporting both the difference and the **ratio**, since the
+   success bar is stated as a ratio and a fixed difference means different things at different baseline levels.
