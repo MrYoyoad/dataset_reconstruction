@@ -1175,3 +1175,40 @@ exactly. **So this measures the degradation of an attack that does not work in t
 degradation of a working one. The meaningful version would use private images that genuinely lie in a low-dimensional
 chart, so the matched-pool attacker succeeds and mismatch is measured against a working baseline. Optional follow-up,
 not commissioned.
+
+## 25. FIRST POSITIVE THAT SURVIVES ITS CONTROLS — specificity at the predicted live cell
+
+**The counting rule predicted where the channel would be alive and the prediction is exact, not approximate.**
+Pretrained ResNet, **fourth stage adapted at rank 64**, everything upstream frozen, **one private photograph per
+draw**, 20 draws across the margin range, 1,000 shared non-members.
+
+- Recorded count = **49 = the position count**; certificate rank = **15 = 64 − 49, to the unit, in every draw**.
+- **Paired control** — the same image scored under the *previous* draw's release, which never saw it — sits at
+  **0.10–0.14**, an order above the bar. So it is not "this image always scores low".
+- **False-positive rate across 1,000 non-members: zero, in all 20 draws.** 19 of 20 pass, and the rate holds
+  **within every margin stratum**, not only in aggregate.
+- **Negative control fires correctly:** under Adam the certificate rank is 0, FPR is 1 (a zero certificate annihilates
+  everything), gate fails 6 of 6.
+
+**The claim, worded deliberately and not to be softened:** not that the certificate *identifies* the member — that is
+an algebraic identity at one recorded image — but that it is **specific**: it annihilates the image it was trained on
+and rejects everything else.
+
+**Three scopes travel with it:** (i) **activation space** — 49 convolutional input patches, not the photograph;
+(ii) the attack lives at the **earliest adapted layer**, so a fine-tune that also adapts the first stage moves it onto
+raw pixels; (iii) **SGD-class only**, which the control now *demonstrates* rather than asserts.
+
+**Two disclosures that are the reason this counts.**
+1. **The first Adam control was broken and the break favoured us.** The optimiser selector was assigned to a variable
+   nothing read, so both arms ran plain gradient descent and the "Adam" arm passed 5 of 6 with rows *indistinguishable
+   from the real ones*. Nothing in those numbers looked wrong — they looked right. What caught it was the claims lane
+   requiring, before the run, that **this arm's expected outcome is the negative one and a pass means the pipeline is
+   broken.** The result was withheld until a genuine control failed.
+2. **With a zero certificate the member residual is still ~1e-14**, so the Adam arm would have passed any member-side
+   criterion and any bar anchored on the numerical floor. **Only the fixed threshold together with the rate catches
+   it.** The two scoring corrections forced before any rows existed are precisely what separate this from a vacuous
+   result.
+
+**Open questions before this is quotable (mine):** the non-member pool's distribution relative to the member;
+what happened in the 1-of-20 failure; and **near-duplicate specificity** — whether a crop/resize/recompress of the
+private photograph passes, which decides whether the claim is "this image" or "this image or anything close to it".
