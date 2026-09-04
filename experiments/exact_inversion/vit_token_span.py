@@ -72,7 +72,7 @@ def main():
         w = {"resnet18": tvm.ResNet18_Weights.IMAGENET1K_V1,
              "resnet50": tvm.ResNet50_Weights.IMAGENET1K_V2}[a.model]
         model = getattr(tvm, a.model)(weights=w).to(dev).double().eval()
-        blocks = []
+        blocks = []; nblocks = 4
 
     def emit(row):
         print(json.dumps(row), flush=True)

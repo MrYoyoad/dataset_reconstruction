@@ -4428,3 +4428,44 @@ once for:
 
 **This is more useful to a defender than any reconstruction number in this ledger**, because it is a property they
 can evaluate about their own configuration in a minute, and because it is falsifiable in one forward pass.
+
+## RESULT — the head is the surviving surface, and it is the only non-weight-shared module (job 279182)
+
+yoado-cd's prediction, measured on the same two frozen pretrained transformers at the same real photographs, in
+one table with the block modules so the contrast is internal:
+
+| module | vectors recorded per image | span at `N = 8` | margin at `r = 16` | margin at `r = 64` |
+|---|---|---|---|---|
+| `attn.qkv` / `attn.proj` / `mlp.fc1` (ViT-B) | **197** (one per token) | 768 = `d` | **0** | **0** |
+| `mlp.fc2` (ViT-B) | 197 | 1576 | **0** | **0** |
+| **classification head** (ViT-B) | **1** (the CLS vector) | **8 = N** | **8** | **56** |
+| **classification head** (DINO ViT-S) | **1** | **8 = N** | **8** | **56** |
+
+**Head span is exactly `N`, at every batch size tested.** The head consumes one pooled vector per image, so it is
+the only module in a transformer whose recorded count is the number of *images* rather than the number of
+image-token pairs — and its certificate therefore lives in precisely the regime every MLP result in this ledger
+lives in: `r > N`, with the head-width cap `N′ ≤ m − 1` binding. Every existing result transfers to it unchanged.
+
+**So the surviving surface is now stated exactly:** the recipe-free channel works on **dense, non-weight-shared
+modules** — a classification head (transformer or pooled CNN), a dense MLP layer, and a deep convolutional layer
+where `N·P < d`. It does **not** work on attention or MLP projections inside transformer blocks, which is the
+dominant deployment pattern for LoRA, nor on early convolutional layers. That qualification now sits on the
+headline in STATUS.md and belongs wherever the channel is described.
+
+## Solution attempt — the graded continuation of the certificate, where saturation has killed the binary test (job 280255)
+
+The certificate is a **null-space** test and a saturated release has no null space, which is the whole of the
+transformer negative. But the singular *spectrum* of `B_T` is not flat: with
+`B_T = Σ_i Σ_p q_ip (A h_ip)^T`, directions the private data actually drove carry large singular values. So the
+same released numbers and the same attacker knowledge support a graded statistic,
+
+    s(x) = Σ_p ( Σ_k σ_k ⟨v_k, A_T φ_p(x)⟩² ) / ( Σ_k ⟨v_k, A_T φ_p(x)⟩² )
+
+which **reduces to the certificate exactly when the release is unsaturated** (`σ_k = 0` above `N′` makes `s(x) = 0`
+iff `C φ(x) = 0`). It is the certificate's continuation, not a different idea.
+
+Running on a frozen pretrained ViT-B/16 with a public-seeded head, LoRA on one block's qkv at deployed ranks
+8/16/64, FP64, 8 members against 64 non-members never trained on. **Pre-registered: DEAD (AUC ≈ 0.5) is the likely
+outcome and ends this line honestly; GRADED means the channel survives as a membership signal and never as
+reconstruction.** A plain loss-threshold membership attack on the same adapted model runs as a mandatory control —
+**the graded score must beat it or it is a worse way of doing something standard**, and would be reported as such.
