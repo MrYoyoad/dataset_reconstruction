@@ -60,21 +60,24 @@ does not have, so `N′ ≤ min(m_ℓ, r, N)` with no `−1`; at a hidden layer 
 **Head-width protection is a property of adapting the HEAD; an adapter on a hidden layer does not have it.** This is
 the sharpest defender-side consequence in this note and deserves its own line in the paper.
 
-Attack the earliest adapted layer. Its inputs come from frozen machinery, so "fixed inputs" holds exactly, and the
-closure's *shape* survives even though the error signal reaching it is backpropagated rather than a softmax residual
-(the derivation needs only a rank-structured update with fixed inputs and `B₀ = 0`). Two changes, in opposite
-directions:
-- **Lost:** the `e^{−margin}` interpretation and the cap `N′ ≤ m−1` — both come from the softmax's zero-sum columns,
-  which a hidden error signal does not have. **Losing the cap helps the attacker**: more images can be recorded than
-  the output layer permits.
-- **Cost:** what is recovered is that layer's *inputs* (hidden activations), so an activation→image inversion step is
-  needed — see §5.
+**What is CONJECTURE here, tagged (7e):** *closure does not survive multi-layer* — settled by 81's derivation and
+retrodicted by Step 17 (the one multi-layer attempt was the REPLAY route and it failed, seeds known or not).
+*Certificate localisation* — **UNTESTED**; needs its own multi-layer certificate cell. *The cap vanishing at a hidden
+layer* — a conjecture resting on that conjecture, and the sentence that most strengthens the attack, so it must never
+be written as a capability the attack has. Required tag wherever it appears: "(untested; requires certificate
+localisation, which is itself untested)".
+
+**Cost if localisation holds:** what is recovered is that layer's *inputs* (hidden activations), so an
+activation→image inversion step is needed — see §5.
+
 **Prediction to register BEFORE the run (41):** the same zero column sum that caps the count is also what keeps the
 certificate's arithmetic well behaved — measured precedent: on a half-precision release where the rank exceeded the
 cap, the count became unreadable at any tolerance. So the deeper-layer case may loosen the cap *and simultaneously
-make the recorded count unreadable*. Predict both, don't discover the second.
-**Correct statement to use:** not "multi-layer is outside the theory", but "the certificate localises to the first
-adapted layer; the margin law is what is genuinely output-layer-bound." 
+make the recorded count unreadable*. Predict both, don't discover the second. **Falsifier (b9):** the deep-layer test
+is vacuous unless `N ≥ m`, with the magnitude (cap `m−1` → layer width) predicted in advance.
+
+**Honest line to use, verbatim:** "the one multi-layer attempt was the replay route, and it failed as the corrected
+theory predicts; certificate localisation is untested."
 
 ## 4. A learned decoder over thousands of adapters — right idea, and the SLOT is the point
 Generating thousands of `(adapter, private data)` pairs is cheap at small scale (each is a short fine-tune). Two slots:
