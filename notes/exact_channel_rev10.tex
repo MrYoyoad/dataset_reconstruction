@@ -2404,7 +2404,7 @@ rate.
   recorded; on the $97.9\%$ model that is essentially one, in $9$ of $10$
   ordinary batches. Private data from a different distribution is recorded
   in full — scanned digits misclassified $4/8$ by that model give every
-  imprint order one and full rank — — foreign data tends to be
+  imprint order one and full rank — foreign data tends to be
   recorded in full because a model tends to get it wrong.
 
 \item \emph{Why a prior is the missing piece, precisely.} The theorems pin
@@ -2425,11 +2425,12 @@ rate.
   initialiser and not the information. The \emph{certificate route} needs
   nothing but the release, the public model and a chart --- no recipe, no
   labels, no $N$ --- and pays for it with the narrow line, $k<r-N'$. Below
-  that line it works from nothing, and at rank $64$ it works well: from $500$
-  random starts with no recipe, no labels and no $N$, $65.6\%$ land on a
-  recorded image, all eight are recovered, and the chart dimension it can
-  afford ($k=32$) is one at which a projection identifies its own source among
-  $10^4$ candidates $94\%$ of the time (job 728592). The rank is a leakage
+  that line it works from nothing, and at rank $64$ it works well: on the
+  new-class cell above, from $500$ random starts with no recipe, no labels and
+  no $N$, $38.4\%$ land on a private example and all eight are recovered ---
+  and still all eight with the adapter \emph{trained} in FP32. The chart
+  dimension that rank affords ($k=32$) is one at which a projection identifies
+  its own source among $10^4$ candidates $94\%$ of the time. The rank is a leakage
   dial twice over: it raises the admissible $k$, and at fixed $k$ it enlarges
   the basin --- $16.6\%\to74.4\%\to96.4\%$ as the slack goes from one unit to
   forty-nine. Both are raised for utility. And the head width caps it
@@ -2459,10 +2460,14 @@ rate.
   the cost of being a corner. There $\|B_T\|=7.6\times10^{-18}$ and the
   adapter never feeds back at all --- $A_T=A_0$, and $B_T$ is $T$ times one
   gradient step --- so the fine-tune changed nothing about the model and
-  recorded every example anyway. It is exactly recoverable from any release
-  with FP32's exponent range, trained or stored, because the certificate is an
-  angle and not a magnitude; only FP16 erases it, by range rather than
-  precision. This also settles the tension the earlier draft left open.
+  recorded every example anyway. Because the certificate is an angle and not
+  a magnitude, a release of that size is not too small to read: FP32 recovers
+  five of the eight, and FP16 none at all, since the whole file underflows.
+  But bfloat16 is not the clean case the angle argument suggests --- it breaks
+  the softmax's zero column sum and reports a rank \emph{above} the $m-1$ cap,
+  corrupting the very directions the certificate reads, and it keeps only one
+  of three on the comparable $r=16$ cell. Exponent range is necessary and not
+  sufficient. This also settles the tension the earlier draft left open.
   Confidence \emph{does} reduce what is recorded --- by twenty-three orders of
   $\|B_T\|$ as the chart sharpens --- and it does \emph{not} protect, because
   a release too small to have moved the model is still large enough to
