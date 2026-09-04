@@ -4023,3 +4023,32 @@ to 503, and its residual runs 8e-4 to 9e-1 because the convs beneath it were ada
 and no certificate where the margin exists.** The recipe-free channel is a dense-layer phenomenon. On a
 downsampling convolutional path there is nothing to have. Weight sharing is not a detail here — it is the thing
 that kills it, because sharing multiplies what each image records without changing what it can constrain.
+
+## RESULT — the constraint count on raw pixels is set by the ADAPTER RANK, and it runs to the ceiling (job 202172)
+
+First adapted layer only, deep backbone, `N = 8`, `T = 100`. Its input is the image and never moves, so its
+recorded count is the image count at every rank; its certificate holds at the truth throughout (3e-15 … 2e-12).
+
+| `r` | 16 | 32 | 64 | 128 | 256 | 400 | 600 | 784 | 900 |
+|---|---|---|---|---|---|---|---|---|---|
+| `N′` | 8 | 8 | 8 | 8 | 8 | 8 | 8 | 8 | 8 |
+| conditions supplied | 8 | 24 | 56 | 120 | 248 | 392 | 592 | 776 | 892 |
+| **independent conditions on pixels** | 8 | 24 | 56 | 120 | 248 | 392 | 592 | **776** | **776** |
+| usable above 1e-8 | 8 | 24 | 56 | 120 | 248 | 392 | 592 | 776 | 776 |
+| fraction of the 784 pixels | 1.0% | 3.1% | 7.1% | 15.3% | 31.6% | 50.0% | 75.5% | **99.0%** | **99.0%** |
+| σ_min at the rank | 8.4e-1 | 4.4e-1 | 3.1e-1 | 1.9e-1 | 9.9e-2 | 5.0e-2 | 1.9e-2 | 1.9e-4 | 9.7e-3 |
+| condition number | 1.2 | 1.4 | 1.7 | 2.3 | 3.5 | 6.1 | 14.1 | 1.3e3 | 26.2 |
+
+**The pre-registered law holds exactly at every rank: independent conditions on pixels = `min(r, d) − N`, saturating
+at `d − N = 776`, with no condition ever lost to the encoder and none ever falling below the noise floor.** At
+`r = 900` the supplied count (892) exceeds what the input dimension can carry and the measured rank stops at 776,
+which is the correct ceiling rather than a failure. The `r = 784` cell is the marginal one and shows it: the
+condition number spikes to 1.3e3 there and relaxes back to 26 once the rank has slack at 900.
+
+**This is the honest replacement for the depth story.** Depth was the wrong axis — the conditions do not have to
+be accumulated across layers at all. One adapted layer at sufficient rank pins the raw image up to eight
+directions, with **no chart**, no recipe, no start and no solve. Two things this does NOT say, and they are the
+whole caveat: (i) it is a Jacobian rank at the truth, so it counts what the release pins *around* the true image
+and says nothing about whether an attacker can find it; (ii) the ranks that reach the interesting fractions
+(`r ≥ 256` on a 784-wide input) are a third of full rank and above — this is a statement about wide adapters, and
+the low-rank regime that motivates LoRA sits at the left end of the table where the fraction is a few percent.
