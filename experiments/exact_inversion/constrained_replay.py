@@ -189,7 +189,8 @@ def main():
         print(f"  [k={k}] fwd_check at the truth (subset recipe, lr*N'/N): {fwd:.3e}", flush=True)
 
         # ---- certificate landings from random starts
-        def run(v0, constrained, tag, start_err):
+        def run(v0, constrained, tag, start_err, gfun=None):
+            gfun = gfun if gfun is not None else g_of
             v = v0.clone(); jac = tf.jacfwd(replay_res)
             with torch.no_grad(): F = replay_res(v)
             fval = float(F @ F); lam = a.lm_lambda; t1 = time.time(); used = 0; trace = [fval]
@@ -199,17 +200,18 @@ def main():
                 for _ in range(12):
                     step = torch.linalg.solve(JtJ + lam * torch.eye(JtJ.shape[0], device=dev), JtF)
                     if constrained:                                     # project the latent block onto null(Jg)
-                        Jg = tf.jacfwd(g_of)(v[:nW]).detach()
-                        _, _, Vh = torch.linalg.svd(Jg, full_matrices=True)
-                        nullsp = Vh[Jg.shape[0]:].T if Jg.shape[0] < k else None
-                        if nullsp is not None and nullsp.shape[1] > 0:
+                        Jg = tf.jacfwd(gfun)(v[:nW]).detach()
+                        U_, S_, Vh = torch.linalg.svd(Jg, full_matrices=True)
+                        rk = int((S_ > 1e-10 * S_[0]).sum()) if S_.numel() and float(S_[0]) > 0 else 0
+                        nullsp = Vh[rk:].T                               # RANK, not shape
+                        if nullsp.shape[1] > 0:
                             step[:nW] = nullsp @ (nullsp.T @ step[:nW])
                         else:
                             step[:nW] = 0.0
                     vn = v - step
                     if constrained:                                     # pull back onto the manifold (one GN step)
-                        with torch.no_grad(): gv = g_of(vn[:nW])
-                        Jg2 = tf.jacfwd(g_of)(vn[:nW]).detach()
+                        with torch.no_grad(): gv = gfun(vn[:nW])
+                        Jg2 = tf.jacfwd(gfun)(vn[:nW]).detach()
                         vn = vn.clone(); vn[:nW] = vn[:nW] - torch.linalg.lstsq(Jg2, gv.unsqueeze(1)).solution.reshape(-1)
                     with torch.no_grad(): Fn = replay_res(vn)
                     if float(Fn @ Fn) < fval:
@@ -244,7 +246,7 @@ def main():
             n_distinct = len(set(int(j_) for j_ in ci))
             e_raw = max(float(torch.linalg.norm(Xh[:, i_] - X_real[:, rec[j_]]) / torch.linalg.norm(X_real[:, rec[j_]]))
                         for i_, j_ in zip(ri, ci))
-            with torch.no_grad(): gnorm = float(torch.linalg.norm(g_of(v[:nW])))
+            with torch.no_grad(): gnorm = float(torch.linalg.norm(gfun(v[:nW])))
             # Pre-registered thresholds (yoado-b9): the cell is FP64 throughout, so the absolute form applies --
             # branch 1 is OBJECTIVE <= 1e-28 (not `residual`, which is its square root and floors at 1e-15 even in
             # FP64) AND image error <= 1e-10. The relative form `100 x fwd^2` is carried alongside so the scoring
@@ -275,9 +277,10 @@ def main():
             """one random tangent step of size `dist` (relative to the latent std), pulled back onto Z_C."""
             w = w0.clone().reshape(-1)
             Jg = tf.jacfwd(g_of)(w).detach()
-            _, _, Vh = torch.linalg.svd(Jg, full_matrices=True)
-            null = Vh[Jg.shape[0]:].T if Jg.shape[0] < k else None
-            if null is None or null.shape[1] == 0: return None
+            U_, S_, Vh = torch.linalg.svd(Jg, full_matrices=True)
+            rk = int((S_ > 1e-10 * S_[0]).sum()) if S_.numel() and float(S_[0]) > 0 else 0
+            null = Vh[rk:].T                                            # RANK, not shape: C has rank r - N'
+            if null.shape[1] == 0: return None
             d = null @ torch.randn(null.shape[1], generator=gen).to(dev)
             w = w + dist * float(W_all.std()) * d / torch.linalg.norm(d)
             for _ in range(8):                                        # Gauss-Newton back onto the manifold
@@ -396,9 +399,9 @@ def main():
         perm_rows = torch.randperm(B_T.shape[0], generator=gn)
         B_null = B_T[perm_rows][:, torch.randperm(B_T.shape[1], generator=gn)]
         C_null, Np_null, _ = certificate(A_T, B_null)
-        def g_null(w):
-            f = bb.phi(chart.psi(w.reshape(k, 1)))
-            return (C_null @ f).reshape(-1) / torch.linalg.norm(A_T @ f)
+        def g_null(wv):                                                 # joint, same shape as g_of
+            W = wv.reshape(k, -1); F = bb.phi(chart.psi(W))
+            return ((C_null @ F) / torch.linalg.norm(A_T @ F, dim=0)).reshape(-1)
 
         gx = torch.Generator().manual_seed(a.seed + 77)
         for j, (w_l, obj_l, err_l, near_l) in enumerate(landings):
@@ -406,10 +409,8 @@ def main():
             if "constrained" in a.arms: emit(dict(landing=j, cert_objective=obj_l, landing_err=err_l, landing_nearest=near_l, **run(v0, True, "constrained", err_l)))
             if "unconstrained" in a.arms: emit(dict(landing=j, cert_objective=obj_l, landing_err=err_l, landing_nearest=near_l, **run(v0, False, "unconstrained", err_l)))
             if "null" in a.arms:
-                g_true, g_of = g_of, g_null                            # swap the constraint for the null one
                 emit(dict(landing=j, arm_note="constrained onto a RESAMPLED B_T's zero set (same dim, wrong subspace)",
-                          n_prime_null=Np_null, **run(v0, True, "null_manifold", err_l)))
-                g_of = g_true
+                          n_prime_null=Np_null, **run(v0, True, "scrambled_manifold", err_l, gfun=g_null)))
         if "random" in a.arms:
             for j in range(min(4, a.n_landings)):
                 w0 = (torch.randn(k, 1, generator=gx).to(dev) * coord_std).reshape(-1)
