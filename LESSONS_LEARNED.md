@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Low precision does not lift a spectrum's floor — it drags the signal down to meet it (2026-09-04)
+
+- **Presented as:** the obvious fix for a rank that breaks the `m − 1` cap on a low-precision release was to pick a tolerance above the roundoff floor, or to subtract the one spurious all-ones direction.
+- **Measured (job 85049, letter releases, four formats):** the cap-violating direction *is* the all-ones vector (overlap .976 with the 9th singular vector in fp64/fp32, singular value tracking the softmax column-sum error to within 2×). But projecting it out takes bf16/fp16 from rank 11 only to 10, not to the true 8; in half precision it is not even isolated (overlap .56–.79, mixed into the *sixth* vector); and the gap between the last real and the first spurious singular value falls from **eleven orders in fp64 to a factor of 2–4** in bf16/fp16, with the spurious values sitting *below* the format's unit roundoff.
+- **Rule:** a rank or a rank-derived line read off a low-precision release cannot be repaired by a threshold or by removing a known artefact direction; treat it as unavailable. And when a spectral gap is expected to survive rounding, check the gap, not the floor — the real directions move too.
+
 ## A rank read off a low-precision release breaks the m − 1 cap — rounding destroys the softmax's zero column sum (2026-09-04)
 
 - **Presented as:** the letter cells have m = 11, so the simplex caps N′ at 10 and the FP64 release has rank 8 — but every bf16- and fp16-trained release reports **rank 11** at every tolerance and both k (fp32: 10 at 1e-10, 11 at 1e-12). Found by the write-up lane in the Step 26 rows, verified in the executor's own.
