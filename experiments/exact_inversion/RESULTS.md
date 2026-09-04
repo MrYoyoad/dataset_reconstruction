@@ -3089,8 +3089,9 @@ k = 32 cell again and **stop the LM at bf16's residual level** (0.0124) instead 
 
 **Over-descent confirmed.** Stopped at bf16's residual, fp16 lands at 4.72% — within 4% of bf16's 4.56%, i.e. the
 two formats agree once the descent is equalised, and the entire reversal is the extra decade of residual
-reduction fp16 buys by travelling the flat σ_min direction. The release is not the lossy thing: **bf16's coarse
-rounding floor acts as an implicit early stop**, and the "coarser format recovers better at the hard chart"
+reduction fp16 buys by travelling the flat σ_min direction. The release is not the lossy thing. *(Superseded by the full sweep below: bf16's floor
+does not land near the knee, it stops short of it, so "bf16's floor acts as an implicit early stop" is retired
+along with the finding it explained.)* The "coarser format recovers better at the hard chart"
 finding is a statement about the solver's stopping point, not about what half precision destroys. Per-letter
 errors are uniform (4.1–7.7%) and the Z error falls with the residual (0.076 against 0.047 at full descent).
 Consequences, **corrected on audit (yoado-7e) — my first version was wrong in a way an attacker following it
@@ -3099,10 +3100,12 @@ while fp16's own A₀ floor is 0.0019 — far *below* it, so an fp16 attacker wh
 and gets exactly the 7.5%. The floor is a lower bound on the reachable residual and an upper bound on how far one
 should travel toward it; the right stop is the **knee**, where residual reduction stops buying image accuracy and
 starts buying flat-direction travel, or equivalently damping along the ill-conditioned direction. (ii) *"Coarse
-arithmetic recovers better" is an accident of scale, not a property of the format.* bf16 wins at this cell only
-because its rounding floor (~0.012) happens to land near the knee (~0.011); change the chart's conditioning or the
-release's scale and the same floor could sit above the knee (under-recovery) or below it (over-descent, as fp16's
-does). The general statement is that **at an ill-conditioned chart the attacker should early-stop or regularise —
+arithmetic recovers better" is **retired**, not merely scoped (yoado-7e, after the full sweep).* The bf16 > fp16
+result was an artefact of comparing an over-descended fp16 (full descent, 7.5%) against a floor-stopped bf16
+(4.56%). With early stopping the ordering is monotone in precision — fp32 6e-6, fp16 stopped at the knee 4.20%,
+bf16 4.56% — and bf16's floor (0.0124) sits *above* the knee (~0.004), so it stops short of the optimum rather
+than landing on it. This paragraph's earlier "accident of scale, floor happens to land near the knee" reading was
+built on a two-point extrapolation of the knee's position and is superseded. The general statement is that **at an ill-conditioned chart the attacker should early-stop or regularise —
 which they can do at any precision** — and low precision does it by accident when its floor coincides with the
 knee. Nobody should read "train in bf16 and the attacker does worse". (iii) The flush-to-zero reading (fp16
 zeroing 28–35% of residual entries) and the dynamic-range reading (σ_min 1e-5 near fp16's normal floor) are not
@@ -3350,3 +3353,12 @@ knee-to-knee amplification from the easy chart to the hard one is 4.40× for fp1
 full-descent amplification; the remaining 4.40× is not a stopping artefact. "The reversal dissolves at the optimal
 stop" is therefore too strong as I first wrote it: **the reversal in sign dissolves; the format-dependence shrinks
 by 1.75× and remains.**
+
+*Final form of the k = 32 statement (yoado-7e, after the sweep).* **At an ill-conditioned chart the attacker must
+early-stop — the knee is sharp, a factor 1.5 in residual costing 4.2% → 7.5% — and once they do, more precision
+only helps:** fp32 6e-6, fp16 stopped 4.20%, bf16 4.56%, monotone. fp32 and fp64 have no over-descent in range at
+all. The apparent inversion was over-descent from not stopping, and "coarse arithmetic recovers better" is retired.
+The two mechanism claims reconcile as cause and effect: **flush is the cause** (half precision underflows the fine
+residual entries below the knee) and **over-descent is the effect** (the continued descent then travels the flat
+direction); fp32 does not flush, so it has no over-descent and recovers to the truth. Above the knee all three
+formats coincide within 0.5% — residual-determined and precision-independent.
