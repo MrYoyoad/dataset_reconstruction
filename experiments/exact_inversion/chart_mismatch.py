@@ -102,17 +102,20 @@ def main():
         P = torch.tensor(chart_pool(pool, a.data_root, a.n_fit, a.seed), device=dev)
         for k in a.ks:
             chart = PCAChart(P, k, dev)
-            X_on = chart.psi(chart.coords_of(X_real))
+            X_on = chart.psi(chart.coords_of(X_real))                # the BEST this chart can do: the floor
             chart_err = (torch.linalg.norm(X_on - X_real, dim=0) / torch.linalg.norm(X_real, dim=0))
             coord_std = chart.coords_of(P[:10000].T).std(dim=1, keepdim=True)
-            # the RELEASE is trained on the private images as the chart sees them, exactly as in every earlier
-            # cell -- so the only thing varying across pools is the attacker's chart.
+            # CIRCULARITY FIXED (v3 of this job trained the release on X_on, i.e. on the private data AS THE
+            # ATTACKER'S OWN CHART SEES IT -- so the private data changed with the attacker's pool and the target
+            # was guaranteed to lie inside the chart being searched. That gave 200/200 landings even on a chart
+            # fitted to UNIFORM NOISE, which is the tell.) The private data is FIXED and RAW; only the attacker's
+            # chart varies, so a mismatched chart may simply fail to contain the target.
             g = torch.Generator().manual_seed(a.seed + 7)
             A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g)).to(dev)
             aa = argparse.Namespace(**{**vars(a), "k": k})
-            A_T, B_T, imp, sB, _ = release_and_imprints(bb, X_on, y, A0, aa)
+            A_T, B_T, imp, sB, _ = release_and_imprints(bb, X_real, y, A0, aa)
             C, Np, S = certificate(A_T, B_T)
-            H = bb.phi(X_on)
+            H = bb.phi(X_real)
             cert_res = (torch.linalg.norm(C @ H, dim=0) / torch.linalg.norm(A_T @ H, dim=0))
             rec = [i for i in range(a.N) if float(imp[i] / imp.max()) > 1e-12]
 
@@ -130,10 +133,9 @@ def main():
                 # construction and fails even the matched control -- which is what the first run of this job did.
                 #   err_on   did the solver find the right point IN the chart?   <- what the attack controls
                 #   err_raw  distance to the true image                          <- err_on PLUS the chart's ceiling
-                errs.append(min(float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i]))
-                                for i in rec))
-                errs_raw.append(min(float(torch.linalg.norm(xh - X_real[:, i]) / torch.linalg.norm(X_real[:, i]))
-                                    for i in rec))
+                j = min(rec, key=lambda i: float(torch.linalg.norm(xh - X_real[:, i])))
+                errs_raw.append(float(torch.linalg.norm(xh - X_real[:, j]) / torch.linalg.norm(X_real[:, j])))
+                errs.append(float(torch.linalg.norm(xh - X_on[:, j]) / torch.linalg.norm(X_on[:, j])))
             se = sorted(errs); se_raw = sorted(errs_raw)
             emit(dict(part="CHART_MISMATCH", pool=pool, k=k, N=a.N, r=a.r, rank_B_T=Np, cert_line=a.r - Np,
                       chart_err_median=float(chart_err.median()), chart_err_max=float(chart_err.max()),
@@ -145,6 +147,9 @@ def main():
                       frac_landed_on_1e2=float(sum(1 for e in errs if e < 1e-2) / len(errs)),
                       frac_landed_on_1e1=float(sum(1 for e in errs if e < 1e-1) / len(errs)),
                       raw_error_floor_is_chart_error=True,
+                      reached_chart_floor=bool(se_raw[len(se_raw) // 2] <= 1.25 * float(chart_err.median())),
+                      excess_over_floor=float(se_raw[len(se_raw) // 2] / float(chart_err.median())),
+                      private_data="RAW and FIXED across pools; only the attacker's chart varies",
                       metric_note="err_on is what the ATTACK controls; err_raw is bounded below by the chart's own "
                                   "error, so a raw-error threshold cannot discriminate between chart pools.",
                       start_model="random public-scale (attacker-buildable)", claim_class="attack",
@@ -153,7 +158,9 @@ def main():
             print(f"  [{pool:7s}] k={k:3d}  chart err {float(chart_err.median()):.3f}  expl {chart.explained:.3f}  "
                   f"N'={Np}  landed_on<1e-2 {sum(1 for e in errs if e < 1e-2)}/{a.starts}  "
                   f"<1e-1 {sum(1 for e in errs if e < 1e-1)}/{a.starts}  median err_on {se[len(se)//2]:.3e}  "
-                  f"median err_raw {se_raw[len(se_raw)//2]:.3e}", flush=True)
+                  f"median err_raw {se_raw[len(se_raw)//2]:.3e}  "
+                  f"(floor {float(chart_err.median()):.3f}, excess x{se_raw[len(se_raw)//2]/float(chart_err.median()):.2f})",
+                  flush=True)
 
 
 if __name__ == "__main__":

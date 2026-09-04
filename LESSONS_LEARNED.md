@@ -2759,3 +2759,26 @@ hides the attack inside the prior's error; quoting only the first hides how much
 
 **The habit.** Before running, compute the floor your metric can reach given the representation, and check the
 threshold sits above it. If the matched control cannot pass, nothing else in the sweep means anything.
+
+## 2026-09-05 — the private data must not depend on the attacker's own assumption (chart-mismatch circularity)
+
+**What happened.** The chart-mismatch job was built to ask whether a mismatched public pool costs an attacker
+reconstruction fidelity. It trained the release on `X_on = psi(coords(X_real))` — the private images **as the
+attacker's own chart represents them** — and then searched that same chart. So the private data changed with the
+attacker's pool, and the target was guaranteed to lie exactly inside the space being searched.
+
+**The result it produced, and the tell.** 200/200 landings with a solver error of 1e-14 on a chart fitted to
+**uniform noise**, whose explained variance is 0.019. A chart that captures 2% of the data's variance cannot
+support a perfect recovery of anything. The number was not a finding; it was the setup answering its own question.
+
+**The general form, and this is the third circularity this project has caught.** *An experimental cell must not
+define the ground truth in terms of the assumption under test.* Here the assumption under test was the attacker's
+chart, and the ground truth was projected through it. Earlier: the recipe-robustness oracle started from near the
+truth, so "wrong recipes are rejected" was measured from a start only the right recipe could reach.
+
+**The fix.** Private data fixed and raw; only the attacker's chart varies; report the recovered image against the
+raw truth, beside the chart's own projection error as the reachable **floor**, and the ratio of the two — which
+separates *did the solver work* from *could this chart represent the answer at all*.
+
+**The habit.** Write down the thing being varied, then check that neither the ground truth nor the release depends
+on it. If it does, the cell measures its own construction.
