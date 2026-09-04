@@ -2958,3 +2958,16 @@ flattening holds where it matters: a class the model does not have is recorded i
 digits flatten as predicted: rank 8 on mid and weak (margins −1.7 … +0.6: the weaker models are unsure of their
 own digits) against rank 6 on the strong model. Recipe-route cells: near-start exact everywhere (1e-30); random
 starts fail everywhere (chart errors 1–5). The weak model's mixed batch is still running.
+
+**OOD inversion grids (644064, three encoders × three sets, k = 16, N = 8, near start and random start).** The
+imprint law across model strength, on foreign data: `mnist_control` — weak (78% model) rank 8, imprints 3e-6 … 4e-1,
+margins ~2; mid rank 8, imprints 2e-4 … 6e-1; strong rank 6 raw / 8 on-chart, imprints 1e-27 … 2e-4 (margins 20–24).
+`font_digits` — weak rank 8 (margins −0.07), mid rank 8 (1.2), strong rank 6 raw / 7 on-chart with the three
+letters it misreads carrying imprints 3e-1 … 7e-1 against 1e-17 for the ones it gets right. `optdigits` — every
+encoder rank 8 with imprints 0.1 … 2 and *negative* median margins (−1.0 … −3.2): the strong model is wrong about
+optdigits and records all eight, exactly as it records a new class. Recipe route: every near-start cell reaches
+1e-30 (chart error ≤ 1e-9) except the two strong on-chart cells, which stall at 2e-16 / 1.9e-15 with chart error
+0.10–0.13 (σ_min 1e-18 — rank-deficient because part of the batch is invisible); every random-start cell fails
+(chart error 0.4 … 13). So: **the "what the model got wrong is what it records" law holds across three model
+strengths and three foreign sets**, and foreign data that a strong model misreads is recorded exactly as richly as
+a new class — while reachability from random starts remains the recipe route's problem, not the certificate's.
