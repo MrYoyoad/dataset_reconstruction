@@ -3272,3 +3272,23 @@ interaction (or a sublinear law) is unresolved. The ordering conclusions need on
 *k = 16 so far:* fp16 4.044e-2 at residual 3.2e-2, 3.444e-2 at 1.5e-2, **0.973e-2 at its floor 1.87e-3** — still
 descending at the floor, no right arm yet, consistent with the pre-registered prediction that the k = 16 knee lies
 at or below fp16's floor. The remaining stops (0.012 … 0.00205) will show whether it turns up at all.
+
+### The knee pinned, and the right arms diverge by format exactly as pre-registered
+
+The two rows that close it. **k = 32, fp16:** 4.196e-2 at residual 4.24e-3 → **7.485e-2 at 2.84e-3** → 7.471e-2 at
+its floor 2.50e-3. The knee is between **4.2e-3 and 2.8e-3**: a factor of 1.5 in residual takes the image error
+from 4.2% to 7.5%. Sharper than the earlier bracket and confirming there is no flat bottom.
+
+**k = 32, fp32 at the same place:** 3.780e-2 at residual **2.65e-3** — where fp16 sits at 7.49e-2. At a matched
+residual below the knee the two formats differ by a factor of **two**, and fp32 goes on descending to 5.8e-6.
+That is the pre-registered right-arm divergence, measured: *above the knee the curves coincide (0.4%), below it
+each format veers toward its own minimiser and they separate by 2×.* Residual-determinism is a left-arm property
+and the knee is exactly where it ends — as registered before the rows landed, and now with the sharpest possible
+illustration rather than the 11% hint.
+
+**k = 16 confirms the prediction:** fp16 descends monotonically — 4.044e-2 at 3.2e-2, 3.444e-2 at 1.5e-2,
+2.768e-2 at 9.2e-3, 2.537e-2 at 6.2e-3, **0.973e-2 at its floor 1.87e-3** — with no upturn anywhere. The k = 16
+knee lies at or below fp16's floor, so fp16 does not over-descend at the well-conditioned chart and its 0.97% *is*
+its optimum. The two charts therefore bracket the mechanism as pre-registered: **conditioning lifts the knee up
+into the reachable residual range, and that lift is what turns precision from an asset into a liability.** The
+"precision ordering holds at the optimal stop" statement is now measured at both charts, not assumed at either.
