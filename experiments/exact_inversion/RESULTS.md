@@ -5132,3 +5132,40 @@ confirmation that Adam destroys the certificate, and it is what licenses reading
 property of the certificate rather than of the pipeline. **If any Adam draw PASSES the gate, that draw is scored
 like an SGD draw, and separation there means the pipeline is wrong rather than Adam being interesting** — so for
 this arm alone, the expected result is the negative one and a positive is a bug report.
+
+## RESULT — the certificate is SPECIFIC in the live regime, on a real pretrained network (job 307760)
+
+The first cell in this project where a deployed configuration is *predicted* to admit the channel, and it does.
+Pretrained ResNet-18, stage-4 convolution adapted at `r = 64` with everything upstream frozen, one private
+photograph per draw, 20 draws stratified across the margin range against 1,000 shared non-members.
+
+**The counting rule's prediction is exact.** `N′` measured at **49** — the position count, not assumed — in every
+draw, giving `rank C = 64 − 49 = 15`, the predicted margin to the unit.
+
+| quantity | SGD arm | meaning |
+|---|---|---|
+| member residual | 8.5e-15 … 2.5e-14 | **recorded, not scored** — an algebraic identity at `N′ = 1` |
+| paired same-image null | **0.10 … 0.14** | an unseen image is *not* annihilated: an order above the 1e-2 bar |
+| false-positive rate | **0.0000** in all 20 | no non-member of 1,000 falls below the bar |
+| lowest non-member | 0.084 … 0.116 | an order above the bar, not a photo finish |
+
+**19 of 20 draws pass** (the first voids for having no prior draw to form its null), and the rate holds **within
+every margin stratum, never pooled**: 4/4, 4/4, 4/4, 4/4, 3/3 across the margin range from −4.7 to −0.2.
+
+**The negative control now fails in exactly the predicted way, and that is what licenses the above.** Under Adam:
+`N′ = 64 = r`, `rank C = 0`, the certificate is identically zero, **the false-positive rate is 1.0000** — every
+non-member is annihilated because everything is — and the gate fails in **6 of 6** draws. Reported as a count,
+since an all-void arm has no rate and "void" must not read as "produced nothing": **the gate outcome is the
+control's finding.**
+
+**Note what the Adam row demonstrates about the bar itself.** With `C = 0` the member residual is still ~1e-14 and
+would have passed any member-side criterion, and would also have cleared a bar anchored on the numerical floor.
+Only the fixed 1e-2 bar *plus* the false-positive rate catches it — the rate goes straight to 1.0. **The two
+scoring corrections made before these rows existed are exactly what separates this result from a vacuous one.**
+
+**What may be claimed, and the wording is deliberate.** Not "the certificate identifies the member", which is an
+identity. **"The certificate is specific: it annihilates the image it was trained on and rejects everything
+else."** Three scopes travel with it: it is a **hidden-layer** certificate, so it concerns the convolution's 49
+input patches — **activation space, not the photograph**; freezing the stages below is the hypothesis, and the
+attack always lives at the **earliest adapted layer**, so a fine-tune that also adapts stage 1 moves it onto raw
+pixels; and it is **SGD-class only**, which the control now demonstrates rather than asserts.

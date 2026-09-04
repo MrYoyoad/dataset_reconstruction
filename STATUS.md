@@ -1,5 +1,23 @@
 # Project Status
 
+## The channel EXISTS and is SPECIFIC in the live regime, on a real pretrained network (2026-09-05, job 307760)
+
+The counting rule said the live cells are single-image personalisation at low position count. Tested there for the
+first time: pretrained ResNet-18, stage-4 conv adapted at `r = 64`, one private photograph, 20 draws stratified by
+margin against 1,000 shared non-members. **`N′` measures 49 and `rank C` is 15 — the predicted margin exactly.**
+The paired same-image null under a release that never saw it sits at 0.10–0.14, the false-positive rate is
+**0.0000 in all 20 draws**, and **19 of 20 pass**, holding within every margin stratum.
+
+**The negative control fails as predicted and that is what licenses it:** under Adam `rank C = 0`, the
+false-positive rate is **1.0000**, and the gate fails in 6 of 6. An earlier version of that control silently ran
+SGD twice — the optimiser selector was assigned and never read — and was caught only by a pre-registered inverted
+expectation. **The result was withheld until a real control failed.**
+
+**Claim wording, deliberate:** not "identifies the member", which is an algebraic identity at one recorded image,
+but **"the certificate is specific — it annihilates the image it was trained on and rejects everything else"**.
+Scopes: **activation space** (49 conv input patches, not the photograph); the attack lives at the **earliest
+adapted layer**, so adapting stage 1 moves it onto pixels; **SGD-class only**.
+
 ## Against a real membership baseline the certificate wins on ASSUMPTIONS, not on separation (2026-09-04, job 287241)
 
 Frozen ViT-B/16, cached features, head LoRA at `r = 64`, 128 shadow releases, target disjoint from every shadow.
