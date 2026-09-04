@@ -136,7 +136,11 @@ def main():
                     pass
                 rk = {lab: int((sv > tol * sv[0]).sum()) if float(sv[0]) > 0 else 0
                       for tol, lab in ((1e-10, "1e-10"), (1e-8, "1e-8"), (1e-6, "1e-6"))}
+                r0 = rk["1e-10"]
                 out.append(dict(image=i, rank_by_tol=rk, n_rows=int(J.shape[0]),
+                                sigma_max=float(sv[0]), sigma_min_of_rank=float(sv[r0 - 1]) if r0 else 0.0,
+                                cond_of_rank=float(sv[0] / sv[r0 - 1]) if r0 and float(sv[r0 - 1]) > 0 else float("inf"),
+                                sigma_full=[float(v) for v in sv],            # FULL stacked spectrum, not a prefix
                                 sigma_rel=[float(v / sv[0]) for v in sv[:min(24, len(sv))]] if float(sv[0]) > 0 else []))
             med = {lab: sorted(o["rank_by_tol"][lab] for o in out)[len(out) // 2] for lab in ("1e-10", "1e-8", "1e-6")}
             budget_L = sum(margins[l] for l in layers)
@@ -151,6 +155,12 @@ def main():
                       independent_conditions_on_pixels_median=med, n_conditions_supplied=budget_L,
                       feature_space_codimension_exact=feat_codim, encoder_cost=feat_codim - med["1e-10"],
                       usable_rank_above_release_noise=usable_rank,
+                      sigma_max_median=float(sorted(o["sigma_max"] for o in out)[len(out) // 2]),
+                      sigma_min_of_rank_median=float(sorted(o["sigma_min_of_rank"] for o in out)[len(out) // 2]),
+                      cond_median=float(sorted(o["cond_of_rank"] for o in out)[len(out) // 2]),
+                      conditioning_note="formal independence is cheap: 158 near-parallel conditions are full rank and "
+                                        "practically empty. The additivity claim survives only if sigma_min stays "
+                                        "comparable as the rank grows.",
                       feature_space_note="C_l h = 0 is LINEAR in h, so in feature space the solution set is an affine "
                                          "subspace of codimension exactly rank(C_l) -- exact and global, no "
                                          "linearisation. The pixel number is its pullback; the difference is the "
@@ -162,6 +172,9 @@ def main():
                       start_model="n/a (Jacobian at the truth, no solve)", claim_class="algebraic check", git=git_hash()))
             print(f"  FEATURE codim (exact, global) {feat_codim} -> PIXEL rank {med['1e-10']} "
                   f"(encoder costs {feat_codim - med['1e-10']}); usable above the release's noise {usable_rank}", flush=True)
+            print(f"  CONDITIONING: sigma_max {sorted(o['sigma_max'] for o in out)[len(out)//2]:.3e}  "
+                  f"sigma_min(at rank) {sorted(o['sigma_min_of_rank'] for o in out)[len(out)//2]:.3e}  "
+                  f"cond {sorted(o['cond_of_rank'] for o in out)[len(out)//2]:.3e}", flush=True)
             print(f"  PIXEL RANK over layers {[l+1 for l in layers]}: {med['1e-10']} independent conditions on "
                   f"{npix} pixels ({100*med['1e-10']/npix:.1f}%), conditions supplied {budget_L}, "
                   f"ranks at looser tolerances {med['1e-8']}/{med['1e-6']}", flush=True)
