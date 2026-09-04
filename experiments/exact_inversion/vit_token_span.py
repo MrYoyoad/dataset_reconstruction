@@ -54,13 +54,25 @@ def main():
     ap.add_argument("--blocks", nargs="*", type=int, default=None, help="default: first, middle, last")
     ap.add_argument("--size", type=int, default=224)
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--arch", default="vit", choices=["vit", "resnet"],
+                    help="vit: block linears (shared across TOKENS) + the classification head (one CLS vector per "
+                         "image, NOT shared). resnet: conv layers (shared across POSITIONS) + the fc head (one "
+                         "globally-pooled vector per image, NOT shared). The head is the contrast that matters: "
+                         "it is the only non-weight-shared module in either architecture.")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(); dev = torch.device(a.device)
-    import timm
-    os.environ.setdefault("HF_HUB_OFFLINE", "1")
-    model = timm.create_model(a.model, pretrained=True).to(dev).double().eval()
-    nblocks = len(model.blocks)
-    blocks = a.blocks or sorted({0, 1, nblocks // 2, nblocks - 2, nblocks - 1})
+    if a.arch == "vit":
+        import timm
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
+        model = timm.create_model(a.model, pretrained=True).to(dev).double().eval()
+        nblocks = len(model.blocks)
+        blocks = a.blocks or sorted({0, 1, nblocks // 2, nblocks - 2, nblocks - 1})
+    else:
+        import torchvision.models as tvm
+        w = {"resnet18": tvm.ResNet18_Weights.IMAGENET1K_V1,
+             "resnet50": tvm.ResNet50_Weights.IMAGENET1K_V2}[a.model]
+        model = getattr(tvm, a.model)(weights=w).to(dev).double().eval()
+        blocks = []
 
     def emit(row):
         print(json.dumps(row), flush=True)
@@ -73,21 +85,36 @@ def main():
           f"git={git_hash()} host={socket.gethostname()} dev={dev}", flush=True)
 
     # capture the INPUT to each candidate adapted linear -- that is the vector the certificate condition acts on
-    caps = {}
-    hooks = []
-    def mk(name):
-        def h(mod, inp, out): caps[name] = inp[0].detach()
+    caps, shapes, hooks = {}, {}, []
+    def mk(name, conv=None):
+        def h(mod, inp, out):
+            t = inp[0].detach()
+            if conv is not None:                       # a shared kernel records one vector per POSITION
+                t = torch.nn.functional.unfold(t, conv.kernel_size, dilation=conv.dilation,
+                                               padding=conv.padding, stride=conv.stride)
+                t = t.transpose(1, 2)                  # (N, P, C*k*k) -- same layout as tokens
+            elif t.dim() == 2:                         # a head consumes ONE vector per image
+                t = t[:, None, :]
+            caps[name] = t
         return h
-    for b in blocks:
-        blk = model.blocks[b]
-        for name, mod in (("attn.qkv", blk.attn.qkv), ("attn.proj", blk.attn.proj),
-                          ("mlp.fc1", blk.mlp.fc1), ("mlp.fc2", blk.mlp.fc2)):
-            hooks.append(mod.register_forward_hook(mk(f"block{b}.{name}")))
+    if a.arch == "vit":
+        for b in blocks:
+            blk = model.blocks[b]
+            for name, mod in (("attn.qkv", blk.attn.qkv), ("attn.proj", blk.attn.proj),
+                              ("mlp.fc1", blk.mlp.fc1), ("mlp.fc2", blk.mlp.fc2)):
+                hooks.append(mod.register_forward_hook(mk(f"block{b}.{name}")))
+        hooks.append(model.head.register_forward_hook(mk("zhead (CLS, NOT shared)")))
+    else:
+        picks = [("layer1.conv", model.layer1[0].conv1), ("layer2.conv", model.layer2[0].conv1),
+                 ("layer3.conv", model.layer3[0].conv1), ("layer4.conv", model.layer4[0].conv1)]
+        for name, mod in picks:
+            hooks.append(mod.register_forward_hook(mk(name, conv=mod)))
+        hooks.append(model.fc.register_forward_hook(mk("zhead (pooled, NOT shared)")))
     with torch.no_grad():
         model(X)
     for h in hooks: h.remove()
 
-    for name in sorted(caps, key=lambda s: (int(s.split(".")[0][5:]), s)):
+    for name in sorted(caps):
         H = caps[name]                                        # (N, tokens, d)
         Nfull, tokens, d = H.shape
         for N in a.Ns:
@@ -99,7 +126,8 @@ def main():
             # numerically-present direction the release cannot resolve is not a direction the defender loses.
             rk_eff = int((sv > 1e-6 * sv[0]).sum()) if float(sv[0]) > 0 else 0
             margins = {str(r): max(0, min(r, d) - rk) for r in a.ranks}
-            emit(dict(part="TOKEN_SPAN", module=name, model=a.model, d=d, tokens=tokens, N=N,
+            emit(dict(part="TOKEN_SPAN", module=name, model=a.model, arch=a.arch,
+                      weight_shared=bool(tokens > 1), d=d, tokens=tokens, N=N,
                       token_vectors=N * tokens, span_rank=rk, span_rank_eff_1e6=rk_eff,
                       spans_input_dim=bool(rk >= d), margin_by_rank=margins,
                       vacuous_at_every_tested_rank=bool(all(v == 0 for v in margins.values())),
@@ -111,7 +139,7 @@ def main():
         M = H8.reshape(H8.shape[0] * tokens, d).T
         sv = torch.linalg.svdvals(M)
         rk = int((sv > 1e-10 * sv[0]).sum()) if float(sv[0]) > 0 else 0
-        print(f"  {name:22s} d={d:5d} tokens={tokens} N=8 -> {8*tokens:6d} vectors  span rank {rk:5d}"
+        print(f"  {name:26s} d={d:5d} tokens={tokens:4d} N=8 -> {8*tokens:6d} vectors  span rank {rk:5d}"
               f"  {'SPANS d (vacuous at every rank)' if rk >= d else f'deficient by {d-rk}'}", flush=True)
 
 

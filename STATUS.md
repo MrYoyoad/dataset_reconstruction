@@ -113,6 +113,15 @@ yoado-d0); four errors caught and fixed before shipping are logged in LESSONS_LE
 
 ### THE HEADLINE (2026-09-03, jobs 760909 / 764976 / 771329) — the claim to lead with
 
+> **SCOPE, added 2026-09-04 and required wherever this channel is described.** This is the **recipe-free
+> certificate** channel, and its demonstrated surface is **dense, non-weight-shared layers** — an MLP layer, a
+> classification head, or a deep convolutional layer where the recorded patch count stays below the input
+> dimension. It is **not** a general "LoRA leaks" claim. On weight-shared modules the channel is identically zero
+> at deployed settings: one image records one direction per token or per position, so a single image floods a
+> rank-8-to-64 adapter on any transformer block (job 273322), and early conv layers are vacuous at every rank
+> (job 201967). The counting rule `N × positions` against the input dimension decides it from the architecture and
+> the batch size alone, before any release exists.
+
 **A released adapter, fine-tuned in ordinary FP32 arithmetic on a class the base model does not have, hands
 back every private example it was trained on to an attacker who knows only the public model.** EMNIST 'a' as
 an 11th class on the 98% MNIST MLP (head row zero; random-row arm reproduces it), r=64, k=32 on the letters'

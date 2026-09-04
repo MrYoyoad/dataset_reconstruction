@@ -4408,3 +4408,23 @@ verdict and deep conv layers the opposite one.
 **This is the clearest deployment-relevant statement in the ledger, and it is a negative one.** Where adapters
 actually go — attention and MLP projections inside blocks, at ranks 8 to 64 — the recipe-free channel does not
 exist, and it fails by two orders of magnitude rather than marginally.
+
+## The counting rule — the project's most portable output, validated in three architectural regimes
+
+    recorded directions per layer  =  min( r,  d,  rank{ h_ip : recorded i, every position/token p } )
+    and that inner span is generically  min( N × positions,  d )
+
+A certificate exists at a layer only when the adapter rank **exceeds** that count, and the count is computable
+from the **architecture and the batch size alone** — no release, no recipe, no training, no data beyond knowing
+how many private examples there were. It has now decided three independent cases, twice against the attacker and
+once for:
+
+| regime | positions per image | verdict |
+|---|---|---|
+| dense / non-shared (MLP layer, head) | 1 | count = `N`; certificate exists whenever `r > N`, `N′ ≤ m−1` binding |
+| early conv (many positions, few channels) | `N·P ≥ d` | vacuous at every rank, decided before training |
+| deep conv (few positions, many channels) | `N·P < d` | certificate survives, holds at the truth to ~1e-11 |
+| transformer block linear | `N·197 ≥ d` at `N ≥ 4` | vacuous at every deployed rank, **even at `N = 1`** since `197 > r` |
+
+**This is more useful to a defender than any reconstruction number in this ledger**, because it is a property they
+can evaluate about their own configuration in a minute, and because it is falsifiable in one forward pass.
