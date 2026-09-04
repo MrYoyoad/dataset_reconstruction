@@ -65,6 +65,9 @@ def main():
     ap.add_argument("--n-landings", type=int, default=8, help="distinct certificate landings carried into replay")
     ap.add_argument("--lm-iters", type=int, default=300); ap.add_argument("--lm-lambda", type=float, default=1e-2)
     ap.add_argument("--arms", nargs="*", default=["d0", "constrained", "unconstrained", "random", "null"])
+    ap.add_argument("--positive-control", action="store_true", help="run the certificate search alone at this cell and "
+                    "require it to recover a recorded image from random starts -- a null from this harness is not "
+                    "reportable unless the same pipeline reproduces a known positive (yoado-cd, after three artefact nulls)")
     ap.add_argument("--d0-steps", nargs="*", type=float, default=[0.0, 0.005, 0.02, 0.05, 0.1, 0.2, 0.4, 0.8],
                     help="D0: distances along Z_C from the truth (relative to the latent std) at which replay is retried")
     ap.add_argument("--d0-min-radius", type=float, default=0.05, help="D0 gate: if replay's in-manifold basin is below "
@@ -284,6 +287,20 @@ def main():
                         cert_norm_at_end=gnorm, at_floor_abs=at_floor_abs, at_floor_rel=at_floor_rel,
                         cert_at_truth=cert_at_truth, objective_trace_full=[float(x) for x in trace],
                         seconds=time.time() - t1, git=git_hash(), host=socket.gethostname())
+
+        if a.positive_control:
+            gp = torch.Generator().manual_seed(a.seed + 4242); hits = 0; best = 1e9
+            for _ in range(200):
+                w0 = (torch.randn(k, 1, generator=gp).to(dev) * coord_std).reshape(-1)
+                w, obj, _ = lm_cert(g_one, w0, a.cert_iters)
+                xh = chart.psi(w.reshape(k, 1))[:, 0]
+                e = min(float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in rec)
+                best = min(best, e); hits += int(e < 1e-2)
+            emit(dict(part="PCTRL", set=a.set, k=k, r=a.r, n_prime=Np, cert_line=a.r - Np,
+                      below_cert_line=bool(k < a.r - Np), starts=200, hits=hits, best_err=best,
+                      passed=bool(hits > 0), note="the certificate alone must recover a recorded image here",
+                      git=git_hash()))
+            print(f"  [k={k}] POSITIVE CONTROL: {hits}/200 random starts recovered a recorded image (best err {best:.2e})", flush=True)
 
         # ---------- D0 (gating): replay's basin radius ALONG Z_C, measured before any landing is spent ----------
         def walk(w0, dist, gen):
