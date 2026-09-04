@@ -9,6 +9,18 @@ every step, `B₀ = 0`, output layer. Real LoRA is AdamW, minibatched, augmented
 
 ---
 
+## 0. Why the recipe is not the barrier it looks like (threat-model argument, Yoad 2026-09-04)
+Three independent reasons, worth stating in the paper's threat model rather than defending case by case:
+1. **It is usually published.** A released LoRA ships `adapter_config.json` (rank, alpha, target modules, dropout),
+   and model cards routinely state optimiser, schedule, learning rate and epochs.
+2. **Defaults dominate.** A large share of real fine-tunes use the framework defaults or a popular script verbatim.
+3. **The space is small AND the attacker has an exact verifier.** Optimiser ∈ a handful; schedule ∈ {constant,
+   linear, cosine, …}; lr in a log range; epochs, batch size, seed. That is a small discrete search — and the
+   release residual *decides* each guess (7 wrong recipes at 6e-8…4.9 against 5e-31 correct; lr recovered
+   continuously from a 2×-wrong start). A search with a decisive oracle is a different problem from an unknown.
+**Consequence for framing:** recipe knowledge should be presented as *recoverable*, not assumed — and the
+adversary who matters (someone attacking data that is worth real compute) will sweep it.
+
 ## 1. Learning rate and batch size — SETTLED, not an assumption
 *(81: the PRODUCT STRUCTURE is derived → a proposition. That the product is identifiable and fitted to 1e-15 is
 MEASURED. Do not call the second a proposition — that claims a uniqueness result nobody has proved.)*
@@ -53,6 +65,15 @@ Minibatching is none of these.
 > from the data to the schedule, and schedule-recoverability is open."* And the asymmetry that matters:
 > **free for the CERTIFICATE** (it never simulates — it needs only `row(B_T)` and `A_T`) and **expensive for REPLAY**.
 > That is why the certificate is the route that survives realistic training.
+>
+> **BUT — the schedule is not free bits, it is a SEED (Yoad, 2026-09-04).** Frameworks generate the shuffle
+> deterministically from a seed (PyTorch `DataLoader` + generator, seed ⊕ epoch), so the `T×N` schedule is a
+> *function of one small integer* and a known framework algorithm — not `T×N` independent unknowns. The attacker
+> sweeps seeds with the release residual as an exact verifier (wrong recipes sit 20+ orders above the correct one).
+> Seeds are overwhelmingly small conventional values (42 first). **So the honest statement is: the schedule is a
+> low-entropy discrete unknown with a decisive oracle test, not a `3,200`-dimensional continuous one.** This
+> materially weakens the "schedule swap" objection and should be checked (sweep seeds on a minibatched release and
+> confirm only the true seed reaches the floor).
 **To verify:** run a minibatched release through the existing simulator with masked `D_t`; `fwd_check` must stay at
 machine precision. Cheap. If it holds, the assumption is **SWAPPED, NOT REMOVED** — see the box below.
 **Sharper second test (41):** with masking, an image's imprint accumulates only over the steps it appeared in, so two
