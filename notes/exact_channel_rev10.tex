@@ -2374,6 +2374,48 @@ theorem or a headline — was withdrawn by a follow-up measurement or a
 re-derivation, and each is itemised in the repository's lessons log.
 
 %----------------------------------------------------------------------------
+\paragraph{Why the certificate cannot reconstruct, stated structurally.} The
+foregoing reports that reconstruction needs a chart; the reason is visible in
+the certificate's defining property and is worth stating, because it is the
+same property twice.
+
+The measurements are generic. $A_0$ is Gaussian, so for a feature direction
+$h$ orthogonal to the recorded ones, $A_0h$ is \emph{independent} of
+$\{A_0h_i\}$ --- for a Gaussian matrix $A_0u$ and $A_0v$ are independent
+exactly when $u\perp v$ --- hence independent of $\operatorname{row}(B_T)$, so
+$\Pi A_0h$ is a fresh Gaussian in a random subspace. Off the training span the
+certificate is a random projection, which is the setting sparse recovery is
+built for, and $\ker A_0$ is a uniformly random $(n-r)$-dimensional subspace,
+incoherent with any fixed sparsity basis with high probability.
+
+What is not standard is where the private image sits. Its feature lies in
+$\operatorname{col}(H)$ --- and the certificate \emph{annihilates}
+$\operatorname{col}(H)$, because $Ch_i=0$ \emph{is} the membership property.
+So the certificate takes no measurement of the recorded image at all. It
+supplies $r-N'$ generic constraints on the ambient space and places the image
+in $\ker C$; where in $\ker C$ it sits, the certificate does not say.
+Reconstruction is therefore not ``invert the measurements'' but ``find the
+sparsest box-feasible point of $\ker C$'', with an effective budget of $r-N'$
+and a recoverable sparsity of about $(r-N')/\log n$:
+\[
+\begin{array}{r|ccccc}
+ r \ (N'=8) & 16 & 32 & 64 & 128 & 256\\ \hline
+ \text{recoverable pixels of }784 & 1.2 & 4.7 & 13.9 & 40.5 & 149.9
+\end{array}
+\]
+against roughly $150$ non-zero pixels in an MNIST digit. The channel reaches
+sparse-recoverability at $r=256$ for $28\times28$ images and, since the
+requirement scales with the image's sparsity while $r$ does not, at no
+practical rank for anything larger.
+
+\emph{Membership and reconstruction are opposite readings of one annihilation.}
+A test that returns exactly zero for every recorded example is for that reason
+unable to distinguish among them. The property that makes the certificate an
+exact membership instrument is the property that makes it useless as a
+measurement of what it detects --- which is why every reconstruction route in
+this work has funnelled into a prior, and why a prior is not a convenience
+here but the only remaining source of the information the release withholds.
+
 \subsection{Beyond one adapted layer: what a release constrains in pixel space}
 \label{sec:pixels}
 
