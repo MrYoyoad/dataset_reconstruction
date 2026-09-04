@@ -306,3 +306,57 @@ Relaxing the data assumption **buys a schedule assumption**, and the two routes 
 expensive for the replay route — which makes the certificate the route that survives realistic training.** That is
 a point in the certificate's favour and belongs in the pitch that way, alongside the standing caveat that the
 certificate pins fewer coordinates per image.
+
+---
+
+## §0 addendum — theorem/threat-model check on "the recipe is recoverable" (yoado-81)
+
+The conclusion is right for the paper, but two of the three legs do not carry weight and the third
+is circular as measured. The honest version is stronger than the one offered, because it does not
+need any of them.
+
+**(1) Split what is actually shipped.** `adapter_config.json` reliably ships the *architecture* —
+`r`, `alpha`, `target_modules`, dropout — and that is a real, citable gain: those are hypotheses
+(A2)/(A5) and the `s` in every recurrence. It does **not** ship the optimiser, learning rate, or
+epoch count. Model cards state those when authors choose to, which is not a property of the format.
+So: architecture shipped, recipe sometimes disclosed. Claiming both weakens the part that is solid.
+
+**(2) "Defaults dominate" is a prior about an unmeasured population.** Plausible, and probably
+true, but we have measured nothing about it. State it as an assumption of the threat model, not as
+a fact, or a referee will ask for the survey we did not do.
+
+**(3) The oracle is ours and measured — but the measurement presupposes what it is meant to
+supply.** R1's seven rejections were run from `--init-noise 0.10` (confirmed in
+`recipe_robustness.py:90`), i.e. from truth + 10%. So the oracle is decisive *in the regime where
+the inversion already succeeds*. From attacker-buildable starts no replay cell reaches the floor
+(0/20), and there **"wrong recipe" and "right recipe, bad start" produce the same observation** — a
+high residual. The verifier cannot be evaluated by the attacker who needs it. As stated, the
+argument is circular.
+
+**The resolution, which is the sentence the paper should use.** The recipe question is *moot for
+the route that matters*. The certificate is recipe-free by construction — no `η`, no `T`, no
+schedule, no labels — and it is the only route that runs from random starts. So the threat model's
+answer is not "the recipe is recoverable", it is:
+
+> The recipe-free route needs no recipe; the replay route needs one, and its verifier is only
+> usable by an attacker who already has a start good enough to invert with. Recipe knowledge is
+> therefore a hypothesis of the *wide* channel and not of the *narrow* one.
+
+That is defensible without any claim about model cards or defaults.
+
+**On the seed argument — right in form, and it proves too much as stated.** A framework's shuffle
+is indeed derived from one integer rather than `T×N` free bits. But the cardinality is the whole
+question: a 32-bit seed is `4×10⁹` candidates and a 64-bit seed `1.8×10¹⁹`, and the oracle costs a
+full inversion each. That is not a small discrete search; it is infeasible *unless the seed is a
+default*, at which point the argument reduces entirely to leg (2). So the general principle needs
+both quantities attached:
+
+> A quantity a framework derives deterministically from a seed or short config is a **discrete**
+> unknown rather than a continuous one — but it is a *tractable* search only when
+> (cardinality × cost of one oracle evaluation) is affordable. State both, or the principle
+> licenses enumerating a 64-bit seed.
+
+The useful corollary for the paper is the reverse reading: this is why the shuffle-seed check 41
+has queued is worth running on the *default* seed specifically. Confirming that a default-seeded
+shuffle is recoverable is a real result; confirming that some seed is recoverable given the seed is
+not.
