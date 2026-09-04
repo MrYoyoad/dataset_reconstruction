@@ -215,15 +215,24 @@ def main():
                 print(f"  [k={k}] D0 GATE FAILED -- D1/D2 not launched at this k (plan section 3)", flush=True); continue
 
         gs = torch.Generator().manual_seed(a.seed + 31); landings = []; n_land = 0; t0 = time.time()
-        cert_objs = []; land_errs = []; start_errs = []
+        cert_objs = []; land_errs = []; start_errs = []; normmatch_errs = []; norm_ratios = []
         for s_i in range(a.cert_starts):
             w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
             w, obj, _ = lm_cert(g_of, w0, a.cert_iters)
             xh = chart.psi(w.reshape(k, 1))[:, 0]
             e = min((float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])), i) for i in rec)
-            cert_objs.append(obj); land_errs.append(e[0])
-            e0 = min(float(torch.linalg.norm(chart.psi(w0.reshape(k, 1))[:, 0] - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in rec)
-            start_errs.append(e0)                                   # the SAME start before the certificate solve
+            cert_objs.append(obj)
+            # (yoado-b9) the handoff must be measured against the RECORDED image specifically, never the post-hoc
+            # nearest one -- the certificate has no information about images it did not record, and a start drifting
+            # toward an unrecorded one would score as a pass. `top` is the recorded image.
+            def err_to_top(wv):
+                return float(torch.linalg.norm(chart.psi(wv.reshape(k, 1))[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
+            land_errs.append(err_to_top(w)); start_errs.append(err_to_top(w0))
+            # (yoado-b9) SHRINKAGE control: if the solve mostly shrinks ||w|| toward the chart mean, every start moves
+            # closer to every image without acquiring information. Compare against a random point of the SAME norm.
+            nw = float(torch.linalg.norm(w)); n0 = float(torch.linalg.norm(w0))
+            wr = torch.randn(k, generator=gs).to(dev); wr = wr * (nw / float(torch.linalg.norm(wr)))
+            normmatch_errs.append(err_to_top(wr)); norm_ratios.append(nw / n0 if n0 > 0 else float("nan"))
             if e[0] < 1e-2:
                 n_land += 1
                 if len(landings) < a.n_landings: landings.append((w.detach(), obj, e[0], e[1]))
@@ -234,14 +243,20 @@ def main():
         # CLOSER to a private image at all? If the landing distribution is no better than the random starts', the
         # chain is a smaller search of an equally bad space and D2 need not run (cf. 753886: exact certificate
         # zeros 0.84 away, above the line).
-        le = sorted(land_errs); se = sorted(start_errs)
+        le = sorted(land_errs); se = sorted(start_errs); ne = sorted(normmatch_errs); nr = sorted(norm_ratios)
         emit(dict(part="HANDOFF", set=a.set, k=k, r=a.r, n_prime=Np,
                   landing_err=dict(min=le[0], p10=le[len(le)//10], median=le[len(le)//2]),
                   random_start_err=dict(min=se[0], p10=se[len(se)//10], median=se[len(se)//2]),
+                  norm_matched_random_err=dict(min=ne[0], p10=ne[len(ne)//10], median=ne[len(ne)//2]),
+                  latent_norm_ratio=dict(min=nr[0], median=nr[len(nr)//2], max=nr[-1]),
                   median_ratio=float(se[len(se)//2] / le[len(le)//2]) if le[len(le)//2] > 0 else float("inf"),
+                  median_ratio_vs_norm_matched=float(ne[len(ne)//2] / le[len(le)//2]) if le[len(le)//2] > 0 else float("inf"),
                   frac_landings_closer_than_best_random=float(sum(1 for x in land_errs if x < se[0]) / len(land_errs)),
+                  frac_landings_closer_than_norm_matched=float(sum(1 for i in range(len(land_errs)) if land_errs[i] < normmatch_errs[i]) / len(land_errs)),
+                  measured_against="the RECORDED image (index top), not the post-hoc nearest",
                   git=git_hash()))
-        print(f"  [k={k}] HANDOFF: landing err median {le[len(le)//2]:.3f} vs random-start median {se[len(se)//2]:.3f}", flush=True)
+        print(f"  [k={k}] HANDOFF vs the recorded image: landing {le[len(le)//2]:.3f} | random start {se[len(se)//2]:.3f} | "
+              f"norm-matched random {ne[len(ne)//2]:.3f} | latent norm ratio {nr[len(nr)//2]:.2f}", flush=True)
         emit(dict(part="L", set=a.set, k=k, r=a.r, n_prime=Np, cert_starts=a.cert_starts, n_landings_total=n_land,
                   n_landings_replayed=len(landings), cert_residual_cumulative=hist,
                   cert_residual_quantiles=dict(min=qs[0], p1=qs[len(qs)//100], p10=qs[len(qs)//10], median=qs[len(qs)//2]),
