@@ -30,25 +30,12 @@ is a *corner*: ‖B_T‖ = 7.6e-18 after a monotone 23-order collapse as chart f
 the adapter never fed back (A_T = A_0; B_T = T × one gradient step). It answers no objection about realism.
 The letters cell answers all four: not a vanishing release, not a frozen adapter, not a coarse chart, and it
 is the canonical reason to fine-tune. **Confidence collapses ‖B_T‖ by 23 orders and does NOT protect** — the
-certificate is an angle, and any format with FP32's exponent range carries a 1e-18 release fine.
-
-**Half-precision TRAINING defeats both routes we ran — which is not protection.** bf16/fp16 training keeps
-the release's norm (−12%/−3%), rank (8) and effect (margins learned), and loses only *direction*: 400
-accumulated roundings move the row space 2–25% per letter. Certificate: 0 of 8. Recipe route (job 771329):
-against fp32 training it wins outright (2e-6 from every on-chart truth); against bf16 it produces an
-**ALIAS** — residual 5.8e-4, **240× BELOW the truth's own 0.138**, at per-letter errors 0.09–0.77. *An FP64
-simulator explains a bf16-trained release better with the wrong images than the right ones.* Consequence for
-our own method, now in LESSONS: any inversion attack on a real (bf16-trained) adapter must simulate in the
-model's own arithmetic, and a low residual is not evidence that it did. Landscape cells running (779207,
-779969) to say whether this is extraction *cost* or genuine ruggedness; conclusion pre-registered in the
-gradient-based form, with derivative-free search at coarse resolution named as the untested next attacker.
+certificate is an angle, not a magnitude.
 
 **Other caps and levers.** `N' ≤ m−1` (softmax zero-sum): with more than m−1 recorded, row(B_T) aligns with
 no individual example and the certificate fails for ALL of them — 20 digits recover on a 26-logit head, none
 on a 10-logit one, same data/rank/chart (positive control 725918, prediction 20/44 met exactly at a tight
-truncation). Storage precision: fp32/tf32 preserve everything above ~1e-10 of the strongest imprint (ten
-orders — no protection); the fp16 zero is this cell's 7.6e-18 norm underflowing, NOT a property of fp16.
-Basin: distance below the line dominates (16.6→74.4→96.4% at fixed k as slack goes 1→17→49), k costs ~2× per
+truncation). Basin: distance below the line dominates (16.6→74.4→96.4% at fixed k as slack goes 1→17→49), k costs ~2× per
 32 unknowns at held slack; per-image basin, never the aggregate, across cells with different N'.
 
 **NEW CLASS vs ORDINARY DATA — the matched control (2026-09-03, job 658575).** One encoder (98% MNIST MLP),
