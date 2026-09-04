@@ -657,3 +657,47 @@ as theirs does (SSIM 0.12 at 120 images) — with less information than full wei
 so our differentiator cannot be the unrolling. It has to be the **certificate** (recipe-free, exact, no start
 needed), the **conditions** (capacity lines, the caps, the imprint law), and the **impossibility** statements —
 none of which SimuDy has or could get from its own method.
+
+## 13. Replay vs SimuDy, and the iteration idea — what prop:chain does and does not forbid (Yoad, 2026-09-04)
+
+**Replay IS SimuDy's primitive, honestly.** Both unroll training as a differentiable map and match the endpoint by a
+descent on candidate data; both need the recipe (they grid-search, we fit); both need endpoints only, not the
+trajectory. So replay *presented alone* is SimuDy-on-LoRA, and we must not pitch the unrolling as ours. What is ours,
+and only ours:
+- **The closure** makes the match cheap at the first adapted layer (small `N×N` recurrences, not the full net). That
+  advantage EVAPORATES for multi-layer, where the layers couple and we inherit their memory wall — so the closure is
+  a single-layer speedup, not a general one.
+- **The seed reduction** (`X = A₀U`, `rN` numbers) and **the certificate** — no SimuDy analogue.
+- **The theory** — capacity lines, caps, imprint law, impossibility. SimuDy has none and its method cannot produce them.
+- **The observed object**: adapter-only vs their full weights. Ours is the weaker (harder) observation, so at matched
+  `N` replay should do *worse* than SimuDy, not the same — less information in an adapter than in full weights.
+
+**Why SimuDy degrades with N (honest reading).** For FULL fine-tuning the system is hugely overdetermined (86M params
+≫ N·pixels), so information is not their wall — memory and optimisation are (they keep the whole graph; the mixing
+symmetry gives the optimiser more ways to trade images off as N grows; SSIM 0.12 at N=120). For US the adapter has few
+parameters, so the INFORMATION wall arrives sooner — which is exactly what §11's per-image budget measures. So a better
+optimiser would extend SimuDy somewhat, but the small-N limit is partly fundamental for us in a way it is not for them.
+
+**The iteration idea (certificate → replay → re-certificate → …), formalised in three variants that differ in what they change:**
+1. **Same sets (homotopy / basin-hop).** `{ρ=0} ⊆ Z_C` (prop:chain), so alternating exact projections between replay
+   and the certificate CANNOT change the release-consistent set — no iteration recovers a point replay could not.
+   BUT prop:chain leaves the BASIN open, and iteration is a legitimate way to REACH a hard point in a fixed feasible
+   set (graduated non-convexity: descend the benign certificate landscape, warm-start replay, repeat). Ceiling =
+   replay's set; value = reachability only; lives or dies on the same in-band handoff number as the chain. This is D3.
+2. **Change the operator (PEELING).** Recover one image, SUBTRACT its imprint from `B_T`, re-form the certificate for
+   the rest, repeat. This is NOT alternating projection on fixed sets — each step changes `C`, because `row(B_T)`
+   shrinks. Genuinely different from 1, and it is how you turn the per-image budget (largest at `N′_kept=1`) into a
+   multi-image attack. This is D5, and Yoad's "search there again" is most naturally this.
+3. **Change the search space (BOOTSTRAP CHART) — the one variant prop:chain does NOT bound.** Use a coarse recovery to
+   fit a better chart, then re-search in it. prop:chain constrains start and operator, not the chart, and the chart is
+   the whole fidelity question — so a better chart genuinely changes what is reachable. RISK: self-confirmation
+   (fitting the chart to your own guesses). GUARD: the exact residual verifies, so a bad chart cannot manufacture a
+   floor — a bootstrapped candidate that does not drive `ρ`/`C` to the floor is rejected. This is the one worth
+   inventing, and it is where Yoad's "build a new chart on top" and the latent-feature idea (§5) meet: bootstrap in
+   FEATURE space, where the certificate condition is exact and linear, then invert to pixels once.
+
+**Net:** iteration cannot beat replay's identifiability ceiling (variants 1–2) EXCEPT by improving the chart
+(variant 3), which is the same open problem as everywhere else — the chart — now reached from a different direction.
+The honest statement is that the certificate's value is membership + instance-ID + start-generation (§12), and image
+reconstruction routes all funnel back to the chart, whether reached by a prior, by bootstrapping, or by feature-space
+search.
