@@ -3245,13 +3245,29 @@ loses almost half the fidelity. (The exact location needs the 0.003 row, still r
 7.0e-3 to **5.810e-6** at its floor of 1.1e-7 — no upturn anywhere, because its minimiser is essentially the truth.
 The distance-to-minimiser reading is confirmed from the one format that has no displaced minimiser to travel to.
 
-**One honest discrepancy on the left arm.** At nearly the same residual, fp32 is *worse* than fp16: 4.752e-2 at
-6.99e-3 against 4.274e-2 at 7.38e-3 — an 11% relative gap in the wrong direction for strict residual-determinism
-(the lower residual should not have the higher error). The gap at the coarse stops is under 0.4%, so this appears
-only near the knee. Two readings, neither tested: the iterates differ in path (each format takes a different
-number of LM steps to reach the same residual — 4 against 5 here), or residual-determinism holds only away from
-the knee, where the image error is changing fastest with the residual. It is small, it does not affect the
-ordering conclusions, and it is recorded rather than smoothed.
+**The knee is per-format, not one knee.** bf16 improves to 4.534e-2 at 1.49e-2 and then ticks *up* to 4.558e-2 at
+its floor 1.24e-2 — the onset of bf16's own knee, which sits near 1.5e-2 against fp16's near 4e-3, about 4× higher.
+So each format has its own knee and its own right arm; bf16's floor lands just past its own knee, which is why it
+neither over-descends badly nor reaches the better optimum fp16 can.
+
+**The left-arm discrepancy is the knee boundary, not a crack in residual-determinism (yoado-c9).** At nearly the
+same residual fp32 is *worse* than fp16 (4.752e-2 at 6.99e-3 against 4.274e-2 at 7.38e-3, 11% the wrong way), while
+at the coarse stops the three agree to under 0.4%. The reason the axes stop being comparable: **the three curves
+invert different releases in different arithmetics**, so "residual 7e-3" against the fp32 release in fp32
+arithmetic is not the same distance-to-anything as "residual 7e-3" against the fp16 release in fp16 arithmetic.
+Far above every format's roundoff the releases are effectively identical and the arithmetics agree — which is why
+the coincidence of three *different* releases on the left arm is a real result and not a triviality — and near the
+knee (residual ~ roundoff) they diverge and "same residual" stops being cross-comparable. Path-dependence (4 LM
+steps against 5) is a symptom of the same thing. Neither touches the per-format-optimal-stop ordering.
+
+**Synthesis the set points to (qualitative; the scaling is not pinned).** *The knee residual rises with the
+training roundoff and with the chart's conditioning.* That one statement covers everything measured: coarser
+roundoff → higher knee → worse attainable optimum (the precision ordering); worse conditioning → the knee lifts
+above the reachable floor → over-descent bites (the k = 32 "reversal"); fp32's roundoff so small that its knee lies
+below any floor → no right arm at all. It also predicts the k = 16 result now landing — less conditioning, lower
+knee, below fp16's floor, no right arm. **Not pinned:** the scaling is not linear — the bf16/fp16 knee ratio is
+about 4× against a roundoff ratio of about 8× — so "knee ∝ roundoff" is qualitative and the conditioning
+interaction (or a sublinear law) is unresolved. The ordering conclusions need only the qualitative form.
 
 *k = 16 so far:* fp16 4.044e-2 at residual 3.2e-2, 3.444e-2 at 1.5e-2, **0.973e-2 at its floor 1.87e-3** — still
 descending at the floor, no right arm yet, consistent with the pre-registered prediction that the k = 16 knee lies
