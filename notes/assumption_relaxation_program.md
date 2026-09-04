@@ -968,3 +968,46 @@ input is already a feature.** By the profile above, if adaptation starts at dept
 and the realistic configuration must be measured separately. Combined with §16's rank scope (`r = 256` is ~1/3 of full
 rank against a deployed 8–64), the two open practical numbers are: *at what rank does 3–4-layer saturation occur*, and
 *what is the cap when adaptation starts at depth `d > 1`*.
+
+## 19. CLOSED: the two numbers, and the honest headline
+
+**19a. Depth of first adaptation is a TIGHT bound** (4 adapted layers, `r = 256`, everything below frozen):
+
+| adaptation starts at | pixel conditions | fraction |
+|---|---|---|
+| pixel input | 747 / 784 | 95% |
+| depth 2 | 717 | 91% |
+| depth 4 | 445 | 57% |
+| depth 7 | 138 | **17.6%** |
+
+**The prediction is exact where the encoder binds.** At depth 7 the frozen path transmits exactly 138 directions and
+the four adapted layers deliver exactly 138 — the 3rd and 4th adapted layers add **literally nothing**, their own
+encoders (96, 85) being nested inside the first's. At depth 4 the bound is 692 but only 445 is reached: the same
+effect from the other side, the later layers' encoders (220, 187, 138) too small to fill what the first left open.
+**So the transmitted rank at the STARTING depth is a tight upper bound, attained exactly when small enough to bind.**
+
+**19b. The deployment gap, as a number** (layers 1–4 adapted, rank swept): **7.1%** of the image at `r = 64`, **29.2%**
+at 128, **62.0%** at 192, **95.3%** at 256. Deployed adapters run `r = 8–64`. So **at deployed rank the release pins
+about seven percent of the image** — and that figure already assumes adaptation at the pixel input, which deployed
+adapters also do not do. `r = 64` additionally sits below the 90–110 drift plateau, so layers 2–4 are starved and the
+7% is **the first layer alone**. Reaching the image needs about a third of full rank, which is not low-rank adaptation.
+
+**19c. The trade-off, and it is the sentence to keep.** Conditioning runs against both axes. Across starting depths
+`σ_min` = 3e-6, 4e-9, 2e-10, 2e-10, and **from depth 2 onward the usable count is already below the formal count**.
+Across ranks it runs the other way: condition number **1.7 at `r = 64`** where almost nothing is pinned, **2.2e5 at
+`r = 256`** where the image is.
+
+> **There is no setting in this sweep where the release both determines the image and is comfortable to invert.**
+
+**19d. THE HONEST HEADLINE.**
+> The release **locally determines the raw image, with no chart and no prior** — but only when adaptation reaches near
+> the input *and* the rank is a large fraction of the input dimension. **Both conditions fail in deployment, and both
+> are things a defender can check about their own configuration.**
+
+**19e. What this settles, including a question open all evening.** "Will a better chart work?" is now answered with a
+measurement rather than an opinion: at deployed rank and depth the release pins ~7% of the image, so **a prior would
+have to supply the other 93%** — which is exactly the pre-registered negative ("the release does not contain the
+image and the prior supplies the remainder"), **firing at the DEPLOYMENT level while failing at the theory level.**
+That is the precise statement: the channel carries the image in principle, and does not in practice at the
+configurations people ship. Hence §12's ordering stands and is now *measured* rather than argued —
+**membership and instance-identification are the deliverable; pixel reconstruction is not, at deployed settings.**
