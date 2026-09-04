@@ -5561,3 +5561,31 @@ then said 8,000 non-members reversed it, which was true but still only a bound. 
 was never close:** the best non-member an attacker can find remains an order of magnitude above the bar however
 many transformations they try. The single-candidate population, at 0 of 8,000, gives a per-candidate bound of
 **3.7e-4**, itself limited by the dataset having only 8,189 images.
+
+## The mechanism behind the flat minimum — augmentation is not a defence, from BOTH directions (yoado-cd)
+
+The flat curve has a reason, and stating it completes the picture rather than merely closing a worry.
+
+**For a non-member, every augmentation is equally far from the recorded span**, so taking a minimum over more of
+them buys nothing — which is exactly why the curve is flat at 0.114 across a 25× group size. **For a member,
+augmentations move the score a great deal**: the measured ladder runs 1.8e-14 at requantisation to 0.10 at a flip,
+six orders across the same transformations that leave non-members motionless.
+
+**So augmentation moves members and leaves non-members where they are.** Both halves point the same way:
+enumerating over the augmentation group lets an attacker find the **right orientation of a true member** at a cost
+of the group size, while **never manufacturing a false positive**. **Augmentation is not a defence, from both
+directions, measured** — which is a stronger and more quotable statement than "the enumeration bound was loose".
+
+**And the correlation is one structure with two symptoms, not two results.** The nearly-flat decline of the
+minimum is what strong correlation between augmented candidates predicts; that same correlation is why the union
+bound came out infinitely loose. One observation, seen from two sides.
+
+**A correction from yoado-cd, recorded because it was theirs and reversed my implementation instruction:** their
+instruction to reuse test 2's replacement criterion for test 6 was wrong, and the scoring lane was right to
+separate them. The `N′ = 1` identity makes the *member* row vacuous, but test 6's statistic is the **handoff** —
+landings are other points in the zero set, not the member — so the identity does not touch it. The
+over-generalisation was from "same cell, same `N′`" to "same criterion". The implementation stands as built.
+
+**No more non-members are needed.** The single-candidate bound is dataset-limited at 3.7e-4, but the distribution
+method supersedes it: it answers the question without a false positive ever being observed, so a larger pool would
+tighten a quantity we no longer rely on.

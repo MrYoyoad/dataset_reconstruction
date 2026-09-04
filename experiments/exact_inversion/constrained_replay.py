@@ -238,7 +238,8 @@ def main():
             with torch.no_grad():
                 Uc, _ = qr_canon(bb.phi(chart.psi(Wv.reshape(k, -1))))
                 return (A_T @ Uc).reshape(-1)
-        START_MODEL = {"d0": ("near-truth (walked along Z_C from the truth)", a.init_noise),
+        START_MODEL = {"floor": ("AT THE TRUTH (achievability floor, not an attack)", 0.0),
+                       "d0": ("near-truth (walked along Z_C from the truth)", a.init_noise),
                        "constrained": ("certificate landing (attacker-buildable)", 0.0),
                        "unconstrained": ("certificate landing (attacker-buildable)", 0.0),
                        "scrambled_manifold": ("certificate landing (attacker-buildable)", 0.0),
@@ -572,6 +573,25 @@ def main():
             if "null" in a.arms:
                 emit({**run(v0, True, "scrambled_manifold", err_l, gfun=g_null), "landing": j,
                       "arm_note": "constrained onto a RESAMPLED B_T's zero set (same dim, wrong subspace)", "n_prime_null": Np_null})
+        if "floor" in a.arms:
+            # ACHIEVABILITY FLOOR (yoado-7e's cross-cutting rule): one companion solve per cell started AT THE
+            # GROUND TRUTH, same solver, tolerance and iteration budget as this cell's attack rows. It is what
+            # lets a shortfall be attributed: a ratio far above 1 means the SOLVER fell short, while a large floor
+            # itself means the CHANNEL does not carry it under this solver. Reported even when the endpoint is
+            # WORSE than the start, because from-truth drift is solver instability and is worth seeing.
+            w_t = W_all[:, rec_t]
+            v_truth = torch.cat([w_t.reshape(-1), seed_start(w_t)])
+            with torch.no_grad():
+                obj0 = float(torch.linalg.norm(replay_res(v_truth)))
+                x0 = chart.psi(w_t)
+                err0 = float(torch.linalg.norm(x0 - X_on[:, rec_t]) / torch.linalg.norm(X_on[:, rec_t]))
+            row = run(v_truth, False, "floor", err0)
+            emit({**row, "landing": -2, "floor_objective_at_truth": obj0, "floor_image_err_at_truth": err0,
+                  "achievability_ratio": (row.get("err_median", float("nan")) / err0 if err0 > 0 else float("inf")),
+                  "column_name": f"achievability floor under solver {a.solver if hasattr(a, 'solver') else 'lm'}",
+                  "start_attacker_buildable": False,
+                  "arm_note": "floor measurement, NOT an attack: started at the ground truth. A ratio >> 1 means "
+                              "the solver fell short; a large floor means the channel does not carry it here."})
         if "random" in a.arms:
             for j in range(min(4, a.n_landings)):
                 w0 = (torch.randn(k, 1, generator=gx).to(dev) * coord_std).reshape(-1)

@@ -33,7 +33,7 @@ echo "=== START test 6 three-batch $(date) on $(hostname) git=$(git rev-parse --
 for SET in confident repeated hard1_diff; do
   echo "=== batch $SET ==="
   python -u -m experiments.exact_inversion.constrained_replay --set $SET --r 64 --N 8 \
-      --ks 62 64 66 67 68 70 72 73 75 --seed 1 --arms d0 constrained random null \
+      --ks 62 64 66 67 68 70 72 73 75 --seed 1 --arms floor d0 constrained random null \
       --out $OUT/step122_test6_${LSB_JOBID}.jsonl
 done
 echo "=== DONE $(date) ==="
