@@ -3587,7 +3587,13 @@ deciles** rather than concentrated in a top slice, and **an attacker can select 
 certificate residual alone**, with no private knowledge — the failing deciles are exactly those where the
 certificate solve had not converged.
 
-### In band, the certificate does not vanish at the truth — the chain's premise fails where the chain would live (job 160901)
+### In band the certificate is exact for every substantially-recorded image — my "the premise fails in band" reading is WITHDRAWN (job 160901, diagnosis by yoado-b9)
+
+> **The gate refusal is real; my diagnosis of it was wrong.** I reported the worst residual over the recorded set
+> and read it as the containment degrading in band. Per image, it is not: the certificate is exact — 6e-15 to
+> 2e-10 — for every image with a substantial imprint, and the gate value is one marginal image whose imprint is
+> nine orders below the strongest. So the finding is about **which images the recorded set admits**, not about the
+> band.
 
 The in-band handoff characterisation was launched at k = 62, 64, 66, 68 for the r = 64 confident cell. **Every cell
 was refused by the certificate gate**, and that refusal is the result:
@@ -3638,3 +3644,40 @@ seeds through the simulator, and confirm that **only the true seed reaches the f
 orders above it**; report the separation. If it holds, the minibatch relaxation is close to free for replay as well
 as for the certificate, and my "swap, not removal" objection is withdrawn to a much narrower one: the attacker pays
 a seed search, not a schedule reconstruction.
+
+**The per-image structure, which is the actual result.** Recorded images 1–7, imprint (relative) against certificate
+residual at the truth:
+
+| k | imprints (recorded, in index order) | certificate residuals |
+|---|---|---|
+| 62 | 2.2e-4, 2.9e-3, **1.4e-9**, **5.1e-9**, 2.8e-1, 1.0, 5.6e-1 | 9.8e-11, 2.4e-11, **1.1e-5**, **2.5e-6**, 7.5e-14, 9.8e-15, 6.7e-15 |
+| 64 | 2.1e-4, 5.6e-3, **1.9e-9**, **6.1e-10**, 4.1e-2, 7.5e-1, 1.0 | 2.0e-10, 1.6e-11, **1.6e-6**, **1.5e-5**, 2.4e-13, 3.6e-14, 7.4e-15 |
+| 66 | 1.8e-4, 3.0e-3, **1.3e-9**, **1.5e-10**, 1.8e-2, 7.1e-1, 1.0 | 6.4e-11, 2.4e-11, **7.5e-7**, **4.4e-5**, 3.9e-13, 1.2e-14, 5.9e-15 |
+
+**The residual is monotone in the imprint across nine orders in all three cells**, which is the wide-head mechanism
+seen for the third time: *the certificate's usable set is bounded by the imprint spread, not by the band.* The
+k = 68 row confirms it from the other side — there `N′` drops to 6 and the marginal image's residual is 0.918, i.e.
+it has left the recorded set entirely. **`N′ = 7` is admitting two images that are barely recorded at all, and the
+certificate cannot certify them.**
+
+**Consequences for the two routes out, both pre-registered before running.**
+- **(a) Screen the cell, which is now legitimate rather than luck-hunting**, because the screen is readable from the
+  release with no private knowledge: reject a batch whose recorded set has members at the bottom of its own imprint
+  range. Every cell here has a clean gap of 4e4 … 1.4e5 after the five strongest, so the natural cut is `N′ = 5`.
+  The criterion is declared in advance, and the number of batches screened and passed is reported, so the selection
+  effect is disclosed rather than hidden.
+- **The obvious remedy is not obviously right and gets its own two-line test first.** Truncating `N′` from 7 to 5
+  *changes* `C`: the truncated row space is a **subspace**, so `P_{row(B_T)⊥}` projects onto a **larger** space and
+  `C` gains rank, making `Ch = 0` **harder** to satisfy, not easier. It may still work because the dropped
+  directions carry almost no energy — but that is a measurement, not an inference.
+- **(b) The soft constraint is legitimate and the proof survives it:** `S_ρ ⊆ Z_C`, and any neighbourhood of `Z_C`
+  still contains `Z_C`, so relaxation cannot move the line. **Design point: the tolerance must be per image, not
+  uniform** — a single 1e-5 surface discards nine orders of precision on the five images certified exactly in order
+  to accommodate two that cannot be certified at all. Weighting each image's constraint by its own measured
+  residual makes the soft form strictly better than the hard one rather than a concession.
+
+**And `N′` is not one quantity across ranks.** Its direction reversal (rising with `k` at r = 64, falling at r = 8)
+is explained by the same rows: at r = 64 what changes with `k` is how many *marginal* images clear the rank
+threshold, so the count includes a tail the certificate cannot certify, while at r = 8 it does not. **Cells are
+comparable by their imprint spectrum, not by `N′`**, and the spectrum should be reported beside the count wherever
+cells are compared.
