@@ -310,6 +310,15 @@ What the section establishes, in order — every label as in the .tex:
 
 ## HEADLINE (2026-09-03 night, jobs 728592/721391, RESULTS Step 23): private images recovered from RANDOM starts, no recipe, no labels
 
+> **SCOPE on every half-precision replay recovery (2026-09-04):** the matched-arithmetic recoveries (bf16-trained
+> 3.0% at k = 16 and 4.6% at k = 32, fp16 4.2% at its knee, fp32 6e-6) all start from `init near` — truth plus 10%
+> noise — and **no replay cell in this study has ever reached the floor from an attacker-buildable start** (the
+> twenty such starts of jobs 408560–63: 0 of 20). Meanwhile the certificate, the only random-start route, returns
+> **0 of 8 on exactly those bf16- and fp16-trained releases**. So "low-precision training is not a defence" is an
+> *identifiability* statement conditional on a near start. The honest sentence: **half-precision training does not
+> destroy the information — matched replay from a near start recovers to a few percent — but it breaks the only
+> route that currently works without a start, so today, for a bf16-trained adapter, nobody can begin the search.**
+>
 > **Attacker's stopping rule (2026-09-04, jobs 85300/86888/87369/88743/89853):** the image finishes long before the residual does. At the instance-level chart the image error falls to 4.2% at residual 4.2e-3 and jumps to 7.5% by 2.8e-3 — a sharp knee, no flat bottom, so the attacker must tune the stop; "descend as far as the arithmetic allows" loses almost half the fidelity. The knee is per-format and rises with both the training roundoff and the chart's conditioning; at the coarser chart the knee exists but sits just above the floor, so the penalty is 2% rather than 78%. Above the knee three different releases in three arithmetics agree to 0.4% (fidelity is set by the residual, not the format); below it they diverge by 2× as each veers toward its own minimiser.
 
 > **Figures caveat:** every figure under `figures/exact_inversion/` produced today (`certificate_ladder.png`, `letters_recovery_k32_760909.png`, `letters_matched_k16_782682.png`, the k=6 and r64k32 recovery panels) has been looked at by ONE session only — the write-up session's image reads timed out four times. Before any of them goes in front of the supervisor, a third pair of eyes that is neither session should check it against the rows.

@@ -3481,3 +3481,21 @@ costs about 80%. "Stop at the knee" is therefore a soft suggestion at easy chart
 ones — which is exactly why the naive full-descent attacker looked format-inverted only at k = 32. And the single
 axis subsumes both earlier readings: *floor above the knee* (bf16 at k = 32) is under-recovery, *floor below the
 knee* (fp16) is over-descent, and the cost either way is the size of that gap.
+
+### Scope on the whole precision sub-thread (yoado-cd, verified): every replay recovery is from a near start
+
+Checked in the code and the rows: `matched_lm` and `recipe_route` both start at `W_true + 0.1·randn·std`
+(`train_precision.py:94, 190`), and every M and R row in jobs 771329 / 782682 / 85300 / 86888 / 87369 / 88743 /
+89853 carries that start. **No replay cell anywhere in this study has reached the floor from an attacker-buildable
+start** (the twenty such starts of jobs 408560–63: 0 of 20). And on precisely the bf16- and fp16-trained releases
+where matched replay succeeds, the certificate — *the only random-start route* — returns **0 of 8** (760909, 500
+starts, both k).
+
+So the sub-thread's conclusion must be stated conditionally: **"low-precision training is not a defence" is an
+identifiability statement given a near start, not an attack result.** The honest form: *half-precision training
+does not destroy the information — matched replay from a near start recovers to a few percent — but it breaks the
+only route that currently works without a start, so today, for a bf16-trained adapter, nobody can begin the
+search.* That is a materially weaker claim than the one I sent as a story note earlier, and it is the one to
+carry. It also sharpens where the remaining work is: the replay route's binding constraint was already the
+initialiser rather than the information, and half-precision training removes the one initialiser-free route that
+had been supplying starts.
