@@ -38,6 +38,9 @@ steps in which an image appeared.
 trainable block upstream) or updates not linear in the gradient (Adam). Minibatching is neither.
 **To verify:** run a minibatched release through the existing simulator with masked `D_t`; `fwd_check` must stay at
 machine precision. Cheap. If it holds, one of the three worst-looking assumptions disappears.
+**Sharper second test (41):** with masking, an image's imprint accumulates only over the steps it appeared in, so two
+images sampled equally often should be recorded comparably while a rarely-sampled one drops toward the floor. That is
+a stronger test of the same claim than `fwd_check` alone and costs nothing extra.
 
 ## 3. Multi-layer — CONJECTURE: the certificate localises to the FIRST adapted layer
 Attack the earliest adapted layer. Its inputs come from frozen machinery, so "fixed inputs" holds exactly, and the
@@ -49,8 +52,12 @@ directions:
   the output layer permits.
 - **Cost:** what is recovered is that layer's *inputs* (hidden activations), so an activation→image inversion step is
   needed — see §5.
+**Prediction to register BEFORE the run (41):** the same zero column sum that caps the count is also what keeps the
+certificate's arithmetic well behaved — measured precedent: on a half-precision release where the rank exceeded the
+cap, the count became unreadable at any tolerance. So the deeper-layer case may loosen the cap *and simultaneously
+make the recorded count unreadable*. Predict both, don't discover the second.
 **Correct statement to use:** not "multi-layer is outside the theory", but "the certificate localises to the first
-adapted layer; the margin law is what is genuinely output-layer-bound."
+adapted layer; the margin law is what is genuinely output-layer-bound." 
 
 ## 4. A learned decoder over thousands of adapters — right idea, and the SLOT is the point
 Generating thousands of `(adapter, private data)` pairs is cheap at small scale (each is a short fine-tune). Two slots:
