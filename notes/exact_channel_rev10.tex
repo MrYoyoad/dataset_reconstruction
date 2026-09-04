@@ -19,8 +19,12 @@
 %
 %  MERGE NOTE — correspondence with Rev 9 numbering:
 %    (numbering below is the shared theorem counter of this file:
-%     Def 1, Lemma 2, Thm 3 closure, Cor 4 seed, Thm 5 certificate, Def 6 rho,
-%     Prop 7 simplex, Thm 8 capacity, Rem 9, Thm 10 sufficiency, Ex 11 T=1, Cor 12)
+%     Def 1 def:setup, Lem 2 lem:grad, Thm 3 thm:traj, Cor 4 cor:seed,
+%     Thm 5 thm:quot, Def 6 def:rho, Prop 7 prop:simplex, Thm 8 thm:cap,
+%     Rem 9 rem:distance, Thm 10 thm:suff, Ex 11 ex:T1, Cor 12 cor:two,
+%     Cor 13 cor:general.  VERIFIED against the compiled PDF; the Remark and
+%     Example share the counter, so a list that omits them shifts every number
+%     after 8.  Cite by LABEL when merging, not by number.)
 %    Rev 9 Lemma 2 (factor invariants)        -> Theorem 3 (with the recurrences written out)
 %    Rev 9 Theorem 1 + Corollary 1 + Prop 5   -> Theorem 5 and Corollary 12
 %    Rev 9 Thm 3 / Prop 4 (pull-back)         -> cited as "Rev 9 Thm 3, Prop 4"
@@ -1532,7 +1536,9 @@ because four hundred steps of accumulated rounding act on a \emph{moving}
 adapter --- the opposite regime from the confident cell, where a frozen
 adapter made FP32 exact. At a noise-matched tolerance that recovers six of
 eight --- but the tolerance was hiding them, not the release. At the tight
-tolerance$^\dagger$ (job 764976, $N'=11$, line $53$) the same FP32-trained
+tolerance$^\dagger$ (job 764976; the tight read reports $\operatorname{rank}
+B_T=11$, which is the inflation described below --- the true $N'$ is $8$ and
+the line $56$, and $k=32$ is below it either way) the same FP32-trained
 release gives $32.8\%$ of $500$ starts landing on a letter and \emph{all
 eight found}, at residuals of $3\times10^{-7}$ to $1.3\times10^{-5}$, with the
 two previously missing letters at $5\times10^{-6}$ and $6\times10^{-6}$ and
@@ -1652,8 +1658,10 @@ exact arithmetic and pays for it by amplifying every arithmetic error into a
 displacement, so under imperfect arithmetic the attacker's best $k$ is bounded
 by conditioning and not only by the line. Scaling the $k=16$ column by that amplification
 predicted roughly $6\%$ for FP16 and $19\%$ for bfloat16 at $k=32$. The rows
-give $7.5\%$ and $4.6\%$: right for FP16, wrong by a factor of four for
-bfloat16, and the reason is worth more than the prediction was.
+give $7.5\%$ and $4.6\%$ at full descent --- $4.20\%$ and $4.53\%$ at each
+format's knee, for reasons the next paragraphs give --- so the prediction was
+right for FP16 and wrong by a factor of four for bfloat16, and the reason is
+worth more than the prediction was.
 
 Image error is the larger of two terms, not one. A \emph{floor} term set by
 how well $A_0$ can be reconstructed, which does not depend on the chart; and a
