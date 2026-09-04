@@ -228,7 +228,17 @@ def main():
             from scipy.optimize import linear_sum_assignment
             ri, ci = linear_sum_assignment(Cst.cpu().numpy())
             per_image = [float(Cst[i_, j_]) for i_, j_ in zip(ri, ci)]
-            e_on = max(per_image); n_under = sum(1 for e in per_image if e <= 1e-10)
+            # (c9) Hungarian matching can INFLATE the count: it minimises total error, so a blend gets assigned to a
+            # truth even when its match is poor. An image counts as recovered only if its match is UNAMBIGUOUS --
+            # the assigned error at least 10x below that return's second-best truth.
+            second = []
+            for i_, j_ in zip(ri, ci):
+                others = [float(Cst[i_, t_]) for t_ in range(nrec) if t_ != j_]
+                second.append(min(others) if others else float("inf"))
+            unambiguous = [bool(per_image[q] * 10 <= second[q]) for q in range(len(per_image))]
+            e_on = max(per_image)
+            n_under = sum(1 for q, e in enumerate(per_image) if e <= 1e-10 and unambiguous[q])
+            n_under_ambiguous_ok = sum(1 for e in per_image if e <= 1e-10)
             # label-blind SET error: the same assignment ignoring which truth carries which label (a permutation-only
             # failure is a leakage SUCCESS -- the attacker has the images)
             n_distinct = len(set(int(j_) for j_ in ci))
