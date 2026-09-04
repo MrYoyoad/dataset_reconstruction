@@ -5471,3 +5471,42 @@ available in the other direction: `k = 62` is **in band for confident** and **be
 Note also `hard1_diff` has `N′ = 1` with a top imprint of 1.0 and every other image at 1e-24 or below, and
 `σ₂/σ₁ = 4.9e-16`: it is a genuinely single-recorded-image cell. That is the configuration the chain experiment
 wanted all day and could not find, and it arrives here as a by-product of a probe run for a different reason.
+
+## The two-batch design does NOT break the confound — the THREE-batch design does (yoado-b9)
+
+My attributive pair was wrong and the reason is clean. **hard1_diff's band is uniformly shifted up** relative to
+confident's — 63…72 against 57…66 — so at *every* `k` it is in the same regime or an earlier one. A **batch
+effect** and a **band effect** therefore make the *same* prediction at both of my contrasts: hard1_diff looks
+better at `k = 67` and at `k = 62` under either hypothesis. Same-`k` contrast controls the dimension but not the
+batch, and with two batches nothing separates them.
+
+**The design that does separate them: each batch should degrade at ITS OWN line, not at a common `k`.** Three
+lines are already measured, and they are far enough apart to give both a fine and a coarse separation:
+
+| batch | certified `N′` | in-band ends at | **predicted degradation onset** |
+|---|---|---|---|
+| confident | 7 | 66 | **67** |
+| repeated | 6 | 67 | **68** |
+| hard1_diff | 1 | 72 | **73** |
+
+**Sweep all three batches across a common `k` range of 62…75.** If the onsets land at 67, 68 and 73 — each at its
+own line — the degradation is attributable to crossing. **If all three degrade at the same `k`, the cause is the
+chart dimension and the line has nothing to do with it.** Confident against repeated (lines one apart) is the fine
+separation; hard1_diff five further out is the coarse one.
+
+**Reporting rule, now fixed:** per-cell verdicts and the attributive contrast are **different claims on different
+evidence and get two rows**. The contrast does not inherit the per-cell bar. Per-cell verdicts go against the
+locked absolute bar; the attribution is reported as *"onset tracked each batch's own line"* or *"onset was common
+across batches"*, **with the three onsets named** either way.
+
+## A finding from yesterday is FALSIFIED by the probe, and has been scoped rather than deleted
+
+Yesterday's record said **"the one-image regime and the band are mutually exclusive at a deployable rank"**, and
+the meeting document carried it unscoped. `hard1_diff` at `r = 64` has certified `N′ = 1` **with a band of 63…72**
+— a one-image cell **inside** the band. **The exclusivity is a rank-8 result; the regimes overlap at rank 64.**
+yoado-b9 has scoped it in the science-state note citing this probe.
+
+**Two consequences I am holding to.** Anything scored on that cell is **negative-side only**, since `N′ = 1`
+carries the algebraic identity — `Ch = 0` at the member whatever the release contains. And it is **not** evidence
+that the configuration could be constructed after all: **it was found, not built**, and the chain experiment's
+failure to construct one stands as recorded.
