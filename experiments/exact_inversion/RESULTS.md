@@ -3948,3 +3948,72 @@ patch matrix at each layer against `d_l` — so the answer does not depend on th
 sweep. The sweep `r ∈ {8, …, 512}` then confirms it on the actual trained releases.
 
 Rows are algebraic checks at the truth: no solve, no start, not an attack.
+
+## RESULT — the extended-layer curve lands on FLATTENING, and the reason is not what the design assumed (job 199890)
+
+Deep backbone `784 → 1000 × 14 → 10`, GELU, plain, trained to **97.38%** test accuracy. All 15 layers adapted,
+`r = 64`, `N = 8`, `T = 400`. `rank DF_1 = 784` at every image, so the architecture caps nothing.
+
+| layer | 1 | 2 | 3 … 14 | 15 (head) |
+|---|---|---|---|---|
+| `N′ = rank B_T` | **8** | 63 | **64 = r** | 9 |
+| margin `r − N′` | 56 | 1 | **0 — VACUOUS** | 55 |
+| certificate residual at the truth | 2.7e-14 | 9.7e-07 | (C = 0) | 1.1e-02 |
+
+**Twelve of fifteen adapted layers supply nothing at all.** The stacked pixel rank:
+
+| layers in the objective | supplied | pixel rank | usable above 1e-8 | σ_min at the rank | cond |
+|---|---|---|---|---|---|
+| 1 | 56 | 56 (7.1%) | 56 | 2.48e-1 | 1.7 |
+| 1, 2 | 57 | 57 (7.3%) | 57 | 1.90e-1 | 2.4 |
+| 1, 2, head | 112 | **80** (10.2%) | **69** | **6.6e-11** | **9.0e9** |
+
+The pre-registered **FLATTENING** branch, on both of its stated tests at once: the increments collapse, and the
+usable rank (69) falls below the formal rank (80) for the first time in this project while the condition number
+goes to 9e9. **The chart-free reading is dead in this form** and stays out of every document, as pre-registered.
+
+## RESULT — why: `N′` counts recorded (image, step) directions, not images, at every layer whose input MOVES (job 200956)
+
+`N′` at `r = 64`, sweeping the number of training steps:
+
+| T | 25 | 50 | 100 | 400 |
+|---|---|---|---|---|
+| layer 1 `N′` | **8** | **8** | **8** | **8** |
+| layer 2 `N′` | 32 | 37 | 42 | 63 |
+| layer 3 `N′` | 36 | 44 | 47 | 64 |
+
+**Layer 1's recorded count is the image count, at every training length, exactly.** Its input is the image and
+never moves. Every deeper layer's input moves the moment an earlier layer is adapted, so its recorded span
+accumulates one direction per (image, step) rather than one per image, and fills the rank. Training longer
+destroys the deep certificate.
+
+This is the mechanism behind the 3-layer cell too, and it rescopes that result rather than contradicting it: at
+`T = 25` the deep layers still have margins (56, 32, 28) and the stacked pixel rank is again **exactly additive** —
+56 → 88 → 116 conditions, every supplied condition independent, encoder cost 0, condition number 1.7 → 5.9 → 51.
+
+**The earlier statement "the layers are additive in rank and mildly degrading in conditioning" is now SCOPED, not
+withdrawn: it holds in the low-drift regime and fails at depth or with long training.** The multi-layer certificate
+is not a property of the architecture. It is a property of how far the features moved.
+
+## RESULT — the convolutional comparison: CONV-VACUOUS at every rank from 8 to 512 (job 201967)
+
+Conv backbone `1→32→64→64` stride 2, then a linear head, trained to **98.63%**. Measured first on the **frozen**
+backbone, before any adapter exists — the patch span each layer's recorded images actually fill:
+
+| conv layer | input dim `d` | positions `P` | patch vectors `N·P` | patch span rank |
+|---|---|---|---|---|
+| 1 | 9 | 196 | 1568 | **9 — spans `d`** |
+| 2 | 288 | 49 | 392 | 232 |
+| 3 | 576 | 16 | 128 | 117 |
+
+Eight images supply 1568 patch vectors into a 9-dimensional input space, so **conv layer 1 has margin 0 at every
+rank, decided before any training happens.** Across the sweep `r ∈ {8, …, 512}`, every conv layer is vacuous at
+`r ≤ 64`. Margins do appear at `r ≥ 128` (64, 192, 448) — but only because `rank B_T` is capped by the **output
+width** 64, so a wide adapter always leaves room the data never touched, and there the certificate residual at the
+truth is **6e-2 to 7e-1**. The condition does not hold. The head has the usual `N′ ≤ m − 1 = 9` cap and a margin up
+to 503, and its residual runs 8e-4 to 9e-1 because the convs beneath it were adapted and its input drifted.
+
+**Verdict CONV-VACUOUS at every rank tried, by two independent routes: no margin where the certificate is exact,
+and no certificate where the margin exists.** The recipe-free channel is a dense-layer phenomenon. On a
+downsampling convolutional path there is nothing to have. Weight sharing is not a detail here — it is the thing
+that kills it, because sharing multiplies what each image records without changing what it can constrain.
