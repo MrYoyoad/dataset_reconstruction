@@ -2736,3 +2736,26 @@ the critical path, the sweep measures nothing. This costs a minute and the run c
 **The salvage, and it is why the run was not worthless.** Stating the mechanism precisely revealed that the same
 argument is *alive* on the reconstruction surface, where the attacker does **not** hold the image — so the result
 is a scope boundary rather than a plain null. But that boundary was also derivable in advance.
+
+## 2026-09-04 — a threshold the matched control cannot reach is a broken metric, not a negative result
+
+**What happened.** The chart-mismatch run scored recovery as distance to the **raw** private image and asked for
+< 1e-2. Every pool failed, **including the matched control** — 0 of 200 starts, median error 0.41.
+
+**Why that is a metric failure and not a finding.** The release saw the images *as the chart represents them*, and
+no candidate inside a `k`-dimensional chart can be closer to the raw image than the chart's own projection error,
+which is **0.52 at k = 16** here. So the threshold was unreachable by construction, for every pool, before the
+attack ran at all. The measurement could not have discriminated between chart pools no matter what happened.
+
+**The tell, and it is the general one.** *The matched control failed.* A control that is supposed to succeed and
+does not is nearly always a broken harness rather than a surprising result, and it must be chased before any other
+row in the table is read. This is the same shape as the positive-control lesson logged earlier today: a
+constrained-search harness produced clean-looking nulls until a positive control was added.
+
+**The fix.** Report the two errors separately, because they answer different questions:
+`err_on` — did the solver find the right point *inside the chart*, which is what the attack controls — and
+`err_raw` — distance to the true image, which is `err_on` **plus the chart's own ceiling**. Quoting only the second
+hides the attack inside the prior's error; quoting only the first hides how much the prior is doing.
+
+**The habit.** Before running, compute the floor your metric can reach given the representation, and check the
+threshold sits above it. If the matched control cannot pass, nothing else in the sweep means anything.
