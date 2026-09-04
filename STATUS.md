@@ -37,12 +37,20 @@ Jacobian rank at the true image, no solve and no start — so none of it is an a
    The recorded count itself is the **image count** for a dense layer with a frozen input and the **patch span
    rank** for a convolution. Saturation and drift are two separate mechanisms and are now measured apart.
 
-**What this leaves.** The first adapted layer is the only one whose recorded count is the image count, its
-certificate holds to ~1e-14 at every training length, and its conditions land on raw pixels with no chart. So the
-live question is whether the pixel-space constraint count scales with the **adapter rank** rather than with depth.
-Pre-registered as `min(r, 784) − N`, running as job 202172; the first cells match exactly (r = 16 → 8 conditions,
-r = 32 → 24), with σ_min already falling 0.84 → 0.44. **The number that decides whether it means anything is the
-usable rank, not the formal one.**
+**What this leaves, and a withdrawal.** A layer whose input is frozen has the image count as its recorded count
+and a certificate that holds to ~1e-14 at every training length. Job 202172 swept the adapter rank on such a layer
+and got `r − N` independent conditions on pixels at every rank, up to 776 of 784. **That is withdrawn as a
+finding** (audit from yoado-cd, verified at source in the code path): in those cells the adapted layer is the
+*first* layer, whose input **is** the image, so the condition is linear in the pixels and its Jacobian is `C`
+itself — the count is `rank(C) = r − N′` by construction and nothing was measured. What survives is small and
+real: every condition clears the release's own noise floor at every rank, and nothing degenerates, including at
+the marginal `r = d` cell.
+
+**The measurement that was actually wanted** is the gap between `r − N′` and `rank(C·Dφ)` with a frozen **nonlinear
+encoder** below the adapted layer, where the condition is `C φ(x)`. That gap is what the encoder costs, and the
+raw-pixel cell has no encoder to charge for. Job 206712, pre-registered: the gap is zero where `Dφ` is full rank at
+the truth and grows with any rank deficiency in the encoder. **A second reason the old table's right end is out of
+scope:** a rank-`n` adapter on an `n`-input layer is not low-rank adaptation, it is that layer fine-tuned.
 
 ## Rev 10 delta — the exact channel, theorem-first, for the supervisor (2026-09-03; `notes/exact_channel_rev10.tex`)
 
