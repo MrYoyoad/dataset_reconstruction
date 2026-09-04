@@ -107,19 +107,34 @@ def main():
         H_true1 = bb.phi(chart.psi(w_true)); U_true, _ = qr_canon(H_true1); X_true = (A0 @ U_true)
         v_true = torch.cat([w_true.reshape(-1), X_true.reshape(-1)])
         with torch.no_grad(): fwd = float(torch.linalg.norm(replay_res(v_true)))
+        sv_truth = torch.linalg.svdvals(tf.jacfwd(replay_res)(v_true).detach())
+        smin_truth, smax_truth = float(sv_truth[-1]), float(sv_truth[0])
         print(f"  [k={k}] fwd_check at the truth (subset recipe, lr*N'/N): {fwd:.3e}", flush=True)
 
         # ---- certificate landings from random starts
         gs = torch.Generator().manual_seed(a.seed + 31); landings = []; n_land = 0; t0 = time.time()
+        cert_objs = []; land_errs = []
         for s_i in range(a.cert_starts):
             w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
             w, obj, _ = lm_cert(g_of, w0, a.cert_iters)
             xh = chart.psi(w.reshape(k, 1))[:, 0]
             e = min((float(torch.linalg.norm(xh - X_on[:, i]) / torch.linalg.norm(X_on[:, i])), i) for i in rec)
+            cert_objs.append(obj); land_errs.append(e[0])
             if e[0] < 1e-2:
                 n_land += 1
                 if len(landings) < a.n_landings: landings.append((w.detach(), obj, e[0], e[1]))
+        edges = [1e-28, 1e-20, 1e-16, 1e-12, 1e-8, 1e-4, 1e-2, 1.0]      # the landing SPECTRUM (yoado-cd): tells
+        hist = {f"<={e:.0e}": sum(1 for o in cert_objs if o ** 0.5 <= e) for e in edges}   # "the manifold misses the
+        qs = sorted(o ** 0.5 for o in cert_objs)                          # basin" from "the landings were never on it"
+        emit(dict(part="L", set=a.set, k=k, r=a.r, n_prime=Np, cert_starts=a.cert_starts, n_landings_total=n_land,
+                  n_landings_replayed=len(landings), cert_residual_cumulative=hist,
+                  cert_residual_quantiles=dict(min=qs[0], p1=qs[len(qs)//100], p10=qs[len(qs)//10], median=qs[len(qs)//2]),
+                  landing_err_min=float(min(land_errs)), landing_err_median=float(sorted(land_errs)[len(land_errs)//2]),
+                  seconds=time.time() - t0, git=git_hash(), host=socket.gethostname()))
         print(f"  [k={k}] certificate: {n_land}/{a.cert_starts} landings ({time.time()-t0:.0f}s), carrying {len(landings)}", flush=True)
+        if n_land == 0:
+            print(f"  [k={k}] NO LANDINGS -- outcome (4): the chain test did not run here; not a replay failure", flush=True)
+            continue
 
         # ---- replay LM, optionally confined to {g = 0}
         def run(v0, constrained, tag, start_err):
@@ -159,10 +174,12 @@ def main():
                        "alias (residual zero, wrong image)" if fval <= max(1e-28, 100 * fwd ** 2) else
                        "optimisation failure (residual not zero)")
             return dict(part="B", arm=tag, set=a.set, k=k, r=a.r, N=a.N, n_prime=Np, seed=a.seed, constrained=constrained,
-                        fwd_check=fwd, start_err_vs_truth=start_err, residual=fval ** 0.5, objective=fval,
+                        fwd_check=fwd, res_at_truth=fwd, jac_sigma_min_truth=smin_truth, jac_sigma_max_truth=smax_truth,
+                        n_landings_total=n_land, n_landings_replayed=len(landings),
+                        start_err_vs_truth=start_err, residual=fval ** 0.5, objective=fval,
                         lm_iters_used=used, verdict=verdict, err_vs_chart_truth=e_on, err_vs_chart_all=e_all,
                         nearest_image=int(min(range(a.N), key=lambda i: e_all[i])), err_vs_raw=e_raw,
-                        cert_norm_at_end=gnorm, objective_trace=[float(x) for x in trace[:: max(1, len(trace) // 20)]],
+                        cert_norm_at_end=gnorm, objective_trace_full=[float(x) for x in trace],
                         seconds=time.time() - t1, git=git_hash(), host=socket.gethostname())
 
         gx = torch.Generator().manual_seed(a.seed + 77)
