@@ -2887,3 +2887,48 @@ N′ 14 (line 50); 11.3% of 10,000 starts on a recorded image; **9 of 20 found**
 landings (median 0, max 678); argmin on a recorded image; chart class accuracy .75. The twenty-digit ladder is
 complete: 18 / 15 / 13 / 12 / 9 of 20 at k = 8 / 16 / 24 / 32 / 40 with N′ 19 / 17 / 16 / 15 / 14 — the release
 losing rank and the basin losing coverage together as the chart sharpens.
+
+### Overnight closures (jobs finished 2026-09-04 while the session was down)
+
+**Subset test complete (706597).** `hard1_diff` on-chart (N′ = 4): recorded subset → 2.6e-16 (image error
+median 6e-7), one-swapped → 1.0e-15 (its own floor 2.2e-15 — reached, at the same level: the swapped-in image's
+imprint is 1e-15 of the release), confident-only → 1.0 (nothing explained); `confident` on-chart (N′ = 3):
+recorded 7.9e-16 / median error 1e-3, one-swapped 2.3e-12 (= its floor 2.6e-12), confident-only 1.0; raw
+`hard1_diff` (N′ = 1): the recorded image reaches 9.5e-6 at image error 0.47 — off-chart, no zero (as every raw
+cell). Across three batches the achievable residual orders the candidate subsets by how much of the release they
+contain, down to the level at which the release stops distinguishing them (N′ = 6: recorded and one-swapped both
+at 5e-17). The `all (control)` rows (N′ = 8, near start, labels given) reach 5e-17 … 6e-16 with median error
+.04–.05 — the full-batch identifiability cells, rank-deficient (σ_min 1e-19) as before.
+
+**Negative controls for the one-image trigger (652786).** Random encoder, `hard1_same`: the spectrum trigger
+does *not* fire (σ₂/σ₁ = 1.2e-3 on-chart, 2.0e-3 raw — the release is rank-8, one image is not dominant), the
+attacker does not read one image, and the residual reaches 2.7e-6 / 4.6e-4 against a predicted one-image floor
+of 0.76 — i.e. the one-image reading would be wrong there, and the trigger correctly declines. Strong encoder,
+`hard1_same` raw: trigger fires (σ₂/σ₁ 7e-16), argmin label correct and nearest the dominant image, but the raw
+truth is off-chart (error 2.6, floor fraction 0) — the label read survives, the image read needs the chart. As
+pre-registered: the trigger is a property of the strong model's imprint law, not of the attack.
+
+**3,000-iteration chart reruns (624463, 624465) — the fidelity ranking, previously embargoed.** Only the
+charts whose residual *converged* rank: PCA (1.8e-29, converged) and global-PCA (1e-30, converged) reach the
+floor with chart error 3e-8 / 3e-9 and raw error .73 (their .42 ceiling); β-VAE β = 16 converges (8e-31, chart
+error 4e-12) at a raw error of 1.01 (ceiling .72 — the chart is useless); every other learned chart is *still
+descending at the cap*: VAE-GELU 1.4e-17 (chart error .025), VAE-ReLU 2.9e-9 (.22), local 9e-20 (.022), cVAE
+7e-17 (.023), β = 0.25 1.3e-16 (.16), β = 1 2.5e-17 (.049), β = 4 1.4e-19 (3e-4). Per the standing lesson, no
+ranking among the unconverged arms is claimed; what stands is that the learned charts are worse conditioned
+(σ_min 4e-12 … 6e-11 against 1e-8 … 2e-8 for the PCA charts) and do not reach the floor in 3,000 LM iterations
+where the PCA charts do in ~1,200–1,800, while offering better ceilings (.22 … .34 against .42). The ceiling
+question (a richer chart) and the conditioning question (a reachable one) pull apart, as the conditioning
+figure said.
+
+**Flowers on CIFAR, mixed batches (762253: 1, 4, 7 flowers among 8, both charts, both head inits) and the
+old head (cifar10_m10).** Every release is rank 8; every near-start cell reaches ~1e-30 at chart error ≤ 5e-12;
+every random-start cell (2 restarts, 600 iterations) stops at 4e-4 … 3e-2 with chart error .07 … .60 — search
+failure throughout, no alias. The mixed rows add nothing to the imprint law beyond what the digits' mixed batch
+showed: identifiable, not reachable from random starts by the recipe route at k = 16.
+
+**Letters on the mid and weak MNIST models (658575, in progress; strong done).** The new class is rank 8 with
+margins −4 … −5 at t = 1 on every model (strong, mid, weak; zero or random head row) — the pre-registered
+flattening holds where it matters: a class the model does not have is recorded in full by every model. The old
+digits flatten as predicted: rank 8 on mid and weak (margins −1.7 … +0.6: the weaker models are unsure of their
+own digits) against rank 6 on the strong model. Recipe-route cells: near-start exact everywhere (1e-30); random
+starts fail everywhere (chart errors 1–5). The weak model's mixed batch is still running.
