@@ -3811,3 +3811,42 @@ same shape as "the recorded count is set by the chart": a property of the releas
 *Corollary that makes the chart question quantitative rather than aesthetic:* **a chart must compress the image into
 no more coordinates than there are independent conditions.** The measured rank therefore states exactly how good a
 chart the attack needs, and whether one is plausible for that image class.
+
+### RESULT (job 168937): the per-layer conditions are EXACTLY additive on pixels — no redundancy, no encoder cost
+
+Three adapted layers, r = 64, N = 8, the Jacobian of the stacked per-layer certificate maps taken with respect to
+**pixels**, per recorded image:
+
+| layers in the objective | conditions supplied `Σ(r−N′)` | **independent conditions on pixels** | fraction of 784 | tolerance spread (1e-10 / 1e-8 / 1e-6) |
+|---|---|---|---|---|
+| 1 | 58 | **58** | 7.4% | 58 / 58 / 58 |
+| 1, 2 | 102 | **102** | 13.0% | 102 / 102 / 102 |
+| 1, 2, 3 | 158 | **158** | 20.2% | 158 / 158 / 158 |
+
+**Both pre-registered predictions are falsified, in the attacker's favour.** I predicted the conditions would be
+partly redundant (the deeper ones being functions of the shallower through the network) and yoado-cd predicted
+saturation below the sum. Neither happens: **the pixel-space rank equals the conditions supplied exactly, at every
+layer count.** The layers are perfectly additive and the encoder costs nothing — the pullback through two GELU
+layers loses not a single direction.
+
+**And the number is not a tolerance artefact.** The rank is identical at 1e-10, 1e-8 and 1e-6, and the spectrum is
+flat rather than decaying — the twelve leading singular values run 1.0 … 0.90 at one layer and 1.0 … 0.35 at three.
+So there is a genuine gap, not a smooth decay, and the count is robust in the way the recorded-count measurements
+were and the earlier margin measurements were not.
+
+**What this means, stated against the pre-registration.** The negative case does not fire: at 20% of the pixel
+count with three layers the release is not obviously short of the image, and the count grows **linearly** with
+adapted layers at 44–58 conditions each. Extrapolating the measured slope, a model adapted on ~14 layers at this
+rank would supply constraints numbering the full pixel count — and real LoRA deployments adapt tens of layers. So
+the ceiling that would have made the attack "constrained guessing" is **not** where this cell sits.
+
+**The three caveats that must ride with it.** (i) The count is of *independent local directions* at the truth, not
+a statement that the image is determined — that requires the nonlinear question, which this does not answer.
+(ii) The linear extrapolation across layers is measured over three points on one architecture; nothing here shows
+the slope holds at depth, and the natural failure would be later layers whose features are less informative about
+pixels. (iii) `Σ(r−N′)` is itself a per-layer quantity that dies when the recorded count reaches the rank, so the
+scope from the margin sweep still applies: this is a personalisation-regime result.
+
+*The corollary is now quantitative:* a chart must compress the image into **no more than ≈158 coordinates** for this
+release to determine a candidate within it — against the 16-to-32 dimensional charts used throughout this work,
+which are far inside that budget. The chart is not the binding constraint at this depth; it is generous.
