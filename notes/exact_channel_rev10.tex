@@ -954,6 +954,19 @@ encoder-quality ladder --- while novelty of the category governs whether that
 suppression applies at all. A confident model records almost nothing of what
 it already knows and everything of what it has never seen.
 
+Two further measurements close this off$^\dagger$. The mechanism is visible
+\emph{within} a single batch, not only between batches: on a font set the
+strong model records the three characters it misreads (relative imprints
+$3\times10^{-1}$ to $7\times10^{-1}$) and not the five it gets right
+($10^{-17}$), so the split follows each example's own error and nothing else
+(job 644064, three encoders against three foreign sets). And the new-class
+effect does not depend on encoder quality, which was the pre-registered
+prediction: a new class gives $\operatorname{rank}B_T=8$ with negative margins
+on the strong, mid and weak encoders alike, while ordinary digits move with
+quality --- rank $6$ on the strong model against $8$ on mid and weak (job
+658575). Model quality and category novelty are therefore not merely
+independent axes; the second is \emph{flat} in the first.
+
 The practical reading is the uncomfortable one. The regime in which this
 channel closes is the regime in which fine-tuning teaches a model more of what
 it already does; the regime in which it stays fully open is the one where
@@ -989,6 +1002,16 @@ collinearity of the features, not a difference in what was recorded. A
 spectral gap is evidence about the release, not automatically about the
 margins, and a negative control that acts on a non-triggered read is what
 makes the test load-bearing.}
+
+That control has now run$^\dagger$ (job 652786) and the trigger behaves. On a
+random encoder --- the case built so that a one-image reading would be
+\emph{wrong} --- it correctly declines: $\sigma_2/\sigma_1=1.2\times10^{-3}$
+with $\operatorname{rank}B_T=8$, where acting on the one-image reading would
+have given a residual of $2.7\times10^{-6}$ against a predicted floor of
+$0.76$. On the strong encoder it fires on raw digits, the label read is right,
+and the image read still requires a chart (error $2.6$ without one). So the
+trigger's failure mode is silence rather than a confident wrong answer, which
+is the direction one wants of a read that an attacker would act on.
 
 \paragraph{Private data the model gets wrong is recorded in full, whatever
 its provenance.} The mechanism predicts that data the base model
@@ -1703,6 +1726,18 @@ unreliable, exactly as the kernel count predicts at and above the boundary.
 Below the line, at it, and above it are three different regimes for the
 attacker, and only the first is safe to act on.
 
+The above-line regime has now been measured at high $k$ rather than inferred,
+and the line is sharp$^\dagger$ (job 753886, FP64, $5000$ starts per cell).
+One unit above ($k=58$, $N'=7$, line $57$): $14.3\%$ of starts reach an exact
+zero, $0.04\%$ land on a recorded image, and the $\operatorname{argmin}$ is a
+spurious solution at residual $4\times10^{-31}$ sitting $0.84$ away from any
+private image. Three units above ($k=60$): no landings at all, $36.4\%$ at the
+floor, $\operatorname{argmin}$ error $1.18$. So above the line the objective
+is not merely uninformative --- it is confidently wrong, and the fraction of
+starts reaching an exact zero \emph{rises} while the fraction reaching a
+private image falls to nothing. A defender reading only ``the attacker's
+solver converged'' would draw the opposite conclusion from the truth.
+
 \paragraph{The image finishes long before the residual does.} On the
 $95.1\%$ backbone every below-line cell stops at residual
 $10^{-13}$--$10^{-15}$ after $300$ iterations — fifteen orders above the
@@ -1861,6 +1896,18 @@ reading is favourable to the attacker and to the defender's
 threat model alike: \emph{spend the $k$ coordinates on the best chart
 available}, because richness is free in conditioning terms provided the
 decoder itself is well conditioned.
+
+A budget rerun qualifies that comparison$^\dagger$ (jobs 624463, 624465, at
+$3000$ iterations). Only the PCA charts actually reach the floor --- PCA at
+$1.8\times10^{-29}$ in $1808$ iterations, the global chart at $10^{-30}$ in
+$1175$, $\beta=16$ at $8\times10^{-31}$ in $616$ but with a useless $0.72$
+ceiling. Every learned chart is \emph{still descending} at the cap, so no
+fidelity ranking among them is claimed here and the earlier ordering should
+not be read as one. What stands is the trade: the learned charts have better
+ceilings ($0.22$--$0.34$ against PCA's $0.42$) and worse conditioning
+($\sigma_{\min}$ $4\times10^{-12}$ to $6\times10^{-11}$ against
+$10^{-8}$ to $2\times10^{-8}$), and do not reach in $3000$ iterations what PCA
+reaches in about $1500$.
 
 \paragraph{Past the line: what the alternative point is.} On the synthetic
 test-bed — whose chart $\psi$ is the generator that produced the images, so
