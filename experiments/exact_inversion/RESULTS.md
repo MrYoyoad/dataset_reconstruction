@@ -4683,3 +4683,46 @@ positive, the claim must be re-measured against a shadow-model / LiRA-style atta
 That run is being built now rather than after, so it is ready: the encoder is frozen, so per-image features can be
 cached with a single forward pass over the pool and each shadow release is then head-only training on cached
 features — which makes a proper 128-shadow LiRA cheap rather than prohibitive. `experiments/exact_inversion/head_lira.py`.
+
+## RESULT — against a REAL membership baseline the certificate does not win on separation, and the counting rule is confirmed as NOT a general defence (job 287241)
+
+Frozen ViT-B/16, cached features, head LoRA at `r = 64`, 128 shadow releases, target release disjoint from every
+shadow. The whole run took under three minutes, which is itself the point about cost.
+
+| `T` | rank `C` | **AUC certificate** | **AUC LiRA** | AUC loss threshold |
+|---|---|---|---|---|
+| 5 | 32 | 1.000 | **0.997** | 0.591 |
+| 20 | 32 | 1.000 | **0.997** | 0.932 |
+| 50 … 400 | 32 | 1.000 | **1.000** | 1.000 |
+| **5 (batch = rank)** | **0** | **vacuous** | **0.994** | 0.585 |
+| **50 (batch = rank)** | **0** | **vacuous** | **1.000** | 0.983 |
+| **200 (batch = rank)** | **0** | **vacuous** | **1.000** | 1.000 |
+
+**The stronger claim registered before this run FAILS on its own terms.** It said the certificate should detect
+membership at training lengths where the statistical attack is at chance, and therefore needed only to *exist*
+below the band rather than beat anything. A proper likelihood-ratio attack is at **0.997 at `T = 5`** — it does not
+need memorisation either, because it reads the shadow-calibrated likelihood rather than a raw loss. **There is no
+training length in this sweep where the certificate detects membership and LiRA does not.** The certificate's
+advantage is therefore **entirely in what it requires, and nothing in what it achieves.**
+
+**A methodological correction of my own, and it flattered my result.** The "baseline at chance" (0.35–0.52) in jobs
+285127 and 286191 came from a **label-free** confidence statistic, because non-members in that harness carried no
+labels, so a label-aware loss was not computable. In the standard membership setup — every pool image labelled,
+members a subset — the plain loss threshold reaches **0.591 at `T = 5` and 0.932 at `T = 20`**, i.e. inside and
+above the validity band. **So those VOID cells were partly an artefact of a weaker-than-standard baseline of my own
+construction**, and the void was not only the band misfiring. The LiRA harness is the correct setup and supersedes
+the trajectory as the authoritative comparison.
+
+**The complementarity result is confirmed, and it is the one that protects the paper.** At `batch = rank` the
+certificate is identically vacuous while LiRA scores **0.994 to 1.000**. So a defender who satisfies the counting
+rule has closed **this** channel and left a statistical attacker at essentially perfect separation. The counting
+rule is a statement about one channel and must never be quoted as a privacy guarantee.
+
+**What survives, stated without inflation.** The certificate needs: the released factors and the public model, one
+forward pass. It needs **no shadow budget, no recipe, and no sample from the private data distribution**. LiRA
+needs all three, and the third is the one an attacker often cannot buy — against a single person's photographs, one
+hospital's scans, or one artist's style there is no distribution to draw shadows from. **That is the entire
+contribution of this channel on the head surface: applicability in threat models where the statistical attack
+cannot be instantiated, at equal separation where both can.** Note also that this comparison was maximally
+favourable to LiRA — its shadows were drawn from the same 256-image pool as the target, i.e. exact distributional
+access — which is the right way to run the control and the wrong way to describe a real attacker.

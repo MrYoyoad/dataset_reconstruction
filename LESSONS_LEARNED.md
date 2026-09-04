@@ -2681,3 +2681,24 @@ exposed it. Report under the original rule, state precisely how the rationale an
 the *replacement* so the question no longer depends on a threshold: here, sweeping training length so the baseline
 walks from chance through the band to saturation, and reporting the whole curve. **A trajectory cannot be voided by
 a band; it contains the band.**
+
+## 2026-09-04 — I built a baseline that could not use labels, and it flattered my own method
+
+**What happened.** Across two runs I reported that a loss-threshold membership attack was "at chance" (AUC
+0.35–0.52) while our certificate was at 1.000. In the harness that produced those numbers, non-members carried no
+labels, so the only computable statistic was a **label-free** confidence (`log p_max`). The standard attack uses
+the **true-label** loss. When the comparison was rebuilt properly — every pool image labelled, members a subset —
+the same trivial threshold reached 0.591 and 0.932 at the same training lengths.
+
+**Consequence.** The earlier cells were VOID for two reasons, not one: the band misfired *and* the baseline was
+weaker than standard. I had attributed the whole effect to the band. The error direction is the dangerous one — it
+made our method look better.
+
+**Root cause, and it is a design smell worth naming.** The members and non-members in that harness were not
+symmetric: members had assigned labels and non-members had none. **Any membership comparison whose two populations
+differ in what metadata they carry cannot support a fair baseline**, because the baseline is forced onto whatever
+statistic both populations share, which is always the weaker one.
+
+**The habit.** Construct the member and non-member populations to be identical in everything except membership,
+before choosing any statistic. If the baseline you can compute is weaker than the literature's standard one, that
+is a fact about your harness, not about the baseline — say so in the row rather than reporting the number.
