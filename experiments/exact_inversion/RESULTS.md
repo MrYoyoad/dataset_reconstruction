@@ -4042,7 +4042,7 @@ with everything else frozen, so the adapted layer's input cannot move, on a deep
 with the condition holding to ~1e-15; layer 1 vacuous at every rank. Until those rows land, the conv statement in
 this ledger is scoped to **early-channel layers with every layer adapted**, and goes no further.
 
-## RESULT — the constraint count on raw pixels is set by the ADAPTER RANK, and it runs to the ceiling (job 202172)
+## WITHDRAWN — "the constraint count on raw pixels is set by the ADAPTER RANK" is an identity, not a result (job 202172)
 
 First adapted layer only, deep backbone, `N = 8`, `T = 100`. Its input is the image and never moves, so its
 recorded count is the image count at every rank; its certificate holds at the truth throughout (3e-15 … 2e-12).
@@ -4057,19 +4057,40 @@ recorded count is the image count at every rank; its certificate holds at the tr
 | σ_min at the rank | 8.4e-1 | 4.4e-1 | 3.1e-1 | 1.9e-1 | 9.9e-2 | 5.0e-2 | 1.9e-2 | 1.9e-4 | 9.7e-3 |
 | condition number | 1.2 | 1.4 | 1.7 | 2.3 | 3.5 | 6.1 | 14.1 | 1.3e3 | 26.2 |
 
-**The pre-registered law holds exactly at every rank: independent conditions on pixels = `min(r, d) − N`, saturating
-at `d − N = 776`, with no condition ever lost to the encoder and none ever falling below the noise floor.** At
+> **WITHDRAWN AS A FINDING (audit from yoado-cd, verified at source in this file's own code path, same day).**
+> In these cells the adapted layer is the **first** layer of the MLP, whose input is the raw image: `layer_curve.py`
+> builds the condition from `inputs_of(...)[0]`, which is `x` itself. The map is then `g(x) = C x / ‖A_T x‖`, and at
+> the truth `C x = 0`, so the quotient rule's second term vanishes and the Jacobian is exactly `C / ‖A_T x‖`.
+> **Its rank is `rank(C) = r − N′` by construction, not by measurement.** The table below cannot be anything other
+> than `r − N` at every row, and the sweep confirms that `A₀` is non-degenerate and that the `N` recorded
+> directions are independent — it does not discover that the count scales with rank. Nothing in this section may be
+> presented as a law, a scaling result, or a finding.
+>
+> **What survives as real, all of it small:** every condition sits above the release's own noise floor at every
+> rank, which is not automatic; the conditioning behaviour as `r` grows is data; and nothing degenerate happens at
+> any rank, including the marginal `r = d` cell. **The informative version needs a frozen nonlinear encoder below
+> the adapted layer**, where the condition is `C φ(x)`, the pixel Jacobian is `C · Dφ(x)`, and its rank can be
+> strictly less than `r − N′`. **That gap is the measurement** — it is what the encoder costs — and this cell has no
+> encoder, so it cannot show it. Queued as job 206712.
+>
+> **A deployment caveat that is now the main point rather than a footnote:** the right end of this table is outside
+> the regime the method is about. A rank-`n` adapter on an `n`-input layer is not low-rank adaptation; it is that
+> layer fine-tuned.
+
+The count is `min(r, d) − N` at every rank, saturating at `d − N = 776`. At
 `r = 900` the supplied count (892) exceeds what the input dimension can carry and the measured rank stops at 776,
 which is the correct ceiling rather than a failure. The `r = 784` cell is the marginal one and shows it: the
 condition number spikes to 1.3e3 there and relaxes back to 26 once the rank has slack at 900.
 
-**This is the honest replacement for the depth story.** Depth was the wrong axis — the conditions do not have to
-be accumulated across layers at all. One adapted layer at sufficient rank pins the raw image up to eight
-directions, with **no chart**, no recipe, no start and no solve. Two things this does NOT say, and they are the
-whole caveat: (i) it is a Jacobian rank at the truth, so it counts what the release pins *around* the true image
-and says nothing about whether an attacker can find it; (ii) the ranks that reach the interesting fractions
-(`r ≥ 256` on a 784-wide input) are a third of full rank and above — this is a statement about wide adapters, and
-the low-rank regime that motivates LoRA sits at the left end of the table where the fraction is a few percent.
+**This is NOT a replacement for the depth story** — see the withdrawal above; it is an algebraic identity plus a
+non-degeneracy check. Read at face value it would say that one adapted layer at sufficient rank pins the raw image
+up to eight directions with no chart, no recipe, no start and no solve. Three things stop that reading, the first
+being decisive: (i) the count is `rank(C)` restated, because the adapted layer's input *is* the image, so there is no
+encoder between the condition and the pixels and nothing was measured; (ii) it is a Jacobian rank at the truth, so
+it counts what the release pins *around* the true image and says nothing about whether an attacker can find it;
+(iii) the ranks that reach the interesting fractions (`r ≥ 256` on a 784-wide input) are a third of full rank and
+above — this is a statement about wide adapters, and the low-rank regime that motivates LoRA sits at the left end
+of the table where the fraction is a few percent.
 
 ## RESULT — the deep-conv regime, with drift switched off: the audit's prediction holds, and a single rule falls out (job 205887)
 
