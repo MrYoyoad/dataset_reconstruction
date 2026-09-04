@@ -4469,3 +4469,53 @@ Running on a frozen pretrained ViT-B/16 with a public-seeded head, LoRA on one b
 outcome and ends this line honestly; GRADED means the channel survives as a membership signal and never as
 reconstruction.** A plain loss-threshold membership attack on the same adapted model runs as a mandatory control —
 **the graded score must beat it or it is a worse way of doing something standard**, and would be reported as such.
+
+## RESULT — across four real pretrained architectures, only NON-SHARED modules have a margin at deployed rank (job 280419 + 279182)
+
+ResNet-18 and ResNet-50, pretrained, same real photographs, `N = 8`, margins at deployed adapter ranks:
+
+| model | module | `d` | positions | span | margin `r=16` | margin `r=64` |
+|---|---|---|---|---|---|---|
+| ResNet-18 | layer1 conv | 576 | 3136 | 477 | **0** | **0** |
+| ResNet-18 | layer2 / layer3 conv | 576 / 1152 | 784 / 196 | full | **0** | **0** |
+| ResNet-18 | layer4 conv | 2304 | 49 | 392 | **0** | **0** |
+| ResNet-18 | **fc head (pooled)** | 512 | **1** | **8** | **8** | **56** |
+| ResNet-50 | layer1…layer4 conv | 64 … 1024 | 3136 … 196 | full or near | **0** | 1 |
+| ResNet-50 | **fc head (pooled)** | 2048 | **1** | **8** | **8** | **56** |
+
+**The rule sharpens to something that needs no measurement at all.** A margin requires `r >` span, and span is at
+least `min(N·P, d)`. Since every shared module in these architectures has `P ≥ 49` and deployed ranks are 8–64,
+**every weight-shared module has margin zero at every deployed rank, in all four models** — ViT-B/16, DINO
+ViT-S/16, ResNet-18 and ResNet-50. The single exception is one direction on a ResNet-50 stem at `r = 64`, which is
+noise rather than a channel. **The recipe-free certificate exists at deployed rank only where positions per image
+is 1**, i.e. on a classification head or another pooled, non-shared module.
+
+Two things this measurement corrected in my own earlier framing. ResNet-18's first conv is **deficient** (span 477
+of 576) despite 25088 recorded vectors — natural image patches at that layer do not fill their input space, so
+"early conv saturates" is not a law but a data-dependent fact. And deficiency is **not** margin: ResNet-18's
+layer4 is deficient by 1912 and still has margin 0, because its span of 392 exceeds any deployed rank. **The
+binding comparison is span against `r`, not span against `d`.**
+
+## RESULT — the graded continuation does NOT beat the trivial baseline (job 280255)
+
+Frozen pretrained ViT-B/16, public-seeded head, LoRA on one block's qkv, FP64, 8 members against 64 non-members
+never trained on. `rank B_T = r` in every cell, i.e. saturated as expected.
+
+| block | `r` | AUC, graded imprint | AUC, loss-threshold baseline | verdict |
+|---|---|---|---|---|
+| 6 | 8 | 0.611 | **1.000** | does not beat baseline |
+| 6 | 16 | 0.648 | **1.000** | does not beat baseline |
+| 6 | 64 | 0.893 | **1.000** | does not beat baseline |
+| 11 | 8 | 0.971 | **1.000** | does not beat baseline |
+
+**The pre-registered mandatory control decides it: the graded score carries real signal — 0.61 to 0.97, well above
+chance — and is beaten by a plain loss threshold in every cell.** By the criterion registered before the run, that
+is a negative: it is a worse way of doing something already standard, and is reported as such.
+
+**One honest qualification, which is a design fault of mine rather than an excuse.** The baseline is at **1.000**,
+i.e. perfectly separable, because the adapter memorised eight images to a loss of 4e-3. In a cell where the
+trivial attack is perfect, no method can beat it and the comparison can only be tied. So this run establishes that
+the graded score does not *dominate* the baseline, but it cannot establish where the two rank against each other,
+because the test was too easy. **The comparison must be redone in a regime where the loss baseline is not
+saturated** — more members, fewer steps, a genuinely fine-tuned rather than memorised release — and until that
+lands the graded score has no established standing either way. Queued as job 283618.

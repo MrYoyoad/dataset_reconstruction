@@ -1,5 +1,33 @@
 # Project Status
 
+## Across FOUR real pretrained models, the recipe-free channel exists at deployed rank only on NON-SHARED modules (2026-09-04; jobs 273322, 279182, 280419)
+
+ViT-B/16, DINO ViT-S/16, ResNet-18, ResNet-50 — all pretrained, measured at real photographs before any adapter is
+trained. A margin needs the adapter rank to exceed the recorded span, and the span is at least `min(N·P, d)`.
+
+| module type | positions per image | margin at `r` = 8–64 |
+|---|---|---|
+| transformer block linear (attention, MLP) | 197 | **0**, at every batch size including one |
+| convolution, any stage | 49 … 3136 | **0** (one stray direction on a ResNet-50 stem at `r`=64) |
+| **classification head / pooled head** | **1** | **8 at `r`=16, 56 at `r`=64** |
+
+**The channel exists at deployed rank only where positions per image is 1.** Head span is exactly `N`, so head
+adaptation sits in the regime every MLP result in this ledger already covers, and all of them transfer to it.
+LoRA on attention — the dominant deployment pattern — is out of reach for this channel by two orders of magnitude.
+
+Two corrections to my own earlier framing came out of the ResNet rows. "Early conv saturates" is **not** a law:
+ResNet-18's first conv is deficient (span 477 of 576) despite 25088 recorded vectors. And **deficiency is not
+margin** — ResNet-18's layer4 is deficient by 1912 and still has margin 0, because its span of 392 exceeds any
+deployed rank. The binding comparison is span against `r`, not span against `d`.
+
+**Solution attempt, and its verdict.** The certificate is a null-space test, so a saturated release kills it. The
+graded continuation — the singular-value-weighted share of a candidate's adapter-space energy, which reduces to
+the certificate exactly when unsaturated — carries real signal (AUC 0.61–0.97) but **loses to a plain
+loss-threshold membership attack in every cell** (job 280255). By the control registered before the run, that is a
+negative. The caveat is mine: the baseline scored a perfect 1.000 because the release had memorised eight images,
+so the comparison could only be tied or lost. It is being redone on fine-tuned rather than memorised releases
+(job 283618), and until then the graded score has no established standing either way.
+
 ## The recipe-free certificate does NOT exist on a real transformer at any deployed setting (2026-09-04, job 273322)
 
 Frozen pretrained ViT-B/16 and DINO ViT-S/16, real photographs, measured before any adapter is trained. A shared
