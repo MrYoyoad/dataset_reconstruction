@@ -4867,3 +4867,40 @@ such; nearest-neighbour baseline **oracle-selected**, in the same metric and spa
 advance; success = error ≤ 1e-2 **and** ≤ ⅓ of the best baseline; error > 1e-1 is a negative regardless of
 appearance; the band between is *partial and not scored as recovery*; **no visual or "recognisable" judgement
 enters the score at any point.**
+
+## DESIGN ERROR CAUGHT BEFORE THE RUN — at `N = 1` the member residual is zero by construction
+
+yoado-c9's pre-audit, and I have checked the algebra rather than taken it: with one recorded image the A-gradient
+is `∇_A = Bᵀ∇_W` and `∇_W = g hᵀ` is rank one, so every update to `A` has the form `v hᵀ` and `A_T h = A_0 h + ‖h‖² v`.
+Each `v` is a combination of `Bᵀg`, and `B` is built from outer products `g (A h)ᵀ`, so `Bᵀg ∝ A h`. By induction
+every update direction lies in `span{A_0 h}`, hence
+
+    A_T h₁  =  (scalar) · A_0 h₁     and     row(B_T) = span{A_0 h₁}  (one-dimensional)
+
+so `C h₁ = P^⊥ A_T h₁ = 0` **exactly, by construction, whether or not anything leaked.**
+
+**The success criterion I pre-registered for the live-regime test — "member residual at machine precision" — was
+therefore vacuous, and would have produced a guaranteed success.** It is withdrawn before any row exists. This is
+the same failure shape as the vacuous hidden-layer certificate caught earlier in this project: a quantity that
+reads exactly like a perfect result and is forced by the construction.
+
+**The redesign, adopted:**
+- **Do not score the member side at all.** Score the **non-member separation against the `χ²_{r−N′}` null**, which
+  the certificate has in closed form, so the claim rests on where non-members fall rather than on a forced zero.
+- The test resolves only a single feature direction, `span h₁ + ker A₀`, so near-duplicates of the trained image
+  are a grey zone. The non-member pool is drawn **off-direction** and the result is labelled a
+  **direction-membership** test, not exact membership.
+- **Gate the cell on SGD-class training**: under AdamW `rank B_T = r`, the certificate does not exist, and the
+  cell would be scoring noise.
+
+**Also adopted, one per remaining test.** (1) The decisive control for the truncated certificate is a **random**
+top-`k` projector — if `B_T`'s top-`k` separates and a random one does not, the separation comes from `B_T`'s
+structure; if both separate it is a near-identity artefact. *This arm is already in the running job* (matched
+spectrum, random singular vectors, first `k` columns), and the scorer voids any cell where the control also
+separates. Scoring is by **separability**, not by the absolute member residual, since truncation deliberately
+lifts the member off machine precision onto the discarded tail. (3) **`Cφ(x) = 0` is linear in the feature, not in
+the pixel**, so the joint problem with a pixel box and pixel sparsity is **not convex in general**; it is convex
+here only because the rescoped cell adapts the pixel-input layer, where `h = x`. That must be stated on the row
+rather than assumed — a claimed convex solve of a non-convex problem is its own artefact. (4) The learned
+initialiser needs **replay from random starts at the same cell** (the standing 0 of 20) as its attribution arm,
+since the decoder's only claimed value is the start.

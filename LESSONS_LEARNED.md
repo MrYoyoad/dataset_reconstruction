@@ -2782,3 +2782,24 @@ separates *did the solver work* from *could this chart represent the answer at a
 
 **The habit.** Write down the thing being varied, then check that neither the ground truth nor the release depends
 on it. If it does, the cell measures its own construction.
+
+## 2026-09-05 — a success criterion that the construction forces is not a criterion
+
+**What happened.** For the single-image live-regime test I pre-registered success as "the member's certificate
+residual sits at machine precision". A pre-audit showed that at `N = 1` this is **algebraically forced**: the
+A-gradient is rank one, every update to `A` lies along `span{A_0 h}`, so `A_T h` is a scalar multiple of `A_0 h`,
+which spans `row(B_T)` exactly — the residual is zero whether or not anything leaked. The criterion could not
+have failed.
+
+**Why it nearly slipped through.** It was inherited from cells where it *is* informative. At `N ≥ 2` the recorded
+span is genuinely spanned by several images and a member landing at 1e-14 is a real fact. Carrying a criterion
+across a change in `N` without redoing its derivation is what broke it.
+
+**The general form, and it is the third instance in this project.** *Before registering a criterion, ask what
+value it takes under the null.* A vacuous certificate reads exactly like a perfect one; a rank computed with a
+relative tolerance reads full for a zero matrix; a member residual at `N = 1` reads zero for any release. All
+three were caught by a control or an audit rather than by the number looking wrong, because **none of them looked
+wrong.**
+
+**The fix pattern is the same each time:** score the side the construction does *not* force — here the non-member
+distribution against its closed-form null — and add the control whose failure is the evidence.
