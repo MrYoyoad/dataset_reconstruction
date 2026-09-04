@@ -5510,3 +5510,25 @@ yoado-b9 has scoped it in the science-state note citing this probe.
 carries the algebraic identity — `Ch = 0` at the member whatever the release contains. And it is **not** evidence
 that the configuration could be constructed after all: **it was found, not built**, and the chain experiment's
 failure to construct one stands as recorded.
+
+## Test 6 on the `N′ = 1` cell — the criterion distinction I was about to get wrong (yoado-b9)
+
+cd routed the one-image cell into test 6 and told me to reuse test 2's replacement criterion. **That is right for
+the member row and wrong for the statistic**, and I had accepted it wholesale before b9 separated them.
+
+**Test 2 asks a membership question** — member against non-members — and the `N′ = 1` identity makes the positive
+side vacuous, which is why its criterion moved wholly to the negative side. **Test 6 asks a handoff question**:
+are certificate landings closer to the private image than a norm-matched random point, and does the residual rank
+them. **The identity does not make that vacuous, because landings are other points in the zero set, not the
+member.** So test 2's criterion is reused **for the member row only** — reported, labelled as the identity, never
+scored — and test 6 keeps its own locked criterion for the handoff.
+
+**And the void condition this cell specifically needs, now in the code.** The in-band prediction is about whether
+the residual still *ranks* landings once reaching zero stops implying "private". At `N′ = 1` the zero set is at
+its largest, so the specific degeneracy is that the floor-reachers' residuals have **no useful spread** — and a
+3-order cut **cannot be observed in a distribution spanning less than 3 orders**. The below-line reference had real
+spread (decile medians from 3.6e-15 to 0.48), so this is not guaranteed, but it is how this cell would fail
+uninformatively. **Pre-registered: void the decile analysis when the floor-reacher residual range spans less than
+the separation bar, recorded as "residual spread insufficient to resolve the bar" — NOT as DEGRADES.** Those are
+different findings and only one of them is about the certificate. The spread is now measured and emitted on every
+row, and the provenance sentence is attached automatically wherever `N′ = 1`.

@@ -440,6 +440,14 @@ def main():
         # floor-reachers: in band this set INCLUDES spurious zeros, which is the point of the test, not contamination
         floor_q = [q for q in range(len(cert_objs)) if cert_objs[q] ** 0.5 <= 1e-8]
         nbins = 10 if len(floor_q) >= 100 else (4 if len(floor_q) >= 40 else 0)
+        # SPREAD VOID (yoado-b9, for the N'=1 in-band cell specifically). The in-band prediction is about whether
+        # the certificate residual still RANKS landings once reaching zero stops implying "private". At N' = 1 the
+        # zero set is at its largest, so the risk is that the floor-reachers' residuals have no useful spread --
+        # and a 3-order cut CANNOT be observed in a distribution spanning less than 3 orders. That is a different
+        # finding from DEGRADES, and only one of them is about the certificate.
+        _fr = [cert_objs[q] ** 0.5 for q in floor_q]
+        spread_orders = (math.log10(max(_fr) / min(_fr)) if _fr and min(_fr) > 0 else float("inf") if _fr else 0.0)
+        spread_void = bool(nbins and spread_orders < 3.0)
         order = sorted(floor_q, key=lambda q: cert_objs[q]) if nbins else []
         dec = []
         for d in range(nbins):
@@ -480,7 +488,18 @@ def main():
                   frac_landings_closer_than_norm_matched=float(sum(1 for i in range(len(land_errs)) if land_errs[i] < normmatch_errs[i]) / len(land_errs)),
                   measured_against="the nearest RECORDED image (all are legitimate targets; unrecorded images excluded)",
                   by_certificate_residual_decile=dec, n_floor_reachers=len(floor_q), n_bins=nbins,
-                  scoring=("VOID (<40 floor-reachers)" if nbins == 0 else ("deciles" if nbins == 10 else "quartiles")),
+                  floor_reacher_residual_spread_orders=spread_orders,
+                  scoring=("VOID (<40 floor-reachers)" if nbins == 0 else
+                           "VOID (residual spread insufficient to resolve the bar)" if spread_void else
+                           ("deciles" if nbins == 10 else "quartiles")),
+                  spread_void=spread_void,
+                  criterion_note="test 6's statistic is NOT test 2's. The N'=1 identity makes the MEMBER row "
+                                 "vacuous (reported, labelled, never scored), but it does NOT make the HANDOFF "
+                                 "vacuous: landings are other points in the zero set, not the member. Test 6 keeps "
+                                 "its own locked criterion for the handoff.",
+                  provenance=("FOUND, NOT CONSTRUCTED -- a natural batch at r=64 happened to record a single "
+                              "image. The rank-8 conclusion that such a cell could not be CONSTRUCTED stands "
+                              "untouched." if Np == 1 else "standard batch"),
                   survives=bool(best_cut is not None), survival_cut=best_cut,
                   git=git_hash()))
         print(f"  [k={k}] HANDOFF vs the recorded image: landing {le[len(le)//2]:.3f} | random start {se[len(se)//2]:.3f} | "
