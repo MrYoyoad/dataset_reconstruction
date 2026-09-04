@@ -3771,3 +3771,11 @@ at the output the cap `N′ ≤ m − 1` holds `N′` below `r` whenever `m − 
 non-trivial certificate**; remove the cap at a hidden layer and `N′` climbs to `min(width, r, N)`, which can reach
 `r` and kill the certificate outright. **Same fact, opposite effects: a hidden layer records more and certifies
 less.**
+
+**Threat-model scope, now a measured consequence rather than a conjecture.** The certificate needs `N′ < r` **per
+layer, with margin** — the margin sweep above shows what happens at the endpoint: at `N′ = r` there is no test at
+all, and the separation grows with the margin (0.1 orders at margin 0, 2.6 at margin 40). Since `N′` is the number
+of images the model was *wrong* about, this scopes the route: **fine for personalisation** (5–50 private images
+against `r` = 16–64, margins comfortable) and **dead for a fine-tune on hundreds of images the model gets wrong**,
+where `N′` saturates `r` at every layer and every certificate is vacuous. That is a property of the release, not of
+the attacker's effort, so no amount of compute recovers it.
