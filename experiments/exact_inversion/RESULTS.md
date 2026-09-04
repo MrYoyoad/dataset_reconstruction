@@ -3444,3 +3444,12 @@ decline is therefore basin geometry (which targets random starts reach), not the
 (which images it annihilates); the two monotone sequences are two phenomena that happen to fall together. That
 also fits the earlier landing counts, where the per-image distribution is dominated by one or two targets with
 most images at zero.
+
+*Noticed and declined (yoado-b9).* A conditional version survives the refutation: at k = 8 the two unfound images
+are exactly the faintest pair (ranks 19, 20), and that is also the cell with the widest separation (1000×), while
+by k = 40 the unfound start at rank 6 — so imprint rank predicts recoverability *while the separation is wide* and
+stops when it narrows. It is **recorded as declined, not as an open question**: it rests on one cell, two misses
+landing on ranks 19–20 of twenty is p ≈ 0.005 for a pattern spotted after the fact, and it is the third reading in
+the same direction after a threshold law and a single-phenomenon reading both failed — the point at which a
+hypothesis surviving in progressively weaker forms is more likely to be pattern-matching than structure. Anyone
+rediscovering it should know it was seen and set aside.
