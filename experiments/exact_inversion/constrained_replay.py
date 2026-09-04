@@ -390,6 +390,17 @@ def main():
         # chain is a smaller search of an equally bad space and D2 need not run (cf. 753886: exact certificate
         # zeros 0.84 away, above the line).
         le = sorted(land_errs); se = sorted(start_errs); ne = sorted(normmatch_errs); nr = sorted(norm_ratios)
+        order = sorted(range(len(cert_objs)), key=lambda q: cert_objs[q])      # best-converged landing first
+        dec = []
+        for d in range(10):
+            idx = order[d * len(order) // 10:(d + 1) * len(order) // 10]
+            if not idx: continue
+            dec.append(dict(decile=d,
+                            cert_residual_median=float(sorted(cert_objs[q] ** 0.5 for q in idx)[len(idx) // 2]),
+                            landing_err_median=float(sorted(land_errs[q] for q in idx)[len(idx) // 2]),
+                            norm_matched_err_median=float(sorted(normmatch_errs[q] for q in idx)[len(idx) // 2]),
+                            frac_closer_than_norm_matched=float(sum(1 for q in idx if land_errs[q] < normmatch_errs[q]) / len(idx)),
+                            frac_landed_1e2=float(sum(1 for q in idx if land_errs[q] < 1e-2) / len(idx))))
         emit(dict(part="HANDOFF", set=a.set, k=k, r=a.r, n_prime=Np,
                   landing_err=dict(min=le[0], p10=le[len(le)//10], median=le[len(le)//2]),
                   random_start_err=dict(min=se[0], p10=se[len(se)//10], median=se[len(se)//2]),
@@ -400,6 +411,7 @@ def main():
                   frac_landings_closer_than_best_random=float(sum(1 for x in land_errs if x < se[0]) / len(land_errs)),
                   frac_landings_closer_than_norm_matched=float(sum(1 for i in range(len(land_errs)) if land_errs[i] < normmatch_errs[i]) / len(land_errs)),
                   measured_against="the nearest RECORDED image (all are legitimate targets; unrecorded images excluded)",
+                  by_certificate_residual_decile=dec,
                   git=git_hash()))
         print(f"  [k={k}] HANDOFF vs the recorded image: landing {le[len(le)//2]:.3f} | random start {se[len(se)//2]:.3f} | "
               f"norm-matched random {ne[len(ne)//2]:.3f} | latent norm ratio {nr[len(nr)//2]:.2f}", flush=True)
