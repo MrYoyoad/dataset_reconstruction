@@ -64,8 +64,11 @@ a padded 26-logit head recovers 20 of 20 (job 725918).
 
 **(e) The headline cell.** A release fine-tuned in **ordinary FP32** on a class the base model does not have
 returns every private example to an attacker holding only the public model: EMNIST 'a' as an 11th class on the
-98% MNIST MLP, r=64, k=32; 32.8% of starts land, **all eight found**, residuals 3e-7…1.3e-5 (jobs 760909,
-764976, 771329). The adapter genuinely moved — `A_T` shifts 9.3%, feedback ratio 0.43, margins −2.65…−10.3 at
+98% MNIST MLP, r=64, k=32. **This is the certificate route from 500 random starts** — no recipe, no labels, no
+knowledge of the batch, no proximity to the truth: 32.8% land, **all eight found**, residuals 3e-7…1.3e-5 at
+the found truths, argmin on a letter at 1.1e-6 (job 764976; the FP64 cell of the same batch gives 38.4% and an
+argmin of 3e-26, job 760909). *The replay/recipe route is a different experiment with different numbers and a
+near-truth start (job 771329) — it is identifiability, not this attack, and is not quoted here.* The adapter genuinely moved — `A_T` shifts 9.3%, feedback ratio 0.43, margins −2.65…−10.3 at
 t=1 rising to +6…+14 by t=T. Chart error 0.235 → instance-level.
 
 ---
@@ -81,7 +84,7 @@ t=1 rising to +6…+14 by t=T. Chart error 0.235 → instance-level.
 | Capacity line `k < m + r − N′`, strict form from the simplex | **[M]** + **[D]** | 467914/479587/479684/481079; 568095 |
 | Cap `N′ ≤ m−1`, catastrophic past it | **[M]** | 725918 and the 20-on-10 control |
 | New-class exposure independent of model quality | **[M]** | 658575 (digits rank 6, cosine 0.04; letters rank 8, cosine 0.52) |
-| Recipe is fitted and verifiable, not assumed | **[M]** | 484255 (η to 5e-16; 7 wrong recipes at 6e-8…4.9 vs 5e-31) |
+| Recipe is fitted from the release, and the release distinguishes recipes | **[M, identifiability — not a from-scratch attacker capability]** | 484255 (η to 5e-16; 7 wrong recipes at 6e-8…4.9 vs 5e-31). **The probes start from the truth perturbed by 10%.** The rejection test is decisive *in the regime where the inversion already succeeds*; from attacker-buildable starts no replay cell reaches the floor at all, and there a wrong recipe and a correct recipe from a poor start produce the same observation — a high residual. So this establishes that the release distinguishes recipes, **not that an attacker lacking a start can use it to find one**. The recipe oracle sits downstream of the start problem |
 | Certificate quality set by imprint **spread**, degrading with chart size | **[M]** | wide head: separation 1000×/117×/10× then overlap at k=32, 40 |
 | Landings uniform across the good residual deciles below the line | **[M]**, but **confirmation of (b), not a new result** | job 159323, k=16 against a certificate line of 61, `in_band: false`: deciles 0–7 land within 1e-2 at rate 1.0 and beat the norm-matched control at rate 1.0; deciles 8–9 fall to 0.2 and 0.0. The kernel count already says every floor-reacher below the line is a private image, so the certificate is separating reachers from non-reachers rather than ranking landings — uniformity is what that predicts |
 | **Operational corollary: below the line the attacker has a calibration-free selection rule** | **[M]** *below-line only* | the certificate residual **is** the floor-reaching test the kernel count licenses, and it is attacker-computable: a nine-order cut at the decile 7/8 boundary (median 7.66e-11 across deciles 0–7 against 0.123 at decile 8). The difference between an attacker having to guess which landings are good and reading it off — following from the mechanism rather than adding to it |
@@ -106,7 +109,7 @@ What each restriction *actually* requires:
 |---|---|---|
 | Same private batch every step | **A fixed feature set.** The induction uses only the *shape* of `∇_B = (·)(A₀H)ᵀ` and `∇_A = A₀H(·)Hᵀ`, never `D_t`'s contents, so masking or reweighting `D_t` per step changes nothing | **[D]** — but see the caveat below |
 | Full batch | nothing; `η`, `s` and `N` enter only as a product | **[M]** 484255 |
-| Known learning rate | nothing; it is fitted to 5e-16 from a 2×-wrong start | **[M]** 484255 |
+| Known learning rate | nothing; it is fitted to 5e-16 from a 2×-wrong *recipe* start — but from a near-truth **image** start (truth + 10%), so this is identifiability, not an attacker capability | **[M, identifiability]** 484255 |
 | SGD | **updates linear in the gradient.** Momentum and scalar weight decay are fine; Adam's entrywise normalisation is what breaks it | **[M]** ‖1ᵀB_T‖/‖B_T‖ = 3e-16 under SGD vs 2.6–2.7 under Adam |
 | One adapted layer | attack the **first** adapted layer; its inputs come from frozen machinery | **[C]** |
 | Output layer | only the `e^{−margin}` reading and the cap `N′ ≤ m−1` are output-layer-bound | **[C]** |
@@ -125,6 +128,12 @@ of the floor; not pursued further, ledger rows kept as record.
 
 ## 4. Open problems, ranked
 
+0. **The start, stated as its own number, because it is where the work stops.** From starts an attacker can
+   actually build out of the release — random, span, certificate-anchor, span-anchor — **no replay cell of 20
+   reaches the floor** (jobs 408560-63); the single run that got inside the 1e-2 image tolerance sat at
+   residual 9.06e-7 with its restart budget exhausted, a search failure that stopped near the truth. The
+   two-tier story is stronger for naming this gap than for hiding it: **the certificate route runs from
+   nothing and is narrow; the replay route is wide and needs a start nobody can yet supply.**
 1. **The start and the chart.** Replay reaches the floor from perturbed-truth starts up to 86% (job 459111) but
    from attacker-buildable starts **none of 20** reaches the floor — the single run inside the 1e-2 tolerance
    sat at residual 9.06e-7 with its restart budget exhausted (jobs 408560-63). The certificate route needs no
