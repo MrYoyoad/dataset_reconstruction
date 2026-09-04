@@ -65,7 +65,7 @@ def main():
     ap.add_argument("--n-landings", type=int, default=8, help="distinct certificate landings carried into replay")
     ap.add_argument("--lm-iters", type=int, default=300); ap.add_argument("--lm-lambda", type=float, default=1e-2)
     ap.add_argument("--arms", nargs="*", default=["d0", "constrained", "unconstrained", "random", "null"])
-    ap.add_argument("--d0-steps", nargs="*", type=float, default=[0.02, 0.05, 0.1, 0.2, 0.4, 0.8],
+    ap.add_argument("--d0-steps", nargs="*", type=float, default=[0.0, 0.005, 0.02, 0.05, 0.1, 0.2, 0.4, 0.8],
                     help="D0: distances along Z_C from the truth (relative to the latent std) at which replay is retried")
     ap.add_argument("--d0-min-radius", type=float, default=0.05, help="D0 gate: if replay's in-manifold basin is below "
                     "this, D1/D2 do not launch -- no handoff from certificate landings can work (plan section 3)")
@@ -305,7 +305,7 @@ def main():
         if "d0" in a.arms:
             gd = torch.Generator().manual_seed(a.seed + 991); ok = []; stations = []
             for dist in a.d0_steps:
-                w_st = walk(w_true.reshape(-1), dist, gd)
+                w_st = w_true.reshape(-1).clone() if dist == 0.0 else walk(w_true.reshape(-1), dist, gd)
                 if w_st is None:
                     emit(dict(part="D0", set=a.set, k=k, r=a.r, n_prime=Np, dist=dist, note="Z_C has no tangent directions at this k")); continue
                 with torch.no_grad(): cert_st = float(torch.linalg.norm(g_of(w_st)))
