@@ -281,6 +281,30 @@ the truth than random ones, the chain is a smaller search of an equally bad spac
 | what is hoped for | — | basin only |
 | what is warranted | — | nothing yet; `Z_C` membership ≠ proximity (753886) |
 
+### Addendum — containment holds at zero, and the design must not assume more
+
+The containment above is proved at `ρ = 0`. Solves reach a **floor**, not zero, so the honest
+form is quantitative: a floor-point sits off `Z_C` by roughly
+
+    dist(ŵ, Z_C)  ~  ρ · σ_max(J_C) / σ_min(Dρ)
+
+so it degrades toward the top of the band, where `σ_min(Dρ)` collapses — the plot of certificate
+violation against residual must therefore be read **per k**, not pooled. For the chain cell in
+FP64 this is almost certainly harmless (`ρ ~ 1e-30` against `σ_min ~ 1e-5` gives `~1e-25`, on
+`Z_C` to machine precision); it bites only at high floors, i.e. mismatched arithmetic, which is
+out of scope for the chain.
+
+**The design consequence, which does not depend on how that measurement comes out.** A *hard*
+constraint — projecting onto `Z_C` and searching within it — is sound only if the truth lies
+exactly on `Z_C`. That is guaranteed for recorded examples and **not** for anything else: an
+example below the recording floor, or a release read at a tolerance that inflates `N'`, puts the
+truth off the manifold, and a hard constraint then excludes it outright with no diagnostic. A
+*soft* penalty (`‖Cφ‖` as a weighted term beside `ρ`) degrades gracefully in the same situation.
+**Prefer the soft form unless the containment has been measured at the operating floor for that
+cell.** The cost of the soft form is a weight to tune; the cost of the hard form, in the case
+where it is wrong, is an empty search that looks like a negative result.
+
+
 ### §2 amendments (b9's blocking items, adopted; executor, 2026-09-04)
 
 1. **The cell is FP64, not fp32** — `constrained_replay.py` sets `torch.set_default_dtype(torch.float64)` and the
