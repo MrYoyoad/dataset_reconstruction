@@ -4283,3 +4283,60 @@ else follows from those two.
 **Conditioning is the price and it is steep.** Reaching the full pixel count costs five orders of σ_min (9.9e-2 at
 one layer to 3.8e-6 at four) and at `T = 400` the six-layer cell sits at σ_min 1.3e-7 with condition number 4.0e6.
 The conditions are all above the noise floor, but a system at 1e6 is not one an attacker inverts casually.
+
+## RESULT — the depth-of-first-adaptation cap (job 218345): where the adapter STARTS sets the ceiling
+
+Four consecutive adapted layers `d … d+3`, everything below **frozen**, `r = 256`, `N = 8`, `T = 100`. The
+pre-registered prediction was that the saturating pixel count equals the frozen path's transmitted rank at depth
+`d` rather than 784.
+
+| first adapted layer `d` | 1 | 2 | 4 | 7 |
+|---|---|---|---|---|
+| `rank Dφ` below layer `d` (the predicted cap) | — (identity) | 784 | 692 | **138** |
+| pixel rank after 1 / 2 / 3 / 4 adapted layers | 248/426/593/**747** | 248/423/583/**717** | 248/411/445/**445** | 136/138/138/**138** |
+| fraction of the image | **95.3%** | **91.5%** | **56.8%** | **17.6%** |
+| usable above 1e-8 | 747 | 716 | 411 | 136 |
+| σ_min at the rank | 3.1e-6 | 4.3e-9 | 1.3e-10 | 7.0e-11 |
+| condition number | 2.2e5 | 8.3e9 | 8.8e9 | 6.6e9 |
+
+**The prediction holds where the encoder is the binding constraint, and it is exact there.** At `d = 7` the frozen
+path transmits 138 directions and the four adapted layers deliver **exactly 138** — the third and fourth layers add
+nothing at all, because their own encoders (96, 85, 73) are nested inside the first one's. At `d = 4` the cap is
+692 but only 445 is reached, for the same reason from the other side: the later layers' encoders (220, 187, 138)
+are too small to fill the remaining directions, so the achieved count is the *union* of the layers' encoder images
+rather than the first layer's rank. **So `rank Dφ(d)` is a tight upper bound, and it is attained only when it is
+small enough to be the binding constraint.**
+
+**This is the practically important result of the day, and it cuts against the attacker.** Real adapters do not sit
+on the pixel-input layer. Start adaptation four layers in and the release pins 57% of the image; start seven layers
+in and it pins 17.6%, no matter how many layers are then adapted or how wide they are. **Adaptation has to reach
+near the input for the release to determine the image.** That is a defender-actionable statement and it is the form
+this should be reported in.
+
+**Conditioning collapses with depth even faster than rank does**, and it is what actually decides usability:
+σ_min runs 3.1e-6 → 4.3e-9 → 1.3e-10 → 7.0e-11 across the four starting depths, and from `d = 2` onward the usable
+count sits below the formal count. **A cap reached at 1e-10 is not the same result as a cap reached at 1e-2**, and
+only the `d = 1` cell is anywhere near the latter.
+
+## RESULT — the rank threshold, i.e. the deployment gap as a number (job 218346)
+
+Layers 1–4 adapted, layers 5–15 frozen, `T = 100`, `N = 8`.
+
+| `r` | 64 | 128 | 192 | 256 |
+|---|---|---|---|---|
+| pixel rank at 1 / 2 / 3 / 4 layers | 56 / — / — / — | 120/170/204/**229** | 184/298/398/**486** | 248/426/593/**747** |
+| fraction of the image | **7.1%** | **29.2%** | **62.0%** | **95.3%** |
+| σ_min at the saturating cell | 2.2e-1 | 6.8e-4 | 6.3e-5 | 3.1e-6 |
+| condition number | 1.7 | 6.1e2 | 7.4e3 | 2.2e5 |
+
+**`r = 64` is a labelled floor, not a point on this curve:** it sits below the 90–110 drift plateau, so layers 2–4
+are rank-starved and vacuous, and the cell measures starvation. Its 56 conditions are layer 1's alone.
+
+**The deployment gap is large and this is the number to quote.** Deployed LoRA runs `r` = 8–64. At `r = 64` the
+release pins **7% of the image** — and only because the first layer is adapted at the pixel input, which deployed
+adapters also do not do. Reaching the image at all needs `r ≈ 256` on a 784-dimensional input, a third of full
+rank, which is not low-rank adaptation in any meaningful sense.
+
+**Conditioning moves the opposite way and that is the honest trade:** the low-rank cells are beautifully
+conditioned (1.7 at `r = 64`) and pin almost nothing; the cells that pin the image are at 2e5 and climbing. There
+is no rank at which this release both determines the image and is comfortable to invert.
