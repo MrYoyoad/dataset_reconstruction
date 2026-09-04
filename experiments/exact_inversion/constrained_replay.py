@@ -227,8 +227,10 @@ def main():
                         fwd_check=fwd, res_at_truth=fwd, jac_sigma_min_truth=smin_truth, jac_sigma_max_truth=smax_truth,
                         n_landings_total=n_land, n_landings_replayed=len(landings),
                         start_err_vs_truth=start_err, residual=fval ** 0.5, objective=fval,
-                        lm_iters_used=used, verdict=verdict, err_vs_chart_truth=e_on, err_vs_chart_all=e_all,
-                        nearest_image=int(min(range(a.N), key=lambda i: e_all[i])), err_vs_raw=e_raw,
+                        lm_iters_used=used, verdict=verdict, err_vs_chart_truth_MAX=e_on,
+                        err_per_image_assigned=per_image, n_under_1e10=n_under, n_distinct_truths_matched=n_distinct,
+                        n_recorded=nrec, assignment=[int(x) for x in ci], err_vs_raw=e_raw,
+                        recovered_imprints=[float(imp[rec[j_]] / imp.max()) for i_, j_ in zip(ri, ci) if float(Cst[i_, j_]) <= 1e-10],
                         cert_norm_at_end=gnorm, at_floor_abs=at_floor_abs, at_floor_rel=at_floor_rel,
                         cert_at_truth=cert_at_truth, objective_trace_full=[float(x) for x in trace],
                         seconds=time.time() - t1, git=git_hash(), host=socket.gethostname())
