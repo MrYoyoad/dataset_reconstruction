@@ -132,10 +132,17 @@ def main():
     sub = nonmembers[:min(a.enum_sample, nonmembers.shape[0])]
     for gsz in (1, 2, 10, 25):
         t1 = time.time()
-        best = None
-        for cand in group(sub, gsz):
-            v = q(cand)
-            best = v if best is None else torch.minimum(best, v)
+        # CHUNKED: building the whole candidate set at once is 1500 x |G| images at 224^2 in FP64 and OOMs the
+        # card at |G| = 25 (job 318567 died there). Candidates are generated per chunk instead.
+        parts = []
+        for i in range(0, sub.shape[0], 250):
+            blk = sub[i:i + 250]; bbest = None
+            for cand in group(blk, gsz):
+                v = q(cand)
+                bbest = v if bbest is None else torch.minimum(bbest, v)
+                del cand
+            parts.append(bbest); torch.cuda.empty_cache()
+        best = torch.cat(parts)
         kk = int((best < a.bar).sum()); nn = int(best.shape[0])
         union = 1 - (1 - p_hi) ** gsz
         emit(dict(part="ENUM", group_size=gsz, n=nn, k_below_bar=kk, measured_fpr=kk / nn,
