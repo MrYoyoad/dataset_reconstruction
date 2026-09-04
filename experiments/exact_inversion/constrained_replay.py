@@ -262,6 +262,8 @@ def main():
                         start_err_vs_truth=start_err, residual=fval ** 0.5, objective=fval,
                         lm_iters_used=used, verdict=verdict, err_vs_chart_truth_MAX=e_on,
                         err_per_image_assigned=per_image, n_under_1e10=n_under, n_distinct_truths_matched=n_distinct,
+                        match_unambiguous=unambiguous, second_best_err=second,
+                        n_under_1e10_ambiguous_ok=n_under_ambiguous_ok, j_recovered=n_under, j_over_Nprime=float(n_under / nrec),
                         n_recorded=nrec, assignment=[int(x) for x in ci], err_vs_raw=e_raw,
                         recovered_imprints=[float(imp[rec[j_]] / imp.max()) for i_, j_ in zip(ri, ci) if float(Cst[i_, j_]) <= 1e-10],
                         cert_norm_at_end=gnorm, at_floor_abs=at_floor_abs, at_floor_rel=at_floor_rel,
