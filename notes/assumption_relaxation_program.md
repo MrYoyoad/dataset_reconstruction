@@ -404,3 +404,31 @@ non-member level (0.1–1) while the drift is small. If the residual is already 
 **Why it matters for cost.** Replay on a multi-layer adapter must unroll the whole network (the layers couple), so it
 inherits SimuDy's memory wall. The certificate never simulates, so it has no such wall — **multi-layer is where the
 certificate's advantage over replay is largest**, not smallest.
+
+## 10. The vacuity trap — and why it is the theory's own boundary, not a new failure mode (job 165750, 2026-09-04)
+
+**What happened.** At a hidden layer with `rank B_T = r` exactly (16 of 16), the certificate residual read machine
+precision for *every* image and was flat as the drift varied threefold — which looked like §9 confirmed beyond
+expectation. It is vacuous instead: when the row space fills the whole space, `P_{row(B_T)^⊥} = 0`, so `C = 0` and
+every input gives zero, members and non-members alike. **A vacuous certificate reads exactly like a perfect one.**
+
+**It is not a new failure mode — it is the certificate line at its degenerate endpoint.** The certificate imposes
+`r − N′` conditions, so the budget `k < r − N′` is already the non-vacuity condition: at `N′ = r` the budget is zero
+and there is no test. The guard is therefore not ad hoc — **the vacuity flag is exactly `r − N′ ≤ 0`**, and the
+right thing to report per row is the *margin* `r − N′` alongside the residual.
+
+**The structural consequence, and it is the interesting part.** At the OUTPUT layer the softmax cap `N′ ≤ m − 1`
+keeps `N′` below `r` whenever `m − 1 < r` — so the head-width cap was silently *guaranteeing* a non-trivial
+certificate. Remove it at a hidden layer (§3) and `N′` can climb to `min(width, r, N) = r`, killing the certificate.
+So the same fact cuts both ways:
+
+> **A hidden layer records MORE (no head-width cap) and certifies LESS (the row space can fill the space).**
+> The usable regime for a deep certificate is `r` comfortably above `N′` — the opposite of the regime that maximises
+> recording.
+
+41 half-anticipated this before the run ("the same zero column sum that caps the count is also what keeps the
+certificate's arithmetic well behaved"); this is that prediction confirmed in a sharper form.
+
+**Standing guard, all layers, all cells:** every certificate row must carry a held-out **non-member control** pushed
+to that layer's inputs, the certificate's own norm and rank, the member/non-member separation in orders, and an
+explicit vacuity flag. A separation of zero orders is the signature.
