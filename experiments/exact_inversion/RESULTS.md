@@ -3401,8 +3401,19 @@ selects a recorded image throughout.
 dominated by the strong imprints and the faintest recorded images are not annihilated. Prediction: the certificate
 residual at each recorded truth is ordered by that image's imprint. **Measured, concordant pairs (imprint up →
 residual down):** 136/190 at k = 8, 153/190 at k = 16, 164/190 at k = 24, 162/190 at k = 32, 163/190 at k = 40 —
-72–86%, and the split is clean at the ends: every image with residual > 0.05 has an imprint between 1e-4 and 4e-9,
-while every image with residual ≤ 0.05 has one between 1.0 and 2e-3. **So the certificate's usable N′ is set by the
+72–86%, i.e. Kendall τ 0.43 … 0.73 on the twenty images of one batch (all pairs, so no independence beyond that
+batch).
+
+**A stronger "clean partition" version was proposed and does not survive removing its threshold — recorded as a
+negative.** With the cut at residual 0.05 the two groups separate perfectly (high-residual imprints 1e-4 … 4e-9,
+low-residual 1.0 … 2e-3, a twentyfold gap and no overlap), which would be the signature of a threshold law. But
+0.05 was chosen after seeing the data, so I re-split each cell at its **largest residual gap** instead, choosing
+nothing: k = 8 clean (1 image above the gap, imprint 3e-7, against a minimum of 3e-4 below it), k = 16 clean
+(6e-6 against 7e-4), k = 24 clean (2e-6 against 2e-5) — but **k = 32 overlaps** (8e-7 above against 5e-7 below)
+and **k = 40 overlaps** (2e-5 against 8e-6). So the partition is clean at three of five charts and fails at two,
+and the threshold-free form of the claim cannot be made. What stands is the moderate rank correlation at every k,
+which is enough for the mechanism (faint imprints are the ones the certificate fails to annihilate) but not for a
+threshold law. **So the certificate's usable N′ is set by the
 imprint *spread*, not by the count** — the same law that decides what is recorded also decides what the certificate
 can annihilate, and the wide head's degradation is not a separate failure of the instrument.
 
