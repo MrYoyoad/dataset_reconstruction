@@ -3292,3 +3292,15 @@ knee lies at or below fp16's floor, so fp16 does not over-descend at the well-co
 its optimum. The two charts therefore bracket the mechanism as pre-registered: **conditioning lifts the knee up
 into the reachable residual range, and that lift is what turns precision from an asset into a liability.** The
 "precision ordering holds at the optimal stop" statement is now measured at both charts, not assumed at either.
+
+*The crossover annotation (yoado-c9).* The two formats **cross at fp16's knee**: at residual 7e-3 fp32 is *behind*
+fp16 (4.752e-2 against 4.274e-2) because it is still mid-descent; at 2.7e-3 fp32 has *overtaken* it (3.780e-2
+against 7.485e-2) because fp16 has veered toward its displaced minimiser while fp32 continues toward the truth.
+The 11% gap recorded earlier as an unexplained discrepancy was the first pixel of that crossover. One picture of
+the different-minimisers mechanism.
+
+**What this sub-thread delivers.** For a matched-arithmetic attacker, **low-precision *training* is not
+protection**: it displaces the minimiser, but the attacker still recovers to within a few percent of the chart's
+own floor by stopping at the knee instead of at the release's floor. What coarse training costs is a tuning step
+and a few points of fidelity, not access — the same shape as the storage-precision result, and the same conclusion:
+"quantise for privacy" is not supported by any cell measured here.
