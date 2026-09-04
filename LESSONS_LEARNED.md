@@ -8,7 +8,8 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 - **What I got wrong:** I costed a minibatch shuffle as `T × N` free bits (3,200) against an identifiable budget of ~100 and concluded the data assumption was merely being swapped for a schedule assumption.
 - **Why it is wrong:** the schedule is not an arbitrary function. Frameworks derive it deterministically from a small seed plus a known algorithm, so the unknown is one conventional integer with an exact test attached — the release residual already separates a wrong recipe from the right one by twenty orders.
-- **General rule:** *any unknown a framework derives deterministically from a small seed or a short config is a discrete search with a decisive oracle, not a continuous unknown.* Cost it as plausible-seeds × one simulation. Applies to the shuffle order, the initialisation seed, dropout masks and augmentation sequences.
+- **General rule, in its corrected form (the first version licensed enumerating a 64-bit seed):** *an unknown a framework derives from a seed is a **discrete** search rather than a continuous one, but its cost is `|plausible seeds| × (one oracle call)`, and it is usable only where the oracle is **evaluable at all**.* Cheap only when the plausible set is small — i.e. defaults — which is a threat-model assumption, not a derived fact.
+- **And check the oracle is not circular.** This project's recipe oracle (a wrong recipe sits twenty orders above the right one) was measured **from near-truth starts**, inside the regime where inversion already succeeds. From attacker-buildable starts nothing reaches the floor, and a wrong recipe is indistinguishable from a right recipe with a bad start. So the oracle is *downstream of the start problem*: any "the attacker can sweep X because the residual decides" needs "once the start problem is solved".
 
 ## A guard written for one private image becomes a bug when the cell records several (2026-09-04)
 

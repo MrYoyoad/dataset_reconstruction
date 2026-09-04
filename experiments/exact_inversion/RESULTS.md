@@ -3633,17 +3633,27 @@ DataLoader generator seeded by one integer, often combined with the epoch), so t
 small integer plus a known algorithm — **low-entropy and discrete, with an exact test attached**, since the release
 residual already separates a wrong recipe from the right one by twenty orders.
 
-**The general statement, which reaches further than shuffling:** *any unknown a framework derives deterministically
-from a small seed or a short configuration is a discrete search with a decisive oracle, not a continuous unknown,
-and must not be costed by its expanded dimension.* That covers the shuffle order, the initialisation seed, dropout
-masks, and an augmentation sequence if one is used. The relevant cost is the number of plausible seeds times one
-simulation, not the dimension of what the seed expands into.
+**The general statement, corrected — the first version licensed enumerating a 64-bit seed.** *An unknown a
+framework derives from a seed is a **discrete** search rather than a continuous one, but its cost is
+`|plausible seeds| × (cost of one oracle call)`, and it is usable only where the oracle is **evaluable at all**.*
+A 32-bit seed is 4e9 candidates at a full inversion each; the search is cheap only when the plausible set is small —
+i.e. framework defaults — which is a **threat-model assumption, not a derived fact**. The unamended form ("do not
+cost it by its expanded dimension") is true and insufficient.
 
-*Pre-registered check, queued (cheap):* generate a minibatched release with a known shuffle seed, sweep candidate
-seeds through the simulator, and confirm that **only the true seed reaches the floor while wrong seeds sit ≥ 6
-orders above it**; report the separation. If it holds, the minibatch relaxation is close to free for replay as well
-as for the certificate, and my "swap, not removal" objection is withdrawn to a much narrower one: the attacker pays
-a seed search, not a schedule reconstruction.
+**And the oracle it depends on is circular as measured (yoado-81, verified in `recipe_robustness.py`).** The seven
+wrong-recipe rejections that make the residual a decisive test were all run from `--init-noise 0.10` — inside the
+regime where the inversion already succeeds. From attacker-buildable starts no replay cell reaches the floor at
+all, and there a **wrong recipe and a right recipe with a bad start produce the same observation**: a high
+residual. So **the recipe oracle is downstream of the start problem, not independent of it**, and every statement
+of the form "the attacker can sweep the recipe because the residual decides" needs the qualifier *once the start
+problem is solved*. That applies to the learning-rate fit, the recipe rejections and this seed sweep alike.
+
+*Pre-registered check, queued, with its scope fixed in advance:* generate a minibatched release using the
+**framework default** seed, sweep candidate seeds, and confirm that only the true seed reaches the floor while
+wrong seeds sit ≥ 6 orders above it; report the separation. The claim under test is **"a default-seeded shuffle is
+recoverable"**, not "a shuffle is recoverable given the seed". And the row must record that the sweep presupposes a
+start good enough for replay to converge — **run from near-truth starts it is an identifiability result, not an
+attack**, and is labelled as one.
 
 **The per-image structure, which is the actual result.** Recorded images 1–7, imprint (relative) against certificate
 residual at the truth:
