@@ -3321,11 +3321,15 @@ residual entries flushed to exactly zero and the release's own deviation from FP
 residual entries to zero is what stops the residual being a faithful proxy for image error, and the knee is where
 that proxy fails; the stopping rule is the remedy, underflow is why a remedy is needed.
 
-**And the obvious confound is absent — in fact it points the other way.** Flush fraction and release displacement
-are *anti-correlated* across these cells: bf16 has the **larger** displacement (0.115 against fp16's 0.027) but
-almost no flush (0.011) and almost no knee (1.01×), while fp16 has the smaller displacement and a third of its
-entries flushed and pays 1.78×. So the over-descent cost follows the flush, not the displacement, and the two
-candidate causes are separated by the data rather than merely ordered by it. *Caveat kept (yoado-b9's own):* the
+**And the obvious confound is dissociated, on one decisive cell.** bf16 carries the **largest** release
+displacement (0.1146 against fp16's 0.0273) with almost no flush (0.011) and almost no knee (1.01×), while fp16
+carries the smaller displacement with a third of its entries flushed and pays 1.78×. *The cell with the largest
+displacement has the smallest knee* — which rules displacement out as the cause, in the one direction that matters.
+**The two strengths of evidence are different and are stated as two (yoado-b9):** *flush orders the cost* — four
+cells, monotone, with a zero-flush control that has no knee at all — while *displacement is dissociated from it*,
+carried by that single decisive cell. This is deliberately **not** called an anti-correlation: fp32 has both the
+smallest displacement and the smallest cost, so the relation is not monotone downward, and a rank statistic on
+four points dominated by one cell would invite exactly the objection the dissociation avoids. *Caveat kept (yoado-b9's own):* the
 jump from 1.02× to 1.78× spans a 26% change in flush, which is steep for two fp16 points — the ordering and the
 zero-flush control are what is claimed, not a functional relationship.
 
