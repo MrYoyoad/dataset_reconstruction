@@ -170,7 +170,12 @@ def main():
         sG = torch.linalg.svdvals(cosG)
 
         print(f"  [k={k}] certificate gate at the truth: ||Ch||/||A_T h|| = {cert_at_truth:.3e}", flush=True)
-        gate_row = dict(part="GATE", set=a.set, k=k, r=a.r, n_prime=Np, cert_at_truth=cert_at_truth,
+        cert_line_certified = a.r - n_strong; replay_line_certified = (bb.m - 1) + a.r - n_strong
+        in_band_certified = bool(cert_line_certified <= k <= replay_line_certified)
+        gate_row = dict(part="GATE", set=a.set, k=k, r=a.r, n_prime_raw=Np, n_prime_certified=n_strong,
+                        cert_line_raw=a.r - Np, replay_line_raw=(bb.m - 1) + a.r - Np,
+                        cert_line=cert_line_certified, replay_line=replay_line_certified, in_band=in_band_certified,
+                        n_prime=Np, cert_at_truth=cert_at_truth,
                         cert_at_truth_strong_only=cert_at_truth_strong, n_strong=n_strong, imprint_gap_ratio=gap_ratio,
                         imprint_spectrum=[x[0] for x in cert_by_image], cert_by_image=[x[1] for x in cert_by_image],
                         passed_all=bool(cert_at_truth <= 1e-6), passed_strong=bool(cert_at_truth_strong <= 1e-6))
@@ -302,11 +307,12 @@ def main():
                        f"partial ({n_under} of {nrec} under 1e-10)" if at_floor and n_under > 0 else
                        "alias (residual zero, wrong images)" if at_floor else
                        "optimisation failure (residual not zero)")
-            in_band_row = bool(a.r - Np <= k < (bb.m - 1) + a.r - Np)
+            in_band_row = in_band_certified                            # lines from the CERTIFIED subset
             if not in_band_row:
                 verdict = "NOT IN BAND -- no chain verdict is emitted from this cell (" + verdict + " below/above the band)"
             return dict(part="B", arm=tag, set=a.set, k=k, r=a.r, N=a.N, n_prime=Np, seed=a.seed, constrained=constrained,
-                        in_band=in_band_row, cert_line=a.r - Np, replay_line=(bb.m - 1) + a.r - Np,
+                        in_band=in_band_row, cert_line=cert_line_certified, replay_line=replay_line_certified,
+                        n_prime_certified=n_strong, cert_at_truth_strong_only=cert_at_truth_strong,
                         fwd_check=fwd, res_at_truth=fwd, jac_sigma_min_truth=smin_truth, jac_sigma_max_truth=smax_truth,
                         n_landings_total=n_land, n_landings_replayed=len(landings),
                         start_err_vs_truth=start_err, residual=fval ** 0.5, objective=fval,
@@ -451,9 +457,9 @@ def main():
             if ok and best_cut is None:
                 best_cut = dict(boundary_after_bin=b, separation_orders=float(torch.log10(torch.tensor(sep))),
                                 landing_rate_low=rlo, landing_rate_high=rhi)
-        in_band = bool(a.r - Np <= k < (bb.m - 1) + a.r - Np)
-        emit(dict(part="HANDOFF", set=a.set, k=k, r=a.r, n_prime=Np, in_band=in_band,
-                  cert_line=a.r - Np, replay_line=(bb.m - 1) + a.r - Np,
+        emit(dict(part="HANDOFF", set=a.set, k=k, r=a.r, n_prime_raw=Np, n_prime_certified=n_strong,
+                  in_band=in_band_certified, cert_line=cert_line_certified, replay_line=replay_line_certified,
+                  cert_at_truth_strong_only=cert_at_truth_strong,
                   landing_err=dict(min=le[0], p10=le[len(le)//10], median=le[len(le)//2]),
                   random_start_err=dict(min=se[0], p10=se[len(se)//10], median=se[len(se)//2]),
                   norm_matched_random_err=dict(min=ne[0], p10=ne[len(ne)//10], median=ne[len(ne)//2]),
