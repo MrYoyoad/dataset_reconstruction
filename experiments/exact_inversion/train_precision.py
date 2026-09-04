@@ -200,6 +200,7 @@ def matched_lm(chart, bb, X_real, X_on, y, A0, A_rel, B_rel, a, dev, dtype, g):
             if obj_new < obj: v, f, obj = v + step, f_new, obj_new; lam = max(lam / 3, 1e-15); accepted = True; break
             lam *= 4
         used = it + 1; trace.append(obj)
+        if a.matched_stop_residual is not None and obj ** 0.5 <= a.matched_stop_residual: break
         if not accepted or obj < 1e-30: break
     W_hat = v[:nW].reshape(k, N); X_hat = chart.psi(W_hat)
     e_chart = torch.linalg.norm(X_hat - X_on, dim=0) / torch.linalg.norm(X_on, dim=0)
@@ -208,7 +209,7 @@ def matched_lm(chart, bb, X_real, X_on, y, A0, A_rel, B_rel, a, dev, dtype, g):
     with torch.no_grad():                                          # per-letter residual (yoado-ed): A-block column i is letter i's; the B-block is joint
         fB = f[: bb.m * r]; fA = f[bb.m * r:].reshape(r, N)
         per_letter_A = [float(torch.linalg.norm(fA[:, i])) for i in range(N)]; resB = float(torch.linalg.norm(fB))
-    return dict(gate_true_A0=gate, residual_B_block=resB, residual_A_block_per_letter=per_letter_A, res_at_truth_matched=res_truth_matched, res_at_truth_fp64_sim=res_truth_fp64, A0_recon_rel_at_truth=A0_recon_rel,
+    return dict(gate_true_A0=gate, early_stop_residual=a.matched_stop_residual, residual_B_block=resB, residual_A_block_per_letter=per_letter_A, res_at_truth_matched=res_truth_matched, res_at_truth_fp64_sim=res_truth_fp64, A0_recon_rel_at_truth=A0_recon_rel,
                 start_objective=obj0, residual=obj ** 0.5, objective=obj, lm_iters_used=used, stopped=("converged" if obj < 1e-30 else ("no_accept" if used < a.lm_iters else "cap")),
                 err_vs_chart_per_image=[float(x) for x in e_chart], err_vs_chart_median=float(e_chart.median()), err_vs_chart_max=float(e_chart.max()),
                 err_vs_REAL_median=float(e_real.median()), Z_err_rel=float(torch.linalg.norm(Z_hat - Z_true) / torch.linalg.norm(Z_true)),
@@ -229,6 +230,9 @@ def main():
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--random-starts", type=int, default=500); ap.add_argument("--iters", type=int, default=300)
     ap.add_argument("--max-np", type=int, default=11)
+    ap.add_argument("--matched-stop-residual", type=float, default=None, help="early-stop the matched LM once the residual falls below this "
+                    "(yoado-7e's test: stopping fp16 at bf16's residual level separates OVER-DESCENT along the flat direction, which early "
+                    "stopping fixes, from FLUSH-TO-ZERO information loss in the release, which it cannot)")
     ap.add_argument("--partb-tol", type=float, default=None, help="certificate tolerance for the Part-B search from a non-fp64 release; default = "
                     "noise-matched 10*eps (job 760909/760912); pass 1e-12 for the tight tolerance (the noise rank), which storage job 753371 "
                     "showed recovers MORE images")
