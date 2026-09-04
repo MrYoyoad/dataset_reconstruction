@@ -2541,3 +2541,32 @@ close to no hedge at all** — if you are not sure enough to apply it yourself, 
 what to change. This applies to my own output at least as much: three claims withdrawn on this document in
 one day (the format ordering inversion, "destroyed information", a 19% prediction) were each stated with
 more precision than the evidence carried, and precision reads as confidence.
+
+## 2026-09-04 — `matrix_rank` with a relative tolerance calls a ZERO matrix full rank
+
+**What happened.** The convolutional certificate run (job 200503) reported `rank C = 8` at `r = 8` on a layer whose
+recorded span already filled the rank — i.e. on a certificate that is exactly the zero matrix. Read literally, the
+rows said every conv layer carried a healthy margin, which would have been a headline.
+
+**How it presented.** Not as an error. As a clean, plausible table. The only tell was a neighbouring column:
+`cert residual 0.00e+00`, which is what an *identically zero* `C` gives, not what a working certificate gives
+(1e-15 relative). The wrong number and the number that exposes it were on the same printed line.
+
+**Root cause.** `torch.linalg.matrix_rank(C, rtol=1e-10)` measures singular values against **C's own largest**
+singular value. When the projector annihilates `A_T`, what survives is ~1e-16 × `A_T`: every singular value is
+tiny, but they are all tiny *together*, so their ratios are O(1) and the relative test passes for all of them.
+Relative rank of a numerically zero matrix is FULL rank.
+
+**Fix.** Floor the test on the matrix the projection came from, not on the result:
+`rank = (svdvals(C) > 1e-10 * svdvals(A_T)[0]).sum()`.
+
+**The general form, and this is the second time it has bitten this project** (see the imprint-sum assertion floored
+at `1e-10*‖B_T‖ + 1e-13`): *a relative criterion has no opinion about zero.* Any test of the form "is this
+direction present" needs an absolute floor carried in from the quantity that set the scale. Wherever a projector,
+a residual or a difference can legitimately be zero, the tolerance must come from the un-projected object.
+
+**Second lesson from the same run — a margin is not a certificate.** Once every layer is adapted the features
+drift, `A_0 h_i` need not lie in `row(B_T)`, and `C h` is not zero at the truth. The conv rows at `r ≥ 128` have a
+genuinely positive margin (because `rank B_T ≤ ` the output width, so a wide adapter always leaves room the data
+never touches) and a certificate residual of 6e-2 to 7e-1. The margin is real and the certificate is worthless.
+Every verdict now requires **both** a positive margin **and** the condition holding at the truth.

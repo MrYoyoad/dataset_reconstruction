@@ -167,28 +167,43 @@ def main():
         As, Bs = run_training(X, Wms, bs_, Whead, bhead, A0s, y, m, a.T, a.lr)
         with torch.no_grad():
             _, kept = conv_forward(X, Wms, bs_, Whead, bhead, As, Bs, want_patches=True)
-        margins = []
+        margins = []; conv_holds = []
         for l in range(len(SPEC) + 1):
             C, Np, S = certificate(As[l], Bs[l])
             cap = min(r, dims[l])
-            margins.append(int(torch.linalg.matrix_rank(C, rtol=1e-10)))
+            # rank(C) needs an ABSOLUTE floor set by A_T, not a floor relative to C's own largest singular value:
+            # when the projector annihilates A_T the surviving matrix is ~1e-16 x A_T, its singular values are all
+            # tiny but comparable, and a relative rank call returns FULL rank for a matrix that is zero.
+            svC = torch.linalg.svdvals(C); sA = float(torch.linalg.svdvals(As[l])[0])
+            margins.append(int((svC > 1e-10 * sA).sum()))
             if l < len(SPEC):
                 Pt = kept[l]
                 res = torch.linalg.norm(C @ Pt, dim=1) / (torch.linalg.norm(As[l] @ Pt, dim=1) + 1e-300)
                 res_med = float(res.median()); P_l = int(Pt.shape[2])
             else:
                 res_med = float("nan"); P_l = 1
+            # a margin is worth nothing unless the condition actually HOLDS at the truth: with every layer
+            # adapted the features drift, A_0 h_i need not lie in row(B_T), and C h is then not zero at all.
+            holds = bool(res_med == res_med and res_med < 1e-8)
+            if l < len(SPEC): conv_holds.append(holds)
             emit(dict(part="CONVLAYER", r=r, layer=l + 1, kind="conv" if l < len(SPEC) else "head",
                       d_l=dims[l], rank_cap=cap, n_prime=Np, certificate_margin=cap - Np,
-                      rank_C=margins[-1], patches_per_image=P_l,
+                      rank_C=margins[-1], patches_per_image=P_l, rank_B_capped_by_width=bool(Np >= min(r, Bs[l].shape[0])),
                       conditions_per_image=margins[-1] * P_l, cert_residual_median=res_med,
+                      certificate_holds_at_truth=holds, usable=bool(margins[-1] > 0 and holds),
                       vacuous=bool(margins[-1] == 0), N=a.N, git=git_hash()))
             print(f"  r={r:4d} layer {l+1} ({'conv' if l < len(SPEC) else 'head'}): d={dims[l]} "
                   f"cap={cap} N'={Np} rank C={margins[-1]} x P={P_l} -> {margins[-1]*P_l} conditions/image"
                   f"{'  [VACUOUS]' if margins[-1] == 0 else ''}  cert residual {res_med:.2e}", flush=True)
+        usable_conv = [l for l in range(len(SPEC)) if margins[l] > 0 and conv_holds[l]]
         emit(dict(part="CONV_VERDICT", r=r, ranks_C=margins, any_margin=bool(any(x > 0 for x in margins)),
                   conv_margins=margins[:len(SPEC)], head_margin=margins[-1],
-                  reading="CONV-CARRIES" if any(x > 0 for x in margins[:len(SPEC)]) else "CONV-VACUOUS",
+                  conv_layers_with_margin=[l + 1 for l in range(len(SPEC)) if margins[l] > 0],
+                  conv_layers_usable=[l + 1 for l in usable_conv],
+                  reading="CONV-CARRIES" if usable_conv else "CONV-VACUOUS",
+                  reading_note="CARRIES requires a POSITIVE margin AND the condition holding at the truth; a "
+                               "margin that exists only because rank B_T is capped by the output width, with "
+                               "C h nowhere near zero, is not a certificate",
                   seconds=time.time() - t0, backbone_acc=acc, N=a.N, T=a.T, lr=a.lr,
                   start_model="n/a (algebraic)", claim_class="algebraic check",
                   git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
