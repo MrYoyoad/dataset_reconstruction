@@ -140,13 +140,28 @@ def main():
                                 sigma_rel=[float(v / sv[0]) for v in sv[:min(24, len(sv))]] if float(sv[0]) > 0 else []))
             med = {lab: sorted(o["rank_by_tol"][lab] for o in out)[len(out) // 2] for lab in ("1e-10", "1e-8", "1e-6")}
             budget_L = sum(margins[l] for l in layers)
+            # FEATURE-SPACE codimension: exact and global, since C_l h = 0 is linear in h. Sum over the layers in
+            # this objective, each contributing rank(C_l) = r_l - N'_l independent linear conditions on ITS OWN h.
+            feat_codim = int(sum(int(torch.linalg.matrix_rank(Cs[l], rtol=1e-10)) for l in layers))
+            # USABLE rank against the release's own noise floor (q_eff): a direction counts only if its constraint
+            # exceeds what the release itself resolves -- here the smallest recorded imprint relative to the largest.
+            floor_rel = float(min(torch.linalg.norm(Bs[l]) for l in layers) / max(float(torch.linalg.norm(Bs[l])) for l in layers))
+            usable_rank = sorted(sum(1 for v in o["sigma_rel"] if v > 1e-8) for o in out)[len(out) // 2]
             emit(dict(part="PIXELRANK", layers_in_objective=[l + 1 for l in layers], n_layers=L,
                       independent_conditions_on_pixels_median=med, n_conditions_supplied=budget_L,
+                      feature_space_codimension_exact=feat_codim, encoder_cost=feat_codim - med["1e-10"],
+                      usable_rank_above_release_noise=usable_rank,
+                      feature_space_note="C_l h = 0 is LINEAR in h, so in feature space the solution set is an affine "
+                                         "subspace of codimension exactly rank(C_l) -- exact and global, no "
+                                         "linearisation. The pixel number is its pullback; the difference is the "
+                                         "encoder's cost.",
                       pixel_count=npix, fraction_of_pixels=med["1e-10"] / npix, per_image=out,
                       r=a.r, N=a.N, k=a.k, chart_dim_for_comparison=a.k,
                       note="ceiling is the PIXEL COUNT; chart-space rank saturates at k by construction and cannot "
                            "argue about leakage, since k is the attacker's choice",
                       start_model="n/a (Jacobian at the truth, no solve)", claim_class="algebraic check", git=git_hash()))
+            print(f"  FEATURE codim (exact, global) {feat_codim} -> PIXEL rank {med['1e-10']} "
+                  f"(encoder costs {feat_codim - med['1e-10']}); usable above the release's noise {usable_rank}", flush=True)
             print(f"  PIXEL RANK over layers {[l+1 for l in layers]}: {med['1e-10']} independent conditions on "
                   f"{npix} pixels ({100*med['1e-10']/npix:.1f}%), conditions supplied {budget_L}, "
                   f"ranks at looser tolerances {med['1e-8']}/{med['1e-6']}", flush=True)
