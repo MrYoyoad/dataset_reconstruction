@@ -4,6 +4,12 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## The image finishes long before the residual does — a lower floor is a liability (2026-09-04)
+
+- **Measured:** the same cell recovered to 4.7% when the solver was stopped at residual 1.1e-2 and to 7.5% when allowed to reach 2.5e-3 (job 85300). Two formats stopped at the same residual agree (4.72% vs 4.56%); the format matters only through how far it descends.
+- **Why:** whenever the release's exact minimiser differs from the true image — off-chart data, or a release trained in different arithmetic from the simulator — the image optimum sits at an *intermediate* residual, and the last decade of descent buys travel along the flat direction instead of accuracy.
+- **Rule:** report the image error against the *stopping* residual, not only at the end; stop at the knee, never at the floor; and never read a lower achievable residual as a stronger attack. This is the operational form of the "release-optimal ≠ representation-optimal" hazard.
+
 ## Low precision does not lift a spectrum's floor — it drags the signal down to meet it (2026-09-04)
 
 - **Presented as:** the obvious fix for a rank that breaks the `m − 1` cap on a low-precision release was to pick a tolerance above the roundoff floor, or to subtract the one spurious all-ones direction.

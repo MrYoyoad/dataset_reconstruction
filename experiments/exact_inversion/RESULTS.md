@@ -3117,7 +3117,17 @@ design does support is the matched-residual one, and it is already in: **fp16 at
 reversal to within the resolution available, and the flush component is bounded above by that gap rather than
 measured. The mirror run is kept as a control that bf16 stopped early does not improve either.
 
-*Knee sweep, pre-registered (jobs 86888 fp16, and the bf16 mirror over the overlap band).* fp16-trained letters,
+**What over-descent is, in general (yoado-c9):** it is not a precision curiosity but the measured form of a
+hazard already named in the write-up audit — *the image finishes long before the residual does*. Whenever the
+release's exact minimiser differs from the true image, the image optimum sits at an **intermediate** residual, and
+descending to the minimiser moves the image away from it. Two causes seen so far: off-chart (the release-optimal
+point is not the representation-optimal one) and roundoff-trained (the true latents are not the matched objective's
+minimiser — Step 26's 3% displacement). The early-stop rows are the first measurement of "does driving the residual
+down actually hurt the image?", and the answer is yes: **a lower floor is a liability, not an asset**, because it
+lets the solver descend past the knee. The attacker's stopping rule is therefore the image knee, not the residual
+floor — and the knee is above every format's floor.
+
+*Knee sweep, pre-registered (jobs 86888 fp16, 87369 bf16 over the overlap band).* fp16-trained letters,
 k = 32, matched route, the LM stopped at residuals 0.08, 0.04, 0.02, 0.012, 0.008, 0.005, 0.003, 0.0019 (its floor);
 bf16 at 0.08, 0.04, 0.02, 0.016, 0.0124 (it cannot go lower). **Predicted (yoado-7e):** image error against
 stopping residual is U-shaped — high at 0.08 (barely descended), a minimum near 4.6% at a knee around 0.011, rising
