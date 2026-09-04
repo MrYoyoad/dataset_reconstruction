@@ -47,11 +47,10 @@ def main():
     a = ap.parse_args(); dev = torch.device(a.device)
     Xtr, _ = read_idx(a.data_root, "train"); Xte, yte = read_idx(a.data_root, "test")
     Xtr_t = torch.tensor(Xtr[:a.n_fit], device=dev); Xte_t = torch.tensor(Xte, device=dev); yte_t = torch.tensor(yte, device=dev)
-    sd = torch.load(a.model, map_location=dev, weights_only=False)
-    Ws = [sd["layers.0.weight"].double(), sd["layers.2.weight"].double() if "layers.2.weight" in sd else None, None]
-    # the trained MLP is 784-1000-1000-10; take its three weight matrices and the first bias
-    keys = [k for k in sd if k.endswith("weight")]
-    Ws = [sd[k].to(dev).double() for k in sorted(keys)]
+    ck = torch.load(a.model, map_location=dev, weights_only=False)
+    sd = ck["state_dict"] if isinstance(ck, dict) and "state_dict" in ck else ck
+    keys = sorted(k for k in sd if k.endswith("weight"))          # 784-1000-1000-10: three weight matrices
+    Ws = [sd[k].to(dev).double() for k in keys]
     b1 = sd[[k for k in sd if k.endswith("bias")][0]].to(dev).double()
     m = Ws[-1].shape[0]
     if a.sigma0 is None: a.sigma0 = 1.0 / math.sqrt(Ws[0].shape[1])
