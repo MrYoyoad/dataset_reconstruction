@@ -89,7 +89,8 @@ t=1 rising to +6…+14 by t=T. Chart error 0.235 → instance-level.
 | **Minibatching preserves the closure** | **[D]** unrun | derivation in `assumption_relaxation_program.md` §2; the induction never inspects `D_t` |
 | **Certificate localises to the first adapted layer** | **[C]** untested | §3 |
 | **Cap loosens from class count to layer width at a hidden layer** | **[C]** on a **[C]** | §3; needs a cell with `N ≥ m` or it cannot fire |
-| The chain buys reachability, not capacity | **[D]** | on `Z_C` each image has `k − (r−N′)` free coordinates and the B-block carries `N′(m−1)`, so the chain closes exactly at replay's own line |
+| The chain **cannot move the line** | **[D-proved, prop:chain / cor:chainbasin]** | `S_ρ ⊆ Z_C^{×N}×ℝ^{rN}`, so `S_chain = S_ρ` exactly (containment route), with the dimension count as an independent second route to the same boundary `k ≤ (m−1)+r−N′` (commit bb323ac) |
+| The chain **does** buy basin | **[C]** unproved, unmeasured | the upside the whole chain programme rests on; see §7 |
 | "Past the line the alternative is a recognisable image" | **[W]** | recognisability never assessed; synthetic 0.17–1.7%, MNIST 2.3–6.8% with 5 of 8 cells having no image inside tolerance |
 | "One recorded image at low rank" | **[W]** | see §6 |
 | "Richer chart ⇒ worse conditioned" as a graded law | **[W]** | ordering held, mechanism did not; family-confounded, n=4 |
@@ -177,6 +178,15 @@ picture.
 ---
 
 ## 7. What is pre-registered and unrun
+
+**The chain's state in two sentences, which belong together.** What is *proved* is that the chain cannot move
+the line: `S_chain = S_ρ` exactly (Prop. 13 `prop:chain`, Cor. 14 `cor:chainbasin`, commit bb323ac), so its
+entire possible value is basin — reaching solutions, never reaching further ones. What is *unproved and
+unmeasured* is that it buys any basin at all, and the only relevant measurement so far is discouraging: the
+handoff gate shows certificate landings beating a norm-matched random point in **61%** of cases against a 50%
+coin, at a median ratio of 1.12 (job 156607). **So the chain's upside is bounded above by theory and
+unsupported below by measurement.** The reusable general form is worth carrying: `C` is a function of the
+release, so *any* derivation in which a chain widens the admissible `k` has counted the release twice.
 
 - **The chain test** (certificate landings handed to replay). Three branches — floor at the truth / floor at a
   wrong image / residual above the floor — plus "no landings = not scored". Scored per landing, with the
