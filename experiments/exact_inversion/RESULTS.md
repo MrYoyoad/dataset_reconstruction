@@ -5123,3 +5123,12 @@ worse fraction of that worse chart.
 trained on the raw images and no point inside a `k`-dimensional chart satisfies the certificate exactly. Zero of
 200 starts land below 1e-1 in every pool including matched. **So this is a measurement of degradation, not of a
 working attack**, and it must be read that way.
+
+**Test 2's Adam arm — the informative outcome is inverted, fixed before the rows** (yoado-b9). Under the locked
+rule an all-void arm has an empty denominator and yields no rate, which in a summary would read as *the control
+produced nothing*. It does not: **the gate outcome IS the control's finding**, and it is reported as a count —
+"the certificate gate failed in N of M Adam draws" — never as an absent rate. Twenty of twenty is a clean
+confirmation that Adam destroys the certificate, and it is what licenses reading the SGD arm's separation as a
+property of the certificate rather than of the pipeline. **If any Adam draw PASSES the gate, that draw is scored
+like an SGD draw, and separation there means the pipeline is wrong rather than Adam being interesting** — so for
+this arm alone, the expected result is the negative one and a positive is a bug report.

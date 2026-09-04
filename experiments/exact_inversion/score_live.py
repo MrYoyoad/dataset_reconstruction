@@ -55,7 +55,20 @@ def main():
             lo, hi = cp(k, len(g))
             ms = [r["initial_margin"] for r in g]
             print(f"    margin {min(ms):+7.2f} .. {max(ms):+7.2f}:  {k}/{len(g)}   95% [{lo:.3f}, {hi:.3f}]")
-        print(f"  voided (left OUT of numerator and denominator): {len(rs) - len(nv)} of {len(rs)}")
+        gate_fail = sum(1 for r in rs if r["verdict"].startswith("void: gate"))
+        if opt == "adam":
+            # A VOID CONTROL IS NOT AN ABSENT RESULT. Under the locked rule the Adam arm has an empty denominator
+            # and produces no rate, which in a summary reads as "the control produced nothing". It did not: the
+            # GATE OUTCOME IS THE CONTROL'S FINDING. Reported as a count.
+            print(f"\n  *** CONTROL FINDING: the certificate gate failed in {gate_fail} of {len(rs)} Adam draws.")
+            print(f"      That is the result, not an absent rate. It licenses reading the SGD arm's separation as "
+                  f"a property of the certificate rather than of the pipeline.")
+            if gate_fail < len(rs):
+                print(f"      *** {len(rs) - gate_fail} Adam draw(s) PASSED the gate. Under the pre-registration "
+                      f"those are scored like SGD draws, and separation there means the PIPELINE is wrong rather "
+                      f"than Adam being interesting. Investigate before reporting any SGD number.")
+        print(f"  voided (left OUT of numerator and denominator): {len(rs) - len(nv)} of {len(rs)}"
+              f"   [of which gate failures: {gate_fail}]")
         print(f"  q_member is RECORDED, NOT SCORED -- an algebraic identity at N' = 1.")
         print(f"  min_u q(u) is reported, not a criterion: a single non-member at 1e-6 inside a passing 1% budget "
               f"is the row that would say the zero set is catching natural images.")
