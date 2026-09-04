@@ -3474,3 +3474,10 @@ The synthesis is unchanged and now measured at both charts — **conditioning li
 against ≈ 4e-3 … 2.8e-3 at k = 32 in absolute terms, but relative to fp16's floor it moves from 1.3× above it to
 2× above it, and the penalty grows from 2% to 78%.** What matters for the attacker is not the knee's absolute
 position but how far above the reachable floor it sits, and that gap widens with conditioning.
+*The attacker-facing consequence (yoado-7e), which is the form to quote.* **Early-stopping discipline matters more
+the harder the chart.** At a well-conditioned chart the knee sits essentially at the reachable floor, so
+over-descending is nearly free (2%); at an ill-conditioned one it sits well above the floor, so failing to stop
+costs about 80%. "Stop at the knee" is therefore a soft suggestion at easy charts and a hard requirement at hard
+ones — which is exactly why the naive full-descent attacker looked format-inverted only at k = 32. And the single
+axis subsumes both earlier readings: *floor above the knee* (bf16 at k = 32) is under-recovery, *floor below the
+knee* (fp16) is over-descent, and the cost either way is the size of that gap.
