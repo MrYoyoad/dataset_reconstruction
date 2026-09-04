@@ -9,7 +9,9 @@ every step, `B₀ = 0`, output layer. Real LoRA is AdamW, minibatched, augmented
 
 ---
 
-## 1. Learning rate and batch size — SETTLED, not an assumption (measured)
+## 1. Learning rate and batch size — SETTLED, not an assumption
+*(81: the PRODUCT STRUCTURE is derived → a proposition. That the product is identifiable and fitted to 1e-15 is
+MEASURED. Do not call the second a proposition — that claims a uniqueness result nobody has proved.)*
 `η`, the adapter scale `s` and the batch size `N` enter the recurrences **only as one product**, because the loss is a
 mean. Consequences, all measured (job 484255 and the recipe arms):
 - The learning rate is **fitted, not assumed**: carried as a free unknown from a start wrong by 2×, recovered to
@@ -32,7 +34,11 @@ step-t batch** (masking). Then with the full fixed `H`:
 ∇_A = s B_tᵀ D_t Hᵀ = s (A₀H) P_tᵀ D_t Hᵀ = A₀H (s P_tᵀ D_t) Hᵀ      ← still A₀H(·)Hᵀ
 ```
 so `B_t = P_t(A₀H)ᵀ` and `A_t = A₀(I + H M_t Hᵀ)` reproduce under **any per-step masking or reweighting** of `D_t`.
-Shuffling and batch order fall out the same way. The imprint law survives with the accumulation running only over the
+Shuffling and batch order fall out the same way. **81 verified this independently and it relaxes FURTHER:** the same
+algebra holds for *arbitrary per-example weights* (not just 0/1 masks) and for a *per-step learning rate*, so the
+hypothesis becomes **a fixed pool of examples with fixed features, with per-step selection, reweighting and rate all
+permitted** — covering minibatching, sample weighting, gradient accumulation and any schedule. The simplex property
+survives (masking zeroes whole columns, so `1ᵀD = 0` still holds) and the `−1` in the capacity count is safe. The imprint law survives with the accumulation running only over the
 steps in which an image appeared.
 **What actually breaks the closure is narrower than the table claims:** the *features* changing (augmentation, a
 trainable block upstream) or updates not linear in the gradient (Adam). Minibatching is neither.
@@ -42,7 +48,18 @@ machine precision. Cheap. If it holds, one of the three worst-looking assumption
 images sampled equally often should be recorded comparably while a rarely-sampled one drops toward the floor. That is
 a stronger test of the same claim than `fwd_check` alone and costs nothing extra.
 
-## 3. Multi-layer — CONJECTURE: the certificate localises to the FIRST adapted layer
+## 3. Multi-layer — the certificate localises to the FIRST adapted layer (hypothesis corrected by 81)
+**State it as "the first adapted layer, with the network BELOW it frozen" — not "one adapted layer".** The certificate
+needs only the *shape* `A_T − A₀ ∈ row(B_T)`, which survives whatever sits above; so **the certificate applies to the
+first adapted layer of any stack.** The clean *closure* (cheap self-contained simulation, i.e. the replay route) does
+NOT: with upper adapters the backpropagated error is no longer a function of the small variables alone, giving a
+coupled joint recurrence — consistent with the measured multi-layer cells sitting ~20 orders off the floor.
+
+**The cap does not loosen deeper — it VANISHES (81).** It came from the softmax zero-sum, which a backpropagated error
+does not have, so `N′ ≤ min(m_ℓ, r, N)` with no `−1`; at a hidden layer of width ~10³ it is not binding at all.
+**Head-width protection is a property of adapting the HEAD; an adapter on a hidden layer does not have it.** This is
+the sharpest defender-side consequence in this note and deserves its own line in the paper.
+
 Attack the earliest adapted layer. Its inputs come from frozen machinery, so "fixed inputs" holds exactly, and the
 closure's *shape* survives even though the error signal reaching it is backpropagated rather than a softmax residual
 (the derivation needs only a rank-structured update with fixed inputs and `B₀ = 0`). Two changes, in opposite
@@ -79,7 +96,8 @@ better conditioned, and it isolates the prior where it can be audited. Also the 
 - **Oz, Yehudai, Vardi, Antebi, Irani, Haim 2024 — reconstruction from transfer learning** (`papers/Oz_et_al_2024_…`).
   Same shape as ours: frozen foundation encoder (DINO-ViT/CLIP) + trained head; they reconstruct **in embedding
   space**. Two hooks: (i) their equations come from the *full head* (~`m·n` numbers) — a LoRA release exposes only
-  `N((m−1)+r−N)`, so our counting **quantifies how much low rank compresses leakage relative to their setting**;
+  `N((m−1)+r−N)`, so our counting **quantifies how much low rank compresses leakage relative to their setting** — *caveat (81): that
+  compares a total parameter count against a manifold dimension; normalise both per-example before quoting a ratio*;
   (ii) their abstract's own contribution includes *"a novel clustering-based method to identify good reconstructions
   from thousands of candidates"* — **a heuristic for a problem our certificate solves exactly** (`Ch = 0` at machine
   precision, no training-set knowledge). We arrive with the missing verifier, not with a competitor.
