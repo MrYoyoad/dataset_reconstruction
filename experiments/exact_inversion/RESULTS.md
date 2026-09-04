@@ -2842,10 +2842,11 @@ the standing candidate for what "protects the matched solver from its own floor"
 
 (vi) **Caveat limiting all eight numbers.** `stopped` is `converged` only for the two fp64 rows; fp32, fp16 and
 bf16 all read `no_accept` at both k — the solver stalled. Every low-precision figure is where LM gave up, so
-comparing formats partly compares stall points. bf16's objective trace is flat at 1.5358e-4 for its last three
-iterations, so that one is a genuine stall rather than a budget cut — but "stalled at a good place" and
-"converged to a good place" support different claims about what an attacker gets, and the bf16 result is a claim
-that it did *better* than expected.
+comparing formats partly compares stall points. **Corrected (yoado-41):** the traces are flat at termination in
+*every* low-precision row — bf16 k=32 at 1.5358e-4, fp16 at 6.2227e-6, fp32 k=16 at 1.1415e-14 — so these are
+genuine stalls rather than budget cuts and the caveat applies uniformly; it does not single out bf16. "Stalled at
+a good place" and "converged to a good place" still support different claims about what an attacker gets, and the
+bf16 miss stands as a miss.
 
 **Net:** the k = 32 column confirms that a richer chart costs the matched attacker something real (both half
 formats degrade, 4.6% and 7.5% against 1.0% and 3.0%), refutes the specific claim that conditioning alone sets
