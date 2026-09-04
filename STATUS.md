@@ -1,5 +1,35 @@
 # Project Status
 
+## The multi-layer certificate has a boundary, and it is DRIFT, not depth (2026-09-04; jobs 199890, 200956, 201967)
+
+Three pre-registered runs, all landing against the optimistic branch. Each is an algebraic check at the truth — a
+Jacobian rank at the true image, no solve and no start — so none of it is an attack result.
+
+1. **The extended-layer curve lands on FLATTENING.** On a 15-layer MLP (97.38% test accuracy) with every layer
+   adapted at `r = 64`, **twelve of the fifteen layers are vacuous**: `N′ = rank B_T = 64 = r`, so `C = 0`. Only
+   layer 1, layer 2 and the head carry anything. Stacking them gives 80 independent pixel conditions from 112
+   supplied, of which only **69 are usable above 1e-8**, at condition number **9.0e9**. The usable rank falls
+   below the formal rank for the first time in this project. The chart-free reading of the 3-layer result is dead
+   in this form and stays out of every document.
+2. **The mechanism.** `N′` counts recorded **(image, step)** directions, not images, at every layer whose input
+   moves. Layer 1's input is the image and never moves, so its `N′` is exactly the image count at every training
+   length (8 at T = 25, 50, 100, 400). Layer 2 runs 32 → 63 and layer 3 runs 36 → 64 over the same sweep.
+   **Training longer destroys the deep certificate.** At T = 25 the additivity is back and exact — 56 → 88 → 116
+   conditions, condition number 1.7 → 5.9 → 51. So the earlier "layers are additive in rank" is **scoped, not
+   withdrawn**: it is a low-drift statement, not an architectural one.
+3. **Convolutions carry nothing at all.** On a 98.63% conv net, `r ∈ {8 … 512}`, the verdict is CONV-VACUOUS at
+   every rank, by two independent routes. Eight images supply 1568 patch vectors into conv layer 1's
+   9-dimensional input, so its recorded span fills the layer before any adapter is trained. Where margins do
+   appear (`r ≥ 128`, and only because `rank B_T` is capped by the output width), the certificate residual at the
+   truth is 6e-2 to 7e-1 — the condition does not hold. **The recipe-free channel is a dense-layer phenomenon.**
+
+**What this leaves.** The first adapted layer is the only one whose recorded count is the image count, its
+certificate holds to ~1e-14 at every training length, and its conditions land on raw pixels with no chart. So the
+live question is whether the pixel-space constraint count scales with the **adapter rank** rather than with depth.
+Pre-registered as `min(r, 784) − N`, running as job 202172; the first cells match exactly (r = 16 → 8 conditions,
+r = 32 → 24), with σ_min already falling 0.84 → 0.44. **The number that decides whether it means anything is the
+usable rank, not the formal one.**
+
 ## Rev 10 delta — the exact channel, theorem-first, for the supervisor (2026-09-03; `notes/exact_channel_rev10.tex`)
 
 Self-contained LaTeX section (Rev 9 source is Mac-only; merge on Overleaf — a MERGE NOTE at the top maps every

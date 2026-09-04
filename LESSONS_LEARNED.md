@@ -2570,3 +2570,26 @@ drift, `A_0 h_i` need not lie in `row(B_T)`, and `C h` is not zero at the truth.
 genuinely positive margin (because `rank B_T ≤ ` the output width, so a wide adapter always leaves room the data
 never touches) and a certificate residual of 6e-2 to 7e-1. The margin is real and the certificate is worthless.
 Every verdict now requires **both** a positive margin **and** the condition holding at the truth.
+
+## 2026-09-04 — a released quantity's "recorded count" counts what MOVED, not what was recorded
+
+**The insight.** `N′ = rank B_T` has been read throughout this project as *the number of recorded images*, and the
+capacity line `k < r − N′` was built on that reading. It is only true where the layer's input is fixed. Where the
+input **moves during training** — which is every layer after the first, the moment an earlier layer is adapted —
+the imprint sum accumulates one direction per **(image, step)** pair, and `N′` grows with the number of steps
+until it fills the rank.
+
+**Measured** (15-layer MLP, `r = 64`, 8 images): layer 1 has `N′ = 8` at T = 25, 50, 100 and 400 — exactly the
+image count, at every training length. Layer 2 goes 32 → 37 → 42 → 63 and layer 3 goes 36 → 44 → 47 → 64 over the
+same sweep. At T = 400, twelve of fifteen layers have `N′ = r` and their certificates are identically zero.
+
+**Why it matters beyond this run.** Every margin, every capacity line and every "conditions supplied" count in
+this project is a statement about a layer whose input is fixed, unless drift was checked. Two habits follow:
+- Read `N′` as **recorded directions**, never as an image count, and say which it is in every table.
+- A certificate margin means nothing on its own. **Check the condition actually holds at the truth** — the conv
+  rows had margins of 64, 192 and 448 with residuals of 6e-2 to 7e-1. A margin plus a failing residual is not a
+  weak certificate; it is not a certificate.
+
+**Corollary that is now the live thread.** The first adapted layer is the only one immune, because its input is
+the image itself. Whatever the recipe-free channel can do to raw pixels, it does there, and it scales with the
+adapter rank rather than with depth.
