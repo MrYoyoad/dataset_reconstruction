@@ -370,14 +370,15 @@ def main():
             # (yoado-b9) the handoff must be measured against the RECORDED image specifically, never the post-hoc
             # nearest one -- the certificate has no information about images it did not record, and a start drifting
             # toward an unrecorded one would score as a pass. `top` is the recorded image.
-            def err_to_top(wv):
-                return float(torch.linalg.norm(chart.psi(wv.reshape(k, 1))[:, 0] - X_on[:, top]) / torch.linalg.norm(X_on[:, top]))
-            land_errs.append(err_to_top(w)); start_errs.append(err_to_top(w0))
+            def err_to_rec(wv):                                       # nearest RECORDED image (never an unrecorded one)
+                xv = chart.psi(wv.reshape(k, 1))[:, 0]
+                return min(float(torch.linalg.norm(xv - X_on[:, i]) / torch.linalg.norm(X_on[:, i])) for i in rec)
+            land_errs.append(err_to_rec(w)); start_errs.append(err_to_rec(w0))
             # (yoado-b9) SHRINKAGE control: if the solve mostly shrinks ||w|| toward the chart mean, every start moves
             # closer to every image without acquiring information. Compare against a random point of the SAME norm.
             nw = float(torch.linalg.norm(w)); n0 = float(torch.linalg.norm(w0))
             wr = torch.randn(k, generator=gs).to(dev); wr = wr * (nw / float(torch.linalg.norm(wr)))
-            normmatch_errs.append(err_to_top(wr)); norm_ratios.append(nw / n0 if n0 > 0 else float("nan"))
+            normmatch_errs.append(err_to_rec(wr)); norm_ratios.append(nw / n0 if n0 > 0 else float("nan"))
             if e[0] < 1e-2:
                 n_land += 1
                 by_image.setdefault(e[1], []).append((w.detach(), obj, e[0]))
@@ -398,7 +399,7 @@ def main():
                   median_ratio_vs_norm_matched=float(ne[len(ne)//2] / le[len(le)//2]) if le[len(le)//2] > 0 else float("inf"),
                   frac_landings_closer_than_best_random=float(sum(1 for x in land_errs if x < se[0]) / len(land_errs)),
                   frac_landings_closer_than_norm_matched=float(sum(1 for i in range(len(land_errs)) if land_errs[i] < normmatch_errs[i]) / len(land_errs)),
-                  measured_against="the RECORDED image (index top), not the post-hoc nearest",
+                  measured_against="the nearest RECORDED image (all are legitimate targets; unrecorded images excluded)",
                   git=git_hash()))
         print(f"  [k={k}] HANDOFF vs the recorded image: landing {le[len(le)//2]:.3f} | random start {se[len(se)//2]:.3f} | "
               f"norm-matched random {ne[len(ne)//2]:.3f} | latent norm ratio {nr[len(nr)//2]:.2f}", flush=True)
