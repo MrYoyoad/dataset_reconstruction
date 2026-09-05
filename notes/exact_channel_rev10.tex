@@ -1800,7 +1800,19 @@ essentially the truth, so it has no knee and descends monotonically to
 $5.8\times10^{-6}$. The knee lifts with conditioning, which is why
 over-descent appears only at the harder chart: at $k=16$ it sits below FP16's
 floor and the descent is monotone. \emph{The attacker's rule is to stop at the
-knee, not at the floor.}
+knee, not at the floor.} The curve is now swept rather than inferred from two
+points$^\dagger$ (jobs 86888, 87369, 88743), and every part of the
+pre-registration holds. All three formats coincide on the left arm --- at a
+stopping residual of $0.08$ they give $5.25$, $5.24$ and $5.26$ per cent ---
+and separate only past the knee. FP16 traces the full U: $5.25\%$ falling to a
+minimum of $4.20\%$ at a stop of $5\times10^{-3}$, then rising to $7.47\%$ at
+its floor. Bfloat16 is flat rather than U-shaped, $4.53\%$ at its best stop
+against $4.56\%$ at its floor, because that floor sits at the knee and it
+cannot over-descend past what it cannot resolve. And FP32 has \emph{no} right
+arm at all, descending monotonically to $10^{-4}$ --- the falsifier, since an
+upturn there with no displaced minimiser to chase would have refuted the
+reading. At each format's best stop the precision ordering is the ordinary one,
+$4.20\%$ against $4.53\%$.
 
 The cause is underflow specifically, not inaccuracy in general --- bfloat16 is
 the less accurate format and barely suffers, because it barely underflows
