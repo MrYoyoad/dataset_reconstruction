@@ -545,6 +545,16 @@ combination holds. Scope: on-chart, SGD release, head wider than N′. Also: 18 
 from 10,000 random starts on a 26-logit head (725918); the same twenty on a 10-logit head give nothing (cap
 `N′ ≤ m − 1`). Figure `figures/exact_inversion/certificate_recovery_r64_k32_728592.png`.
 
+> **⚠ DO NOT QUOTE `frac_starts_at_floor` as an attacker-recognisable fraction (2026-09-05, yoado-93 — the flag
+> travels with the number).** The 728592 jsonl carries `frac_starts_at_floor` = 0.42; that is the historical
+> ABSOLUTE 1e-20 cut, not an attacker yield. This cell's per-image floors span ~19 orders (`objective_at_truth`
+> 4.0e-29 vs `objective_at_recorded_max` 2.8e-10), so a single cell-wide cut sits below most images and certifies only
+> the easiest. The floor is a valid witness only where floor-fraction EQUALS landing-fraction (706721: 0.51/0.51);
+> here they diverge three ways (0.42 floor / 0.656 land / 0.038 recovered), so the cut is misplaced. The
+> attacker-recognisable count needs the per-image `at_floor` recompute (against the landed image's own floor) and is
+> currently unmeasured — same defect as the fp32 letters cell. Quote "66% land / finds all eight" as EXPERIMENTER
+> ground truth only.
+
 ## Trained backbone · chart families · encoder quality · a genuineness audit (2026-09-03; jobs 607896, 610020, 605718, 611033, 611339, 612643, 614344; in flight 624463, 624465, 624573, 608693)
 
 Authoritative detail: `experiments/exact_inversion/RESULTS.md` Steps 13–18. Every number provisional (†).
