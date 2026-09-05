@@ -202,9 +202,21 @@ has no attacker-available start.
   "argmin lands on a recorded image, basins uneven" is the same flavour. **Present the certificate in their
   format: Assumption, Theorem, Algorithm, with the counting rule as the Assumption-4.1 analogue.** That is the
   tool.
+  **Realised end of day, and this is the sharpest thing to say to him.** Their Assumption 4.1 is a *checkable
+  condition on the data distribution* (near-orthogonality) under which a clean membership statement follows.
+  A7 plus the counting rule is a *checkable condition on the architecture* — `N·P` against the input width,
+  evaluable from a config file before any release exists — under which the certificate's clean statement
+  follows and without which it is not weak but **identically vacuous**. Same paper shape, one axis over: they
+  buy a theorem with an assumption about the data, we buy one with an assumption about the module. And where
+  their assumption is only checkable in expectation, ours is checkable exactly, in one forward pass. That is
+  the analogy to open with, because it says *we did the thing your paper does*, not *we measured some things*.
 - **Oz et al. 2024.** An MLP on frozen DINO/CLIP embeddings is exactly the head surface where the channel
   survives. Oz trains from scratch (unknown `W_0`) and needs KKT; a head fine-tuned from a public head exposes
-  the recorded-embedding span exactly. State both cases.
+  the recorded-embedding span exactly. State both cases. **Sharper after the counting rule lands:** Oz's setting
+  is not merely compatible with the live surface, it *is* the live surface — `P = 1`, the one configuration in
+  which the recipe-free channel exists at deployed rank. His paper is the argument that the head-on-frozen-
+  features regime is the realistic one; ours is the statement of exactly how much that regime leaks and when.
+  The two compose rather than compete.
 - **Gronich & Vardi 2026.** Momentum keeps the gradient subspace, so the closure should extend to momentum SGD
   (unmeasured). Under Adam only the KKT route survives, which is their regime. One line, no more.
 
