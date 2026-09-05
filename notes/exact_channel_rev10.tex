@@ -1864,24 +1864,44 @@ these releases while the matched recipe route does not.
 
 \paragraph{How $N'$ should be cut, and why the cap is the check.} $N'$ is
 read as $\operatorname{rank}B_T$ at some tolerance, and the choice is not
-cosmetic: it sets the line $k<r-N'$ and therefore the attacker's budget. Two
-tolerances pull opposite ways, and they are answering different questions.
-For \emph{building the projector} a tight cut is right, since a loose one
-discards a recoverable image. For \emph{counting} $N'$ a tight cut
-over-reads, because rounding lifts directions that carry no example above it.
-Proposition~\ref{prop:simplex} settles the second, and it is worth stating as
-a rule rather than left to judgement:
+cosmetic: the certificate \emph{is} the projector, so the number of conditions
+it imposes is $r$ minus the directions actually removed. One tolerance, one
+object --- a budget of $r-8$ cannot be claimed from a projector built by
+removing $11$.
+
+The real trade is therefore between conditions and membership. A
+\emph{looser} projector removes fewer directions and imposes more conditions,
+but any recorded example whose direction it leaves in has $Ch_i\neq0$ and
+reads as a non-member. A \emph{tighter} one removes the rounding noise as well,
+loses no example, and spends conditions on directions that carry none.
+Proposition~\ref{prop:simplex} bounds the choice from above and turns an
+invalid read into a detectable one:
 \[
   N'\;\le\;\min(m-1,\;r,\;N)\quad\text{is a theorem, so any tolerance
   returning }N'>m-1\text{ is provably too tight.}
 \]
-The cap is thus a self-check on the tolerance, not only a limit on the
-channel. It is not academic: on the FP32-trained letters cell ($m=11$, $N=8$,
-$r=64$) the $10^{-12}$ read gives $N'=11$, which exceeds $m-1=10$ and is
-therefore invalid, while the noise-matched read gives $N'=8$ --- the true
-number of private images. The invalid read costs three dimensions of budget,
-$k<53$ against the correct $k<56$, by projecting away directions that are
-rounding noise. Where the two disagree, the cap says which to believe.
+So the cap is a self-check on the tolerance and not only a limit on the
+channel.
+
+Whether the loosest admissible projector actually loses an example is
+measurable rather than arguable, and on the FP32-trained letters cell
+($m=11$, $N=8$, $r=64$) it does not$^\dagger$. The spectrum of $B_T$ falls
+$9.7\times10^{-1},\dots,2.8\times10^{-6}$ over eight values and then drops by
+$29\times$ to $9.6\times10^{-8}$, so the natural cut and the cap agree at
+eight --- two independent indicators, and all eight imprints are between
+$0.46$ and $1.00$ of the largest, so every example is strongly recorded.
+Rebuilding at that cut gives $56$ conditions against the tight read's $53$,
+and the eight members then sit at $1.2\times10^{-4}$ to $3.3\times10^{-3}$
+against a non-member band of order $0.4$: a separation of $120\times$, where
+the tight projector gives $3\times10^{4}$. No example is lost, and three
+dimensions of budget are recovered.
+
+The rule that follows is to take the loosest tolerance at which every recorded
+member stays clear of the non-member band, with the cap bounding it from above
+--- and to report the \emph{margin} and not only the count, since it is the
+margin that decides whether the cut survives a noisier release. Here $120\times$
+is ample; on a release whose member residuals are already at $10^{-2}$ it
+would not be.
 
 \emph{The three attackers on this one release are the clearest lesson in the
 section.} The certificate recovers none of the eight. The recipe route with an
