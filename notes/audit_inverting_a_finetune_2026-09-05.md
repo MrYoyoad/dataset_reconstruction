@@ -131,6 +131,34 @@ the one sentence that compares the two channels. Sent to the fixer.
 **The lesson for the sweep:** the highest-value class of defect here is a stated general rule contradicting its own
 tabulated instance. Prose checks cannot catch it, because the ledger prose is correct; only the rows can.
 
+## 3c. The other two documents (GM, 2026-09-05)
+
+The argument lives in three places and the corrections had reached only one. Both others carry **the same two
+serious defects**, and they are the two documents a theorist actually reads.
+
+**The theorem-first companion** (artifact `50af0d1a`, dated 2026-09-03), linked from the main page as the
+mathematical version. Six divergences; two serious. (i) No surface, no counting rule anywhere — a reader would
+conclude LoRA-on-attention is attackable, the reverse of what was measured. (ii) Its closing status says the
+from-nothing attack "has not landed", which predates 706721, 728592 and the letters cells: **the page denies the
+project's own lead result**. Also: three-cell verdict, no exactness scale, no membership baseline, no R5. Its
+mathematics is sound (closure, seed reduction, gauge, simplex, Theorem I including the careful point that rank
+deficiency at the truth alone would not give a fibre, the `T=1` witness, Adam) — it is the **scope and the status**
+that moved. Assigned to the explainer lane; controls lane auditing.
+
+**`notes/exact_channel_rev10.tex`** — the thesis text, compiled via Overleaf, the version that becomes the paper.
+Its line-1002 survivor is **already fixed** and carries the full experimenter-vs-attacker caveat. Two defects remain,
+verified by reading the file:
+- **Three-cell verdict** (~line 561): *recovered* / *alias* / *search failure*, the last defined as "residual above
+  the floor" with **no condition on the image error** — so a run returning the correct image without residual
+  confirmation is classified as the opposite of what happened. `unverified recovery` occurs **nowhere** in 2,895 lines.
+- **No surface, no counting rule**: zero occurrences of *attention*, *positions*, *deployed rank*, or the margin
+  formula. The only nearby passage concerns the frozen encoder's bottleneck at a ViT stem, which is a **different
+  argument** and must not be mistaken for the counting rule.
+
+**Standing check, from two instances in two days:** wherever a document states a rule and also tabulates instances of
+it, verify the table against the rule. On the main page a formula contradicted its own table (`273322`); in the
+companion, item 15's rules list warns against a thresholded verdict while its table has no cell to express one.
+
 ## 4. Against SimuDy (same primitive, four deltas, one deficit)
 
 Same primitive: replay the recipe from `θ_0` on candidate data and match `θ_T`. SimuDy: full fine-tuning,
