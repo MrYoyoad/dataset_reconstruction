@@ -47,6 +47,13 @@ number**, so every floor-reacher is private and none is spurious; all seven reco
 > fraction to equal the recorded fraction there. That argument has been checked at k=6 and **not yet
 > elsewhere in the chart range** — the k=16 check is recomputing (job 156607). This is the right reason to
 > want the check and is independent of any measurement fault.
+>
+> **And one cell of that job confirms the line rather than denting it.** At `k = 10` with `N′ = 6` the
+> certificate line is `k < r − N′ = 10`, so that cell sits **at** the line, not below it. There **0.299** of
+> starts reach an exact zero while only **0.048** land on a recorded image, and the argmin is **0.486** away —
+> `at_floor` with a large error, i.e. an **`alias`** under the four-cell schema. Spurious zeros dense at and
+> above the line is the pre-registered prediction, so this is the boundary measured, not an outlier. It is
+> excluded from the below-line pool the headline quotes and cited as **confirmation of the line**.
 
 **(c) Two counting lines.** Reading the release through the certificate gives `r − N′` equations per image;
 reading it through the full replay residual gives `(m−1) + r − N′`. **[M+D]** So
@@ -70,6 +77,20 @@ the found truths, argmin on a letter at 1.1e-6 (job 764976; the FP64 cell of the
 argmin of 3e-26, job 760909). *The replay/recipe route is a different experiment with different numbers and a
 near-truth start (job 771329) — it is identifiability, not this attack, and is not quoted here.* The adapter genuinely moved — `A_T` shifts 9.3%, feedback ratio 0.43, margins −2.65…−10.3 at
 t=1 rising to +6…+14 by t=T. Chart error 0.235 → instance-level.
+
+**(f) Membership — a different claim from recovery, and it must not be listed beside one.** **[M]** Against
+**8,000 non-members** — the population is capped by the dataset, not by choice — the certificate produces
+**zero false positives** at the pre-registered bar of 1e-2 on the normalised objective, giving a 95% upper
+bound of **3.7e-4**. The closest non-member sits at **0.114**, a margin of **~1.06 orders** above the bar.
+Enumerating candidate groups of size 1, 2, 10 and 25 leaves the measured rate at **zero throughout** (job
+349362); the union bound over-counts there because candidates are correlated (an image and its mirror), so the
+measured rate is the honest number.
+
+> **This recovers no image.** It says a released adapter answers *"was this image in the training set"* with a
+> false-positive rate below 4e-4 at 95% confidence. It is a specificity rate over non-members, scored as a rate,
+> and **no recovery verdict applies to it**. Reporting it in a list beside recovery numbers is how a membership
+> result gets read as a reconstruction one — which is why it has its own heading here and should keep one
+> wherever it appears.
 
 ---
 
