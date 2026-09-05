@@ -2898,3 +2898,22 @@ Two of tonight's three harness faults were of this kind: this one, and the decil
 **The habit:** when a cell is chosen *because* it is extreme, read the diagnostics for shape assumptions before
 running it — pairwise, spread, quantile, ratio — and give each an explicit degenerate branch that says why it is
 absent rather than failing or, worse, returning a number computed from nothing.
+
+## 2026-09-05 — an argument referenced and never defined, found by a sweep rather than by a run
+
+Test 6 died a second time on `a.init_noise`: referenced in the start-model table and **never added as an
+argument**, so every batch crashed constructing it. The first crash (an empty off-diagonal at one recorded image)
+masked it — a run that dies early never reaches the next fault, so **fixing one crash reveals the next rather than
+the end.**
+
+**What actually found it was a sweep, not the run.** Parsing the module for every `a.<name>` read and comparing
+against the defined options takes seconds and would have caught it before either job:
+
+    referenced but not defined: ['init_noise', 'solver']
+
+`solver` turned out to be guarded by `hasattr` and safe, which is the other half of the value — the sweep
+distinguishes a latent crash from a deliberate optional read.
+
+**The habit:** after editing an argument-driven script, sweep attribute reads against defined options before
+submitting. Three of tonight's five harness faults would have been caught by a check costing seconds: this one,
+the unused optimiser selector, and the loader's silent cap.

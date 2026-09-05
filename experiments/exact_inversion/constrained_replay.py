@@ -84,6 +84,11 @@ def main():
     ap.add_argument("--n-landings", type=int, default=8, help="distinct certificate landings carried into replay")
     ap.add_argument("--lm-iters", type=int, default=300); ap.add_argument("--lm-lambda", type=float, default=1e-2)
     ap.add_argument("--arms", nargs="*", default=["d0", "constrained", "unconstrained", "random", "null"])
+    ap.add_argument("--init-noise", type=float, default=0.10,
+                    help="D0's walk along Z_C from the truth. It is a NEAR-TRUTH start and therefore an "
+                         "identifiability arm, never an attack -- START_MODEL marks it so and the "
+                         "start_attacker_buildable flag is False on those rows. This argument was REFERENCED at "
+                         "the START_MODEL table and never defined, so every batch died constructing it.")
     ap.add_argument("--tol", type=float, default=1e-12,
                     help="projector tolerance defining N' = rank(B_T), and therefore the band. 7e's robustness "
                          "ladder runs {1e-6,1e-8,1e-10,1e-12}: a cell whose in_band is CONSTANT across it has a "
