@@ -156,6 +156,17 @@ is anchored between two measured bands, not chosen:
 working certificate clears it by 1–2 orders and one degraded into the marginal band fails it — that middle band is
 exactly where yesterday's in-band gate landed.
 
+> **⚠ SWEEP FINDING 2026-09-05 (yoado-b2), per the "threshold scoped to its physical scale" lesson (LESSONS_LEARNED)
+> and bf's membership-gate catch.** This 1e-2 is a **fixed** cut anchored to bands measured on **FP64** cells. On an
+> fp32/degraded release the bands move toward it — the letters fp32 cell already shows recorded residuals at
+> 3e-7…1.3e-5 (vs the 1e-16…1e-8 clean band), so the gap the 1e-2 sits in narrows, and a faint-but-clearly-separated
+> member (bf: residual 2.5e-6 against a non-member at 0.885, five orders clear, correctly a member) can be
+> mis-gated by a cut that no longer sits between *this cell's* bands. **The robust form is relative to each cell's
+> measured non-member band**, e.g. member iff `residual` is ≥ ~2 orders below that cell's minimum non-member residual,
+> with 1e-2 kept only as the FP64 default. This is a scoring-lane decision (b9's successor) — flagging it, not
+> rewriting the pinned bar. It is the fourth instance of the absolute-where-relative defect and the one bf predicted
+> the sweep would find.
+
 **Score it as a rate, not a bare minimum (with 1000 non-members the minimum is an extreme statistic; one unlucky draw
 would void a working certificate):**
 - **Primary: false-positive rate = fraction of non-members below 1e-2, pre-registered ≤ 1%** — a specificity measure,
@@ -243,9 +254,25 @@ cannot pass as a recovery (verdict `recovered` / `alias` / `optimisation-failure
    - **Verdicts stay categorical; magnitude lives in raw fields (c9).** `unverified-recovery` at 3e-7 and at
      9.2e-3 are both `unverified-recovery` with different raw `image_error`. The spread is in *every* cell —
      `recovered` spans 3e-7 to 9.2e-3 too — so grading the fourth cell would force grading all four.
-   - **`at_floor` is relative to the CELL's achievability floor** (the from-truth solve's residual), NOT a fixed
-     1e-30. **Factor pinned at 1.5× (b9):** a row is at-floor iff `residual ≤ 1.5 × res_at_truth` **in the same
-     units**. Anchored empirically over the 311 rows carrying both: rows that reached their arithmetic floor span
+   - **`at_floor` is relative to the LANDED IMAGE's achievability floor, NOT the cell's** (corrected 2026-09-05,
+     yoado-bf/97/b2; job 394731). **The earlier "cell's floor" was a defect:** `objective_at_truth` is the *minimum*
+     of the per-image floors, and those span orders of magnitude within a cell (2014× on the letters fp32 cell,
+     8.85e-14 … 1.78e-10), so `1.5 × cell_floor` sits below the floor of most images and only the single easiest one
+     could ever clear it — it measures the threshold, not the attacker. A start is at-floor iff its residual is within
+     1.5× **the floor of the image it landed on** (requires the landed-image index per start; the boolean
+     `per_start_landed` is not enough). Every derived verdict on the cell-global floor is recomputed against the
+     landed-image floor — the 287-of-304 agreement pass included, and every attacker-side count on the letters cell
+     (all withdrawn as threshold artefacts until recomputed). **Two regimes, and only one moves (97, 2026-09-05):**
+     in **exact-arithmetic below-line cells** the recorded floors all sit at machine precision (2e-29…1e-24) with a
+     ~20-order margin to the non-recorded band (0.1–1), so *any* threshold selects and the verdict does NOT change —
+     706721 has `frac_starts_at_floor = frac_on_a_recorded_image` to four decimals (0.51/0.51), perfect selection,
+     the attack verified at full yield; only **fp32 / near-line cells** (letters, 2014× recorded-floor spread) move.
+     **Diagnostic hazard:** do NOT use recorded-floor *spread* to decide which cells are affected — it false-positives
+     on the below-line cells (706721's recorded floors ratio-span 1e5×+, all meaningless machine-precision noise
+     against a 20-order margin). The correct affected-cell test is the direct `frac_at_floor ≈ frac_landed`
+     coincidence where landing (ground truth) is logged — it asks whether the residual selects the landings, not a
+     proxy for it. **Factor pinned at 1.5× (b9):** a
+     row is at-floor iff `residual ≤ 1.5 × (landed image's res_at_truth)` **in the same units**. Anchored empirically over the 311 rows carrying both: rows that reached their arithmetic floor span
      ratios **0.55–1.33** (fp64 converged 1.20, 1.29; fp32/fp16/bf16 at their format floors 0.55–1.33), while the
      lowest deliberately early-stopped row sits at **1.51**. 1.5 is the tight side of that gap, and tight is the
      safe direction: a borderline row falling to `unverified-recovery` under-counts attacker-claimable (no

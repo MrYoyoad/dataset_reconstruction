@@ -225,6 +225,17 @@ path, disjoint index files).
 - The attacker needs: the release, the public base model, a public chart. NOT the recipe, labels, N, or a
   start near the truth. Chart error 0.235 at k=32 → **instance-level** (self top-1 0.94 on held-out).
 
+> **⚠ AUDIT STATUS — 2026-09-05 (genuineness, yoado-b2; job 394731, cross-checked at source). The "all eight found"
+> figures above are EXPERIMENTER ground truth, NOT an attacker-verifiable result.**
+> All eight recorded and recovered (experimenter, ground truth): 300 random starts, 29.7% landing on a recorded
+> image, argmin on a recorded image at 1.09e-6, all eight found (job 394731).
+> **The attacker-verifiable count is NOT YET MEASURED.** The existing `at_floor` computation compares every start
+> against `1.5 ×` the *cell's* floor — the minimum of eight per-image floors spanning **2014×** — which sits below
+> the per-image floor of seven of the eight images, so a single cell-wide threshold cannot certify most of them.
+> Per-image recomputation and the landed-image index are pending. A restarted swarm must not re-lead with "8 of 8"
+> as an attacker number; the earlier "3 of 8" and "3.0% at floor" (and any precision/recall from the same
+> `floor_vs_landing`) are **withdrawn** as threshold artefacts.
+
 **Why this replaced the earlier headline.** The confident-batch cell (r=64, k=32, 65.6% landing, all eight)
 is a *corner*: ‖B_T‖ = 7.6e-18 after a monotone 23-order collapse as chart fidelity rises (job 752500), and
 the adapter never fed back (A_T = A_0; B_T = T × one gradient step). It answers no objection about realism.

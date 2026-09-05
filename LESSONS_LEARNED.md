@@ -30,6 +30,46 @@ here", not "this is what is wrong" — name the diagnosis as provisional until t
 
 ---
 
+## A threshold must be scoped to the physical scale it separates (2026-09-05)
+
+Four separate defects in one day were one bug: a cut referenced to a mechanically convenient scale instead of the
+physically meaningful one. It fails in **both directions**, which is why it kept reappearing wearing different faces.
+
+**An absolute cut where a relative one belongs** — a fixed constant used where the meaningful reference is a measured
+band or a per-item floor that moves across cells/formats:
+1. **Achievability floor taken cell-global.** `at_floor` compared every start to `1.5 × min-over-images floor`; on an
+   fp32 cell the per-image floors span 2014×, so the cut sat below seven of eight images and only the easiest could
+   clear it. Produced a spurious "attacker sees only 3 of 8" downgrade of the lead result. Fix: per **landed-image**
+   floor.
+2. **Blank-image artefact.** An objective normalised by a *constant* let `φ→0` win the argmin; fix was the
+   scale-invariant `‖Cφ‖/‖A_Tφ‖`.
+3. **Recording cut / membership gate as a fixed threshold.** `N′` counted recording against a fixed level rather than
+   imprint-relative and precision-scoped (`‖C_i‖/max‖C_j‖` vs the *stated format's* roundoff); and a membership row
+   with residual 2.5e-6 against a non-member at 0.885 (five orders clear, correctly a member) *failed an absolute
+   gate*. A membership test reads against the **non-member band**, not a fixed cut.
+
+**A relative measure with no absolute floor** — a ratio that resolves structure in noise:
+4. **Floor-spread among machine-precision zeros.** Recorded-image floors on a below-line fp64 cell ratio-span 1e5×–
+   1e18× (2e-29 … 7e-24) and *look* exactly like defect #1 — but all are numerically zero against a ~20-order margin
+   to the non-recorded band, so the "spread" is meaningless and any threshold selects perfectly. Using floor-spread
+   to decide which cells are affected false-positives on every exact-arithmetic cell. Same root as a **rank test with
+   tolerance relative to the largest singular value**, which calls a numerically-zero matrix full-rank.
+
+**The rule.** Before pinning any threshold, name the physical scale of the thing being separated and reference the cut
+to *that*: relative to the meaningful band/floor (per-image, per-format, per-cell non-member band), **and** with an
+absolute noise floor so a ratio cannot report structure below precision. A fixed constant is suspect the moment the
+bands move across cells or formats; a bare ratio is suspect the moment its denominator can sit at the noise floor.
+**Operational check for the correct one:** where ground truth is logged, does the residual/threshold test's selection
+*coincide* with the ground-truth outcome (e.g. `frac_at_floor ≈ frac_landed`)? That coincidence, not the spread or
+the raw count, is the diagnostic — it asks whether the cut selects the real thing instead of a proxy for it.
+
+**Meta.** Each of the four was caught by a *different* lane than produced it, at source, before the supervisor meeting
+rather than in it — including two the auditor lane itself produced (a floor-spread false-positive, an earlier "3 of
+8"). Reproducing a number is not the same as the quantity meaning what it claims (cf. "A relay is not a verification",
+above): the arithmetic can be exactly right while the reference scale is wrong.
+
+---
+
 ## Do not cost a framework-derived unknown by its expanded dimension (2026-09-04)
 
 - **What I got wrong:** I costed a minibatch shuffle as `T × N` free bits (3,200) against an identifiable budget of ~100 and concluded the data assumption was merely being swapped for a schedule assumption.
