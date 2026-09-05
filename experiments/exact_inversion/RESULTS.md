@@ -5694,3 +5694,30 @@ specific numbers are recomputed from each batch's certified count when it report
 than restating the onsets afterwards, because a prediction whose numbers move after the data arrives is worth
 nothing unless the movement is visible. The structural claim is unchanged and is the one being tested; the
 arithmetic was mine and was drawn from the wrong column.
+
+## Test 5's axis ruling REVERSED — single axis, and the confound cited is one I just hit live
+
+yoado-cd has reversed the two-axis grid on yoado-b9's argument, and it is decisive. **`k_g` is a property of the
+generator**, so sweeping it leaves `B_T`, the certified set, `N′`, the projector and the conditioning **identical**
+across cells — only the prior varies, which is the variable under test. **Sweeping `r` changes the release**, and a
+smaller budget can push weak imprints below the projector's tolerance and **silently move the certified set**, so
+the crossing would move for two reasons at once. The grid buys a collapse and pays exactly the confound the
+certified-index rule exists to catch.
+
+**And that confound is not hypothetical — I hit it in test 6 while this message was in flight.** The confident
+batch's raw rank is 7 and its **certified** count is 5, because the gate caught a marginal image at 1.1e-05 whose
+imprint is 1.4e-09. Same batch, same release, two different counts, and the band follows the certified one. A
+sweep over `r` would have moved that boundary invisibly from cell to cell.
+
+**The locked sequence:**
+1. **Primary, one cell: `k_g = 8` at fixed `r`.** The sparsity account predicts failure at every `k_g` in range,
+   so a single success refutes it outright — one generator, one cell, no grid.
+2. **Then the `k_g` sweep at that same fixed `r`** — {8, 16, 32, 48, 64, 96} — bracketing the predicted crossing
+   at `r − N′`.
+3. **The `r` axis only if a crossing appears**, and then only to test whether the crossing *tracks the budget*,
+   which is the one thing separating "the crossing is at `r − N′`" from "the crossing is at some fixed `k_g` that
+   happens to equal 56". With no crossing on the clean axis it has nothing to confirm and does not run.
+
+Unchanged: generator-only as the decisive control; the two oracle gates as **hypothesis-unmet voids** reported with
+their alignment values rather than as nulls; on-manifold never reported in the same breath as off-manifold; and
+identifiability and fidelity kept as separate axes.
