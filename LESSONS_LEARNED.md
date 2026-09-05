@@ -20,6 +20,11 @@ instances in one day, each caught only because someone re-checked the source rat
    0.714 where 1e-15 was expected) but the diagnosis was wrong: not a scientific limit, a metric that scored
    every start against one fixed recorded image rather than the one it landed on. The rows could not have
    revealed that; only the code path could.
+4. **A row read at the wrong precision (2026-09-05).** The GM checked a disputed per-image certificate residual
+   at its jsonl row (725918), printed the median to three decimals, and relayed "near 1e-3 in every row". At full
+   precision the median climbs 1.2e-6 → 1.3e-3 across the ladder — three orders hidden by the rounding. The
+   fixer caught it at the row. Reading the source is not enough if the print format erases the scale of a
+   log-distributed quantity: print residuals in scientific notation, always.
 
 **Rules.** (a) Verify at the point of **application**, not at the point of relay — the session about to write
 the claim into a document is the last one that can catch it. (b) When a finding and a fix arrive together,

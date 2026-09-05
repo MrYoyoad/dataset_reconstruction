@@ -31,10 +31,13 @@ arbitrary. The page's own evidence agrees, and more strongly than first quoted h
 yoado-93, 2026-09-05): at `N' = N` the certificate residual sits at ~1e-16 to 1e-10; at `N' < N` it reaches order
 one. On the 26-logit head (job 725918, `step74_widehead_725918.jsonl`, checked by the GM at the row) the worst
 recorded image's residual (`cert_residual_recorded_max`) is 0.23, 0.38, 0.38, 0.45, 0.45 at recorded counts 19, 17,
-16, 15, 14, while the median over the twenty recorded images stays near 1e-3 in every row — the loss of exactness
-is concentrated in a few images and grows with `N − N'`. (An earlier "0.05 → 0.20" quoted here came from the
+16, 15, 14; the median over the twenty recorded images climbs three orders, 1.2e-6, 1.3e-4, 6.7e-4, 6.3e-4,
+1.3e-3, and the number of recorded images above one percent runs 1, 4, 6, 8, 7 of twenty (yoado-64, at the row) —
+the loss of exactness concentrates in a handful of images and grows with `N − N'`. (A first GM reading of the
+median as "near 1e-3 in every row" was a rounding artefact: printing a log-scale quantity to three decimals hid
+three orders of variation.) (An earlier "0.05 → 0.20" quoted here came from the
 page's own prose, not the job; withdrawn.) Quote it as "~1e-16 at `N' = N`; at `N' < N` the worst recorded image
-climbs toward order one with `N − N'` while the median stays small". "The algebra holds as stated" should read: exact at
+climbs toward order one with `N − N'` while the median climbs from 1e-6 to 1e-3 and most images stay nearly exact". "The algebra holds as stated" should read: exact at
 `N' = N`, approximate otherwise, with the residual scale stated. The same caveat applies to "the row space of
 `B_T` is the column space of `X`, legible off the release with no work at all".
 
