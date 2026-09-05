@@ -1974,15 +1974,35 @@ attacker, and only the first is safe to act on.
 
 The above-line regime has now been measured at high $k$ rather than inferred,
 and the line is sharp$^\dagger$ (job 753886, FP64, $5000$ starts per cell).
-One unit above ($k=58$, $N'=7$, line $57$): $14.3\%$ of starts reach an exact
-zero, $0.04\%$ land on a recorded image, and the $\operatorname{argmin}$ is a
-spurious solution at residual $4\times10^{-31}$ sitting $0.84$ away from any
-private image. Three units above ($k=60$): no landings at all, $36.4\%$ at the
-floor, $\operatorname{argmin}$ error $1.18$. So above the line the objective
+The comparison must be against the conditions the projector
+actually imposes, and these cells were run with a tight cut removing seven
+directions, hence $57$ conditions. One unit above that ($k=58$): $14.3\%$ of
+starts reach an exact zero, $0.04\%$ land on a recorded image, and the
+$\operatorname{argmin}$ is a spurious solution at residual $4\times10^{-31}$
+sitting $0.84$ away from any private image. Three units above ($k=60$): no
+landings at all, $36.4\%$ at the floor, $\operatorname{argmin}$ error $1.18$.
+So the sharpness is measured against $k$ versus the conditions imposed, which
+is what the line computes and is therefore projector-relative rather than
+absolute. So above the line the objective
 is not merely uninformative --- it is confidently wrong, and the fraction of
 starts reaching an exact zero \emph{rises} while the fraction reaching a
 private image falls to nothing. A defender reading only ``the attacker's
 solver converged'' would draw the opposite conclusion from the truth.
+
+These two cells also show why the projector must be named. Their relative
+imprints are $1.0$, $0.69$, $0.24$, $1.6\times10^{-3}$, $4.6\times10^{-4}$,
+$2.7\times10^{-8}$, $4.6\times10^{-9}$, $2.1\times10^{-15}$, so the
+precision-scoped cut of the previous section keeps five and gives $59$
+conditions --- under which $k=58$ would sit \emph{below} the line rather than
+one unit above it. The measurement is not thereby invalidated: it reports what
+happens when $k$ exceeds the conditions a given projector imposes, and that is
+the statement the sharpness claim makes. But it means the attacker's reach on
+this release is \emph{larger} than these cells display, since the projector
+they used discards two conditions to rounding, and it means every ``above the
+line'' label in this study must name the cut that produced it. The
+corpus-wide relabelling is recorded in \S\ref{sec:opens} as outstanding; the
+shifts are all in the attacker's favour, so no claim of exposure is weakened
+by it, but several are understated.
 
 The corresponding half-precision cells cannot be placed relative to their line
 at all, and that is itself the finding. The same bfloat16 release reads
