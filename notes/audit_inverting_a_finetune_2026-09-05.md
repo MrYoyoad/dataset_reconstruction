@@ -258,3 +258,67 @@ under it: the recipe-free channel is vacuous on the dominant deployment pattern 
 and low-position deep convolutions — decided by architecture and batch size alone, before any release exists, and
 never a privacy guarantee. That is a tool, which is what the supervision has been asking for; the reconstruction
 cells are its demonstration, not the claim.
+
+
+## 7. What the small cells are proof of concept FOR — the calibration
+
+Written because it was nowhere: the individual facts are scattered across the three documents, but the statement
+of *what they establish and what they do not* is not in any of them, and it is the first thing a supervisor asks.
+All of it is existence, none of it is magnitude.
+
+### They do establish, at small scale
+
+1. **The channel can be read from nothing.** No recipe, no labels, no `N`, no start near the truth — random
+   public-scale coordinates only. Digits at `k=6` and letters at `k=16`/`k=32`.
+2. **The result can be self-verified without ground truth, and this is the part to lead with.** Not the landing
+   rate — the *agreement* between certification and landing:
+
+   | cell | starts certified at the floor | starts that genuinely landed |
+   |---|---|---|
+   | digits, `k=6`, below the line (two batches) | 0.51 / 0.4455 | 0.51 / 0.4455 |
+   | letters FP64, `k=16` | 0.824 | 0.824 |
+   | letters FP64, `k=32` | 0.384 | 0.384 |
+   | digits, `k=10`, **at** the line | **0.2995** | **0.0475** |
+
+   Below the line certification produced **no false positives** in any cell; at the line it certified a third of
+   starts against a twentieth that landed. That contrast is the demonstration. It is what separates an attack from
+   a demonstration, because the attacker can tell success from failure without ever seeing the data.
+3. **The predicted condition transfers off the synthetic bench.** On a pretrained ResNet with one private
+   photograph the counting rule predicted `rank C = 64 − 49 = 15`; the measurement returned 15, with a
+   false-positive rate of 0.0000 across 20 draws and the adaptive-optimiser control vacuous as required.
+
+### They do NOT establish
+
+- **That any of this is a privacy attack.** Every from-nothing recovery returns the *projection onto the
+  attacker's chart*, exact to machine precision, while that projection sits far from the raw image.
+  **Recognisability was never assessed.** This is the load-bearing gap: if reaching a chart floor never yields
+  something a person would identify, every theorem survives and the privacy framing does not.
+- **That self-verification survives realistic arithmetic.** Train the same letters in FP32 rather than FP64 and
+  16.2% of starts still land at `k=32` while **none** reach the floor. Audited against the correct per-image
+  floor, the lead cell gives ~3% certifiable against ~29.7% landing. Found and attacker-confirmable come apart
+  exactly where the arithmetic gets realistic.
+- **Scale.** MLP heads, `N ≤ 14`, one real-network cell at a single private example.
+
+### The chaining question, split by what is provable
+
+- **Provable, and near-trivial:** any candidate reproducing the release also satisfies the certificate, so
+  replay's zero set ⊆ the certificate's. Between the two lines the outer set is a manifold of dimension
+  `k − (r − N')` per example, and replay's extra `m−1` conditions per example are exactly what would pin a point
+  on it. This is counting, and it is derived.
+- **Not provable from here:** whether the certificate's solution manifold *intersects replay's basin*. That is a
+  geometry question about the basin, the least-characterised object in the framework — its edge was never located,
+  and the one measured fact about it is negative: eliminating the seed in closed form shrank the search
+  substantially and **did not widen the basin** (job `605718`), so the obstruction is the landscape, not the
+  dimension. Chaining is well-posed, untested, and gated on what we understand least. **Do not claim it will work.**
+
+### One place the routes provably decouple
+
+Under an adaptive optimiser the closure fails, the certificate ceases to exist entirely, and replay still
+identifies. The two are not two views of one object that must stand or fall together — which is the kind of
+statement that makes a framework look like a framework rather than a single trick.
+
+### The sentence this licenses
+
+*Not* "we have a criterion". **"We have a derived condition that has predicted correctly everywhere it has been
+tested, including on a real pretrained model, and small-scale existence demonstrations that the channel it
+predicts can be read and checked from nothing. Whether what comes back is an image is the next measurement."*
