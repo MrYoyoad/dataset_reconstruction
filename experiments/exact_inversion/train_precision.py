@@ -393,6 +393,13 @@ def main():
                 valid = [d for d in runs if not d["degenerate"]]
                 best = min(valid, key=lambda d: d["objective"]) if valid else None
                 counts = {str(i): sum(1 for d in runs if d["landed"] and d["nearest"] == i) for i in recorded}
+                # ATTACKER-VERIFIABLE COVERAGE. `counts` is what an experimenter sees: it scores each start
+                # against the private images. `verified` is what an attacker can claim unaided: a start counts
+                # only if it BOTH landed on image i AND drove the objective to image i's own floor, so the
+                # residual itself certifies the landing. n_images_verified is the "k of N'" figure, and it is
+                # meaningless without random_starts beside it, since coverage grows with draws.
+                verified = {str(i): sum(1 for d in runs
+                                        if d["landed"] and d["nearest"] == i and at_floor(d)) for i in recorded}
                 # closest approach per recorded image over ALL starts: a "not found" at a residual near the 1e-2 bar is a degraded
                 # recovery, not a miss (yoado-ed) -- report the image error, not only the pass/fail
                 min_err = {str(i): min([d["err"] for d in runs if d["nearest"] == i] or [float("nan")]) for i in recorded}
@@ -423,6 +430,10 @@ def main():
                                           "for continuity; frac_starts_at_achievability_floor is the correct one, "
                                           "relative to this cell's own measured floor at the pinned 1.5x factor.",
                             recorded_images_found=sorted(int(i) for i, c in counts.items() if c > 0), landings_per_recorded_image=counts,
+                            verified_per_recorded_image=verified,
+                            n_images_found=sum(1 for c in counts.values() if c > 0),
+                            n_images_verified=sum(1 for c in verified.values() if c > 0),
+                            floor_by_image={str(i): floor_by_image[int(i)] for i in recorded},
                             min_err_per_recorded_image=min_err,
                             argmin_objective=(best["objective"] if best else None), argmin_landed_on_recorded=(best["landed"] if best else None),
                             argmin_err_vs_nearest_recorded=(best["err"] if best else None), n_degenerate_starts=len(runs) - len(valid),
