@@ -314,6 +314,20 @@ renumber. Anything below that is transcribed rather than authored is marked as s
     - This rule would have caught the broken Adam arm, the vacuous hidden-layer certificate and the graded-statistic
       ceiling (cd).
 
-**Also standing, from the round-2 spec (`notes/round2_test_specs.md`), not yet numbered here:** realised pool size
-reported beside requested · report the curve alongside the chosen point · any learned component scored against the
-private target before it feeds a solve (already rule 5 above).
+11. **Realised pool size reported beside requested (cd's standing rule; promoted to a numbered rule by 7e,
+    2026-09-05).** Wherever a run draws from a pool — non-members, public candidates, random starts — the row
+    records what was **realised**, not only what was asked for. A requested 1,000 that realised 340 changes every
+    rate computed from it, and a rate quoted against the requested number is wrong by however much the shortfall
+    was.
+
+12. **Report the curve alongside the chosen point (cd's standing rule; promoted 2026-09-05).** Where a scalar is
+    selected by a rule — a regularisation weight by the discrepancy principle, a truncation by the largest spectral
+    gap, a stopping point — report the **quantity across the swept grid**, not only the value at the chosen point.
+    It makes tuning visible rather than merely forbidden: a result at a sharp optimum reads differently from one on
+    a plateau, and the reader can see which it is without taking the selection rule on trust.
+
+**Citation check (rule 9, job 351056) — VERIFIED by b9, 2026-09-05.** `results/exact_inversion/step121_probe_351056.jsonl`,
+git `e55a306`, `part: PROBE` rows: `confident` `N′`=7 lines 57/67 · **`hard1_diff` `N′`=1 lines 63/73** ·
+`repeated` `N′`=6 lines 58/68. The `hard1_diff` row is a single-recorded-image cell whose band (63…72) contains
+chart dimensions in the swept range, which is what falsifies *"the one-image regime and the band are mutually
+exclusive at a deployable rank"* at `r = 64`. The citation is correct as written.
