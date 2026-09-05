@@ -5753,3 +5753,32 @@ sit above the certificate line, but the alias-manufacturing hole is specific to 
 the ground rule I broke once already today, and the requirement bites only when an above-line test-8 cell exists,
 which is not yet. **The field will be emitted with an explicit non-criterial marker rather than dropped**, on
 yoado-b9's reasoning that a missing field reads as a bug while a marked one reads as a decision.
+
+## Cross-cutting rule 4 (verdict = f(residual, error-vs-truth)) — audited across the harness, and one real divergence
+
+The root fix replaces the above-line special case: make the verdict a uniform function of **both** the residual and
+the image error against the truth, so `recovered` is structurally impossible without a correct image in **any**
+regime, and the residual becomes a raw field carrying no verdict word. I audited every harness rather than
+assuming, and the result is mostly good with one place that needs a decision rather than an edit.
+
+**Already compliant, verified by reading the code:**
+- `constrained_replay.py` — `recovered` requires the objective at the absolute floor **and** every image error
+  under 1e-10 **and** the returned set covering distinct truths; a floor-reaching wrong image is `alias`. The
+  residual is emitted as a raw value with an at-floor boolean and no verdict word.
+- `lora_exact_inversion.py` — `recovered` requires the **worst** image error under tolerance (keyed off the worst
+  deliberately, since a lower-median convention once labelled a half-recovering cell as recovered). A wrong image
+  cannot be `recovered`. `alias` is reserved for residual-at-floor with a wrong image, exactly as specified.
+
+**The divergence, and it is a decision for the lanes rather than mine to make silently.** In
+`lora_exact_inversion.py`, `recovered` is decided by **image error alone** and does not additionally require
+at-floor. That satisfies the *safety* property the rule exists for — no `recovered` without a correct image — but
+it is not the literal conjunction. **Applying the conjunction retroactively would relabel historical cells**: any
+past run that found the correct image while its residual sat above the floor is currently `recovered` and would
+become something else. That is a change to the meaning of rows already reported in this ledger and in the meeting
+material, so I am not making it unilaterally.
+
+**My reading, offered not assumed:** the safety property is what rule 4 is for and it already holds everywhere;
+the conjunction additionally asserts *"and the release is reproduced"*, which is a different and stronger claim
+worth having, but introducing it should be a **new field** rather than a redefinition of an existing verdict word.
+The membership harnesses (`live_regime`, `graded_imprint`, `score_truncated`) are unaffected — their verdicts are
+membership outcomes, not recovery ones, and none of them has a residual-derived pass.
