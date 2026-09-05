@@ -482,10 +482,14 @@ renumber. Anything below that is transcribed rather than authored is marked as s
     from loss. Three incidents in one day traced to this, not to any analytical mistake — the executor's Step-2b
     edit, another lane's derived-verdict change, and the per-image floor fix that left the letters cell scoring
     against a cell-global bar (its 3% and coverage were artefacts of the unrun fix). It now outranks analysis as the
-    cause of wrong numbers. **Rule:** a fix must be committed AND re-run before its number is quoted; a number is
-    attributable only to committed code at a named hash. Before quoting a cell, confirm the code that produced it is
-    committed. Pairs with the concurrent-write rule (8): prefer an append and commit promptly, so no lane's work sits
-    orphaned in a shared tree.
+    cause of wrong numbers. **The mechanism is INVISIBILITY, not merely non-scoring (78's sharpening):** uncommitted
+    work is invisible to every lane except the one that wrote it, so the rest of the project keeps quoting the number
+    the OLD code produced while believing the fix is in — in all three cases today the wrong number was quoted
+    confidently by someone who had no way to know. **Rule: a fix is not landed until it is committed AND rerun AND the
+    number it changes has been requoted from the new rows.** A number is attributable only to committed code at a
+    named hash; before quoting a cell, confirm the producing code is committed and the number came from those rows.
+    Pairs with the concurrent-write rule (8): prefer an append and commit promptly, so no lane's work sits orphaned in
+    a shared tree.
 
 **Citation check (rule 9, job 351056) — VERIFIED by b9, 2026-09-05.** `results/exact_inversion/step121_probe_351056.jsonl`,
 git `e55a306`, `part: PROBE` rows: `confident` `N′`=7 lines 57/67 · **`hard1_diff` `N′`=1 lines 63/73** ·
