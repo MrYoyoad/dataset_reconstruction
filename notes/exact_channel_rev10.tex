@@ -1921,9 +1921,13 @@ First, the leaked dimension $N'\bigl((m-1)+r-N'\bigr)$ is a downward parabola
 in $N'$, maximised at $N'=(m-1+r)/2$. One might therefore expect a regime in
 which reducing $N'$ increases exposure --- but Proposition~\ref{prop:simplex}
 forecloses it: $N'\le\min(m-1,r,N)$, and $\min(a,b)\le(a+b)/2$ for any $a,b$,
-so the maximum is \emph{never} reachable. The leaked dimension is therefore
-strictly increasing in $N'$ across the entire admissible range, for every
-architecture, with no appeal to typical values. Coarser storage does reduce
+so the parabola's \emph{decreasing half is structurally
+unreachable}. The leaked dimension is therefore non-decreasing in $N'$ across
+the entire admissible range, for every architecture and with no appeal to
+typical values --- strictly increasing whenever $m-1\neq r$, and flat only at
+the single endpoint of the knife-edge $m-1=r$, where $\min(a,b)=(a+b)/2$ and
+the cap coincides with the peak (rank nine on a ten-class head, say). In no
+configuration does recording more images reduce the leaked dimension. Coarser storage does reduce
 total leaked dimension: at $m=10$, $r=64$ the peak sits at $N'=36.5$ and the
 cap at $9$.
 
