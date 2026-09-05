@@ -5813,3 +5813,25 @@ Indeterminate: 0.**
 for *"the release carries the information"* and must never have been counted as attacker-realizable. They are all
 from a run still in flight, so no ledger or meeting claim rests on them — **the audit found the pattern before it
 could reach a document**, which is what running it over the corpus rather than the new rows was for.
+
+## The three counts, never collapsed into one (job 391535)
+
+Over the 304 scoreable rows of the corpus, from the same derived column:
+
+| metric | definition | count |
+|---|---|---|
+| **information-carried** | recovered **+** unverified-recovery | **188** |
+| **attacker-claimable** | recovered **+** alias | **190** |
+| **verified-true** | recovered (the intersection) | **180** |
+| search-failure | neither | 107 |
+
+**`unverified-recovery` counts toward information-carried and NEVER toward an attack success rate.** Collapsing
+these into a single "recovered" number is what would let the 8 image-only rows be read as attacker successes, and
+the three-way split makes that impossible to do by accident rather than merely discouraged.
+
+**And `at_floor` is being rewired to the CELL's own achievability floor** — the from-truth companion solve's
+residual — rather than a fixed absolute constant. The harness already emits that residual for the floor arm, so it
+is one wiring change rather than a new measurement. **The factor is yoado-b9's to pin and I have not invented
+one:** the script reports the count at several factors instead of scoring at a value I chose, because the
+distinction is live — an fp32 row sits at roughly 5× its achievable floor, which is exactly on the
+recovered/unverified-recovery boundary, so the factor decides that row's category rather than merely labelling it.

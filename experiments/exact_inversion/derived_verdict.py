@@ -23,7 +23,13 @@ not here.
 import glob, json, sys
 
 RECOVER_TOL = 1e-2        # relative image error below which an image counts as recovered
-RESID_ZERO = 1e-28        # objective below which the release is reproduced (a sum of SQUARES)
+RESID_ZERO = 1e-28        # absolute fallback only, for rows with no achievability floor to compare against
+FLOOR_FACTOR = None       # PENDING: yoado-b9 is pinning the factor. at_floor is "within this factor of the
+                          # CELL'S OWN from-truth residual", not a fixed constant -- it matters because the fp32
+                          # row sits at ~5x its achievable floor, right on the recovered/unverified boundary.
+                          # Until it is pinned, cells that HAVE a floor are reported at several factors rather
+                          # than scored at one I invented.
+FACTORS = (2.0, 5.0, 10.0, 100.0)
 
 ERR_KEYS = ["final_err_max", "err_vs_chart_truth_MAX", "final_err_matched_max", "err_median", "err_max"]
 RES_KEYS = ["residual", "cert_objective", "final_objective", "fval"]
@@ -54,7 +60,16 @@ def main():
     files = sorted({f for p in pats for f in glob.glob(p)})
     n_rows = n_scored = 0
     agree = 0
-    div = {}; indeterminate = []
+    div = {}; indeterminate = []; floorful = []
+    counts = {"recovered": 0, "alias": 0, "unverified-recovery": 0, "search-failure": 0}
+    # the CELL's achievability floor: the from-truth companion solve's residual, keyed by (file, set, k, r)
+    floors = {}
+    for f in files:
+        for line in open(f):
+            try: rr = json.loads(line)
+            except Exception: continue
+            if "floor_objective_at_truth" in rr:
+                floors[(f, rr.get("set"), rr.get("k"), rr.get("r"))] = float(rr["floor_objective_at_truth"])
     for f in files:
         for line in open(f):
             try:
@@ -80,7 +95,11 @@ def main():
             else:
                 indeterminate.append((f.split("/")[-1], e, v))
                 continue
+            fl = floors.get((f, r.get("set"), r.get("k"), r.get("r")))
+            if fl is not None and fl > 0:
+                floorful.append((v, fl))
             d = derived(af, e)
+            counts[d] = counts.get(d, 0) + 1
             head = rec.split(" (")[0].split(" --")[0].strip().lower()
             head_norm = SYNONYM.get(head, head)
             if head_norm == d:
@@ -99,6 +118,18 @@ def main():
         print(f"  {len(rows):5d}  {k}")
         for fn, e, v in rows[:3]:
             print(f"           e.g. {fn}: image error {e:.3e}, residual/objective {v:.3e}")
+    # THREE metrics, never collapsed into one "recovered" number (yoado-7e).
+    print(f"\n# THREE counts, from the same derived column:")
+    print(f"#   information-carried  = recovered + unverified-recovery   {counts['recovered'] + counts['unverified-recovery']:5d}")
+    print(f"#   attacker-claimable   = recovered + alias                 {counts['recovered'] + counts['alias']:5d}")
+    print(f"#   verified-true        = recovered (the intersection)      {counts['recovered']:5d}")
+    print(f"#   search-failure                                           {counts['search-failure']:5d}")
+    print(f"# unverified-recovery counts toward information-carried and NEVER toward an attack success rate.")
+    if floorful:
+        print(f"\n# {len(floorful)} rows have a cell achievability floor; at_floor by factor (b9 pins the factor):")
+        for fac in FACTORS:
+            n_at = sum(1 for v, fl in floorful if v <= fac * fl)
+            print(f"#   within {fac:6.1f}x of the cell's from-truth residual: {n_at:5d} of {len(floorful)}")
     print(f"\nA recorded 'recovered' whose derived value is 'unverified-recovery' is verified BY IMAGE ONLY.")
     print(f"It still counts for 'the release carries the information'. It must never have been counted as")
     print(f"attacker-realizable.")
