@@ -5649,3 +5649,35 @@ Cleared by all three lanes. Three batches — confident, repeated, hard1_diff �
 5. **The `N′ = 1` cell scores on the negative side only** (algebraic identity), carries **found, not
    constructed** on every row, and **voids** if its floor-reacher residuals span less than the separation bar,
    recorded as *insufficient spread* and never as degradation.
+
+## Test 5 — run the cheap primary BEFORE the grid, because it is decisive on its own (yoado-cd)
+
+**The sparsity account predicts failure at every latent dimension in the range**, since none of them approaches the
+~250 the sparsity threshold demands. **So one success at `k_g = 8` refutes it outright** — one generator, one
+cell, no grid. That runs first. If it fails, the grid would be measuring a crossing that may not exist, and that
+is worth knowing before spending on it.
+
+**The grid, after:** `k_g ∈ {8, 16, 32, 48, 64, 96}` × `r ∈ {32, 64, 128}`, trimmed to whatever brackets the
+ratio-1 line at each rank — not every combination, only enough cells straddling the crossing at each rank. Two
+axes rather than one, because a single axis gives one crossing that could coincide with any fixed `k_g`, whereas
+two give a **collapse onto `k_g/(r − N′) = 1`**, the same structure that made round 1's grid hard to satisfy by
+accident. The collapse is reported with its uncertainty; **"no crossing in range" is a reportable disposition**;
+and the certified image **indices** must match across swept cells or the fit is void, with the intersection
+fallback scored against ten times its own achievability floor.
+
+## A guard I was relying on has a hole, and it is real — adaptive refitting can MANUFACTURE an alias
+
+yoado-cd gave me the guard and yoado-7e found the hole, so it is recorded as a correction rather than a caveat.
+**The exact residual does NOT make bootstrapping safe.** It catches wrong images that *fail* to reach the floor.
+It does not catch a wrong image that has been *made* floor-reachable: refit the chart so a wrong recovered image
+becomes reachable, it floors on the next round, and it reads as confirmed.
+
+**But the hole is scoped, and the scope is the cheaper fix.** **Below the certificate line the zero set is
+isolated points** — the recorded images — so any floor-reaching candidate *is* a recorded image and the guard
+holds exactly. **Above the line the zero set is a positive-dimensional manifold**, and refitting the chart to pass
+through one of its non-truth points manufactures an alias that genuinely floors.
+
+**So test 8 runs BELOW the line, where the residual guard is sound.** If it must go above, it uses the three-way
+refit control — own recovery, random, and a *different target's* recovery — with the alias verdict watched at
+**every** bootstrap iteration rather than only at the end. **The regime goes on the row**, because the guard's
+validity depends on it and a reader cannot infer it from the numbers.
