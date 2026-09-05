@@ -477,6 +477,15 @@ renumber. Anything below that is transcribed rather than authored is marked as s
     gap, a stopping point — report the **quantity across the swept grid**, not only the value at the chosen point.
     It makes tuning visible rather than merely forbidden: a result at a sharp optimum reads differently from one on
     a plateau, and the reader can see which it is without taking the selection rule on trust.
+13. **Commit-or-it-didn't-run (78, 2026-09-06 — now the leading wrong-number cause).** A fix that sits UNCOMMITTED in
+    the working tree scored nothing: the published number was produced by the OLD code, and the fix is one `checkout`
+    from loss. Three incidents in one day traced to this, not to any analytical mistake — the executor's Step-2b
+    edit, another lane's derived-verdict change, and the per-image floor fix that left the letters cell scoring
+    against a cell-global bar (its 3% and coverage were artefacts of the unrun fix). It now outranks analysis as the
+    cause of wrong numbers. **Rule:** a fix must be committed AND re-run before its number is quoted; a number is
+    attributable only to committed code at a named hash. Before quoting a cell, confirm the code that produced it is
+    committed. Pairs with the concurrent-write rule (8): prefer an append and commit promptly, so no lane's work sits
+    orphaned in a shared tree.
 
 **Citation check (rule 9, job 351056) — VERIFIED by b9, 2026-09-05.** `results/exact_inversion/step121_probe_351056.jsonl`,
 git `e55a306`, `part: PROBE` rows: `confident` `N′`=7 lines 57/67 · **`hard1_diff` `N′`=1 lines 63/73** ·
