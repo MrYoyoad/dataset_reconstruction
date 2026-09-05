@@ -348,6 +348,37 @@ def main():
                     feat_ref = float(torch.linalg.norm(A_T @ bb.phi(public[:256].T), dim=0).median())
                     cert_res_truth = torch.linalg.norm(Cc @ H, dim=0) / torch.linalg.norm(A_T @ H, dim=0)
                 recorded = [i for i in range(a.N) if imp[i] / imp.max() > 1e-12]
+                # ACHIEVABILITY FLOOR, measured rather than assumed. `frac_starts_at_floor` used an ABSOLUTE cut
+                # at 1e-20, which is wrong for a release trained in inexact arithmetic: an fp32-trained cell's
+                # objective cannot go below its own arithmetic floor, so an absolute cut demotes a genuine
+                # recovery. This measures the objective AT THE TRUTH for each recorded image, and runs one
+                # from-truth solve at matched solver, tolerance and budget so a shortfall can be attributed.
+                # PER-IMAGE floors, keyed by image index. Using the CELL minimum was the bug: these eight floors
+                # span 2014x (8.9e-14 to 1.8e-10), so a bar at 1.5x the minimum sits BELOW the floor of seven of
+                # the eight images and can never certify them -- not even from a start sitting on the truth.
+                floor_by_image = {}
+                for i in recorded:
+                    w_t = chart.coords_of(X_on[:, i:i + 1]).reshape(-1)
+                    with torch.no_grad():
+                        f_t = fun(w_t)
+                        floor_by_image[int(i)] = float(f_t @ f_t)
+                floor_objs = [floor_by_image[int(i)] for i in recorded]
+
+                def at_floor(d):
+                    """Each start is judged against the floor of the image IT LANDED ON, never the cell minimum."""
+                    return d["objective"] <= 1.5 * floor_by_image[int(d["nearest"])]
+                w_t0 = chart.coords_of(X_on[:, recorded[0]:recorded[0] + 1]).reshape(-1)
+                w_ft, obj_ft, it_ft = lm_cert(fun, w_t0, a.iters)
+                with torch.no_grad():
+                    x_ft = chart.psi(w_ft.reshape(k, 1))[:, 0]
+                    err_ft = float(torch.linalg.norm(x_ft - X_on[:, recorded[0]]) / torch.linalg.norm(X_on[:, recorded[0]]))
+                emit(dict(part="FLOOR", set=sname, k=k, train_dtype=dname, n_prime=Np,
+                          objective_at_truth=float(min(floor_objs)), objective_at_truth_all=floor_objs,
+                          from_truth_endpoint_objective=obj_ft, from_truth_endpoint_err=err_ft,
+                          from_truth_iters=it_ft, start_attacker_buildable=False,
+                          note="floor measurement, NOT an attack. at_floor must be judged against THIS, not "
+                               "against an absolute cut: an fp32-trained release cannot reach 1e-20.",
+                          git=git_hash()))
                 gs = torch.Generator().manual_seed(a.seed + 31); t1 = time.time(); runs = []; first = {}
                 for s in range(a.random_starts):
                     w0 = (torch.randn(k, 1, generator=gs).to(dev) * coord_std).reshape(-1)
@@ -370,6 +401,27 @@ def main():
                             cert_residual_at_truth=[float(v) for v in cert_res_truth], recorded=recorded,
                             frac_starts_on_a_recorded_image=sum(d["landed"] for d in runs) / len(runs),
                             frac_starts_at_floor=sum(d["objective"] <= 1e-20 for d in runs) / len(runs),
+                            frac_starts_at_achievability_floor=sum(
+                                at_floor(d) for d in runs) / len(runs),
+                            objective_at_truth=float(min(floor_objs)),
+                            # THE DECIDER (yoado-7e): are the starts that clear the RELATIVE floor the SAME
+                            # starts that land on a recorded image? If yes, the residual selects the landings and
+                            # the attacker can tell which of their starts succeeded -> an ATTACK. If no, the
+                            # landing fraction is a number only an experimenter can compute -> IDENTIFIABILITY.
+                            floor_vs_landing=dict(
+                                both=sum(1 for d in runs if at_floor(d) and d["landed"]),
+                                floor_not_landed=sum(1 for d in runs if at_floor(d) and not d["landed"]),
+                                landed_not_floor=sum(1 for d in runs if not at_floor(d) and d["landed"]),
+                                neither=sum(1 for d in runs if not at_floor(d) and not d["landed"]),
+                                precision=(sum(1 for d in runs if at_floor(d) and d["landed"]) /
+                                           max(1, sum(1 for d in runs if at_floor(d)))),
+                                recall=(sum(1 for d in runs if at_floor(d) and d["landed"]) /
+                                        max(1, sum(1 for d in runs if d["landed"])))),
+                            per_start_objective=[d["objective"] for d in runs],
+                            per_start_landed=[bool(d["landed"]) for d in runs],
+                            at_floor_note="frac_starts_at_floor uses the historical ABSOLUTE 1e-20 cut and is kept "
+                                          "for continuity; frac_starts_at_achievability_floor is the correct one, "
+                                          "relative to this cell's own measured floor at the pinned 1.5x factor.",
                             recorded_images_found=sorted(int(i) for i, c in counts.items() if c > 0), landings_per_recorded_image=counts,
                             min_err_per_recorded_image=min_err,
                             argmin_objective=(best["objective"] if best else None), argmin_landed_on_recorded=(best["landed"] if best else None),
