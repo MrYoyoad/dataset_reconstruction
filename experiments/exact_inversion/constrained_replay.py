@@ -191,7 +191,13 @@ def main():
                   f"(imprint {imp_sorted[-1]:.1e}); the {n_strong} strongly-recorded images are certified to "
                   f"{cert_at_truth_strong:.2e} -- proceeding on the strong set, N'={n_strong}", flush=True)
         emit({**gate_row, "passed": True,
-                  "imprint_cos_offdiag": dict(median=float(off.abs().median()), max=float(off.abs().max())),
+                  # at N' = 1 there IS no off-diagonal: one recorded image has no pairwise cosines. The empty
+                  # reduction crashed job 374123 on exactly the single-image cell the test wants.
+                  "imprint_cos_offdiag": (dict(median=float(off.abs().median()), max=float(off.abs().max()))
+                                          if off.numel() else
+                                          dict(median=None, max=None,
+                                               note="no off-diagonal at N'=1: a single recorded image has no "
+                                                    "pairwise imprint cosines")),
                   "imprint_gram_sigma_ratio": float(sG[-1] / sG[0]), "fwd_check_pending": True, "git": git_hash()})
         if Np != 1:
             print(f"  [k={k}] N'={Np} != 1: the cell is not the one-image band; running anyway, rows carry N'", flush=True)

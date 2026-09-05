@@ -2881,3 +2881,20 @@ the benefit is that the claim fails honestly when someone tests outside the rang
 was **found, not constructed** — a by-product of a probe run for an unrelated purpose — and the earlier finding
 that it could not be *constructed* at rank 8 is untouched by having *found* one at rank 64. Writing "we obtained
 the cell" would imply a capability the record does not support.
+
+## 2026-09-05 — the degenerate case that crashes is the case the experiment is about
+
+Test 6 ran three batches and crashed on the third — the `N′ = 1` cell, which is the *only* one of the three the
+experiment specifically wanted, because every multi-image confound vanishes there. The fault: the code reports the
+median and max of the imprint cosine matrix's **off-diagonal**, and at one recorded image there is no
+off-diagonal, so the reduction is over an empty tensor.
+
+**The pattern is worth naming.** Diagnostics written for the general case assume the general case's *shape*. A
+pairwise statistic needs two items, a spread needs a range, a decile needs enough points to bin. Each of those
+degenerates exactly at the boundary an experiment is usually most interested in — one image, one class, one step.
+Two of tonight's three harness faults were of this kind: this one, and the decile spread that cannot resolve a
+3-order bar in a range narrower than 3 orders (caught in advance by the scoring lane, not by me).
+
+**The habit:** when a cell is chosen *because* it is extreme, read the diagnostics for shape assumptions before
+running it — pairwise, spread, quantile, ratio — and give each an explicit degenerate branch that says why it is
+absent rather than failing or, worse, returning a number computed from nothing.
