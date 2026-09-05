@@ -1911,6 +1911,31 @@ while \emph{lowering} how many images are recoverable at all. Storage
 precision trades attacker budget against attacker yield, and the sign of that
 trade is not obvious.
 
+\paragraph{Storage precision and the recorded count (theory only, not
+measured).} Recorded here to prevent a mis-statement the previous paragraph
+invites. Coarser storage rounds away faint imprints, so the realistically
+recorded $N'$ falls as the roundoff rises. That does \emph{not} make coarser
+storage monotonically more private, and two things have to be said together.
+
+First, the leaked dimension $N'\bigl((m-1)+r-N'\bigr)$ is a downward parabola
+in $N'$, maximised at $N'=(m-1+r)/2$. One might therefore expect a regime in
+which reducing $N'$ increases exposure --- but Proposition~\ref{prop:simplex}
+forecloses it: $N'\le\min(m-1,r,N)$, and $\min(a,b)\le(a+b)/2$ for any $a,b$,
+so the maximum is \emph{never} reachable. The leaked dimension is therefore
+strictly increasing in $N'$ across the entire admissible range, for every
+architecture, with no appeal to typical values. Coarser storage does reduce
+total leaked dimension: at $m=10$, $r=64$ the peak sits at $N'=36.5$ and the
+cap at $9$.
+
+Second, and opposing it, the two axes must never be collapsed into a single
+notion of yield. Coarser storage records \emph{fewer} images, but gives each
+one a \emph{larger} per-image budget $r-N'$ and therefore a higher admissible
+$k$ --- a sharper reconstruction of each. So bfloat16 means fewer images each
+sharper, FP32 more images each blurrier, and which is worse depends on the
+threat. The one-line reading is \emph{quantisation changes which way you are
+exposed}, not \emph{quantise for privacy} --- a conclusion the measured
+storage results already refuted, and which this one would otherwise invite.
+
 \emph{The three attackers on this one release are the clearest lesson in the
 section.} The certificate recovers none of the eight. The recipe route with an
 FP64 simulator recovers none, and worse, aliases --- confidently, at a
