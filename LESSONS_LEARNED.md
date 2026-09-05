@@ -47,6 +47,20 @@ instances in one day, each caught only because someone re-checked the source rat
    it appears — never only in a message. A flag carried by a person dies with that person's context; the next
    author reaches for the number precisely because it is the only one answering their question.
 
+7. **Checking an instance against the prose beside it instead of against the rule (2026-09-05).** While applying
+   a newly-settled definition across three documents, the explainer lane reclassified the 95.1% backbone cells
+   (614344) from *search failure* to *unverified recovery* — the direction that inflates `information-carried`,
+   the count asserting the release contains the image. Three faults, all visible in the row: it compared the
+   **median** error where the rule reads the **worst** (`err_vs_chart_max` = 0.0042…0.0702 at k = 6…18 — the worst
+   image is 0.4–7% from its own chart floor, not at it); the quoted spread was understated (1.9e-6 to 4.3e-3, not
+   1e-6 to 1e-3); and it decided an image "reached" the floor by coming **within a margin**, which reintroduces a
+   fixed tolerance one level below the ruling that had just excluded one. **The lane's own diagnosis is the
+   durable part:** it reached for the median *because that is the number the paragraph already contained, and the
+   paragraph was making a median-shaped argument* — so it checked the classification against the prose beside it
+   rather than against the rule. **A rule-versus-instance check only works if the rule is what you check against.**
+   Corollary: when a ruling fixes an unscoped threshold, check whether the fix needs a threshold of its own — here
+   "reaches the floor" was undefined, and the gap got filled silently inside a wording pass.
+
 **Rules.** (a) Verify at the point of **application**, not at the point of relay — the session about to write
 the claim into a document is the last one that can catch it. (b) When a finding and a fix arrive together,
 check the finding against its source row before applying the fix; a correct diagnosis and a correct remedy are
