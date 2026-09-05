@@ -29,9 +29,12 @@ mixes every feature direction, including unrecorded ones, with weight of the ord
 `row(B_T)` and `C h_i` is small, not zero — its size is predicted (feedback × unrecorded imprint), not
 arbitrary. The page's own evidence agrees, and more strongly than first quoted here (verified at the job rows by
 yoado-93, 2026-09-05): at `N' = N` the certificate residual sits at ~1e-16 to 1e-10; at `N' < N` it reaches order
-one, and on the 26-logit head (job 725918) it rises monotonically from 0.05 at `N' = 19` to 0.20 at `N' = 15` —
-more unrecorded imprint, larger residual, which is the predicted signature. Quote it as "~1e-16 at `N' = N`, up
-to order one at `N' < N`, rising with `N − N'`". "The algebra holds as stated" should read: exact at
+one. On the 26-logit head (job 725918, `step74_widehead_725918.jsonl`, checked by the GM at the row) the worst
+recorded image's residual (`cert_residual_recorded_max`) is 0.23, 0.38, 0.38, 0.45, 0.45 at recorded counts 19, 17,
+16, 15, 14, while the median over the twenty recorded images stays near 1e-3 in every row — the loss of exactness
+is concentrated in a few images and grows with `N − N'`. (An earlier "0.05 → 0.20" quoted here came from the
+page's own prose, not the job; withdrawn.) Quote it as "~1e-16 at `N' = N`; at `N' < N` the worst recorded image
+climbs toward order one with `N − N'` while the median stays small". "The algebra holds as stated" should read: exact at
 `N' = N`, approximate otherwise, with the residual scale stated. The same caveat applies to "the row space of
 `B_T` is the column space of `X`, legible off the release with no work at all".
 
