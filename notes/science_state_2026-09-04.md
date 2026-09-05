@@ -74,7 +74,12 @@ returns every private example to an attacker holding only the public model: EMNI
 98% MNIST MLP, r=64, k=32. **This is the certificate route from 500 random starts** — no recipe, no labels, no
 knowledge of the batch, no proximity to the truth: 32.8% land, **all eight found**, residuals 3e-7…1.3e-5 at
 the found truths, argmin on a letter at 1.1e-6 (job 764976; the FP64 cell of the same batch gives 38.4% and an
-argmin of 3e-26, job 760909). *The replay/recipe route is a different experiment with different numbers and a
+argmin of 3e-26, job 760909). **⚠ Attacker-verifiable count NOT YET MEASURED (audit 2026-09-05): "all eight found"
+and "returns every private example" here are the EXPERIMENTER's ground truth.** Whether the attacker's residual
+selects those landings *without* ground truth is not yet measured — the `at_floor` computation used a cell-global
+floor (the minimum of eight per-image floors, which span 2014×) that only the single easiest image could ever clear.
+Per-image recomputation pending; do not read "all eight" as an attacker number. (The below-line exact-arithmetic
+certificate attack IS verified at full yield — 706721, `frac_at_floor = frac_landed`.) *The replay/recipe route is a different experiment with different numbers and a
 near-truth start (job 771329) — it is identifiability, not this attack, and is not quoted here.* The adapter genuinely moved — `A_T` shifts 9.3%, feedback ratio 0.43, margins −2.65…−10.3 at
 t=1 rising to +6…+14 by t=T. Chart error 0.235 → instance-level.
 
