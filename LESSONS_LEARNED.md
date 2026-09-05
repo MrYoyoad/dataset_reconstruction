@@ -34,6 +34,19 @@ instances in one day, each caught only because someone re-checked the source rat
    immediately before auditing, and record which version was read. A false positive from an auditor is the more
    corrosive direction of error — it costs a wasted fix cycle and teaches people to discount the audit.
 
+6. **A flagged number does not stay flagged (2026-09-05).** The controls lane established that job 728592's
+   `frac_starts_at_floor = 0.42` is a threshold artefact — an absolute cut sitting ~19 orders below the worst
+   recorded image's own floor (`objective_at_truth` 4.0e-29 vs `objective_at_recorded_max` 2.8e-10), so it
+   under-counts by construction — and warned in a message that it must never be quoted as an attacker fraction.
+   Hours later it appeared in an **uncommitted** edit to the thesis `.tex`, described as "what an attacker can
+   recognise", written in good faith by a lane that had not heard the warning. It was caught only because the GM
+   happened to read the working diff. **The internal test that settles it:** in the clean below-the-line cell
+   (706721) the floor fraction *equals* the landing fraction, and that equality is what licenses the floor as an
+   attacker-side witness; where they diverge (0.42 / 0.656 / 0.038 here) the cut is misplaced.
+   **Rule:** annotate a withdrawn or do-not-quote number **at its source** — the job row or the RESULTS line where
+   it appears — never only in a message. A flag carried by a person dies with that person's context; the next
+   author reaches for the number precisely because it is the only one answering their question.
+
 **Rules.** (a) Verify at the point of **application**, not at the point of relay — the session about to write
 the claim into a document is the last one that can catch it. (b) When a finding and a fix arrive together,
 check the finding against its source row before applying the fix; a correct diagnosis and a correct remedy are
