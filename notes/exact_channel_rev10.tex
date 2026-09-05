@@ -1862,46 +1862,54 @@ Every $N'$ and every certificate line read off a half-precision release
 inherits that inflation --- one more reason the certificate route misreads
 these releases while the matched recipe route does not.
 
-\paragraph{How $N'$ should be cut, and why the cap is the check.} $N'$ is
-read as $\operatorname{rank}B_T$ at some tolerance, and the choice is not
-cosmetic: the certificate \emph{is} the projector, so the number of conditions
-it imposes is $r$ minus the directions actually removed. One tolerance, one
-object --- a budget of $r-8$ cannot be claimed from a projector built by
-removing $11$.
+\paragraph{How $N'$ is cut: imprint-relative and precision-scoped.} $N'$ is
+$\operatorname{rank}B_T$ at a tolerance, and the choice sets the line
+$k<r-N'$ and hence the attacker's budget. The certificate \emph{is} the
+projector, so one cannot build at one tolerance and count at another: the
+conditions imposed are $r$ minus the directions actually removed. The
+resolution is that there are two objects, not one loose convention. An image
+whose relative imprint is $10^{-9}$ contributes a direction at that scale to
+$B_T$; FP32 storage roundoff is $\approx10^{-7}$ and bfloat16
+$\approx10^{-3}$, so \emph{that direction is rounded to zero before the
+attacker receives the release}. The attacker's $B_T$ has rank equal to the
+substantially-recorded count and its certificate removes exactly those
+directions by construction; the FP64 $B_T$ is a different matrix, genuinely
+contains the faint directions, and its certificate must remove them and pays
+$r-N'_{\text{full}}$. Both cuts are correct for their own object --- the
+experimenter-versus-attacker distinction applied to $N'$. Hence the
+convention:
 
-The real trade is therefore between conditions and membership. A
-\emph{looser} projector removes fewer directions and imposes more conditions,
-but any recorded example whose direction it leaves in has $Ch_i\neq0$ and
-reads as a non-member. A \emph{tighter} one removes the rounding noise as well,
-loses no example, and spends conditions on directions that carry none.
-Proposition~\ref{prop:simplex} bounds the choice from above and turns an
-invalid read into a detectable one:
-\[
-  N'\;\le\;\min(m-1,\;r,\;N)\quad\text{is a theorem, so any tolerance
-  returning }N'>m-1\text{ is provably too tight.}
-\]
-So the cap is a self-check on the tolerance and not only a limit on the
-channel.
+\begin{quote}
+An image counts as recorded iff $\|C_i\|/\max_j\|C_j\|$ exceeds the roundoff
+of the \emph{stated deployed format}, and the format is named on every row.
+The realistic $N'$ governs every attack, budget, certificate line and in-band
+gate; the FP64 $N'$ is retained for the exact-arithmetic theorem statements.
+\end{quote}
 
-Whether the loosest admissible projector actually loses an example is
-measurable rather than arguable, and on the FP32-trained letters cell
-($m=11$, $N=8$, $r=64$) it does not$^\dagger$. The spectrum of $B_T$ falls
-$9.7\times10^{-1},\dots,2.8\times10^{-6}$ over eight values and then drops by
-$29\times$ to $9.6\times10^{-8}$, so the natural cut and the cap agree at
-eight --- two independent indicators, and all eight imprints are between
-$0.46$ and $1.00$ of the largest, so every example is strongly recorded.
-Rebuilding at that cut gives $56$ conditions against the tight read's $53$,
-and the eight members then sit at $1.2\times10^{-4}$ to $3.3\times10^{-3}$
-against a non-member band of order $0.4$: a separation of $120\times$, where
-the tight projector gives $3\times10^{4}$. No example is lost, and three
-dimensions of budget are recovered.
+Proposition~\ref{prop:simplex} sits on top of this as a check needing no
+convention: $N'\le\min(m-1,r,N)$ is a theorem, so a read returning $N'>m-1$ is
+invalid whatever tolerance produced it. The two inflations are different
+mechanisms --- rounding breaking the zero column sum, and genuine but faint
+directions --- and a realistic-precision cut excludes both.
 
-The rule that follows is to take the loosest tolerance at which every recorded
-member stays clear of the non-member band, with the cap bounding it from above
---- and to report the \emph{margin} and not only the count, since it is the
-margin that decides whether the cut survives a noisier release. Here $120\times$
-is ample; on a release whose member residuals are already at $10^{-2}$ it
-would not be.
+The convention is not a preference; it reproduces the measured gate$^\dagger$.
+On an in-band cell ($r=64$, $k=62$, seven recorded, job 388586) the relative
+imprints are $1.0$, $0.56$, $0.28$, $2.9\times10^{-3}$, $2.2\times10^{-4}$,
+$5.1\times10^{-9}$, $1.4\times10^{-9}$. Cutting at FP32 roundoff keeps five,
+exactly the run's own certified count, and moves the line from $57$ to $59$;
+cutting at bfloat16 keeps three. And the two faint images are not failing
+\emph{membership}: their certificate residuals are $2.5\times10^{-6}$ and
+$1.1\times10^{-5}$ against a non-member at $0.885$, so they sit five orders
+clear and are identified correctly. What they fail is an \emph{absolute} gate
+threshold. A membership test must be read against the non-member band and not
+against a fixed cut --- the same absolute-versus-relative error a cell-global
+achievability floor makes, and the third instance of it in this study.
+
+One consequence is worth measuring rather than assuming: coarser storage
+rounds away more faint imprints, which \emph{raises} the per-image budget
+while \emph{lowering} how many images are recoverable at all. Storage
+precision trades attacker budget against attacker yield, and the sign of that
+trade is not obvious.
 
 \emph{The three attackers on this one release are the clearest lesson in the
 section.} The certificate recovers none of the eight. The recipe route with an
