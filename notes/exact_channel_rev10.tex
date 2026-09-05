@@ -605,11 +605,22 @@ and a learned head. Every run is
 classified by two numbers, the final residual $\|\rho\|^2$ and the worst
 image error, and the classification is the \emph{joint} function of both,
 never of the residual alone: \emph{recovered} — residual at the floor
-\emph{and} error at machine precision; \emph{alias} — residual at the floor at
+\emph{and} the image correct; \emph{alias} — residual at the floor at
 a point other than the truth, with $\sigma_{\min}(D\rho)$ collapsed;
-\emph{unverified recovery} — error at machine precision with the residual
+\emph{unverified recovery} — the image correct with the residual
 \emph{above} the floor, so the image came out and the residual never confirmed
-it; \emph{search failure} — neither. The fourth cell is not a nicety: a
+it; \emph{search failure} — neither.
+An image is \emph{correct} when its true-datum error reaches the \emph{chart's}
+own achievable floor, the minimum that chart can represent for that image: not
+machine precision, and not a fixed tolerance. Machine precision is unreachable
+wherever the truth is off-chart, which is every realistic cell — the letters'
+chart error is $0.235$ — so a machine-precision bar empties \emph{unverified
+recovery} exactly where it is needed, while a fixed tolerance inflates
+\emph{information-carried} with near misses. The chart-relative floor collapses
+to machine precision on the synthetic bed, where the chart contains the truth by
+construction, which is why that reading was correct there. Both errors are
+therefore reported, against what the chart can represent and against the real
+datum, and the axis reads whether the second reached the first. The fourth cell is not a nicety: a
 three-cell scheme keyed on the residual alone files an unverified recovery
 under search failure, which asserts the opposite of what happened. Because the
 cells split two ways, three counts are reported separately and never collapsed
@@ -2110,10 +2121,15 @@ Approximately, and rarely.
 \paragraph{The image finishes long before the residual does.} On the
 $95.1\%$ backbone every below-line cell stops at residual
 $10^{-13}$--$10^{-15}$ after $300$ iterations — fifteen orders above the
-reproduction floor, so by the classification of \S\ref{sec:measured} these
-are search failures. Yet the median image error already equals the chart's
+reproduction floor — while the median image error already equals the chart's
 own representation error to within $10^{-6}$--$10^{-3}$ at
-$k=6,10,14,16$$^\dagger$ (job 614344). So on this backbone, at this budget, the median image error stood within
+$k=6,10,14,16$$^\dagger$ (job 614344). Under the chart-relative bar of
+\S\ref{sec:measured} that is the definition of \emph{unverified recovery}: the
+image reached the only floor available to it while the residual never confirmed
+it. These cells are the reason the fourth cell exists, and under the earlier
+machine-precision reading they were filed as search failures, which asserted the
+opposite of what happened. They count toward \emph{information-carried} and
+never toward an attack rate. So on this backbone, at this budget, the median image error stood within
 $0.4\%$ of the chart's floor while the residual stood fifteen orders above
 its own — which is the attacker-relevant statement: no tight residual was
 needed for the best available image here. Three things it is not. Neither
@@ -2777,10 +2793,11 @@ doing when it is not competing with a measurement.
   at the iteration cap, still descending) bracketed by successes at $77\%$
   and $86\%$\textsuperscript{$\dagger$} (job 459111). From the $20$ starts an attacker can build
   from the release alone (random, span, certificate, span-anchor; jobs
-  408560--63) it reaches the floor in \emph{none}: one run ends inside the
-  $10^{-2}$ image tolerance at residual $9\times10^{-7}$ with its restart
-  budget exhausted — by the classification above a search failure that
-  happened to land near the truth — and the other nineteen end at residuals
+  408560--63) it reaches the floor in \emph{none}: the closest ends at
+  $9\times10^{-3}$ image error and residual $9\times10^{-7}$ with its restart
+  budget exhausted — a search failure on both axes, since this cell's chart
+  contains the truth so its floor is machine precision, three orders below the
+  image reached, and the residual sits six orders above its own — and the other nineteen end at residuals
   $5\times10^{-3}$ to $0.4$. The binding constraint is the initialiser — the
   slot the framework reserves for a learned or population prior — not the
   information in the release.
