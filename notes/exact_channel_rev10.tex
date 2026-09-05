@@ -1862,6 +1862,27 @@ Every $N'$ and every certificate line read off a half-precision release
 inherits that inflation --- one more reason the certificate route misreads
 these releases while the matched recipe route does not.
 
+\paragraph{How $N'$ should be cut, and why the cap is the check.} $N'$ is
+read as $\operatorname{rank}B_T$ at some tolerance, and the choice is not
+cosmetic: it sets the line $k<r-N'$ and therefore the attacker's budget. Two
+tolerances pull opposite ways, and they are answering different questions.
+For \emph{building the projector} a tight cut is right, since a loose one
+discards a recoverable image. For \emph{counting} $N'$ a tight cut
+over-reads, because rounding lifts directions that carry no example above it.
+Proposition~\ref{prop:simplex} settles the second, and it is worth stating as
+a rule rather than left to judgement:
+\[
+  N'\;\le\;\min(m-1,\;r,\;N)\quad\text{is a theorem, so any tolerance
+  returning }N'>m-1\text{ is provably too tight.}
+\]
+The cap is thus a self-check on the tolerance, not only a limit on the
+channel. It is not academic: on the FP32-trained letters cell ($m=11$, $N=8$,
+$r=64$) the $10^{-12}$ read gives $N'=11$, which exceeds $m-1=10$ and is
+therefore invalid, while the noise-matched read gives $N'=8$ --- the true
+number of private images. The invalid read costs three dimensions of budget,
+$k<53$ against the correct $k<56$, by projecting away directions that are
+rounding noise. Where the two disagree, the cap says which to believe.
+
 \emph{The three attackers on this one release are the clearest lesson in the
 section.} The certificate recovers none of the eight. The recipe route with an
 FP64 simulator recovers none, and worse, aliases --- confidently, at a
