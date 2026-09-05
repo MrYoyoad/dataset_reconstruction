@@ -427,7 +427,14 @@ The full-size Adam arm (`n=96`, LBFGS) descended to residual ~0.18 in ten outer 
 projected at ~20 h; it was killed in favour of the scaled-down LM cells above, which answer the same
 question far faster.
 
-## Step 2b — attacker-available initialisers: COMPLETE, 1 of 20 (the real bound on the attack)
+## Step 2b — attacker-available initialisers: COMPLETE, count UNDER REVIEW pending a solver-trace diagnosis
+
+> **Heading held (yoado-7e).** I landed "0 of 20 at the floor (1 unverified-recovery)" before the hold
+> arrived. It is not restored to the original wording, which over-claimed, but it is not the final count either:
+> seed 3 of the span arm reached the image (err 9.2e-3) with a residual ~8 orders above its achievability floor,
+> and whether that is **budget-limited** (still descending at the cap, so more compute would verify it, and the
+> span start DOES reach the basin) or **stalled** (a displaced minimum) changes the sentence completely. The
+> heading carries the diagnosis, not just the count, once the trace is read.
 
 All four arms started from **release-only** points, i.e. no access to the truth. `k=12, N=8, T=1500`,
 5 seeds each, 8 restarts, post-fix code. This is the arm that measures what an attacker can actually do.
@@ -2008,8 +2015,17 @@ coordinate scale**, 300 LM iterations each, no unrolled recipe, no labels, nothi
 
 | job | starts on a private digit | per image | found | landings per digit | argmin pick | at the floor |
 |---|---|---|---|---|---|---|
-| 728592 (dedicated) | **65.6%** | 8.2% | **8 of 8** | 19, 24, 26, 30, 34, 34, 58, 103 | on a private digit, err 2.2e-14 | 42% |
-| 721391 (ladder, same cell) | **66.0%** | 8.3% | 8 of 8 | — | on a private digit | 42% |
+| 728592 (dedicated) | **65.6%** | 8.2% | **8 of 8** | 19, 24, 26, 30, 34, 34, 58, 103 | on a private digit, err 2.2e-14 | 42%† |
+| 721391 (ladder, same cell) | **66.0%** | 8.3% | 8 of 8 | — | on a private digit | 42%† |
+
+> **† The "at the floor" 42% is NOT an attacker-recognisable fraction — do not quote it as one (2026-09-05, yoado-93;
+> the flag travels with the number).** It is `frac_starts_at_floor` under the historical ABSOLUTE 1e-20 cut. This
+> cell's per-image floors span ~19 orders (`objective_at_truth` 4.0e-29 vs `objective_at_recorded_max` 2.8e-10), so a
+> single cell-wide cut sits below most images and certifies only the easiest — hence 42% at-floor while 65.6% land and
+> only 3.8% are recovered. The floor is a valid attacker witness only where floor-fraction EQUALS landing-fraction
+> (706721 below the line: 0.51/0.51); here the three fractions diverge, so the cut is misplaced, not that 42% of
+> starts are certifiable. The attacker-recognisable count needs the per-image `at_floor` recompute (vs the landed
+> image's own floor) and is currently unmeasured. Quote "65.6% land / 8 of 8" as EXPERIMENTER ground truth only.
 
 Per-image best landing errors 1e-14 … 9e-5 (five at machine precision, three at 1e-5 … 1e-4 — converging at the
 300-iteration cap; the 1e-2 landing criterion does no work). No degenerate starts, no spurious zeros. And at
