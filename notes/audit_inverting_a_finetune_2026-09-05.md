@@ -96,6 +96,34 @@ pins) is the untested answer.
 **3.6 The arithmetic section stays out of the pitch.** Keep it on the page for completeness; it does not go to
 the supervisor.
 
+## 3b. Coherence audit of the published page (GM, 2026-09-05)
+
+Read end to end as a theorist would. Three deduction defects were found and sent to the fixer, all now repaired:
+the count switches from `N` to `N'` mid-argument in three forms without a stated handover; the surface section
+(which decides whether the certificate exists at all) sat after every claim depending on it; and a spliced
+sentence in the imprint block. The fixer moved the surface section behind the certificate, stated the
+`N → N'` handover once with the `k < m+r−N'` / `m−1+r−N'` equivalence spelled out, and rejoined the sentence.
+
+**One substantive defect, found by re-verifying at the raw rows what had been checked against ledger prose
+(job 273322).** The page states `margin = min(r,d) − min(N·P, d)` and then tabulates the transformer row as
+"0 at every rank tried and every batch size, a single image included". The job tried ranks 8, 16, 64 **and 256**;
+`margin_by_rank` at `N = 1` reads `{8:0, 16:0, 64:0, 256:59}` for every block module of ViT-B/16 and ViT-S/16,
+and the page's own formula gives `min(256,768) − min(197,768) = 59`. **The general rule and its own instance
+disagree on the same screen.** Correct scope (as STATUS already had it): zero at every *deployed* rank, 8–64,
+for every batch size including one; at rank 256 it survives only at `N = 1` and dies at `N = 2`. The error runs
+in the defender's favour, so the honest version strengthens the argument — the boundary moves exactly where the
+formula says it should.
+
+**Verified clean at the raw rows** (do not re-litigate): head margins 8 at `r`=16 and 56 at `r`=64 for `N`=8
+(279182); LiRA 0.994–1.000 precisely in the `rank C = 0` batch-equals-rank cells (287241); the live ResNet cell
+`N'`=49, `rank C`=15, false-positive rate 0.0000, 19 of 20 (307760 — the count is `null_clears_bar`, 19 true and
+1 false, confirmed by the summary row at successes 19 / scored 20; all 20 rows carry `gate_passed` true, which is
+a different field and **not** the scoring criterion — a field-name trap worth remembering); Adam control at
+`rank C` = 0, false-positive rate 1.0, 6 of 6 voided.
+
+**The lesson for the sweep:** the highest-value class of defect here is a stated general rule contradicting its own
+tabulated instance. Prose checks cannot catch it, because the ledger prose is correct; only the rows can.
+
 ## 4. Against SimuDy (same primitive, four deltas, one deficit)
 
 Same primitive: replay the recipe from `θ_0` on candidate data and match `θ_T`. SimuDy: full fine-tuning,
