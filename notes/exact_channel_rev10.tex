@@ -620,7 +620,21 @@ recovery} exactly where it is needed, while a fixed tolerance inflates
 to machine precision on the synthetic bed, where the chart contains the truth by
 construction, which is why that reading was correct there. Both errors are
 therefore reported, against what the chart can represent and against the real
-datum, and the axis reads whether the second reached the first. The fourth cell is not a nicety: a
+datum, and the axis reads whether the second reached the first.
+An image \emph{reaches its chart floor} when the worst image's distance to its
+chart projection is at most $c$ times that chart's own representation error,
+with $c=5\times10^{-3}$: the worst image, not the median, and below the line
+only. Where the chart's error is itself at machine precision the ratio is
+meaningless and the test is absolute, the worst image at machine precision;
+that is the synthetic bed, where the chart contains the truth by construction.
+Every admitted cell reports its chart representation error beside its verdict.
+Two riders travel with the constant. Rejection says only that a cell did not
+clearly reach its floor; it does not say the cell failed. And a chart
+representation error of around a half means that even an admitted cell is a
+chart-limited image: whether reaching such a floor counts as information carried
+is the recognisability question, which stays open and is a project decision
+rather than a threshold. ``Reached the chart floor'' is never to be read as
+``recovered a recognisable image''. The fourth cell is not a nicety: a
 three-cell scheme keyed on the residual alone files an unverified recovery
 under search failure, which asserts the opposite of what happened. Because the
 cells split two ways, three counts are reported separately and never collapsed
@@ -2128,14 +2142,15 @@ classification of \S\ref{sec:measured} these are search failures on both axes.
 Yet the \emph{median} image error already equals the chart's own representation
 error to within $1.9\times10^{-6}$--$4.3\times10^{-3}$. That gap between the
 median and the worst is the whole of the observation and also its limit: most
-images have arrived, the worst has not, and the verdict reads the worst. Whether
-a cell in which the typical image has reached its floor should count as
-\emph{unverified recovery} is a question about the criterion rather than about
-this run, and it is open; answering it needs a stated rule for what
-``reaches the floor'' means, since a margin chosen after the fact is the fixed
-tolerance the definition above excludes. The $k=18$ row is not part of the
-question: $\mathtt{jac\_full\_rank\_truth}$ is false there, so it sits above the
-line and is a different regime from the five below it. So on this backbone, at this budget, the median image error stood within
+images have arrived, the worst has not, and the verdict reads the worst. At the
+pinned constant the ratios are $0.0079$, $0.0628$, $0.0941$, $0.1521$, $0.1064$
+at $k=6,10,14,16,17$, all above $c$, so these are search failures and are
+treated identically to the trained-backbone cells of jobs 607896 and 610020
+rather than singled out. Exactly one cell in the band is sensitive to the
+constant: $k=6$ at $0.0079$ is rejected at $5\times10^{-3}$ and would be
+admitted at $10^{-2}$, while every other cell rejects at both. The $k=18$ row is
+outside the question entirely: $\mathtt{jac\_full\_rank\_truth}$ is false there,
+so it sits above the line and is a different regime from the five below it. So on this backbone, at this budget, the median image error stood within
 $0.4\%$ of the chart's floor while the residual stood fifteen orders above
 its own — which is the attacker-relevant statement: no tight residual was
 needed for the best available image here. Three things it is not. Neither
