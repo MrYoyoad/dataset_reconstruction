@@ -5782,3 +5782,34 @@ the conjunction additionally asserts *"and the release is reproduced"*, which is
 worth having, but introducing it should be a **new field** rather than a redefinition of an existing verdict word.
 The membership harnesses (`live_regime`, `graded_imprint`, `score_truncated`) are unaffected — their verdicts are
 membership outcomes, not recovery ones, and none of them has a residual-derived pass.
+
+## The derived four-cell verdict, run over the whole corpus (job 390930) — 17 divergences, and none of them rewrite anything
+
+Built as the lanes specified: the recorded verdict column is **preserved exactly**, `at_floor` is taken **from the
+row**, and the four-cell verdict is computed **alongside** as a derived column. Divergences are the audit flag.
+
+**190 files, 5,318 rows, 304 carrying both an error and a residual. Recorded and derived agree on 287.
+Indeterminate: 0.**
+
+**I had to fix my own audit twice before trusting it, and both faults inflated the divergence count:**
+- The first version scored `at_floor` against my own absolute threshold. But `constrained_replay`'s floor is
+  `objective ≤ 1e-28` **OR** `≤ 100·fwd²` — a *relative* criterion my fallback could not see — so 106 rows came
+  back as divergences that were purely artefacts of the script. `at_floor` is now taken from the row, with the
+  relative reference used where the row carries it, and **a row that supports neither is INDETERMINATE and is not
+  scored** rather than guessed at.
+- The second was string matching: `optimisation failure` and `search-failure` are the **same cell under two
+  names**, and my comparison treated them as disagreeing.
+
+**The 17 that survive:**
+
+| divergence | count | reading |
+|---|---|---|
+| recorded `partial` → derived `alias` | 9 | image errors 1.16e-2 … 1.73e-2, just above the 1e-2 tolerance, with the objective at floor (~9e-31). A **schema difference, not an error**: `partial` counts how many images are under 1e-10, the derived cell keys off the worst. Both defensible; worth one decision from the claims lane. |
+| recorded `recovered` → derived **`unverified-recovery`** | 6 | **the cell the disposition was written for.** All from test 6's current run: image errors 3e-14 … 2e-13 with objectives ~6e-16 to 9.5e-16 — the image comes out cleanly and **the replay residual never verifies it**. |
+| recorded `not in band` → derived `unverified-recovery` | 1 | same cell, in an out-of-band row that emits no chain verdict anyway |
+| recorded `partial` → derived `search-failure` | 1 | image error 1.02e-2, objective 3.9e-14 — neither at floor nor under tolerance |
+
+**Nothing historical is relabelled.** The six `unverified-recovery` rows are **verified by image only**: they count
+for *"the release carries the information"* and must never have been counted as attacker-realizable. They are all
+from a run still in flight, so no ledger or meeting claim rests on them — **the audit found the pattern before it
+could reach a document**, which is what running it over the corpus rather than the new rows was for.
