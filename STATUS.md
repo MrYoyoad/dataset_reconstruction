@@ -793,7 +793,7 @@ All four arms start from **release-only** points — no access to the truth (`k=
 | spananchor | 5 | **0** | 0.58–1.04 |
 | cert (Primitive-1 anchor) | 5 | **0** | 0.74–1.04 |
 
-**†1 of 20.** The single success is the span estimator on seed 3: image error †9.2e-3 at residual †9.1e-7 — inside the
+**†0 of 20 at the floor.** The one **unverified-recovery** is the span estimator on seed 3: image error †9.2e-3 at residual †9.1e-7 — inside the
 1e-2 tolerance but nowhere near the †1e-15/†1e-30 a perturbed-truth start reaches, so read it as *entered the basin,
 still converging*, not as a finished recovery.
 

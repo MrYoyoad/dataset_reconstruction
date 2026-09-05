@@ -272,6 +272,12 @@ cannot pass as a recovery (verdict `recovered` / `alias` / `optimisation-failure
      intersection, isolable only with ground truth). The residual — the attacker's only instrument — diverges from
      true recovery in **both** directions: it certifies aliases it should not and misses recoveries it should
      catch. `unverified-recovery` counts toward information-carried, **never** toward an attack success rate.
+   - **Fifth state — `undetermined` (cd).** A row LACKING a gate row (no from-truth achievability floor for its
+     cell) is **`undetermined`, NOT `unverified-recovery`**: absence of the floor measurement is not evidence the
+     row failed to reach it, and conflating the two manufactures over-correction. `at_floor := residual ≤ 1.5 ×
+     (that cell's from-truth achievability floor)`; where that floor is absent, or where the units of the two
+     fields cannot be established, the row is `undetermined` and is excluded from every count until a gate row
+     exists.
    - Applies to every recovery test (round 1 and 5–8), one harness change; the derived 4-cell verdict sits
      alongside the preserved recorded verdict, so no historical row is rewritten.
 5. **Any learned component is measured against the private target before it is used for anything (cd's standing rule,
