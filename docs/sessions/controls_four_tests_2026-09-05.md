@@ -221,6 +221,14 @@ cannot pass as a recovery (verdict `recovered` / `alias` / `optimisation-failure
    ablation, not just the treatment, so the release's *marginal* contribution is always visible.
 4. **Verdict semantics literal:** `recovered` / `alias (residual zero, wrong image)` / `optimisation failure
    (residual not zero)` — never collapse the last two into "it didn't work".
+   **Schema-enforced (c9):** the verdict is a uniform function of BOTH residual AND image-error-vs-truth, never
+   residual alone: `recovered` = at-floor AND error < threshold; `alias` = at-floor AND error large;
+   `search-failure` = not-at-floor. The residual becomes a RAW field (value + an `at_floor` boolean) carrying no
+   verdict word. This makes `recovered` structurally impossible without a correct image in every regime —
+   enforcing rules 2 and 4 in the schema rather than trusting the reader — and it dissolves (8)'s above-line
+   alias-manufacturing: a manufactured alias floors with large image-error, so the verdict is `alias`
+   automatically, no regime special-case. One harness change across every recovery test (round 1 and 5–8).
+   Raised by c9, accepted by 7e.
 5. **Any learned component is measured against the private target before it is used for anything (cd's standing rule,
    generalising c9's (4) detector).** Score the component's raw output vs the private set and report that number on
    the row *before* the component feeds a solve — covers the decoder in (4) and the learned dictionary in (3) with one
