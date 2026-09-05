@@ -8,7 +8,9 @@
      AMENDMENT 2026-09-05: the two sentences in section (8) describing the residual guard below and above the
      certificate line were raised by yoado-b9 as auditor (below the line the chart is safe BY CONSTRUCTION, not
      merely by control; above the line the guard is ACTIVELY MISLEADING rather than merely void), accepted by
-     yoado-7e as author, and landed here by b9 as scribe from 7e's verbatim replacement strings. -->
+     yoado-7e as author, and landed here by b9 as scribe from 7e's verbatim replacement strings.
+     The (8) bullet beginning "Reporting consequence of" was raised by b9 as the operational consequence of that
+     amendment, formulated and accepted by yoado-7e as author, and scribed by b9. -->
 
 # Round-2 controls — how each of the four reopened tests could look like a success without being one
 
@@ -48,6 +50,7 @@ The hole is scoped to above the certificate line (cd's precision). The residual 
 - Below the line the zero set is isolated points — exactly the recorded images — so any floor-reaching candidate IS a recorded image and no refit can manufacture an alias (no non-truth zero to refit through). Residual guard is not just sound here — the adaptive chart is safe BY CONSTRUCTION: the geometry forbids the failure (there is no non-truth zero to refit through), so the three-way control is not logically required, and a below-line adaptive result needs no trust in the controls at all.
 - Above the line the zero set is a positive-dimensional manifold — a refit through one of its non-truth points produces an alias that genuinely floors. Residual guard is not merely void here but ACTIVELY MISLEADING — a manufactured alias floors, so the guard returns PASS on the very failure it was meant to catch, which is worse than absent — and the controls below are the only protection.
 - 41 runs below the line by default and states the regime on every row. The regime is a REQUIRED FIELD, so a reader can tell at a glance whether the residual verdict on that row means anything.
+- Reporting consequence of "actively misleading" (controls rule): above the line, an (8) residual verdict of `recovered` is NOT admissible and must not be emitted as a verdict — it is evidence-shaped output from a guard that has failed on its target failure, and a bare `recovered` beside a regime tag invites exactly the misreading the tag exists to prevent. Above the line the residual is reported as a raw number labelled non-criterial; the operative verdict comes only from error-vs-truth (rule 2) and the three-way refit control. Below the line the residual verdict stands and is the strongest kind of claim in the programme — safe by construction. (Implementation — suppress vs relabel the field — is 41/c9's; the rule that the residual is not admissible evidence above the line is the controls requirement.)
 Controls (load-bearing above the line, confirmatory below):
 - Refit on a RANDOM image instead of the recovery (cd's decisive control), sharpened to three-way: refit on (a) the recovery, (b) a random image, (c) a DIFFERENT private target's recovery. Real effect = improvement(refit-on-own-recovery) − improvement(refit-on-random); if (c) also improves, the gain is generic chart enrichment, not target-specific.
 - Score against ground truth and watch the alias verdict at every bootstrap iteration — adaptive refitting manufactures aliases, so the alias verdict per iteration is the detector; an iteration that turns alias is the self-confirmation firing, not a success.
