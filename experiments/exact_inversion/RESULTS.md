@@ -5681,3 +5681,16 @@ through one of its non-truth points manufactures an alias that genuinely floors.
 refit control — own recovery, random, and a *different target's* recovery — with the alias verdict watched at
 **every** bootstrap iteration rather than only at the end. **The regime goes on the row**, because the guard's
 validity depends on it and a reader cannot infer it from the numbers.
+
+**Correction in flight, recorded before the rows: my predicted onsets were computed from the WRONG count.** The
+first cell of job 374123 reports the gate catching a marginal image — worst-over-recorded 1.11e-05 on an image
+whose imprint is 1.4e-09 — and proceeding on the **strongly-recorded subset with `N′ = 5`**, where the probe's
+raw rank was 7. **The harness defines the lines from the CERTIFIED subset, not the raw rank**, which is correct
+and is what round 1 established. So the confident batch's band is `59 … 67`, not `57 … 66`, and my pre-registered
+onsets of 67 / 68 / 73 were computed from probe values that are not the quantity the band uses.
+
+**The pre-registration stands as a prediction about the STRUCTURE — each batch degrades at its own line — and the
+specific numbers are recomputed from each batch's certified count when it reports.** I am flagging it now rather
+than restating the onsets afterwards, because a prediction whose numbers move after the data arrives is worth
+nothing unless the movement is visible. The structural claim is unchanged and is the one being tested; the
+arithmetic was mine and was drawn from the wrong column.
