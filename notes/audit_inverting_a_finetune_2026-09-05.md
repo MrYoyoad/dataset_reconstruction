@@ -136,8 +136,17 @@ tabulated instance. Prose checks cannot catch it, because the ledger prose is co
 The argument lives in three places and the corrections had reached only one. Both others carry **the same two
 serious defects**, and they are the two documents a theorist actually reads.
 
-**The theorem-first companion** (artifact `50af0d1a`, dated 2026-09-03), linked from the main page as the
-mathematical version. Six divergences; two serious. (i) No surface, no counting rule anywhere — a reader would
+**The theorem-first companion** (artifact `50af0d1a`) — **REBUILT AND VERIFIED 2026-09-05.** The explainer lane
+retyped it rather than patching (its read returned source inline, so there was no file to edit); the GM read the
+rebuild end to end at source, since a retype of a technical document risks silent content loss. **Nothing lost:**
+every theorem, "why it holds", the membership test and its three sub-points, the conservation law, the retracted
+column reading, and every job id survive. Now 17 items: the surface is item 5 as a **proposition with hypothesis
+A7** and the margin formula, stating the rank-256 boundary as *the rule checking itself*; item 16 carries the four
+cells and the three counts, with its rules list pointing at the third row rather than at a case the schema could
+not express; item 17 states the from-nothing results as **landed**, naming the attacker-verifiable quantity as
+unmeasured. **One straggler:** item 13's table uses bare `N` where item 12's uses `N'`, and item 14's handover
+names items 6, 10 and 12 but not 13 — a third instance of the rule-versus-table class, produced by the edit that
+fixed the other two. As it stood before that rebuild, dated 2026-09-03: Six divergences; two serious. (i) No surface, no counting rule anywhere — a reader would
 conclude LoRA-on-attention is attackable, the reverse of what was measured. (ii) Its closing status says the
 from-nothing attack "has not landed", which predates 706721, 728592 and the letters cells: **the page denies the
 project's own lead result**. Also: three-cell verdict, no exactness scale, no membership baseline, no R5. Its
