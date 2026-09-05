@@ -5721,3 +5721,35 @@ sweep over `r` would have moved that boundary invisibly from cell to cell.
 Unchanged: generator-only as the decisive control; the two oracle gates as **hypothesis-unmet voids** reported with
 their alignment values rather than as nulls; on-manifold never reported in the same breath as off-manifold; and
 identifiability and fidelity kept as separate axes.
+
+## Controls requirement for test 8's row format — recorded now, implemented after the running job clears
+
+**The requirement** (yoado-7e's formulation, raised by yoado-b9): above the certificate line, a test-8 residual
+verdict of `recovered` is **not admissible and must not be emitted as a verdict**. The residual is reported there
+as a **raw number explicitly marked non-criterial**, and the operative verdict comes only from **error-vs-truth**
+and the **three-way refit control**. Below the line the residual verdict stands unchanged.
+
+**Why:** above the line an adaptive refit can manufacture an alias that genuinely reaches the floor, so the
+residual guard **returns `recovered` on precisely the failure it exists to catch**. That is not a weak signal, it
+is evidence-shaped output from a broken guard, and a bare `recovered` beside a regime tag invites exactly the
+misreading the tag was added to prevent.
+
+**And the other half is a stronger claim than before: below the line the adaptive chart is safe BY CONSTRUCTION.**
+The zero set is isolated points, so there is no non-truth zero to refit through and the geometry forbids
+alias-manufacturing. The three-way refit is confirmatory there rather than load-bearing, and **a below-line
+adaptive result needs no trust in the controls at all** — which makes it the strongest kind of claim available in
+this programme.
+
+**Two implementation notes, one of which is a check rather than a promise.**
+
+*First, test 6 already satisfies the spirit and I verified it rather than assuming.* Its `recovered` branch
+requires the objective at the absolute floor **AND** every image error under 1e-10 **AND** the returned set
+covering distinct truths — a floor-reaching wrong image is labelled `alias`, not `recovered`. So the residual is
+never the sole criterion there, and the requirement does not bite on the run in flight. Test 6's in-band cells do
+sit above the certificate line, but the alias-manufacturing hole is specific to **adaptive refitting**, which test
+6 does not do.
+
+*Second, the marker goes in after job 375900 clears, not now.* Editing a module under a running multi-cell job is
+the ground rule I broke once already today, and the requirement bites only when an above-line test-8 cell exists,
+which is not yet. **The field will be emitted with an explicit non-criterial marker rather than dropped**, on
+yoado-b9's reasoning that a missing field reads as a bug while a marked one reads as a decision.
