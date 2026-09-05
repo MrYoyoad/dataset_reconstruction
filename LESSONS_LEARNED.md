@@ -26,6 +26,14 @@ instances in one day, each caught only because someone re-checked the source rat
    fixer caught it at the row. Reading the source is not enough if the print format erases the scale of a
    log-distributed quantity: print residuals in scientific notation, always.
 
+5. **An audit of a stale copy, reported as live (2026-09-05).** The controls lane audited the published artifact
+   from a locally saved copy taken before the fixes landed, and reported three repaired defects as still live —
+   a section that had been moved, a spliced sentence that had been rejoined, and a bridging sentence that was
+   present verbatim. The GM caught it only by re-reading the live artifact rather than relaying the contradiction
+   between fixer and auditor. **For a published object the source is the live object**, not a copy of it: re-fetch
+   immediately before auditing, and record which version was read. A false positive from an auditor is the more
+   corrosive direction of error — it costs a wasted fix cycle and teaches people to discount the audit.
+
 **Rules.** (a) Verify at the point of **application**, not at the point of relay — the session about to write
 the claim into a document is the last one that can catch it. (b) When a finding and a fix arrive together,
 check the finding against its source row before applying the fix; a correct diagnosis and a correct remedy are
@@ -72,6 +80,29 @@ the raw count, is the diagnostic — it asks whether the cut selects the real th
 rather than in it — including two the auditor lane itself produced (a floor-spread false-positive, an earlier "3 of
 8"). Reproducing a number is not the same as the quantity meaning what it claims (cf. "A relay is not a verification",
 above): the arithmetic can be exactly right while the reference scale is wrong.
+
+---
+
+## An audit is two-sided: staleness underclaims as reliably as thresholds overclaim (2026-09-05)
+
+The threshold-scoping lesson above guards against claims that are too STRONG. Its mirror, found the same day in the
+theorem-first companion page (artifact 50af0d1a, dated 2026-09-03): a claim can be too WEAK because the document is
+stale, and the question "is this claim too strong?" never catches it.
+
+- The companion's closing "where it stops" stated *"only the most-leaking arm (job 650890) is an attack from
+  public-scale starts, and it has not landed"* — written before 706721 (51% from 2,000 random starts), 728592 (66%,
+  all eight) and the letters cells landed. The page denied the project's own lead result.
+- Its verdict table had three cells (recovered / alias / search-failure), missing `unverified-recovery` — the same
+  schema collapse the four-cell rule exists to prevent, sitting in the document a supervisor would read as the formal
+  version.
+
+Both are false NEGATIVES, and the overclaim sweep catches neither. Two additions to the audit:
+1. **Ask both questions.** Is this too strong (overclaim — the threshold class)? AND is this too weak or out of date
+   (underclaim — the staleness class)? A result the project has since surpassed is as wrong on the page as one it
+   never reached.
+2. **A dated claim is audited as of its date AND against now.** At promotion (into STATUS/`.tex`/a supervisor
+   document), diff every claim against the current ledger's *strongest supported* statement, not only against its own
+   internal evidence. A page carrying a date is a snapshot; the audit must ask what has moved since.
 
 ---
 

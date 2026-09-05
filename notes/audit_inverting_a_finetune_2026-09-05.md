@@ -121,6 +121,13 @@ formula says it should.
 a different field and **not** the scoring criterion — a field-name trap worth remembering); Adam control at
 `rank C` = 0, false-positive rate 1.0, 6 of 6 voided.
 
+**Coherence fixes verified live (GM, at the artifact, not at a copy).** Surface is section 8 of 13, directly after
+the certificate section; the splice is repaired and a lowercase-after-period sweep returns nothing page-wide; the
+`N → N'` handover is present verbatim with the `k < m+r−N'` / `m−1+r−N'` equivalence stated. An audit report calling
+these three still-live was a stale read — see LESSONS, instance 5. **One straggler remains**: after the handover,
+the trade paragraph reads "carries `r−N'` equations per image where replaying carries `(m−1)+r−N`" — two symbols in
+the one sentence that compares the two channels. Sent to the fixer.
+
 **The lesson for the sweep:** the highest-value class of defect here is a stated general rule contradicting its own
 tabulated instance. Prose checks cannot catch it, because the ledger prose is correct; only the rows can.
 
