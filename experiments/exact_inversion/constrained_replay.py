@@ -84,6 +84,10 @@ def main():
     ap.add_argument("--n-landings", type=int, default=8, help="distinct certificate landings carried into replay")
     ap.add_argument("--lm-iters", type=int, default=300); ap.add_argument("--lm-lambda", type=float, default=1e-2)
     ap.add_argument("--arms", nargs="*", default=["d0", "constrained", "unconstrained", "random", "null"])
+    ap.add_argument("--tol", type=float, default=1e-12,
+                    help="projector tolerance defining N' = rank(B_T), and therefore the band. 7e's robustness "
+                         "ladder runs {1e-6,1e-8,1e-10,1e-12}: a cell whose in_band is CONSTANT across it has a "
+                         "real split; a cell that FLIPS is a boundary cell and needs one more on its robust side.")
     ap.add_argument("--positive-control", action="store_true", help="run the certificate search alone at this cell and "
                     "require it to recover a recorded image from random starts -- a null from this harness is not "
                     "reportable unless the same pipeline reproduces a known positive (yoado-cd, after three artefact nulls)")
@@ -138,7 +142,7 @@ def main():
         coord_std = chart.coords_of(Xtr_t[:10000].T).std(dim=1, keepdim=True)
         g0 = torch.Generator().manual_seed(a.seed + 7); A0 = (a.sigma0 * torch.randn(a.r, bb.n, generator=g0)).to(dev)
         A_T, B_T, imp, sB, _ = release_and_imprints(bb, X_on, y, A0, a)
-        C, Np, S = certificate(A_T, B_T)
+        C, Np, S = certificate(A_T, B_T, a.tol)
         mar, _ = margins_of(bb, X_on, y)
         rec = [i for i in range(a.N) if float(imp[i] / imp.max()) > 1e-12]
         cert_res = (torch.linalg.norm(C @ H, dim=0) / torch.linalg.norm(A_T @ H, dim=0))
@@ -557,9 +561,16 @@ def main():
         # ---- replay LM, optionally confined to {g = 0}
         # null manifold (yoado-cd): the same construction on a Z_C built from a RESAMPLED B_T -- same dimension and
         # conditioning, wrong subspace. If constrained replay works there too, the constraint is not doing the work.
+        # SCRAMBLE FORM specified by yoado-7e, not guessed: MATCHED SPECTRUM with a random ORTHOGONAL ROTATION of
+        # the row space -- the same form as the truncated certificate's control in round 1. The previous version
+        # permuted rows and columns; a permutation preserves the singular values but also preserves the ENTRY
+        # MULTISET, which is more structure than a general rotation and makes the control unlike the treatment in
+        # a way that is hard to reason about. An unmatched random object would be worse still: it reproduces
+        # neither the spectrum nor the closeness to identity, giving a control WEAKER than the treatment.
         gn = torch.Generator().manual_seed(a.seed + 555)
-        perm_rows = torch.randperm(B_T.shape[0], generator=gn)
-        B_null = B_T[perm_rows][:, torch.randperm(B_T.shape[1], generator=gn)]
+        _Un, _Sn, _Vhn = torch.linalg.svd(B_T, full_matrices=False)
+        _Q, _ = torch.linalg.qr(torch.randn(_Vhn.shape[0], _Vhn.shape[0], generator=gn).to(B_T.device))
+        B_null = _Un @ torch.diag(_Sn) @ (_Q @ _Vhn)
         C_null, Np_null, _ = certificate(A_T, B_null)
         def g_null(wv):                                                 # joint, same shape as g_of
             W = wv.reshape(k, -1); F = bb.phi(chart.psi(W))

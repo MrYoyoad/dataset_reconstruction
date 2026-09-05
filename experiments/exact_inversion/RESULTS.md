@@ -5589,3 +5589,32 @@ over-generalisation was from "same cell, same `N′`" to "same criterion". The i
 **No more non-members are needed.** The single-candidate bound is dataset-limited at 3.7e-4, but the distribution
 method supersedes it: it answers the question without a false positive ever being observed, so a larger pool would
 tighten a quantity we no longer rely on.
+
+## The in-band split is robust — the tolerance ladder does not move a single cell (job 362059)
+
+yoado-7e's instruction was to check whether the split is real before adding cells, rather than adding cells
+blindly. `N′ = rank(B_T)` depends on the projector tolerance, so the band does too. The declared ladder, run on
+all three batches:
+
+| projector tolerance | confident `N′` | repeated `N′` | hard1_diff `N′` |
+|---|---|---|---|
+| 1e-6 | 7 | 6 | 1 |
+| 1e-8 | 7 | 6 | 1 |
+| 1e-10 | 7 | 6 | 1 |
+| 1e-12 | 7 | 6 | 1 |
+
+**Identical at every tolerance, for every batch — no cell flips, and the lines (57/67, 58/68, 63/73) are
+unchanged across four orders of tolerance.** So the split is real, **two cells per side is enough, and no extra
+cells are added.** Had any cell flipped it would have been reported as a boundary cell with one more added on its
+robust side; none did.
+
+**And the scramble control is now the specified form rather than a guess.** The previous null permuted `B_T`'s
+rows and columns. A permutation preserves the singular values but *also* preserves the entry multiset, which is
+more structure than intended. It is now **matched spectrum with a random orthogonal rotation of the row space** —
+the same form as the truncated certificate's control in round 1. An unmatched random object would be worse still:
+it reproduces neither the spectrum nor the closeness to identity, giving a control **weaker than the treatment**.
+
+**The genuineness condition on the positive outcome, recorded before the rows.** *"The cut survives in band"* is
+the attacker-favourable result and therefore the one most at risk of wishful reading. If it survives it must
+**also fail on the scrambled release**, and the **achievability floor must show the channel carries it** rather
+than the solver producing it. Both arms are now in the harness and both run in the same job.
