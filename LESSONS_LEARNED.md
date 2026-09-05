@@ -106,6 +106,29 @@ Both are false NEGATIVES, and the overclaim sweep catches neither. Two additions
 
 ---
 
+## Auditing an audit: three procedural rules (2026-09-05)
+
+Three ways an auditor's own report went wrong in one day, each with a mechanical fix.
+
+1. **Re-read the LIVE artifact immediately before auditing it, and record which version you read.** A published
+   artifact's source is the live page, not a local copy taken earlier — a saved copy is a relay of the page as it was.
+   Auditing a stale snapshot reported three already-fixed defects (a splice, a section's placement, a missing bridge
+   sentence) as live: three false positives, which for an auditor is the corrosive direction — it costs the fixer a
+   cycle and teaches people to discount the report. Same family as the field-name trap (307760): the object you read
+   must be the object the claim is about, in space AND in time. The Artifact read tool stamps each pull with a
+   timestamp — cite it in the report.
+2. **Rule vs its own instance: wherever a document states a rule and also tabulates instances of it, check the table
+   against the rule.** Two instances in two days: a surface table read "†0 at every rank tried" while its own stated
+   formula `min(r,d)−min(N·P,d)` gives 59 at r=256, N=1 (273322); and the companion's verdict table had three cells
+   while its own "Rules" list warned about exactly the case a fourth cell exists to encode. A general rule and its
+   tabulated instance disagreeing on one screen is a high-yield, checkable class — sweep for it.
+3. **Before a read-modify-write on a shared document, check whether another lane has it open, and prefer an append
+   that does not rewrite the whole file.** Two lanes edited this file at the same moment; one whole-file write
+   captured the other's entry into a commit whose message did not credit it. Nothing was lost — because the appended
+   entry localises a collision to a merge, whereas a whole-file rewrite silently absorbs concurrent work.
+
+---
+
 ## Do not cost a framework-derived unknown by its expanded dimension (2026-09-04)
 
 - **What I got wrong:** I costed a minibatch shuffle as `T × N` free bits (3,200) against an identifiable budget of ~100 and concluded the data assumption was merely being swapped for a schedule assumption.
