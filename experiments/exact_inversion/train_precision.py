@@ -414,11 +414,12 @@ def main():
                 valid = [d for d in runs if not d["degenerate"]]
                 best = min(valid, key=lambda d: d["objective"]) if valid else None
                 counts = {str(i): sum(1 for d in runs if d["landed"] and d["nearest"] == i) for i in recorded}
-                # ATTACKER-VERIFIABLE COVERAGE. `counts` is what an experimenter sees: it scores each start
-                # against the private images. `verified` is what an attacker can claim unaided: a start counts
-                # only if it BOTH landed on image i AND drove the objective to image i's own floor, so the
-                # residual itself certifies the landing. n_images_verified is the "k of N'" figure, and it is
-                # meaningless without random_starts beside it, since coverage grows with draws.
+                # WITNESS VALIDITY -- NOT an attacker quantity, and must never be named as one. A start counts
+                # here if it BOTH landed on image i AND drove the objective to image i's own floor. The floors
+                # come from a from-truth companion solve, which starts AT the private image, so an attacker
+                # cannot compute them and cannot run this test. What it measures is whether the residual is a
+                # sound per-image witness at all -- whether reaching image i's floor coincides with landing on
+                # image i -- which is the PRECONDITION for any attacker procedure that leans on the residual.
                 for d in runs:
                     if d["landed"] and at_floor(d):
                         assert int(d["nearest"]) in floor_by_image, (
@@ -426,8 +427,23 @@ def main():
                         assert d["objective"] <= 1.5 * floor_by_image[int(d["nearest"])], (
                             "index bug: at_floor and the landed image disagree -- a start certified against one "
                             "image while landing nearest another would inflate coverage silently")
-                verified = {str(i): sum(1 for d in runs
-                                        if d["landed"] and d["nearest"] == i and at_floor(d)) for i in recorded}
+                witness = {str(i): sum(1 for d in runs
+                                       if d["landed"] and d["nearest"] == i and at_floor(d)) for i in recorded}
+
+                # PRECISION AT k -- the attacker arm. The PROCEDURE uses only the release, the public model and
+                # the chart: run B starts, rank by final objective, take the top k. Ground truth enters only in
+                # SCORING the outcome afterwards, which is the line between an attack number and an experimenter
+                # one. No per-image floor is used, so this arm is immune to the at_floor factor question.
+                ranked = sorted(runs, key=lambda d: d["objective"])
+                prec_at_k = {}
+                for kk in sorted({1, 5, 10, 20, 50, len(recorded), 2 * len(recorded)}):
+                    if kk > len(ranked): continue
+                    top = ranked[:kk]
+                    hits = [d for d in top if d["landed"]]
+                    prec_at_k[str(kk)] = dict(
+                        distinct_images=len(set(d["nearest"] for d in hits)),
+                        starts_landing=len(hits),
+                        precision=len(hits) / kk)
                 # closest approach per recorded image over ALL starts: a "not found" at a residual near the 1e-2 bar is a degraded
                 # recovery, not a miss (yoado-ed) -- report the image error, not only the pass/fail
                 min_err = {str(i): min([d["err"] for d in runs if d["nearest"] == i] or [float("nan")]) for i in recorded}
@@ -458,13 +474,19 @@ def main():
                                           "for continuity; frac_starts_at_achievability_floor is the correct one, "
                                           "relative to this cell's own measured floor at the pinned 1.5x factor.",
                             recorded_images_found=sorted(int(i) for i, c in counts.items() if c > 0), landings_per_recorded_image=counts,
-                            verified_per_recorded_image=verified,
+                            witness_valid_per_image=witness,
                             n_images_found=sum(1 for c in counts.values() if c > 0),
-                            n_images_verified=sum(1 for c in verified.values() if c > 0),
-                            certified_start_rate=sum(1 for d in runs if d["landed"] and at_floor(d)) / len(runs),
-                            coverage_note="quote as 'k of N-prime at B starts' with the per-start certified rate "
-                                          "beside it: coverage is monotone in the start budget and is not a "
-                                          "property of the release alone; the rate is the price and is not.",
+                            n_images_witness_valid=sum(1 for c in witness.values() if c > 0),
+                            witness_rate=sum(1 for d in runs if d["landed"] and at_floor(d)) / len(runs),
+                            precision_at_k=prec_at_k,
+                            arm_note="TWO ARMS, never to be merged. (1) witness validity -- n_images_witness_valid, "
+                                     "witness_rate -- is EXPERIMENTER-computed: its per-image floors come from a "
+                                     "from-truth solve an attacker cannot run. It says whether the residual is a "
+                                     "sound witness, which is the precondition for any residual-based attack, and "
+                                     "it is never what an attacker achieves. (2) precision_at_k is the ATTACKER "
+                                     "arm: rank B starts by objective, take the top k, and only the scoring uses "
+                                     "ground truth. Quote either as 'k of N-prime at B starts'; coverage is "
+                                     "monotone in the budget, the rates are not.",
                             floor_by_image={str(i): floor_by_image[int(i)] for i in recorded},
                             min_err_per_recorded_image=min_err,
                             argmin_objective=(best["objective"] if best else None), argmin_landed_on_recorded=(best["landed"] if best else None),
