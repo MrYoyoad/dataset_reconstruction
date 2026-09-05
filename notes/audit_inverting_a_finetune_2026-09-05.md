@@ -27,8 +27,11 @@ surface table), `experiments/exact_inversion/RESULTS.md` (counting rule, capacit
 mixes every feature direction, including unrecorded ones, with weight of the order of the feedback. So
 `row(B_T)` equals `col(X)` only when `rank B_T = N`; when `N' < N` the recorded directions are not exactly in
 `row(B_T)` and `C h_i` is small, not zero — its size is predicted (feedback × unrecorded imprint), not
-arbitrary. The page's own evidence agrees: residuals span eight orders (1e-16 to 1e-8), and on the 26-logit head
-the certificate sits at 0.05–0.20 at the recorded truths. "The algebra holds as stated" should read: exact at
+arbitrary. The page's own evidence agrees, and more strongly than first quoted here (verified at the job rows by
+yoado-93, 2026-09-05): at `N' = N` the certificate residual sits at ~1e-16 to 1e-10; at `N' < N` it reaches order
+one, and on the 26-logit head (job 725918) it rises monotonically from 0.05 at `N' = 19` to 0.20 at `N' = 15` —
+more unrecorded imprint, larger residual, which is the predicted signature. Quote it as "~1e-16 at `N' = N`, up
+to order one at `N' < N`, rising with `N − N'`". "The algebra holds as stated" should read: exact at
 `N' = N`, approximate otherwise, with the residual scale stated. The same caveat applies to "the row space of
 `B_T` is the column space of `X`, legible off the release with no work at all".
 
@@ -52,7 +55,7 @@ State it in the assumption table.
 al. 2024 setting) `W_0` is unknown and the exact route does not apply; only the KKT route does. The page's
 "LoRA is the mitigation" line is correct for public-`W_0` fine-tuning and silent otherwise.
 
-**2.7 Minibatching is provable, not conjectural.** Each minibatch gradient lies in `col(A_0 H_b) ⊗ row(H_b^T)`
+**2.7 Minibatching is provable, not conjectural** (independently re-derived by yoado-93, 2026-09-05). Each minibatch gradient lies in `col(A_0 H_b) ⊗ row(H_b^T)`
 with `H_b ⊂ H`, so the induction closes with `H` the union of features seen and `M_t` updated blockwise. The
 cost is that the batch order becomes part of the recipe. Two lines; upgrade the assumption table.
 
