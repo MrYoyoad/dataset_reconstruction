@@ -241,6 +241,69 @@ cannot pass as a recovery (verdict `recovered` / `alias` / `optimisation-failure
    automatically, no regime special-case. One harness change across every recovery test (round 1 and 5–8).
    Raised by c9, accepted by 7e.
 
+   **The `error_small` (correct-image) axis is CHART-RELATIVE — ruling 2026-09-05, yoado-93, adopting the
+   explainer/78 proposal (better than the fixed tolerance I first considered, and the same "scope to the physical
+   scale" lesson applied to the error axis that `at_floor` applies to the residual axis).** An image is `correct`
+   when its true-datum error reaches the CHART's OWN achievable floor — the minimum that chart can represent for that
+   image — NOT machine precision and NOT a fixed tolerance. Why: machine precision is unreachable wherever the truth
+   is off-chart (every realistic cell — the letters' chart error is 0.235), so a machine-precision bar empties
+   `unverified-recovery` exactly where it is needed; a fixed tolerance inflates `information-carried` with near-misses.
+   The chart-relative floor collapses TO machine precision on the synthetic bed (chart contains the truth by
+   construction), which is why "machine precision" read correctly to whoever wrote it there. Always report BOTH errors
+   (chart-representable and true-datum); the axis reads whether the true-datum error reached the chart floor.
+   **Consequence for the disputed cell:** the span-arm (jobs 408560-63, synthetic k=12/N=8, chart floor = machine
+   precision) at 0.9% image error is three orders above its chart floor → `search-failure`; the release-only replay
+   bound is **0 of 20, no unverified-recovery**. **`alias` additionally requires σ_min at the truth to have
+   collapsed** (the information-limit signature) — state that condition identically in every copy of the table (it is
+   currently present in the companion, absent on the main page).
+
+   **What "reaches the chart floor" means — RELATIVE, not a fixed tolerance (ruling refined 2026-09-05, yoado-93, on
+   78's catch that a ~0.4% absolute cut got reintroduced in a wording pass — the same unscoped-threshold defect one
+   level down).** `error_small` (reached the chart floor) = per-image **WORST** image (`err_vs_chart_max`, never the
+   median — aggregate-is-not-typical) with `err_vs_chart_max ≤ c · chart_repr_err`: the solver's residual to the
+   chart projection is at most a fraction `c` of the chart's own representation error, so the total is chart-limited,
+   not solver-limited. This mirrors `at_floor`'s 1.5× on the residual axis. Below-line cells only — a cell with
+   `jac_full_rank_truth = false` (e.g. the 95.1%-backbone k=18 row) is above the line, a different regime, not swept
+   in. **`c` is the one knob; pin it with the at_floor discipline — anchored to measured rows that clearly did vs did
+   not reach their floor, NEVER chosen in passing to admit or exclude a target cell** (that is the defect this rule
+   removes). The 614344 cells stay `search-failure` until `c` is pinned and applied to the rows.
+   **Honesty rider — report `chart_repr_err` on every `recovered`/`unverified-recovery` cell.** Reaching the chart
+   floor means the release gave up everything THAT CHART could express; a cell admitted with `chart_repr_err = 0.53`
+   is a chart-limited image, not a claim the image is recognisable. Image recognisability is a property of the CHART,
+   not of what the release carries; it is the separately-flagged open question ("recognisability never assessed") and
+   must never be smuggled into the recovery verdict — conflating them is the "51% reconstruction logged as 1e-14"
+   failure in mirror.
+
+   **`c` pinned (2026-09-05, yoado-93; scoring lane gone, GM asked me to pin it under the explicit guard — anchors
+   chosen and justified BEFORE any ratio computed, 614344 held out entirely).** Anchors: *clearly reached* = on-chart
+   cells whose solver hit the chart projection to machine precision (`err_vs_chart_max` ~1e-13 against
+   `chart_repr_err` ~0.2–0.7, ratio ~1e-13); *clearly not reached* = cells with `err_vs_chart_max ≥ chart_repr_err`
+   (ratio ≥ 1, the off-manifold "b" arm). Any `c` in ~[1e-3, 1] classifies both anchor groups identically — a stable
+   range spanning three orders. **But the ratio is a CONTINUUM with no gap at the disputed cells:** 614344's
+   below-line cells (ratios 0.0079/0.063/0.094/0.152/0.106 at k=6/10/14/16/17) sit in an intermediate band populated
+   by other trained-backbone cells (607896, 610020 at the same ratios), which the anchors do not resolve. So `c` is
+   set CONSERVATIVELY at the strict end of the stable range — **`c = 5e-3`** (solver residual to the chart ≤ 0.5% of
+   the chart's own error): it admits the clearly-reached cells and uniformly rejects the whole intermediate band,
+   **614344 below-line cells → `search-failure`**. Not gerrymandering — 614344 is treated identically to 607896/610020.
+   **Absolute-floor wrinkle (relative-measure-needs-an-absolute-floor):** the ratio is meaningless where
+   `chart_repr_err` is itself at machine precision (synthetic cells, chart contains the truth); there `error_small` =
+   `err_vs_chart_max` at machine precision, absolutely — the span-arm (0.9% ≫ machine precision) → not reached. **What
+   the conservative `c` does NOT claim:** not that the 614344 cells FAILED, only that they did not CLEARLY reach; and
+   their `chart_repr_err` is 0.42–0.53 (a bad chart), so even "reached" would be a chart-limited image — the open
+   recognisability question. Whether reaching a 0.5-chart floor counts as information-carried is that project
+   decision, not a threshold; flagged open, `search-failure` the conservative default meanwhile.
+
+   **What the constant actually decides — exactly one cell, recorded so the strict end is auditable not asserted (78,
+   verified at the rows).** Within the anchor-stable range `c` changes the classification of exactly ONE cell: k=6
+   (ratio 0.0079) is rejected at `c = 5e-3` and would be admitted at `c = 1e-2`; every other band cell
+   (k=10/14/16/17 at 0.063/0.094/0.152/0.106, and the above-line k=18 at 0.169) rejects at both. So the anchors fix
+   `c` to three orders for everything clearly reached or clearly not, and within the intermediate continuum a single
+   cell sits close enough to the line for the constant to decide it. Choosing the strict end there is a stated policy,
+   not a measurement — and what the strictness buys and costs is precisely one cell at one chart dimension (k=6). The
+   two riders above travel into all three documents' wording, not only here: `c` rejecting a cell says it did not
+   *clearly* reach its floor, never that it failed; and a chart error of 0.42–0.53 makes even an admitted cell a
+   chart-limited image, so whether reaching such a floor is information-carried stays the recognisability question.
+
    **Four-cell verdict (cell caught by b9; schema and bidirectional framing c9; additions cd; threshold-tie to
    b9's locked bars; accepted 7e).** Verdict = f(two booleans: `at_floor`, `error_small`), never residual alone:
 
