@@ -3,7 +3,12 @@
      because 7e's file-write tool was timing out on its host and cd had ruled that a controls document must not
      exist only in session messages. Nothing below is reconstructed or paraphrased; the text is as sent. The
      (5) axis bullet already reflects cd's reversed ruling (k_g at fixed r, not both). Corrections belong to
-     yoado-7e as author. -->
+     yoado-7e as author.
+
+     AMENDMENT 2026-09-05: the two sentences in section (8) describing the residual guard below and above the
+     certificate line were raised by yoado-b9 as auditor (below the line the chart is safe BY CONSTRUCTION, not
+     merely by control; above the line the guard is ACTIVELY MISLEADING rather than merely void), accepted by
+     yoado-7e as author, and landed here by b9 as scribe from 7e's verbatim replacement strings. -->
 
 # Round-2 controls — how each of the four reopened tests could look like a success without being one
 
@@ -40,8 +45,8 @@ Decisive controls (cd + 41; oracle detector is the MEASUREMENT, not a gate — c
 ## (8) Adaptive chart — second highest; self-confirmation by design
 Looks-like-success path. Refitting the chart on the recovered images biases it toward those images, so the second recovery "improves" because the chart now represents them — circular. And adaptive refitting can MANUFACTURE an alias: refit so a wrong recovered image becomes floor-reachable, and the next round floors at that wrong image and reads as confirmed.
 The hole is scoped to above the certificate line (cd's precision). The residual guard ("a self-confirming chart yields a candidate that misses the floor") is only true of wrong images that FAIL to floor.
-- Below the line the zero set is isolated points — exactly the recorded images — so any floor-reaching candidate IS a recorded image and no refit can manufacture an alias (no non-truth zero to refit through). Residual guard SOUND here; three-way control confirmatory.
-- Above the line the zero set is a positive-dimensional manifold — a refit through one of its non-truth points produces an alias that genuinely floors. Residual guard VOID here; the controls below are the only protection.
+- Below the line the zero set is isolated points — exactly the recorded images — so any floor-reaching candidate IS a recorded image and no refit can manufacture an alias (no non-truth zero to refit through). Residual guard is not just sound here — the adaptive chart is safe BY CONSTRUCTION: the geometry forbids the failure (there is no non-truth zero to refit through), so the three-way control is not logically required, and a below-line adaptive result needs no trust in the controls at all.
+- Above the line the zero set is a positive-dimensional manifold — a refit through one of its non-truth points produces an alias that genuinely floors. Residual guard is not merely void here but ACTIVELY MISLEADING — a manufactured alias floors, so the guard returns PASS on the very failure it was meant to catch, which is worse than absent — and the controls below are the only protection.
 - 41 runs below the line by default and states the regime on every row. The regime is a REQUIRED FIELD, so a reader can tell at a glance whether the residual verdict on that row means anything.
 Controls (load-bearing above the line, confirmatory below):
 - Refit on a RANDOM image instead of the recovery (cd's decisive control), sharpened to three-way: refit on (a) the recovery, (b) a random image, (c) a DIFFERENT private target's recovery. Real effect = improvement(refit-on-own-recovery) − improvement(refit-on-random); if (c) also improves, the gain is generic chart enrichment, not target-specific.
