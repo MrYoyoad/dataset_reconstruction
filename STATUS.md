@@ -794,8 +794,11 @@ All four arms start from **release-only** points — no access to the truth (`k=
 | cert (Primitive-1 anchor) | 5 | **0** | 0.74–1.04 |
 
 **†0 of 20 at the floor.** The one **unverified-recovery** is the span estimator on seed 3: image error †9.2e-3 at residual †9.1e-7 — inside the
-1e-2 tolerance but nowhere near the †1e-15/†1e-30 a perturbed-truth start reaches, so read it as *entered the basin,
-still converging*, not as a finished recovery.
+1e-2 tolerance but nowhere near the †1e-15/†1e-30 a perturbed-truth start reaches. **The image came out; the
+residual never verified it.** Whether that is *budget-limited* (still descending at the 60-iteration cap) or
+*stalled* (a displaced minimum, close in image, not a zero) **is being measured — no solver trace exists on disk
+for that arm**, so the earlier gloss "entered the basin, still converging" is struck as unsupported: it asserted
+the budget-limited branch. Not a finished recovery either way.
 
 **The certificate anchor is the informative failure and a clean demonstration of Primitive 2.** Its pre-solve genuinely
 succeeds — it drives `‖Cφ(ψ(w))‖` to †1.1e-6 (seed 1) and †5.0e-8 (seed 3), i.e. the certificate equation is satisfied
