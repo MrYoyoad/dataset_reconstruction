@@ -936,8 +936,12 @@ margin on that example. The margin governs only through the error it
 implies, so this relation is a tendency and not a law — the accumulated
 error over $T$ steps is not exactly $\mathrm e^{-M}$ at $W_0$ — but it shows
 where an example stops being recorded at all — the shaded band is
-$\|C_i\|<10^{-23}$, and when \emph{every} example of a batch falls in it the
-release as a whole is numerically empty. No point is clipped: the axes
+$\|C_i\|<10^{-23}$ --- an absolute plotting convention, since the panel spans
+batches whose releases differ in norm by many orders. \emph{Numerically
+empty} is a relative judgement and must be read as one: a release is empty
+when every imprint falls below the roundoff of its own $\|B_T\|$ in the
+deployed format, which for a release of norm $10^{-18}$ is a far smaller
+absolute number than for one of norm one. No point is clipped: the axes
 reach the smallest measured values, and the recovery of $C_i$ from the
 release is gated at $\|\sum_iC_i-B_T\|/\|B_T\|<4\times10^{-12}$.}\label{fig:imprint}
 \end{figure}
@@ -1067,7 +1071,13 @@ artefact rather than the comparison.)
 \paragraph{On a strong model, ordinary private data is dominated by one
 imprint --- which is not the same as recording only one.} The imprint spectrum can be read off the release without
 any private knowledge, and $\sigma_2/\sigma_1(B_T)<10^{-3}$ is the
-attacker's test for ``one example carries this''. Its frequency over the
+attacker's test for ``one example carries this'' --- a ratio, and therefore
+one that needs a floor beneath it and a confound excluded above it. It is
+meaningful only when $\sigma_1$ itself stands above the release's own noise,
+since on an empty release the ratio compares two numbers that are both
+rounding; and a small ratio has a second cause besides one example dominating,
+namely near-collinear features, which is the false positive recorded in the
+footnote below. Its frequency over the
 forty batches$^\dagger$ (job 650891): $9$ of $10$ on the strong encoder
 ($\sigma_2/\sigma_1$ from $4.8\times10^{-16}$ to $0.07$; ranks
 $1,1,1,3,3,4,6,6,6,8$), and $0$ of $10$ on both the weak and the mid
