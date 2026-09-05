@@ -1,0 +1,141 @@
+# Audit — "Inverting a Fine-Tune" (artifact 46b9465a), primitives and pitch
+
+**Date:** 2026-09-05 · **Auditor:** GM session (yoado-78) · **Scope:** the math of the primitives on the page,
+what the page presents versus what the ledger now says, and the position against SimuDy (Tian et al., ICLR 2025)
+and the supervisor's own papers (Haim et al. 2022; Smorodinsky, Vardi, Safran 2025; Oz et al. 2024;
+Gronich & Vardi 2026). Sources read at source: the artifact HTML, `STATUS.md` (top through the four-model
+surface table), `experiments/exact_inversion/RESULTS.md` (counting rule, capacity table, three counts),
+`notes/related_work_simudy.md`, `notes/simudy_decision_brief.md`, and pypdf text of the four papers.
+
+## 1. Primitives that check (verified by hand)
+
+| primitive | statement on the page | check |
+|---|---|---|
+| closure | `B_t = P_t (A_0H)^T`, `A_t = A_0(I + H M_t H^T)`, with the `P`, `M`, `D_t` recurrences | correct by induction: `∇_B ∝ D_t (I + G M_t^T)(A_0H)^T`, `∇_A ∝ A_0H P_t^T D_t H^T`; logits `W_0H + s P_t Q (I + M_t G)` |
+| seed reduction | `A_T U = XΩ`, `A_T V = Y`, `B_T = P_T R_H^T X^T`; `Q` sees `A_0` only through `X^T X` | correct; `U^T V = 0` kills the deformation on `V`; rotation gauge on `X` is covariant, not a gauge of the release |
+| faithfulness | `ρ = 0` iff some init reproduces the release, via `A_0' = X U_c^T + (A_T V_c)V_c^T` | correct: `A_0' U_c = X`, `A_0' V_c = A_T V_c`, both factors reproduce |
+| replay count | release variety has dimension `N((m−1) + r − N)`; line `k < m + r − N` | correct: rank-`N` matrices with columns in `1^⊥` are rank-`N` in `R^{(m−1)×r}`; the second block pays exactly for `X` |
+| imprint law | `B_T = Σ_i C_i`, `‖C_i‖ ≤ ηs max_t‖A_t h_i‖ Σ_t‖D_t[:,i]‖` | correct; per-example split of `D_t H^T A_t^T` is exact, bound is the triangle inequality |
+| certificate kernel | `ker C = recorded ⊕ ker A_0`, codimension `r − N'`, line `k < r − N'` | correct **given exactness (see 2.1)** |
+| simplex cap | `1^T B_T = 0` so `rank B_T ≤ min(m−1, r, N')` | correct |
+| full-FT comparison | `ΔW` rows in the span of recorded features; line reads with `n` in place of `r` | correct **given `W_0` public (see 2.6)** |
+| Adam | closure fails (entrywise division leaves the gradient subspace) | correct |
+
+## 2. Holes in the primitives as stated
+
+**2.1 The certificate is exact only when every batch member is recorded.** `A_t h_i = A_0 H (I + M_t G) e_i`
+mixes every feature direction, including unrecorded ones, with weight of the order of the feedback. So
+`row(B_T)` equals `col(X)` only when `rank B_T = N`; when `N' < N` the recorded directions are not exactly in
+`row(B_T)` and `C h_i` is small, not zero — its size is predicted (feedback × unrecorded imprint), not
+arbitrary. The page's own evidence agrees: residuals span eight orders (1e-16 to 1e-8), and on the 26-logit head
+the certificate sits at 0.05–0.20 at the recorded truths. "The algebra holds as stated" should read: exact at
+`N' = N`, approximate otherwise, with the residual scale stated. The same caveat applies to "the row space of
+`B_T` is the column space of `X`, legible off the release with no work at all".
+
+**2.2 "The truth is the only zero" is isolation, not uniqueness.** The analytic-minor argument gives local
+isolation almost everywhere. Permuting the batch gives `N!` zeros trivially; other discrete zeros are not
+excluded by the argument. Global uniqueness below the line is *measured* (floor fraction = landing fraction in
+one cell), not proven. The four-cell verdict's "below the line consistency is correctness" rests on this and
+should be labelled as measured.
+
+**2.3 The dropped `1/N`.** The gradient formulas omit the mean's `1/N` while the batch-size corollary (R5)
+depends on it entering as `ηs/N`. Write `ηs/N` in the recurrence or say the mean is folded into `η`.
+
+**2.4 "The complement carries no information" is an exact-constraint statement only.** `A_T V_c(w)` must look
+like an iid Gaussian draw, so it is a weak statistical test on the candidate span. Not a hole in the theorem;
+an overstatement in prose.
+
+**2.5 Analyticity needs an analytic chart.** PCA and tanh generators qualify; a ReLU-decoder VAE does not.
+State it in the assumption table.
+
+**2.6 The full-FT comparison assumes the base weight is public.** For a head trained from scratch (the Oz et
+al. 2024 setting) `W_0` is unknown and the exact route does not apply; only the KKT route does. The page's
+"LoRA is the mitigation" line is correct for public-`W_0` fine-tuning and silent otherwise.
+
+**2.7 Minibatching is provable, not conjectural.** Each minibatch gradient lies in `col(A_0 H_b) ⊗ row(H_b^T)`
+with `H_b ⊂ H`, so the induction closes with `H` the union of features seen and `M_t` updated blockwise. The
+cost is that the batch order becomes part of the recipe. Two lines; upgrade the assumption table.
+
+## 3. Holes in what the page presents (page vs ledger, 2026-09-04/05)
+
+**3.1 The channel's surface is absent — the largest hole.** Since job 273322 the ledger states that the
+recipe-free certificate is identically zero on weight-shared modules at deployed rank: one image records one
+direction per token or position, so a single image floods a rank-8-to-64 adapter on any transformer block
+linear (197 tokens) and early convolutions are vacuous at every rank. It exists on heads, dense non-shared
+layers, and deep convolutions with few positions (the capacity table, job 296789). The page's
+"which fine-tunes leave anything to find" table therefore over-promises: attention-LoRA, the dominant
+deployment, is outside the channel. This must be on the page, and it is the best defender-facing tool the
+project has (the counting rule `min(r, d) − min(N·p, d)`, evaluable from architecture and batch size alone).
+
+**3.2 No membership baseline.** Against LiRA on a ViT-B/16 head (job 287241) the certificate wins on
+assumptions (no shadows, no recipe), not on separation. The page's "membership needs no fidelity" paragraph
+should carry that sentence.
+
+**3.3 Replay counts are single-layer, frozen-input.** The deployment-gap result (jobs 218345/218346): the
+release determines the image only if adaptation reaches near the input, and at deployed rank on pixel-input
+adaptation it pins about 7% of the image. The page's per-example budget `m−1+r−N'` is the frozen-input
+number; multi-layer adapters count (image, step) directions and the budget shrinks.
+
+**3.4 Lead result: attacker-verifiable fraction unmeasured.** The page says so, correctly. Keep the caveat in
+the caption as well as the prose; do not let "all eight" travel without it.
+
+**3.5 The start problem is stated honestly but not positioned.** Every replay recovery starts near the truth;
+no attacker-buildable start reaches the floor. SimuDy starts from noise and reaches SSIM ≈ 0.2 on ResNet-18.
+Say plainly that on the start problem SimuDy is ahead and the chained route (certificate proposes, replay
+pins) is the untested answer.
+
+**3.6 The arithmetic section stays out of the pitch.** Keep it on the page for completeness; it does not go to
+the supervisor.
+
+## 4. Against SimuDy (same primitive, four deltas, one deficit)
+
+Same primitive: replay the recipe from `θ_0` on candidate data and match `θ_T`. SimuDy: full fine-tuning,
+full unroll (memory-bound, 22 GB and 15 h for 120 CIFAR images on ResNet-18), cosine loss plus TV plus
+gradient clipping, minibatch, grid-searched learning rate, starts from noise, no identifiability statement,
+no verdict on a solve.
+
+Where this page is ahead:
+1. **The unroll is batch-sized, not model-sized** — but only for one adapted layer with a frozen input.
+   Multi-layer adapters break the closure and return to SimuDy's cost.
+2. **An exact residual with a floor gives a verdict** (alias versus search failure). SimuDy's loss
+   "fluctuates around 0.2 while reconstructions are good" (their §4); it cannot certify anything.
+3. **A counting theorem** for the chart budget. SimuDy says only "over-determined".
+4. **Recipe identifiability**, including R5 (only `ηs/N` is identifiable). SimuDy's Fig. 7 — wrong batch-size
+   guesses give equal quality once the rate is re-paired — is that corollary observed empirically; cite it.
+
+Where SimuDy is ahead: from-noise starts, real ResNet-18 and ViT, N up to 120. On the replay route this page
+has no attacker-available start.
+
+## 5. Against the supervisor's papers (where to hang the story)
+
+- **Haim et al. 2022.** KKT stationarity at `t → ∞` with unknown multipliers; its residual has spurious
+  solutions (Smorodinsky et al. say so in their introduction: such networks "could have been trained on many
+  datasets"). This page is the finite-`T`, exact-dynamics version for LoRA: the residual is zero at the truth
+  by construction, so the floor certifies. Its count (dimension of the reachable release variety) is the sharp
+  form of Haim's "p equations, nd unknowns".
+- **Smorodinsky, Vardi, Safran 2025.** Provable membership: `|Φ(x)| = m` for members against `o(m)` for fresh
+  points, needing near-orthogonality (their Assumption 4.1) and a known or bounded margin. The certificate is
+  the same shape of statement — exact for members, order one for non-members — with different hypotheses:
+  SGD-class, `B_0 = 0`, non-shared module, `N' < min(m−1, r)`, and no distributional assumption. Their
+  univariate reconstruction returns a finite candidate set with a constant fraction of training points; our
+  "argmin lands on a recorded image, basins uneven" is the same flavour. **Present the certificate in their
+  format: Assumption, Theorem, Algorithm, with the counting rule as the Assumption-4.1 analogue.** That is the
+  tool.
+- **Oz et al. 2024.** An MLP on frozen DINO/CLIP embeddings is exactly the head surface where the channel
+  survives. Oz trains from scratch (unknown `W_0`) and needs KKT; a head fine-tuned from a public head exposes
+  the recorded-embedding span exactly. State both cases.
+- **Gronich & Vardi 2026.** Momentum keeps the gradient subspace, so the closure should extend to momentum SGD
+  (unmeasured). Under Adam only the KKT route survives, which is their regime. One line, no more.
+
+## 6. Solvency, in one table
+
+| claim | standing | goes to the supervisor as |
+|---|---|---|
+| closure, seed reduction, faithfulness | theorem, verified | the reduction |
+| replay count and its sharp line | theorem plus measured sharpness | the identifiability statement |
+| imprint law, "what leaks is what it had to learn" | derived plus measured, robust | the mechanism |
+| certificate, kernel count, simplex cap | theorem **at `N' = N`**, approximate otherwise | the tool, with 2.1 fixed |
+| counting rule / surface | measured on four pretrained models | the defender's meter, with its scope |
+| letters from random starts | experimenter-verified, attacker-verifiable fraction unmeasured | an observation |
+| replay from attacker starts | not achieved | an open problem, SimuDy ahead |
+| membership vs LiRA | equal separation, fewer assumptions | one sentence |
