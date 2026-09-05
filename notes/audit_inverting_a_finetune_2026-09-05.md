@@ -208,15 +208,41 @@ has no attacker-available start.
 - **Gronich & Vardi 2026.** Momentum keeps the gradient subspace, so the closure should extend to momentum SGD
   (unmeasured). Under Adam only the KKT route survives, which is their regime. One line, no more.
 
-## 6. Solvency, in one table
+## 6. Solvency, in one table (revised end of day, after the corrections landed)
 
 | claim | standing | goes to the supervisor as |
 |---|---|---|
-| closure, seed reduction, faithfulness | theorem, verified | the reduction |
+| closure, seed reduction, faithfulness | theorem, verified by hand | the reduction |
 | replay count and its sharp line | theorem plus measured sharpness | the identifiability statement |
 | imprint law, "what leaks is what it had to learn" | derived plus measured, robust | the mechanism |
-| certificate, kernel count, simplex cap | theorem **at `N' = N`**, approximate otherwise | the tool, with 2.1 fixed |
-| counting rule / surface | measured on four pretrained models | the defender's meter, with its scope |
-| letters from random starts | experimenter-verified, attacker-verifiable fraction unmeasured | an observation |
-| replay from attacker starts | not achieved | an open problem, SimuDy ahead |
+| **counting rule / where the channel exists** | **theorem-shaped (a proposition with hypothesis A7) + measured on four pretrained models** | **the defender's meter — evaluable from architecture and batch size before any release exists** |
+| certificate, kernel count, simplex cap | theorem **at `N' = N`**; approximate otherwise, at a measured scale | the tool, correctly scoped |
+| letters from random starts | experimenter-verified; attacker-verifiable fraction **unmeasured** | an observation, not an attack rate |
+| replay from attacker-buildable starts | **none of twenty** — clean, and for a principled reason | an open problem; SimuDy ahead on the start |
 | membership vs LiRA | equal separation, fewer assumptions | one sentence |
+
+### What changed today, and why it improves the pitch
+
+1. **The counting rule moved from a caveat to a result.** It was absent from both theorem-first documents; it is now
+   a proposition with its own hypothesis, placed *before* every claim that depends on it, carrying **both**
+   directions — where it forbids a channel (transformer block linears, early conv, depthwise) and where it predicts
+   one and the measurement returns it (the live ResNet cell, `rank C = 64−49 = 15`). Read only as a prohibition it
+   would be special pleading; carrying both directions makes it a law. **This is now the strongest defender-facing
+   output the project has**, and it is the one thing on the page a supervisor can check against their own
+   configuration in a minute.
+2. **The replay bound is clean.** "One start reached 0.9% but unverifiably" is withdrawn: the chart-relative
+   definition puts it three orders above its floor, so it is a search failure and the bound is **0 of 20**. The
+   honest number is also the simpler one.
+3. **The verdict schema cannot now be used to overclaim.** Four cells, three counts reported separately, and
+   `unverified-recovery` excluded from every attack rate by construction.
+4. **One constant is still open**, and it is the only hole left: what it means for an image to *reach* its chart
+   floor (`err_vs_chart_max ≤ c · chart_repr_err`). Being pinned against pre-chosen anchors with the disputed cell
+   held out. Until it is, the dependent cells hold at *search failure* — the conservative reading.
+
+### The one thing to lead with
+
+Not a reconstruction number. **The counting rule**, stated as the proposition it now is, with the surface table
+under it: the recipe-free channel is vacuous on the dominant deployment pattern and alive on heads, dense layers
+and low-position deep convolutions — decided by architecture and batch size alone, before any release exists, and
+never a privacy guarantee. That is a tool, which is what the supervision has been asking for; the reconstruction
+cells are its demonstration, not the claim.
