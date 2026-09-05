@@ -229,6 +229,51 @@ cannot pass as a recovery (verdict `recovered` / `alias` / `optimisation-failure
    alias-manufacturing: a manufactured alias floors with large image-error, so the verdict is `alias`
    automatically, no regime special-case. One harness change across every recovery test (round 1 and 5–8).
    Raised by c9, accepted by 7e.
+
+   **Four-cell verdict (cell caught by b9; schema and bidirectional framing c9; additions cd; threshold-tie to
+   b9's locked bars; accepted 7e).** Verdict = f(two booleans: `at_floor`, `error_small`), never residual alone:
+
+       at_floor      & error-small  ->  `recovered`
+       at_floor      & error-large  ->  `alias`                 (residual certifies, truth denies — OVER-count)
+       NOT at_floor  & error-small  ->  `unverified-recovery`   (truth confirms, residual denies — UNDER-count)
+       NOT at_floor  & error-large  ->  `search-failure`
+
+   - Residual is a RAW field (value + `at_floor`), no verdict word. `recovered` is structurally impossible
+     without a correct image, in every regime.
+   - **Verdicts stay categorical; magnitude lives in raw fields (c9).** `unverified-recovery` at 3e-7 and at
+     9.2e-3 are both `unverified-recovery` with different raw `image_error`. The spread is in *every* cell —
+     `recovered` spans 3e-7 to 9.2e-3 too — so grading the fourth cell would force grading all four.
+   - **`at_floor` is relative to the CELL's achievability floor** (the from-truth solve's residual), NOT a fixed
+     1e-30. **Factor pinned at 1.5× (b9):** a row is at-floor iff `residual ≤ 1.5 × res_at_truth` **in the same
+     units**. Anchored empirically over the 311 rows carrying both: rows that reached their arithmetic floor span
+     ratios **0.55–1.33** (fp64 converged 1.20, 1.29; fp32/fp16/bf16 at their format floors 0.55–1.33), while the
+     lowest deliberately early-stopped row sits at **1.51**. 1.5 is the tight side of that gap, and tight is the
+     safe direction: a borderline row falling to `unverified-recovery` under-counts attacker-claimable (no
+     over-claim) while still counting for information-carried (no lost leakage signal). **The gap 1.33→1.51 is
+     narrow — revisit the factor if a genuinely converged row above 1.5 appears.**
+   - **UNIT HAZARD, must be checked before the ratio is taken (b9).** In many files `residual` is the *objective*
+     (~1e-31) while `res_at_truth` is the *residual* (~1e-15) — the square. Over the corpus this shows as a
+     spurious ratio cluster at ~5e-16. Any `at_floor` computed as `residual / res_at_truth` across those rows
+     compares an objective to a residual and is wrong by fifteen orders. Take both from the same field, or square
+     one, and mark a row **indeterminate** rather than guessing when the units cannot be established.
+   - **`error_small` is NOT a new number** — it is the already-locked success bars (1e-2 absolute,
+     ≤⅓-of-best-baseline, achievability-floor multiple where that governs). For a multi-image cell it is the
+     **worst image under the one-to-one assignment**, consistent with the locked "all `N′` clear" criterion;
+     `partial (j/N′)` remains a separate reported field and is not a verdict.
+   - **The verdict is the EXPERIMENTER's label (cd, c9 converged):** it needs image-error-vs-truth, which the
+     attacker never has. The attacker sees only `at_floor`. **Below** the certificate line `at_floor` ⟹ recorded
+     image, so the attacker's own verdict is sound; **above** it `at_floor` does not imply correct, so the
+     attacker cannot distinguish `recovered` from `alias` at all — one structure, two symptoms, the same boundary
+     as the residual guard from the scoring side.
+   - **Three honest metrics, not two (c9's bidirectional framing).** `{residual at floor}` = {recovered, alias}
+     and `{true recovery}` = {recovered, unverified-recovery} overlap only in `recovered`. So
+     **information-carried** = {recovered, unverified-recovery} (ground-truth); **attacker-claimable** =
+     {recovered, alias} (residual at floor, alias-contaminated); **verified-true** = {recovered} (the
+     intersection, isolable only with ground truth). The residual — the attacker's only instrument — diverges from
+     true recovery in **both** directions: it certifies aliases it should not and misses recoveries it should
+     catch. `unverified-recovery` counts toward information-carried, **never** toward an attack success rate.
+   - Applies to every recovery test (round 1 and 5–8), one harness change; the derived 4-cell verdict sits
+     alongside the preserved recorded verdict, so no historical row is rewritten.
 5. **Any learned component is measured against the private target before it is used for anything (cd's standing rule,
    generalising c9's (4) detector).** Score the component's raw output vs the private set and report that number on
    the row *before* the component feeds a solve — covers the decoder in (4) and the learned dictionary in (3) with one
