@@ -2958,43 +2958,23 @@ distinguishes a latent crash from a deliberate optional read.
 submitting. Three of tonight's five harness faults would have been caught by a check costing seconds: this one,
 the unused optimiser selector, and the loader's silent cap.
 
-## A floor is per-image, not per-cell — and a global floor silently penalises the hardest images (2026-09-05)
+## Two corollaries of the threshold rule (see "A threshold must be scoped to the physical scale it separates")
 
-**The bug.** The `at_floor` verdict compares a start's achieved objective against `1.5 ×` the cell's
-`objective_at_truth`. But `objective_at_truth` is recorded per image (`objective_at_truth_all`), and on the
-lead letters cell those eight values span **2014×**: `8.85e-14` to `1.78e-10`. The cell-level figure is their
-*minimum* — the easiest image's floor. Judging every start against it puts the bar below the achievability
-floor of **seven of the eight images**, so those seven cannot be counted at floor whatever the attacker does.
+**Instances three and four of that entry, kept here only for their specifics.**
 
-**How it presented.** A settling run appeared to show that an attacker verifying by residual could confirm
-only 3 of 8 recovered images, downgrading the lead result from an attack to something weaker. The three
-"distinct images" were three endpoint values scattered around *one* image's floor — two of them slightly
-below it, which is solver scatter around a displaced minimum, not coverage.
+*A floor is per-image, not per-cell.* `objective_at_truth` is recorded per image, and on the lead cell
+those eight values span **2014×** (`8.85e-14` to `1.78e-10`). The cell-level figure is their *minimum*, so
+judging every start against `1.5 ×` it puts the bar below the achievability floor of seven of the eight
+images — they cannot be counted at floor whatever the attacker does. This produced an apparent "attacker
+verifies only 3 of 8", which was three endpoint values scattered around *one* image's floor. Fix: a start
+landing on image `i` is at floor iff its objective `≤ 1.5 × objective_at_truth_all[i]`. Needs the
+landed-image index logged per start; without it the recomputation cannot be done. Caveat:
+`objective_at_truth` is not a strict lower bound — a solver can land slightly below it.
 
-**Root cause.** Comparing a per-image quantity against a cell-global aggregate. It penalises an image for
-being *harder to fit*, which is backwards: a harder image has a **higher** floor, and its attacker-visible
-residual should be judged against that.
-
-**The fix, and it is a recomputation and not a wording change.** A start landing on image `i` is at floor
-iff its objective `≤ 1.5 × objective_at_truth_all[i]`. Every derived verdict in the corpus computed against
-a cell-global floor is affected — including the 287-of-304 agreement pass and its 17 divergences — and any
-cell with a spread of per-image floors will move. Applying it needs the **landed-image index logged per
-start**; without that field the recomputation cannot be done at all, and a distinct-objective proxy will
-reproduce the artefact.
-
-**Caveat kept:** `objective_at_truth` is not a strict lower bound — a solver can land slightly below it — so
-"image X could never count" is very nearly rather than exactly airtight. The mis-specification stands.
-
-## The simplex cap is a self-check on the rank tolerance, not only a limit (2026-09-05)
-
-`N′ = rank B_T` is read at a tolerance, and that choice sets the line `k < r − N′` and hence the attacker's
-budget. Two tolerances pull opposite ways because they answer different questions: **tight is right for
-building the projector** (a loose cut discards a recoverable image) and **tight over-reads for counting**
-(rounding lifts directions carrying no example). `N′ ≤ min(m−1, r, N)` is a theorem, so:
-
-> **Any tolerance returning `N′ > m−1` is provably too tight.**
-
-Measured: on the fp32-trained letters cell (`m=11`, `N=8`, `r=64`) the `1e-12` read gives `N′ = 11`, above
-the cap and therefore invalid, while the noise-matched read gives `N′ = 8` — the true image count. The
-invalid read costs three dimensions of budget (`k < 53` against `k < 56`) by projecting away rounding noise.
-Where two tolerances disagree, the cap says which to believe.
+*The simplex cap is a self-check on the rank tolerance.* `N′ = rank B_T` is read at a tolerance, and that
+choice sets the line `k < r − N′`. `N′ ≤ min(m−1, r, N)` is a theorem, so **any tolerance returning
+`N′ > m−1` is provably too tight** — a check that needs no convention. Measured: the `1e-12` read gives
+`N′ = 11` on an 8-image 11-class cell (invalid), the noise-matched read gives `8` (the true count), and the
+invalid read cost three dimensions of budget. The convention that resolves it is that `N′` is
+**imprint-relative and precision-scoped** — recorded iff `‖C_i‖/max‖C_j‖` exceeds the deployed format's
+roundoff — because the attacker's `B_T` and the FP64 `B_T` are genuinely different matrices.
