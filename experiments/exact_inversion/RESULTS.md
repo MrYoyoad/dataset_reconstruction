@@ -5618,3 +5618,34 @@ it reproduces neither the spectrum nor the closeness to identity, giving a contr
 the attacker-favourable result and therefore the one most at risk of wishful reading. If it survives it must
 **also fail on the scrambled release**, and the **achievability floor must show the channel carries it** rather
 than the solver producing it. Both arms are now in the harness and both run in the same job.
+
+## Test 6 LAUNCHED (job 374123) — the complete control set, settled before any row
+
+Cleared by all three lanes. Three batches — confident, repeated, hard1_diff — swept across `k` = 62, 64, 66, 67,
+68, 70, 72, 73, 75, with arms **floor, d0, constrained, random, null**.
+
+**The control set as agreed, and none of it can be added afterwards because every arm runs in the same job:**
+- **scramble** = matched spectrum with a random orthogonal rotation of the row space (the old row/column
+  permutation preserved the entry multiset, which is more structure than intended);
+- **tolerance ladder** ran first and was stable at 1e-6 … 1e-12 with no flips, so two cells per side is real and
+  none were added;
+- **achievability floor** = a companion from-truth solve per cell at matched solver, tolerance and budget, with
+  the endpoint reported even when it drifts worse than the start;
+- **out-of-band cells are designed exclusions**, not failures — `in_band` blocks any chain verdict from them;
+- **D0 runs first**, per the original pre-audit: basin extent along `Z_C` is the cheap decisive negative and gates
+  the rest.
+
+**Pre-registered predictions, all three lanes' and mine, before the rows:**
+1. **The default is the null** — the seed-parameter reduction gave no basin widening, and membership of `Z_C` is
+   not proximity.
+2. **Onsets at 67, 68 and 73** — each batch degrading at *its own* line — attributes the degradation to crossing.
+   **A common onset across all three attributes it to the chart dimension instead**, and the line has nothing to
+   do with it.
+3. **Per-cell verdicts and the attributive contrast are separate rows on separate evidence**; the contrast does
+   not inherit the per-cell bar, and the three onsets are named either way.
+4. **If the cut survives in band** — the attacker-favourable outcome and the one most at risk of wishful reading —
+   **it must also fail on the scrambled release, and the floor must show the channel carries it** rather than the
+   solver producing it.
+5. **The `N′ = 1` cell scores on the negative side only** (algebraic identity), carries **found, not
+   constructed** on every row, and **voids** if its floor-reacher residuals span less than the separation bar,
+   recorded as *insufficient spread* and never as degradation.
