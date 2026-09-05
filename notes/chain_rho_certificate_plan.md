@@ -589,3 +589,24 @@ After (1)–(3) the first station (image error 0.003, certificate norm 2.6e-15 �
 6.7e-2 → 2.96e-10 in 30 iterations and then **plateaus at 2.58e-10**, ten orders above the floor, for 270 more.
 Whether that is the basin or the solver is exactly what the `dist = 0` control decides, so no D0 verdict is written
 until it has run.
+
+## Pre-registration — verified-coverage sweep (step126), recorded before any row lands
+
+Cell: letters_a, fp32-trained release, r = 64, k = 32, N = 8, seed 1. Bar: each start judged against the
+floor of the image it landed nearest, at the pinned 1.5x factor.
+
+1. **Below the line the grid collapses onto two cells.** Since below the line consistency with the release
+   implies correctness, starts should be either `recovered` (landed and certified) or `search failure`
+   (neither), with the alias cell near-empty. **A substantial alias population below the line falsifies one of
+   two things: the cell is not actually below the line, or the per-image floors are misassigned.** That is the
+   read to make before any coverage number is quoted.
+2. **The 1.5x factor transfers to the per-image case, or the sweep is void.** `factor_transfers` is false if
+   any image's own from-truth solve fails to clear 1.5x its own floor. If it fires the coverage numbers are
+   scored against a bar the solver cannot reach and must not be reported.
+3. **Coverage is monotone in the start budget; the per-start certified rate is not.** Coverage at 3,000 starts
+   must be at least coverage at 300. If the rate moves materially with budget, the starts are not independent
+   draws from the same distribution and the sweep design is wrong.
+4. **Expected direction, stated so it cannot be claimed after the fact:** attacker-verifiable coverage is
+   expected to be strictly below the experimenter's `n_images_found`, since certification is the stronger
+   requirement. Equality would mean the residual selects every landing, which would make the cell a clean
+   attack rather than an identifiability result.

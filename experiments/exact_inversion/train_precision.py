@@ -367,6 +367,20 @@ def main():
                 def at_floor(d):
                     """Each start is judged against the floor of the image IT LANDED ON, never the cell minimum."""
                     return d["objective"] <= 1.5 * floor_by_image[int(d["nearest"])]
+                # FROM-TRUTH COMPANION, PER IMAGE. The 1.5x at_floor factor was pinned against a
+                # cell-global floor; applying it per image needs the solver to be able to clear it per image.
+                # This starts each recorded image's own solve AT its truth and reports achieved/floor. If any
+                # ratio exceeds the factor, the bar is one the solver cannot clear and the sweep would be
+                # scored against an unreachable target.
+                ft_obj, ft_ratio, ft_err = {}, {}, {}
+                for i in recorded:
+                    w_ti = chart.coords_of(X_on[:, i:i + 1]).reshape(-1)
+                    w_fi, obj_fi, it_fi = lm_cert(fun, w_ti, a.iters)
+                    with torch.no_grad():
+                        x_fi = chart.psi(w_fi.reshape(k, 1))[:, 0]
+                        ft_err[str(i)] = float(torch.linalg.norm(x_fi - X_on[:, i]) / torch.linalg.norm(X_on[:, i]))
+                    ft_obj[str(i)] = float(obj_fi)
+                    ft_ratio[str(i)] = float(obj_fi / max(floor_by_image[int(i)], 1e-300))
                 w_t0 = chart.coords_of(X_on[:, recorded[0]:recorded[0] + 1]).reshape(-1)
                 w_ft, obj_ft, it_ft = lm_cert(fun, w_t0, a.iters)
                 with torch.no_grad():
@@ -376,6 +390,13 @@ def main():
                           objective_at_truth=float(min(floor_objs)), objective_at_truth_all=floor_objs,
                           from_truth_endpoint_objective=obj_ft, from_truth_endpoint_err=err_ft,
                           from_truth_iters=it_ft, start_attacker_buildable=False,
+                          from_truth_objective_per_image=ft_obj, from_truth_err_per_image=ft_err,
+                          from_truth_over_floor_per_image=ft_ratio,
+                          from_truth_over_floor_max=float(max(ft_ratio.values())),
+                          factor_transfers=bool(max(ft_ratio.values()) <= 1.5),
+                          factor_note="1.5x was pinned against a cell-global floor. factor_transfers is false if "
+                                      "the solver cannot clear the per-image bar from the truth itself, in which "
+                                      "case the factor needs re-pinning before any coverage number is scored.",
                           note="floor measurement, NOT an attack. at_floor must be judged against THIS, not "
                                "against an absolute cut: an fp32-trained release cannot reach 1e-20.",
                           git=git_hash()))
@@ -398,6 +419,13 @@ def main():
                 # only if it BOTH landed on image i AND drove the objective to image i's own floor, so the
                 # residual itself certifies the landing. n_images_verified is the "k of N'" figure, and it is
                 # meaningless without random_starts beside it, since coverage grows with draws.
+                for d in runs:
+                    if d["landed"] and at_floor(d):
+                        assert int(d["nearest"]) in floor_by_image, (
+                            "index bug: start certified against an image with no floor entry")
+                        assert d["objective"] <= 1.5 * floor_by_image[int(d["nearest"])], (
+                            "index bug: at_floor and the landed image disagree -- a start certified against one "
+                            "image while landing nearest another would inflate coverage silently")
                 verified = {str(i): sum(1 for d in runs
                                         if d["landed"] and d["nearest"] == i and at_floor(d)) for i in recorded}
                 # closest approach per recorded image over ALL starts: a "not found" at a residual near the 1e-2 bar is a degraded
@@ -433,6 +461,10 @@ def main():
                             verified_per_recorded_image=verified,
                             n_images_found=sum(1 for c in counts.values() if c > 0),
                             n_images_verified=sum(1 for c in verified.values() if c > 0),
+                            certified_start_rate=sum(1 for d in runs if d["landed"] and at_floor(d)) / len(runs),
+                            coverage_note="quote as 'k of N-prime at B starts' with the per-start certified rate "
+                                          "beside it: coverage is monotone in the start budget and is not a "
+                                          "property of the release alone; the rate is the price and is not.",
                             floor_by_image={str(i): floor_by_image[int(i)] for i in recorded},
                             min_err_per_recorded_image=min_err,
                             argmin_objective=(best["objective"] if best else None), argmin_landed_on_recorded=(best["landed"] if best else None),
