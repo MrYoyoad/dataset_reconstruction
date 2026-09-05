@@ -401,6 +401,50 @@ direct: $D\rho$ at the truth has full column rank at every $k\le27$ (jobs
 check on the closed form, not the witness for $T>1$.
 \end{example}
 
+\subsubsection*{Where the first reading applies at all: the counting rule}
+
+Hypothesis (A4) asks that the release record $N$ independent directions. It is
+stated above as a condition on the accumulated error; the following restates it
+as a condition on the \emph{architecture}, which is what makes it checkable
+before any adapter exists. Let the adapted layer have input dimension $d$ and
+apply its weights at $p$ positions per example --- $p=1$ for a classification
+head or a dense layer, $p$ the token count for a linear inside a transformer
+block, $p$ the number of spatial positions for a convolution. Every position
+contributes its own vector to the recorded span, so the span of $\{A_0h_{ip}\}$
+over $N$ private examples has dimension $\min(Np,\,d)$ generically, and
+
+\begin{equation}\label{eq:counting}
+\operatorname{rank}C \;=\; \min(r,d)\;-\;\min(Np,\,d),
+\qquad\text{so a certificate exists iff}\quad Np<\min(r,d).
+\end{equation}
+
+The consequence is severe and it is measured. On a transformer at
+$224$~pixels a block linear sees $197$ tokens against $d=768$, so a
+\emph{single} private example floods any adapter of the deployed ranks $8$
+to $64$ and $\operatorname{rank}C=0$; the same holds for early convolutions at
+every rank, and for a depthwise $3\times3$ by construction, its input
+dimension being $9$. The channel survives where $p$ is small: a classification
+head ($p=1$) admits $r-N$ conditions and so up to $63$ examples at $r=64$; a
+late convolutional stage with $49$ positions admits one. Measured on four
+pretrained models, the recorded span comes back as $\min(Np,d)$ to the
+unit\textsuperscript{$\dagger$} (jobs \texttt{273322}, \texttt{279182},
+\texttt{296789}). The rule is not one-way, and saying so matters: read only as
+a prohibition it would be special pleading. Where it predicts a channel, one
+appears. On a pretrained ResNet with a late stage adapted at $r=64$ and a
+single private photograph, \eqref{eq:counting} predicts
+$\operatorname{rank}C=64-49=15$; the measurement returns $15$, with no
+non-member of a thousand falling below the decision bar in any of twenty
+draws, and with the adaptive-optimiser arm vacuous as it must
+be\textsuperscript{$\dagger$} (job \texttt{307760}). The boundary is equally
+literal: at $r=256$ against $197$ tokens the margin reappears at exactly $59$
+for one example and returns to $0$ at two, which is the rule checking itself
+against measurement rather than being illustrated by it. Two riders belong with \eqref{eq:counting}. The span may also
+be truncated by the layer's \emph{output} width, and a margin arising that way
+is not backed by a condition that holds at the truth. And satisfying
+\eqref{eq:counting} closes \emph{this} channel and nothing else: a
+shadow-model membership attack is unaffected by it, so the rule is a scope
+statement and never a privacy guarantee.
+
 \subsubsection*{The two readings side by side}
 
 \begin{corollary}[the two channels]\label{cor:two}
@@ -559,10 +603,23 @@ digits are ``unseen'' in the trivial sense that nothing was trained on
 anything before the adapter. The trained-model paragraph below is the one cell on a learned encoder
 and a learned head. Every run is
 classified by two numbers, the final residual $\|\rho\|^2$ and the worst
-image error: \emph{recovered} — residual at the $10^{-30}$ floor and error at
-machine precision; \emph{alias} — residual at the floor at a point other than
-the truth, with $\sigma_{\min}(D\rho)$ collapsed; \emph{search failure} —
-residual above the floor. Two scopings hold for every capacity, alias and
+image error, and the classification is the \emph{joint} function of both,
+never of the residual alone: \emph{recovered} — residual at the floor
+\emph{and} error at machine precision; \emph{alias} — residual at the floor at
+a point other than the truth, with $\sigma_{\min}(D\rho)$ collapsed;
+\emph{unverified recovery} — error at machine precision with the residual
+\emph{above} the floor, so the image came out and the residual never confirmed
+it; \emph{search failure} — neither. The fourth cell is not a nicety: a
+three-cell scheme keyed on the residual alone files an unverified recovery
+under search failure, which asserts the opposite of what happened. Because the
+cells split two ways, three counts are reported separately and never collapsed
+into one recovery number: \emph{information-carried} (recovered $+$ unverified
+recovery), \emph{attacker-claimable} (recovered $+$ alias), and
+\emph{verified-true} (recovered, the intersection). An unverified recovery
+counts toward the first and never toward an attack rate. The floor itself is
+\emph{per cell and per image}, measured by a companion solve started at the
+truth: an absolute cut misclassifies any release trained in inexact
+arithmetic, whose objective cannot descend below its own arithmetic floor. Two scopings hold for every capacity, alias and
 recipe cell below: each is one seed, and each is solved from a start at the
 truth plus $10\%$ latent noise, which an attacker cannot build (the starts an
 attacker can build are the last item of \S\ref{sec:opens}). The residual and
@@ -999,7 +1056,11 @@ consequence of \eqref{eq:imprint}. It is not$^\dagger$ (job 763805). Replacing
 the zero row with a random one leaves the conclusion unchanged: the initial
 margins spread across $-10.5$ to $-0.41$ rather than sitting at a constructed
 extreme, the release still has norm $0.95$, and the search still recovers
-eight of eight from the same $38.4\%$ of random starts. Two details inside
+eight of eight from the same $38.4\%$ of random starts --- as \emph{experimenter}
+ground truth, scored against the private images. The \emph{attacker-verifiable}
+count is not yet measured: the at-floor test used a cell-global floor, and the
+eight per-image floors span a factor of $2014$, so it sat below the floor of
+seven of the eight images and could certify none of them. Two details inside
 that arm make the point better than the headline number does. None of the
 letters is chance-correct even with a random row --- a model has no reason to
 put an unseen category anywhere useful --- and the two letters whose margins
@@ -1532,7 +1593,21 @@ starts of $300$ iterations, no recipe, no labels, no $N$): $65.6\%$ of starts
 land on a recorded image, \emph{all eight} are found, and the
 $\operatorname{argmin}$ over starts lands on a private digit at
 $2.2\times10^{-14}$. No start is degenerate and no floor-reaching start is
-spurious. The cell reproduces independently inside the ladder job ($0.660$,
+spurious. The $65.6\%$ is \emph{experimenter} ground truth, scored against the
+private images; ``all eight are found'' is that number. The
+attacker-verifiable fraction is \emph{not yet measured in this cell}, and the
+$42\%$ recorded as reaching the floor must not be quoted as one: each image
+has its own achievable floor, and here they span nineteen orders
+($4.0\times10^{-29}$ at the truth against $2.8\times10^{-10}$ at the worst
+recorded image$^\dagger$), so a single cell-wide cut cannot certify the images
+sitting above it. The internal evidence is decisive. Where the floor is
+correctly placed --- the clean below-line cells of job \texttt{706721} --- the
+fraction reaching the floor \emph{equals} the fraction landing on a private
+image, $0.51$ against $0.51$ and $0.4455$ against $0.4455$, and it is that
+equality which licenses the floor as an attacker-side witness at all. Here the
+two diverge, $0.42$ against $0.656$, with a third number $0.038$ different
+again; divergence says the cut is misplaced, not that $42\%$ of starts are
+certifiable. The cell reproduces independently inside the ladder job ($0.660$,
 eight of eight, $\operatorname{argmin}$ correct). At this $k$ the base model
 reads all eight projections as their own digit and the representation error
 is $0.400$.
@@ -1667,7 +1742,11 @@ At $k=16$ the qualification is already gone$^\dagger$. On the same letters,
 with the release both \emph{trained and stored} in FP32 --- ordinary
 arithmetic throughout --- $82.6\%$ of $500$ random starts land on a private
 letter and \emph{all eight are recovered}, at residuals of $2\times10^{-5}$ to
-$6\times10^{-4}$. The FP64 run of the same cell finds seven of eight, and the
+$6\times10^{-4}$ --- again as experimenter ground truth. This cell's
+attacker-verifiable count is unmeasured for the same reason as its $k=32$
+sibling: the at-floor test used a cell-global floor, and on an inexactly
+trained release the per-image floors spread far enough that such a floor
+certifies almost nothing. The FP64 run of the same cell finds seven of eight, and the
 eighth is missing for a reason worth separating: its certificate residual at
 its own truth is $2.5\times10^{-14}$, so it is perfectly identifiable and
 simply received no start in $500$ --- a sampling null, not a precision one,
