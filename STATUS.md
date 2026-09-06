@@ -4142,3 +4142,40 @@ form is the experimenter's row only.
 regardless of start count, and `nearest` is not saved per start, so distinct-image coverage cannot be
 recomputed post-hoc beyond k=50. Add `per_start_nearest` and scale the k grid with `--random-starts`
 before the next sweep.
+
+## 2026-09-06 (later) — Breadth measured: the frontier, and a dedup count that knows when it is wrong
+
+Job **319712**, same cell and seed stream as 304540, with the k grid scaled to the budget and
+`per_start_nearest` saved. `results/exact_inversion/step126_verified_319712.jsonl`.
+
+**The frontier.** With the window scaled instead of pinned at 50, breadth accumulates as it should:
+
+| top-k | distinct images | precision |
+|---|---|---|
+| 30 | 1 | 1.000 |
+| 50 | 2 | 1.000 |
+| 150 | 5 | 1.000 |
+| 750 | 7 | 1.000 |
+| 1500 | 8 | **0.648** |
+
+The eighth letter is not bought with more starts; it is bought by accepting a third of the list being
+wrong. The earlier "5 at 300 starts, 2 at 3000" was entirely the fixed-window artefact.
+
+**Distinct attractors (dedup) tracks distinct images exactly while precision holds, and explodes when
+it breaks.** Clustering the attacker's own candidates against each other in ascending residual order —
+no ground truth anywhere in it — gives 1, 1, 2, 5, 7 against the experimenter's 1, 1, 2, 5, 7 at
+k = 30, 50 (wait: 1,1 at 30/50 is 1,2) … precisely: it equals the distinct-image count at every k where
+precision is 1.000, and at k=1500 returns **222 attractors against 8 real images**. So its blow-up is
+itself the signal that the window has run past the attack. An attacker can both count their haul and
+know when to stop. It is an **upper bound** on distinct private images — a cluster can be a blend and
+the attacker cannot tell which — and that is the honest part of it, not a weakness.
+
+**Coverage budget: use the rates, not the draw.** Solving `prod_i [1-(1-p_i)^n] = 0.95` over the eight
+measured rates gives **840 starts**, band 650–1200 under the 30% counting error on the rarest rate.
+Percentiles: 5th 109, 25th 197, **50th 297**, 75th 454, 95th 840. The realised run took **228**, the
+33rd percentile — not a contradiction but one geometric draw with CV≈1. The draw makes the case better
+than the caution does: **the rarest image (11 landings) was found 6th, at start 26, while the image
+that finished last at 228 was 3.7× commoner.** The realised order statistic does not even rank by rate.
+
+Two budgets that must never share a name: **816** starts = the rarest image alone at 95%; **840** =
+all eight at 95%. A few percent apart, different questions.
