@@ -405,3 +405,53 @@ measured basins are skewed from 53/89 down to 1/89, so the product over eight is
 joint starts is expected even with perfectly identifying equations.** Superposition and arity predict the same row.
 So my expectation that the linearised route fails at `T=1` from superposition may be registered as primary **only
 with the `N=1` control attached**; registered bare it cannot be falsified by the run meant to test it.
+
+
+## 9. The comparison, settled (2026-09-06) — approver ruling R9, `b9ec577`
+
+**My three options were incomplete and my ranking of them was wrong.** I offered: drop it; run their arm at their
+published settings; or report ours alone. I favoured the third and treated the second as the scrupulous fallback.
+
+**Option 2 is the worst of the three, not the safest.** Those hyperparameters were chosen for a binary network under
+full fine-tuning at its own data scale — not for a LoRA release on a head read through a public chart.
+Transplanting them and reporting the failure is a **straw man with a paper trail**, harder to walk back than an
+untuned run rather than easier, and the supervisor authored that lineage: he will know in one sentence that the
+settings were never meant for this, and the apparent scrupulousness reads as its opposite.
+
+**A second reason to decline that does not depend on anyone's motives.** The two routes differ in objective, arity,
+solver, parameterisation and initialisation *simultaneously*. There is no controlled variable, so no search result
+isolates a single difference, so it cannot answer the identifiability question it was built for — whatever it
+returns, and however disinterestedly it is tuned. My conflict-of-interest argument is a second and independent
+reason, and the zero-initialised coefficient block is exactly what that conflict produces.
+
+### The fourth option, which is better than a horse race rather than a substitute for one
+
+**Identifiability does not need a search.** It is a rank question evaluated at the ground truth: one singular value
+decomposition per route on the same release, chart and images — no optimiser, no hyperparameters, no budget,
+**nothing to tune and nothing a better solver can overturn later**. The quantity is `d_parallel` from R8: whether
+the truth is a locally isolated solution, and by how many dimensions it fails if not.
+
+**A8 predicts the outcome, and the predicted outcome is the one worth having.** If one condition breaks both
+routes, both come back isolated where it holds and degenerate where it fails. That is a **negative comparison
+result**: the two routes carry the *same identifiability* and differ only in **search separability**. It is the
+diplomatic sentence I wanted — the routes answer different questions under different conditions — made
+**quantitative**. And it cannot be attacked as a tuned foil, because there is nothing in it to tune. A reviewer who
+dislikes it has to argue with a rank.
+
+### Three standing conditions on any mention of the other route
+
+1. **No search number for it, in any form.**
+2. Where our result needs a foil, the foil is **the identifiability quantity, never a landing rate**.
+3. **Separability is stated as our route's structural advantage** — true, readable off the objective, and requiring
+   no run at all.
+
+The `N=1` jobs continue with their purpose **relabelled**: they diagnose *our own* understanding of superposition —
+whether the coupling we blame is the coupling that is there. They are not a head-to-head and must never be shown as
+one.
+
+### Process, adopted and generalised
+
+A ruling about **what an experiment did** requires the artefact that did it — the function or the row. A ruling
+about **what the mathematics implies** requires no artefact but must name its hypotheses. The withdrawn R3 applied
+the second register to a first-register question. All rulings are retro-marked `read-function` / `read-rows` /
+`derived` / `read-prose-provisional`; **the one marked read-prose is the one that was wrong**, which is the point.
