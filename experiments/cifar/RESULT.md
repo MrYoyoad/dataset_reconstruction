@@ -138,7 +138,8 @@ fix). Full table: `figures/cifar_charts/table.md`; one figure per cell in `figur
 | **head, WRONG-RELEASE control** | public PCA k=32 | on-chart | **0/400** | **0/8** | 0/20 | 1.8e-2 |
 
 Readings:
-- **At this training budget, a linear chart beats a learned one — and the cause is untested.** PCA reaches the exact zero (median start residual 1e-14, i.e. most starts
+- **WITHDRAWN: "a linear chart beats a learned one".** See the correction below; the comparison used a mismatched
+  reference and the matched controls are running. What is measured, and stands: PCA reaches the exact zero (median start residual 1e-14, i.e. most starts
   converge to a true zero); the conv-AE decoder stalls three orders higher. The same was true on MNIST.
   **Scope.** The autoencoder here is trained 40 epochs, and its representation ceiling is at parity with PCA's
   (chart floor SSIM 0.59 against 0.58), which for a nonlinear decoder with far more capacity is itself a sign
