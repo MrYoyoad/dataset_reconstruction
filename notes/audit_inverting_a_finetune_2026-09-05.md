@@ -364,6 +364,16 @@ it yields a positive architectural statement the project did not have:
 > images **by either route**. Identifiability begins when a nonlinearity separates the chart from the adapted
 > layer's input.
 
+> **FALSIFIED 2026-09-06, job 331384 — "by either route" is wrong and was never published.** The zero sets nest
+> one way, `{truth} ⊆ {ρ=0} ⊆ {Ch=0}`, so `ρ=0 ⟹ Ch=0` and never the converse: the blend degeneracy lives in
+> the certificate's zero set and does not reach replay. Measured on one release, one affine chart, the same random
+> starts, `k` below both capacity lines: the certificate route recovers **nothing** from 60 starts (every returned
+> point an exact affine combination, coefficient sum 1.000000000 at every start) while **replay recovers all eight
+> images to 2e-15 from 19 of those 60**, with zero aliases. The surviving statement is the certificate half only,
+> and the right frame is that **identifiability is a property of the release, the chart AND the route** — never the
+> release alone. It is also not a defence: the remedy (a nonlinear chart, or an adapter a layer deeper) belongs to
+> the attacker, who chooses the chart.
+
 Checkable before any release exists, **positive rather than prohibitive**, and new. That is a better thing to lead
 with than a rule that only ever forbids.
 

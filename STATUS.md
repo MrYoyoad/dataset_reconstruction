@@ -6,9 +6,21 @@ A CIFAR replica of the certificate attack was supplied with the adapter on the *
 nothing, while passing every sanity check to machine precision (`‖CH‖/(‖C‖‖H‖)` 3.6e-15, quotient form 5.9e-15,
 `rank C = r − N = 56`, excitation gap 1e14). **Cause: a certificate that is linear in the layer's input annihilates
 every blend of the private images, so the blend — which a chart represents far better than any individual image —
-is the minimiser by construction.** Measured: the collapsed attractor (379 of 400 starts) is a least-squares blend
-of the eight privates to 99.4%, its own residual 3e-15. The sanity checks are necessary and never sufficient; they
-hold identically in the degenerate case. Logged in LESSONS_LEARNED.
+is an exact zero of the certificate, so the truths are not isolated.** (R17: nothing *prefers* the blend — in
+exact arithmetic a blend and a truth are both exact zeros and the truth simply has no advantage. The zero set is
+(N−1)-dimensional, the truth is one point of it, and an optimiser minimising a *computed* residual settles where
+roundoff is smallest, generically not that point.) **CORRECTED 2026-09-06 (F3, job 309357): that reading measured the wrong object.** The withdrawn
+sentence read "the collapsed attractor is a least-squares blend to 99.4%, its own residual 3e-15". It quoted the
+residual of the *ideal* blend while meaning the attractor the solver actually reached. Recomputed from the run's
+own tensors: ideal blend 2.86e-14 (equal to the truths, confirming the lemma), attractor **5.90e-03**, eleven
+orders above; blend fraction **98.9%** as `1-(‖r‖/‖x‖)²` (0.893 as `1-‖r‖/‖x‖`), the 99.4% reproducing under no
+normalisation. So the residual DID separate there — landings at 7.9e-07 against a collapsed median of 5.83e-04 —
+which is why that run's top-20 is clean and images found is 1–2, not 0. **This cell costs coverage, not
+precision**, and nothing in it reached the floor. Note the cells differ: §1's 379/400 is the replica
+(14/400 landed, 1 image); the chart-study row is 30/400 on 2 images. The sanity checks are necessary and never
+sufficient — and the reason is an impossibility, not an observation: they are functions of `C` and `H` alone, so
+holding those fixed while varying the chart moves the truths from isolated to non-isolated with every one of
+those numbers unchanged. Logged in LESSONS_LEARNED.
 
 **The condition is transversality; depth is one way to buy it.** What is needed is that the chart's image meet the
 private span only at the private points. An affine composition from chart to adapted-layer input violates that
