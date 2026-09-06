@@ -20,7 +20,27 @@ starts succeeded from the residual alone.
 | LoRA on the head, a fully trained or **over-trained** backbone, a new class | up to 200/200 starts land, 8/8 images |
 | certificate from a release trained on 8 *other* images | 0/400 — the control passes |
 
-## 1. Why the replica failed: a linear certificate cannot separate what it annihilates
+## 1. The replica's result, stated as a result
+
+**The CIFAR replica as supplied does not recover its private images.** Reported plainly, before any explanation:
+
+| what was asked | answer |
+|---|---|
+| `‖CH‖ / (‖C‖‖H‖)` | 3.62e-15 — **passes** |
+| `‖C − P⊥A₀‖ / ‖C‖`, the quotient form | 5.92e-15 — **passes** |
+| `rank C` | 56, exactly `r − N` — **passes** |
+| excitation gap `σ_N / σ_{N+1}` | 1.00e14 — **passes** |
+| did any start land on a private image | **no**, at either k = 32 or k = 48 |
+| best residual reached, k = 32 | 6.57e-04, which is *below* the chart-floor residual of the truths (1.33e-03 … 5.92e-03) |
+| found-versus-true SSIM against the chart ceiling | 0.35 against 0.59 at k = 32; 0.30 against 0.63 at k = 48 |
+| found-versus-true SSIM against a same-class control | not separated: 0.35 against 0.375 at k = 32 |
+
+So every algebraic check passes and the search converges *past* the floor the truths themselves attain, and the
+images are still wrong. In the verdict vocabulary that is not an optimisation failure: the residual is at or below
+the floor with the wrong answer, which is an identifiability problem. The rest of this section is why, and section 2
+is what fixes it.
+
+## 1b. Why: a linear certificate cannot separate what it annihilates
 
 `C h_i = 0` for every i means `C` annihilates the whole span, so every linear combination `Σ c_i h_i` is an exact
 zero as well. When the adapted layer's input *is* the image, those combinations are themselves images, and a smooth
