@@ -729,3 +729,61 @@ a point. Same rule as the estimate it comes from: a derived number inherits the 
 
 State plainly which question each number answers — one image, or all of them — because they differ by more than
 the error band and the labels are interchangeable-looking.
+
+---
+
+## R16 — The breadth rows (job 319712): both instruments work, the identity of the binding image is noise, and dedup turned into a stop signal
+
+[read: rows, relayed by the owner; derivations mine]
+
+**The fixed-window artefact is confirmed and closed.** With the window scaled to the budget, distinct images climb
+1 → 2 → 5 → 7 → 8 as the window opens, and the eighth arrives only where precision falls to 0.648. **The last image
+is not bought with more starts; it is bought by accepting that a third of the list is wrong.** The earlier "5 at
+300, 2 at 3000" was entirely the pinned window, as R14's mechanism predicted.
+
+**R15's point 4 is confirmed harder than I argued it, and the stronger form is the one to keep.** I warned that the
+realised first-hitting time is one geometric draw whose spread is as wide as the quantity. The rows show something
+sharper: the **rarest** image (11 landings) was found **sixth**, at start 26, while the image that finished last at
+228 is 3.7× more common. So the realised order statistic did not rank by rate at all.
+
+> The warning is therefore not "the number 228 is imprecise". It is that **the identity of the binding image is
+> itself noise.** Reading a coverage budget off one run and concluding "image 3 is the hard one" gets the wrong
+> image, not merely the wrong duration.
+
+That is a qualitative failure mode, not a precision caveat, and it is the version that belongs in the write-up.
+The rate-derived percentiles (5th 109, median 297, 95th 840) and the realised 228 at the 33rd percentile are
+consistent; no contradiction with the 840 budget, which is a 95% quantity and not a prediction of the draw.
+
+**And dedup did something neither of us designed — it is a ground-truth-free STOP SIGNAL.** The attacker's own
+cluster count equals the experimenter's distinct-image count at every window where precision holds
+(1,1,1,2,2,5,5,7), and at the window where precision breaks it returns **222 attractors against 8 real images**.
+It does not degrade quietly, it explodes. So:
+
+> **Count your own haul as you widen the window. When the count blows up, you have run past the attack.** No
+> ground truth, no labels, no knowledge of `N`.
+
+This fell out of the upper-bound property rather than being designed in, which is the best kind of instrument. It
+is the breadth analogue of the residual ranking — a self-check the attacker can run on their own output — and it
+deserves to be presented that way rather than as a diagnostic.
+
+**One requirement before it is quoted as an instrument.** The cluster count is computed at the landing tolerance
+and in a stated order, so the elbow's location is threshold-dependent by construction. Run the **tolerance ladder**
+on the dedup count, exactly as was done for the in-band split, and show the elbow does not move. If it moves, the
+stop signal is a property of a chosen cut rather than of the attack, and it must be reported with the cut attached.
+
+**Both budgets on the page with their questions attached and never sharing a name** — 816 for the rarest image
+alone, 840 for all eight — is the disposition R15's addendum asked for.
+
+### R16b — the affine-chart cell's pre-run prediction (job 331384) CONFIRMED at the algebra
+
+Their observation is right and I checked it rather than accepting it. For an **affine** chart `DΨ` is constant, so
+the isolation test `J = C·DΨ` is **one number for the whole chart** rather than one per point — the only case in
+the study where that is true. Their predicted value:
+```
+    ker J ⊇ span{z_i − z_j},  dim = N − 1 = 7      (differences map to h_i − h_j ∈ col H ⊆ ker C)
+    no extra kernel generically, since Ψ_lin(R^k) ∩ ker A₀ = {0} whenever k ≤ r  (12 ≤ 64)
+    ⇒  rank J = k − (N − 1) = 12 − 7 = 5   exactly
+```
+**Confirmed.** This is a construction check available *before* either arm runs, and a deviation from 5 means the
+cell is not the affine case it claims to be. Building it as a new module rather than editing a testbed whose chart
+and encoder are both tanh — and therefore cannot reach the affine case at all — was the right call.
