@@ -583,7 +583,20 @@ next reader repeats this check.
 **Caveat that stays in the same sentence, not a footnote:** those rows read `n_prime = 11` for eight images, so any
 "all eight" statement on this cell inherits the tolerance that produced the eleven.
 
-**And one more from the same file, worth carrying:** `breadth_note` records that a fixed-window distinct-image count
-is **not** an attacker statistic — the window is the k lowest residuals rather than a sample of landings, so as the
-landing pool grows the window fills with the easiest images and the count *falls* (5 at 300 starts, 2 at 3,000).
-Coverage is a coupon-collector cost set by the rarest image; use `starts_to_cover_all_recorded`.
+### Breadth: the frontier, which replaces the caveat (approver R14 + the runs that followed)
+
+A fixed-window distinct-image count is **not** an attacker statistic — the window is the `k` lowest residuals rather
+than a sample of landings, so as the landing pool grows the window fills with the *easiest* image and the count
+*falls* (5 distinct at 300 starts, 2 at 3,000). But this is now stronger than a caveat, because the replacement was
+built and run. **Scale the window to the budget and the frontier is measured:** distinct images climb 1, 2, 5, 7,
+and reach **8 only where precision falls to 0.648**.
+
+> **The honest breadth headline:** the eighth image is not bought with more starts. It is bought by accepting that a
+> third of the list is wrong.
+
+That says what the limit *is* rather than what the old number was not, so **a fixed-`k` breadth figure in any
+document needs replacing, not caveating** — and the replacement exists. Two cut-free measures back it: distinct
+attractors after deduplicating the attacker's *own* candidates, which returns identical integers across a 33-fold
+tolerance span wherever precision holds and explodes where it breaks; and coverage as a **coupon-collector cost set
+by the rarest image**. The two coverage budgets must never share a name: *the hardest single image at 95%* is one
+number, *all eight at 95%* is another and larger one.
