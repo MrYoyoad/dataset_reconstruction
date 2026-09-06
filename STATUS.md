@@ -4108,3 +4108,37 @@ DISPOSITION: F5 is NOT a positive meeting figure (did not clear its baseline gat
 bullet. Next-weeks direction: separate transform from content (e.g. difference-of-adapters, per-draw
 proxy re-fit, or a transform-isolating statistic), more draws for power. The honest-null figure
 (figures/meeting/f5_shared_perturbation.png, grey CI bars) is a BACKUP slide only if asked, not featured.
+
+## 2026-09-06 — The attacker arm of step126 is measured: perfect precision, no breadth
+
+Job **304540**, 3,000 random starts, letters cell, fp32, k=32, r=64, N=8, below the certificate line
+(53). Nested in job **303157**'s 300 starts (same seed stream), so the two budgets are directly
+comparable. `results/exact_inversion/step126_verified_304540.jsonl`.
+
+**Witness arm (experimenter, per-image floors from a from-truth solve).** All 8 letters found and all 8
+witness-valid. The 1.5x factor is validated rather than assumed: `factor_transfers: true`, worst image at
+0.68 of its own bar. The floor test and the ground-truth test agree on all 3,000 starts —
+`both 972, floor_not_landed 0, landed_not_floor 0`, precision 1.0 and recall 1.0. The residual is an
+exact witness on this cell.
+
+**Attacker arm (blind ranking, no ground truth).** precision@k = 1.000 at k = 1, 5, 8, 10, 16, 20, 50.
+The disjoint-release null — the same reconstructions scored against 8 public images this adapter never
+trained on, same chart, same distribution, same 1e-2 bar — lands 0 at every k. Base rate 972/3000 =
+**0.324**, so ranking lifts 0.324 to 1.00. Both controls are needed: the null says the metric does not
+fire on anything that converges, the base rate says the ranking does work.
+
+**The finding that was not expected: a fixed top-k window does not accumulate images.** Distinct images
+in the top 50 falls from **5 at 300 starts to 2 at 3,000**. Landings are heavily skewed and the skew is
+stable across budgets — image 0 takes 59% of landings at both — so a fixed window becomes a smaller slice
+of a larger, equally skewed pool and fills with the easiest image. More starts buy base rate and
+certainty; breadth needs a diversity or dedup rule, not a bigger budget.
+
+**Reporting rules that now bind these numbers** (R7, `notes/math_rulings_2026-09-06.md`): quote the base
+rate alongside the null, and carry **no denominator** on the attacker side — the attacker does not know
+N=8 and the projector reads N'=11, so it is "2 distinct images in the top 50", never "2 of 8". The `/8`
+form is the experimenter's row only.
+
+**Harness limitation for the next run.** `precision_at_k` iterates a fixed grid topping out at k=50
+regardless of start count, and `nearest` is not saved per start, so distinct-image coverage cannot be
+recomputed post-hoc beyond k=50. Add `per_start_nearest` and scale the k grid with `--random-starts`
+before the next sweep.
