@@ -4,6 +4,42 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A diagnostic that crashes in its own logging destroys the run it was diagnosing (2026-09-07)
+
+The endpoint diagnosis died on a NameError in a `torch.save` line added to preserve tensors for later — a variable
+the saving code referenced but the computation never defined. The science had already run correctly. What made it
+expensive is the shape of the failure: the job emitted the FIRST cell's row, which was the healthy cell where
+everything recovers, and then crashed before the cell it existed to diagnose. A reader glancing at the log would
+have seen a plausible partial result rather than an obvious failure, and a second reader did read it that way.
+
+Three habits from it. Logging and saving code is not free and belongs inside the same review as the computation, or
+better, at the end where a crash costs nothing already computed. When a diagnostic runs several cells, put the one
+it exists to answer FIRST, so a crash cannot leave the reassuring half. And when a job exits, check whether it
+exited before or after the row you care about — "it produced output" is not "it produced the answer".
+
+The recovery was to fix the line and rerun the single failing cell on CPU rather than wait for a GPU, which cost
+nothing and finished under the deadline. A diagnostic that needs one cell rarely needs the accelerator.
+
+## The measure of what a release RECORDS does not order how well an attack RECOVERS (2026-09-07)
+
+Two measures of recording strength — the certificate residual at the private images, and the excitation gap of the
+adapter — were used through the evening as evidence about recovery. Both fail to order it, and the failure is now
+measured three separate ways.
+
+Across backbones: an over-trained model has a residual two orders WORSE than a convolutional one and lands four
+times MORE often. Within a backbone: the excitation gap fails to order landings even inside a single arm, where a
+cell with a gap two times higher lands fewer starts. And across corpora: an off-corpus class (SVHN) records
+slightly WEAKER on both measures than same-corpus classes, yet lands 90% of starts against 67%.
+
+What does track recovery in that last comparison is the chart: SVHN's representation error is 0.096 against 0.257,
+and its chart ceiling 0.84 against 0.37. The classes that recover better are the ones the public chart represents
+better, which is the mechanism this study has already established for fidelity and which evidently governs the
+basin too.
+
+**The rule.** Recording strength is a property of the release and a precondition for recovery; it is not a
+predictor of it. Quote it for what it measures — whether the information is there — and never as evidence about how
+well an attack will do.
+
 ## Read the header off the row, because the context is never as matched as it looks (2026-09-06)
 
 Three times in one day a number was read correctly and attributed to the wrong cell. A figure filename collision
