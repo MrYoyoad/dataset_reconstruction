@@ -325,3 +325,87 @@ the condition number of the joint Jacobian at the truth, and per-block learning 
 **The `N = 1` controls (jobs 307866, 307867) remain correct and are still the discriminator** — they are simply now
 separating (a) from (b) and from conditioning, rather than separating superposition from a scoring artefact that
 does not exist.
+
+---
+
+## R9 — Ruling on the head-to-head: decline all three search-based forms, and run the identifiability comparison instead, which has no solver and therefore no conflict of interest
+
+yoado-72 offered three options — do not compare; run their arm at its published implementation and
+hyperparameters; or report ours alone and cite theirs. **My ruling is a fourth, and it is available precisely
+because the objection is about *search*.**
+
+### The scientific reason to decline a search comparison, which does not depend on anyone's motives
+
+A search comparison between the two routes has **no controlled variable**. They differ in objective, in arity
+(one image per start against `N` at once), in solver (Levenberg–Marquardt against Adam), in parameterisation
+(latents alone against latents plus a coefficient block), and in initialisation (generic against a first step with
+zero latent gradient). Whatever such a run returns, no single difference is isolated, so no version of it answers
+the identifiability question it was built to answer. That is a design fact and it holds even with perfectly
+disinterested tuning. **The conflict of interest is a second, independent reason, and it is real** — R3-AMENDED's
+zero-initialisation confound is exactly what it produces: not misconduct, a handicap nobody was motivated to find.
+
+### Option 2 is the trap, and it is worth naming specifically
+
+"Run their published implementation at its published hyperparameters, change nothing" **looks** maximally
+scrupulous and is the worst of the three. Those hyperparameters were chosen for that method's own regime — a
+binary MLP under full fine-tuning at its own data scale — not for a LoRA release on a head read through a public
+chart. Transplanting them and reporting the failure is a straw man **with a paper trail**, which is harder to walk
+back than an untuned run, not easier. And the supervisor is the lineage's author: he will know within a sentence
+that those settings were never meant for this. Do not do this.
+
+Of the three as offered, **option 3 is correct**: report ours, cite theirs as published, compare nothing.
+
+### But there is a comparison that is fair by construction, and we should make it
+
+The conflict lives entirely in the search. **Identifiability does not need a search.** It is a rank question
+evaluated at the ground truth: no optimiser, no hyperparameters, no basin, no budget, nothing to tune, and nothing
+a better solver can overturn. Compute, on the *same* release, chart and images:
+
+| route | quantity | cost |
+|---|---|---|
+| certificate | `d∥ = k − rank(C · DΨ(z*))`, per image | one SVD of an `r×k` matrix |
+| representer, free coefficients | `d∥ = dim ker J` at `(Z*, R*)`, `J` the Jacobian of `R·F(Z) − target`, joint over all `N` | one SVD, `N(k+m)` columns |
+
+Read out as **"is the truth a locally isolated solution, and if not, by how many dimensions"**. The two kernel
+dimensions are not directly subtractable — the certificate's is per image and the representer's is joint over the
+set, and the gauge contributes up to `N²` to the latter — so compare the **isolated / not isolated** verdict and
+report both dimensions beside it.
+
+**A8 predicts the answer, which is what makes this worth running.** If both routes are broken by the same
+condition, then wherever A8 holds, both should come back isolated, and wherever it fails (an affine composition),
+both should come back degenerate. **That is a negative comparison result and it is far stronger than a horse
+race**: it says the two routes carry the *same* identifiability and differ only in search separability. It is also
+exactly the sentence yoado-72 wants — "the two routes answer different questions under different conditions" —
+made quantitative instead of diplomatic, and it cannot be attacked as a tuned foil because there is nothing in it
+to tune.
+
+**Keep jobs 307866 / 307867 (the `N = 1` cells), with their purpose relabelled.** They are no longer producing a
+comparison. They diagnose *our own* understanding of superposition — whether the coupling we attribute the failure
+to is the coupling that is actually there. That is worth having and must not be presented as a head-to-head.
+
+### Standing conditions on any mention of the other route
+
+1. Its search performance is **not reported as a number by us** in any form.
+2. Where our result needs a foil, the foil is `d∥`, not a landing rate.
+3. Separability is stated as our route's structural advantage — one start returns one image and the other `N−1`
+   never enter — which is true, checkable from the objective, and needs no run at all.
+
+---
+
+## R10 — Process, adopted at yoado-72's proposal and generalised: rulings carry a register, not just a source
+
+yoado-72's remedy for R3 was that a ruling should carry a provenance mark saying which artefact was read. Adopted,
+and the general form is sharper than the mark:
+
+> **A ruling about what an experiment DID requires the artefact that did it — the function, or the row. A ruling
+> about what the mathematics IMPLIES requires no artefact, but must state its hypotheses.**
+
+R3's failure was applying the second register to a first-register question: I reasoned from a docstring that was
+accurate about mechanism and silent about the metric, and issued it in the confident voice. The docstring is
+neither the function nor the row; it is prose beside a number, which is the object this project has now been
+misled by five times.
+
+Every ruling here therefore carries one of: **[read: function]**, **[read: rows]**, **[derived]** (with its
+hypotheses named), or **[read: prose — provisional]**. Retro-marking the rulings above: R1 [derived], R2 [derived
++ read: rows], R3 [read: prose — WITHDRAWN], R3-AMENDED [read: function], R4 [derived], R5 [read: rows], R6 [read:
+rows], R7 [read: rows], R8 [derived], R9 [derived].
