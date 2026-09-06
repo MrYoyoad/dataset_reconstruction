@@ -10,21 +10,31 @@ letter a / t / both), each added class getting its own new output row, LoRA of r
 full-batch SGD, float64. The private training inputs are their own chart projections, so both methods have a
 reachable target (the on-chart setting).
 
-THE TWO EQUATIONS
-  NTK / linearised, FREE COEFFICIENTS (Experiment B's realistic mode -- no oracle arm anywhere in this script).
-  The attacker assumes the fine-tune is one linearised step around the public base; for a head layer the per-sample
-  gradient is (p_i - e_{y_i}) phi(x_i)^T, so
-        Delta W  ~=  sum_i  r_i  phi(x_i)^T                              (r_i FREE in R^m, optimised)
-  and the attack minimises ||Delta W - sum_i r_i phi(G(z_i))^T||_F / ||Delta W||_F jointly over the N latents z_i and
-  the N coefficient vectors r_i. Delta W = B_T A_T is what a merged release exposes.
+THE EQUATIONS
+  NTK / linearised, FREE COEFFICIENTS (Experiment B's realistic mode). TWO FORMS, because the naive one is a
+  strawman on a LoRA release and the comparison has to use the strongest fair version:
+
+    --ntk-forms dW    the ORIGINAL full-weight form: Delta W ~= sum_i r_i phi(x_i)^T, fitted against the merged
+                      Delta W = B_T A_T. This is Experiment B verbatim, and it is what an attacker who sees only a
+                      MERGED release can write. It is mis-specified for LoRA even at T = 1, because one LoRA step
+                      moves B by -eta D (A_0 H)^T, i.e. the full gradient composed with the adapter, not the
+                      gradient; the measured mis-fit at T = 1 is large for exactly that reason.
+    --ntk-forms lora  the LoRA-AWARE form, and the fair one: at T = 1 the released A_T IS A_0 (B_0 = 0 kills the A
+                      gradient), so the attacker can write the model in the released factors directly,
+                            B_T  ~=  sum_i r_i (A_T phi(x_i))^T          (r_i FREE in R^m)
+                      and fit the released B_T. At T = 1 this is EXACT up to the free coefficients, so the
+                      linearised route is being run inside its own regime rather than outside it.
+
+  Both forms minimise their residual jointly over the N latents z_i and the N coefficient vectors r_i.
 
   Certificate.  C = P_{row(B_T)^perp} A_T, computed from the released factors alone, and the attack minimises, per
   image and independently, ||C phi(G(z))|| / ||A_T phi(G(z))||.
 
-Reported per cell alongside both attacks: the LINEARISATION ERROR AT THE TRUTH,
-      || Delta W - sum_i r_i^true phi(x_i^true)^T ||_F / || Delta W ||_F   with r_i^true the true base-model residuals,
-which is the floor the NTK model itself leaves even when handed the right images -- the honest diagnostic for why
-the route does or does not work at a given T.
+Reported per cell and PER FORM: the MODEL FLOOR AT THE TRUTH, defined as the best the linearised model can do when
+handed the true private images and allowed its best coefficients,
+      floor  =  min_R  || target - model(R, H_true) ||_F / || target ||_F      (least squares in R, closed form)
+This is the honest floor for the FREE-coefficient attack -- it is that attack restricted to the true images -- and
+it separates "the model cannot express this release" from "the search did not find the images".
 
 WHY THE COMPARISON IS INFORMATIVE. The NTK loss couples all N images through one sum, so a start returns a whole
 set and any recombination reproducing that sum is a minimiser (the superposition problem). The certificate is
@@ -138,6 +148,13 @@ def main():
     ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--starts", type=int, default=200); ap.add_argument("--adam_iters", type=int, default=4000); ap.add_argument("--adam_lr", type=float, default=5e-2)
     ap.add_argument("--lm_iters", type=int, default=300); ap.add_argument("--ae_epochs", type=int, default=150)
+    ap.add_argument("--ntk-forms", nargs="*", default=["lora", "dW"], help="lora: fit the released B_T with sum_i r_i (A_T phi_i)^T (the fair form, exact at T=1). dW: fit the merged Delta W with sum_i r_i phi_i^T (Experiment B verbatim, mis-specified for LoRA)")
+    ap.add_argument("--oracle-diag", action="store_true", help="DIAGNOSTIC ONLY, off by default: additionally run the linearised route with ORACLE "
+                    "coefficients at the step counts in --oracle-diag-Ts. It uses the private images and is therefore an UPPER BOUND, never an attack "
+                    "result; it exists to separate two candidate obstructions at T=1, where the linearisation is exact by construction. If the oracle "
+                    "arm recovers and the free arm does not, the obstruction is the free coefficients absorbing a recombination (superposition). If "
+                    "both fail, superposition is not the whole account.")
+    ap.add_argument("--oracle-diag-Ts", nargs="*", type=int, default=[1])
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--ckpt", default=None); ap.add_argument("--model-mnist", default="models/exact_inversion/mnist_mlp_strong.pth")
     ap.add_argument("--data-root", default="data"); ap.add_argument("--mnist-root", default="dataset_reconstruction/data")
@@ -182,32 +199,60 @@ def main():
                 C = A_T - Q @ (Q.T @ A_T)
                 with torch.no_grad():
                     cert_truth = torch.linalg.norm(C @ H, dim=0) / torch.linalg.norm(A_T @ H, dim=0)
-                    R_true = torch.softmax(W0 @ H, 0) - Y
-                    lin_err = float(torch.linalg.norm(dW - R_true @ H.T) / ndW)
-                log(f"  -- T={T}: rank B_T={Np}, rank C={int(torch.linalg.matrix_rank(C, rtol=1e-10))}, ||dW||={ndW:.2e}; "
-                    f"certificate residual at the truths {float(cert_truth.max()):.1e}; NTK linearisation error at the truth {lin_err:.3f}")
+                    R_true = torch.softmax(W0 @ H, 0) - Y                       # true per-sample residuals at the PUBLIC base
+                # per form: the target, the feature matrix the coefficients multiply, and the model floor at the truth
+                FORMS = {"lora": (B_T, A_T @ H), "dW": (dW, H)}
+                floors = {}
+                for fname in a.ntk_forms:
+                    tgt, Feat = FORMS[fname]
+                    # min_R ||tgt - R Feat^T||_F  <=>  min_{R^T} ||Feat R^T - tgt^T||_F, so lstsq takes (Feat, tgt^T)
+                    R_ls = torch.linalg.lstsq(Feat, tgt.T).solution.T
+                    floors[fname] = float(torch.linalg.norm(tgt - R_ls @ Feat.T) / torch.linalg.norm(tgt))
+                log(f"  -- T={T}: rank B_T={Np}, rank C={int(torch.linalg.matrix_rank(C, rtol=1e-10))}, ||dW||={ndW:.2e}, ||B_T||={float(torch.linalg.norm(B_T)):.2e}; "
+                    f"certificate residual at the truths {float(cert_truth.max()):.1e}; model floor at the truth " +
+                    ", ".join(f"{fn}={v:.2e}" for fn, v in floors.items()))
 
                 def err_matrix(Xc):
                     return torch.stack([torch.linalg.norm(Xc - X_on[:, i:i + 1], dim=0) / torch.linalg.norm(X_on[:, i]) for i in range(a.N)], 1)
 
-                # ---- NTK, free coefficients, batched Adam
-                t0 = time.time(); Z = Z0.clone().requires_grad_(True); Rc = torch.zeros(a.starts, m, a.N, device=dev, requires_grad=True)
-                opt = torch.optim.Adam([Z, Rc], a.adam_lr)
-                for it in range(a.adam_iters):
-                    Xc = chart.psi_batch(Z)
-                    Hc = phi(Xc.permute(1, 0, 2).reshape(D, -1)).reshape(n, a.starts, a.N).permute(1, 0, 2)
-                    loss_p = torch.linalg.norm((torch.einsum("pmn,pkn->pmk", Rc, Hc) - dW[None]).reshape(a.starts, -1), dim=1) / ndW
-                    opt.zero_grad(); loss_p.sum().backward(); opt.step()
-                with torch.no_grad():
-                    Xc = chart.psi_batch(Z).detach()
-                    Hc = phi(Xc.permute(1, 0, 2).reshape(D, -1)).reshape(n, a.starts, a.N).permute(1, 0, 2)
-                    ntk_res = (torch.linalg.norm((torch.einsum("pmn,pkn->pmk", Rc, Hc) - dW[None]).reshape(a.starts, -1), dim=1) / ndW).detach()
-                    cand = Xc.permute(1, 0, 2).reshape(D, -1)
-                    E = err_matrix(cand); ntk_best = E.min(0).values; ntk_idx = E.argmin(0)
-                    ntk_found = int((ntk_best < 1e-2).sum())
-                ntk_sec = time.time() - t0
-                log(f"     NTK  (free coefficients): residual {float(ntk_res.min()):.3e} (median {float(ntk_res.median()):.3e}); "
-                    f"images recovered {ntk_found}/{a.N}; closest per image {[f'{v:.3f}' for v in ntk_best.tolist()]}  [{ntk_sec:.0f}s]")
+                # ---- NTK, batched Adam over restarts. coef="free" is THE ATTACK; coef="oracle" is a labelled diagnostic.
+                def run_ntk(coef, fname):
+                    tgt, _ = FORMS[fname]; ntgt = torch.linalg.norm(tgt)
+                    t0 = time.time(); Z = Z0.clone().requires_grad_(True)
+                    if coef == "free":
+                        Rc = torch.zeros(a.starts, m, a.N, device=dev, requires_grad=True); params = [Z, Rc]
+                    else:                                                                     # fixed at the T=1 closed form
+                        Rc = (-(a.lr / a.N) * R_true)[None].expand(a.starts, m, a.N).contiguous(); params = [Z]
+                    opt = torch.optim.Adam(params, a.adam_lr)
+                    def model(Z_, Rc_):
+                        Xc = chart.psi_batch(Z_)
+                        Hc = phi(Xc.permute(1, 0, 2).reshape(D, -1)).reshape(n, a.starts, a.N).permute(1, 0, 2)
+                        Fc = torch.einsum("rn,pnN->prN", A_T, Hc) if fname == "lora" else Hc
+                        return Xc, torch.einsum("pmN,pcN->pmc", Rc_, Fc)
+                    for it in range(a.adam_iters):
+                        _, pred = model(Z, Rc)
+                        loss_p = torch.linalg.norm((pred - tgt[None]).reshape(a.starts, -1), dim=1) / ntgt
+                        opt.zero_grad(); loss_p.sum().backward(); opt.step()
+                    with torch.no_grad():
+                        Xc, pred = model(Z, Rc)
+                        res = (torch.linalg.norm((pred - tgt[None]).reshape(a.starts, -1), dim=1) / ntgt).detach()
+                        cand_ = Xc.detach().permute(1, 0, 2).reshape(D, -1)
+                        E_ = err_matrix(cand_); best_ = E_.min(0).values
+                    return dict(res=res, best=best_, idx=E_.argmin(0), found=int((best_ < 1e-2).sum()), sec=time.time() - t0, cand=cand_)
+
+                ntk_by_form = {}
+                for fname in a.ntk_forms:
+                    nt = run_ntk("free", fname); ntk_by_form[fname] = nt
+                    log(f"     NTK[{fname:4s}] free coefficients: residual {float(nt['res'].min()):.3e} (median {float(nt['res'].median()):.3e}; "
+                        f"model floor at the truth {floors[fname]:.2e}); images recovered {nt['found']}/{a.N}; "
+                        f"closest per image {[f'{v:.3f}' for v in nt['best'].tolist()]}  [{nt['sec']:.0f}s]")
+                    if a.oracle_diag and T in a.oracle_diag_Ts:
+                        oc = run_ntk("oracle", fname); ntk_by_form[fname + "_ORACLE_DIAG"] = oc
+                        log(f"     NTK[{fname:4s}] ORACLE coefficients — DIAGNOSTIC UPPER BOUND, uses the private images, NOT an attack: "
+                            f"residual {float(oc['res'].min()):.3e}; images recovered {oc['found']}/{a.N}  [{oc['sec']:.0f}s]")
+                main_form = "lora" if "lora" in a.ntk_forms else a.ntk_forms[0]
+                ntk = ntk_by_form[main_form]
+                ntk_res, ntk_best, ntk_idx, ntk_found, ntk_sec, cand = ntk["res"], ntk["best"], ntk["idx"], ntk["found"], ntk["sec"], ntk["cand"]
 
                 # ---- certificate, same starts, native LM
                 t0 = time.time(); Xs, objs = [], []
@@ -226,11 +271,21 @@ def main():
                 cell = dict(part="ntk_vs_cert", dataset=a.dataset, class_name=cname, n_classes=ncls, chart=chart_name, chart_desc=chart.describe(),
                             k=k, T=T, lr=a.lr, N=a.N, r=a.r, m=m, n=n, seed=a.seed, starts=a.starts, n_prime=Np,
                             chart_repr_err_median=float(repr_err.median()), chart_repr_err=repr_err.tolist(),
-                            cert_residual_at_truth=cert_truth.tolist(), ntk_linearisation_error_at_truth=lin_err,
+                            cert_residual_at_truth=cert_truth.tolist(), model_floor_at_truth=floors, ntk_main_form=main_form,
+                            ntk_by_form={fn: dict(images_found=v["found"], residual_min=float(v["res"].min()),
+                                                  residual_median=float(v["res"].median()), closest_per_image=v["best"].tolist(),
+                                                  model_floor_at_truth=floors.get(fn.replace("_ORACLE_DIAG", "")),
+                                                  is_diagnostic_upper_bound=fn.endswith("_ORACLE_DIAG"))
+                                         for fn, v in ntk_by_form.items()},
                             ntk_residual_min=float(ntk_res.min()), ntk_residual_median=float(ntk_res.median()),
                             ntk_images_found=ntk_found, ntk_closest_per_image=ntk_best.tolist(), ntk_seconds=ntk_sec,
                             cert_residual_min=float(objs.min()) ** 0.5, cert_images_found=cert_found, cert_landed_starts=landed,
                             cert_top20_landed=top20, cert_closest_per_image=cert_best.tolist(), cert_seconds=cert_sec,
+                            ntk_oracle_DIAGNOSTIC=(None if orc is None else dict(
+                                images_found=orc["found"], residual_min=float(orc["res"].min()), closest_per_image=orc["best"].tolist(),
+                                label="UPPER BOUND, NOT AN ATTACK: coefficients fixed at the true base-model residuals of the private images",
+                                reads="recovers here + free arm fails  => the obstruction is the free coefficients absorbing a recombination "
+                                      "(superposition). both fail => superposition is not the whole account.")),
                             backbone=accs, host=socket.gethostname(), cmd=" ".join(sys.argv))
                 cells.append(cell)
                 print(json.dumps(cell), flush=True)
@@ -242,10 +297,11 @@ def main():
     # ---------------------------------------------------------------- summary table + figures
     tag = f"{a.dataset}_{cname.replace('+','_and_')}_N{a.N}_r{a.r}"
     torch.save(dict(cells=cells, panels=panels, y=y.cpu()), os.path.join(a.save_dir, f"{tag}.pth"))
-    tab = ["| chart | k | T | chart repr. err | NTK linearisation err at truth | NTK images | NTK residual | certificate images | certificate landed | top-20 |",
+    tab = ["| chart | k | T | chart repr. err | model floor at truth | NTK images (lora form) | NTK residual | certificate images | certificate landed | top-20 |",
            "|---|---|---|---|---|---|---|---|---|---|"]
     for c in cells:
-        tab.append(f"| {c['chart']} | {c['k']} | {c['T']} | {c['chart_repr_err_median']:.3f} | {c['ntk_linearisation_error_at_truth']:.3f} | "
+        fl = c["model_floor_at_truth"].get(c["ntk_main_form"], float("nan"))
+        tab.append(f"| {c['chart']} | {c['k']} | {c['T']} | {c['chart_repr_err_median']:.3f} | {fl:.2e} | "
                    f"**{c['ntk_images_found']}/{c['N']}** | {c['ntk_residual_min']:.2e} | **{c['cert_images_found']}/{c['N']}** | "
                    f"{c['cert_landed_starts']}/{c['starts']} | {c['cert_top20_landed']}/20 |")
     open(os.path.join(a.fig_dir, f"{tag}_table.md"), "w").write("\n".join(tab) + "\n")
@@ -285,8 +341,9 @@ def main():
             p_ = ax[ri, 0].get_position(); fig.text(0.012, (p_.y0 + p_.y1) / 2, name, fontsize=7.5, va="center")
         c = next(c for c in cells if c["chart"] == ch and c["k"] == k and c["T"] == T)
         fig.suptitle(f"'{cname}' as {'a new class' if ncls == 1 else f'{ncls} new classes'} — head LoRA r={a.r}, T={T} SGD steps (lr={a.lr}), {c['chart_desc']}\n"
-                     f"NTK linearised (free coefficients) recovered {c['ntk_images_found']}/{a.N}; certificate recovered {c['cert_images_found']}/{a.N} "
-                     f"({c['cert_landed_starts']}/{a.starts} starts). NTK linearisation error at the truth: {c['ntk_linearisation_error_at_truth']:.2f}", fontsize=9)
+                     f"NTK linearised, free coefficients, {c['ntk_main_form']} form, recovered {c['ntk_images_found']}/{a.N}; certificate recovered "
+                     f"{c['cert_images_found']}/{a.N} ({c['cert_landed_starts']}/{a.starts} starts). "
+                     f"Model floor at the truth: {c['model_floor_at_truth'].get(c['ntk_main_form'], float('nan')):.2e}", fontsize=9)
         fig.savefig(os.path.join(a.fig_dir, f"{tag}_{ch}_k{k}_T{T}.png"), dpi=150); plt.close(fig)
     log(f"saved {a.save_dir}/{tag}.pth and {a.fig_dir}/{tag}_*.png")
 

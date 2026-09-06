@@ -24,7 +24,12 @@ import glob, json, sys
 
 RECOVER_TOL = 1e-2        # relative image error below which an image counts as recovered
 RESID_ZERO = 1e-28        # absolute fallback only, for rows with no achievability floor to compare against
-FLOOR_FACTOR = None       # PENDING: yoado-b9 is pinning the factor. at_floor is "within this factor of the
+FLOOR_FACTOR = 1.5        # PINNED by yoado-b9 over 311 corpus rows: rows that reached their arithmetic floor
+                          # span ratios 0.55-1.33, and the lowest deliberately early-stopped row sits at 1.51.
+                          # 1.5 is the tight side of that gap and tight is the safe direction -- a borderline row
+                          # falling to `unverified-recovery` under-counts attacker-claimable without over-claiming
+                          # and still counts for information-carried. The gap is NARROW (1.33 -> 1.51): revisit if
+                          # a genuinely converged row above 1.5 ever appears. Earlier note said pinning pending. at_floor is "within this factor of the
                           # CELL'S OWN from-truth residual", not a fixed constant -- it matters because the fp32
                           # row sits at ~5x its achievable floor, right on the recovered/unverified boundary.
                           # Until it is pinned, cells that HAVE a floor are reported at several factors rather
@@ -48,6 +53,10 @@ SYNONYM = {"optimisation failure": "search-failure", "search-failure": "search-f
 
 
 def derived(at_floor, err):
+    """at_floor is None when the cell has NO from-truth gate row. A missing floor MEASUREMENT is not evidence of
+       failure, so such a row is `undetermined` -- never `unverified-recovery`, which asserts that the residual
+       failed to verify and requires a floor to assert it against."""
+    if at_floor is None: return "undetermined"
     small = err < RECOVER_TOL
     if at_floor and small: return "recovered"
     if at_floor and not small: return "alias"
@@ -61,7 +70,7 @@ def main():
     n_rows = n_scored = 0
     agree = 0
     div = {}; indeterminate = []; floorful = []
-    counts = {"recovered": 0, "alias": 0, "unverified-recovery": 0, "search-failure": 0}
+    counts = {"recovered": 0, "alias": 0, "unverified-recovery": 0, "search-failure": 0, "undetermined": 0}
     # the CELL's achievability floor: the from-truth companion solve's residual, keyed by (file, set, k, r)
     floors = {}
     for f in files:
@@ -86,18 +95,28 @@ def main():
             # `fval <= 1e-28 OR fval <= 100*fwd^2` -- a RELATIVE criterion my fallback cannot see, so scoring those
             # rows against the absolute one alone manufactures divergences that are artefacts of this script. A
             # row that does not carry at_floor (or the relative reference) is INDETERMINATE and is not scored.
+            # at_floor is RELATIVE TO THE CELL'S OWN FROM-TRUTH FLOOR, never absolute. An absolute threshold
+            # would false-flag every inexact-arithmetic cell: the fp32 letters headline sits at residual 3e-7 and
+            # IS at its own floor, so an absolute 1e-30 would demote a genuine recovery.
+            fl_row = floors.get((f, r.get("set"), r.get("k"), r.get("r")))
             if "at_floor" in r:
                 af = bool(r["at_floor"])
-            elif "fwd_check" in r and isinstance(r["fwd_check"], (int, float)):
-                af = bool(v <= RESID_ZERO or v <= 100 * float(r["fwd_check"]) ** 2)
-            elif "res_at_truth" in r and isinstance(r["res_at_truth"], (int, float)):
-                af = bool(v <= RESID_ZERO or v <= 100 * float(r["res_at_truth"]) ** 2)
+            elif fl_row is not None and fl_row > 0:
+                v_as_norm = v ** 0.5 if vk in ("cert_objective", "residual", "fval") else v
+                af = bool(v_as_norm <= FLOOR_FACTOR * fl_row)
+            elif "res_at_truth" in r and isinstance(r["res_at_truth"], (int, float)) and float(r["res_at_truth"]) > 0:
+                v_as_norm = v ** 0.5 if vk in ("cert_objective", "residual", "fval") else v
+                af = bool(v_as_norm <= FLOOR_FACTOR * float(r["res_at_truth"]))
             else:
-                indeterminate.append((f.split("/")[-1], e, v))
-                continue
-            fl = floors.get((f, r.get("set"), r.get("k"), r.get("r")))
+                af = None                       # no floor measurement -> undetermined, not a failure
+            # UNIT HAZARD, and it WAS in this script (yoado-b9 flagged the class; it applies here). `v` is an
+            # OBJECTIVE in most files (a sum of squares, ~1e-31) while the floor arm emits a NORM (~1e-15). Taking
+            # v/floor directly is wrong by fifteen orders. The commensurable comparison is sqrt(objective) against
+            # the norm. Where the units of `v` cannot be established the row is left out rather than guessed.
+            fl = fl_row
             if fl is not None and fl > 0:
-                floorful.append((v, fl))
+                v_as_norm = v ** 0.5 if vk in ("cert_objective", "residual", "fval") else v
+                floorful.append((v_as_norm, fl))
             d = derived(af, e)
             counts[d] = counts.get(d, 0) + 1
             head = rec.split(" (")[0].split(" --")[0].strip().lower()
@@ -124,9 +143,11 @@ def main():
     print(f"#   attacker-claimable   = recovered + alias                 {counts['recovered'] + counts['alias']:5d}")
     print(f"#   verified-true        = recovered (the intersection)      {counts['recovered']:5d}")
     print(f"#   search-failure                                           {counts['search-failure']:5d}")
+    print(f"#   undetermined (no from-truth gate row in that cell)        {counts['undetermined']:5d}")
     print(f"# unverified-recovery counts toward information-carried and NEVER toward an attack success rate.")
     if floorful:
         print(f"\n# {len(floorful)} rows have a cell achievability floor; at_floor by factor (b9 pins the factor):")
+        print(f"#   (objectives converted to norms before the ratio -- the two are not commensurable raw)")
         for fac in FACTORS:
             n_at = sum(1 for v, fl in floorful if v <= fac * fl)
             print(f"#   within {fac:6.1f}x of the cell's from-truth residual: {n_at:5d} of {len(floorful)}")

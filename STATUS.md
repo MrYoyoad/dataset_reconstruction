@@ -10,7 +10,12 @@ is the minimiser by construction.** Measured: the collapsed attractor (379 of 40
 of the eight privates to 99.4%, its own residual 3e-15. The sanity checks are necessary and never sufficient; they
 hold identically in the degenerate case. Logged in LESSONS_LEARNED.
 
-**Fixed by the layer, not the chart or the solver.** With the adapter behind a nonlinearity the attack lands from
+**The condition is transversality; depth is one way to buy it.** What is needed is that the chart's image meet the
+private span only at the private points. An affine composition from chart to adapted-layer input violates that
+automatically — the blend of any affine combination of on-chart truths is itself in the span, so the zero set
+contains an affine subspace of dimension min(N−1, k) through the truths at every k, however far below the capacity
+line. A nonlinear chart can still blend, so "use a nonlinearity" is the recipe, not the condition. With the adapter
+behind a nonlinearity the attack lands from
 random starts: hidden layer 253/400 starts and 8/8 images, head 171/400 and 8/8, and in every landing cell **all
 twenty lowest-residual starts are true landings**, so the attacker can tell which of their starts succeeded without
 ground truth. Wrong-release control (certificate from a release trained on eight *other* images of the same class):

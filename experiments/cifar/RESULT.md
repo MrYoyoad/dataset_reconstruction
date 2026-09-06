@@ -5,14 +5,16 @@ labels). It satisfies `C h_i = 0` exactly on the private inputs of the adapted l
 `‖C φ(G(z))‖ / ‖A_T φ(G(z))‖` over a chart `G` from random starts, and a start "lands" when its relative image error
 against the target is below 1e-2. All releases: `B_0 = 0`, vanilla full-batch SGD, float64.
 
-**Headline.** The CIFAR replica as supplied does not land, and the reason is structural, not a tuning problem. Fixing
+**Headline.** The CIFAR replica as supplied recovers none of its private images, and even given a reachable target it
+recovers only 2 of 8. The reason is structural, not a tuning problem. Fixing
 it needs one change of setting, not a better chart or optimiser: the adapter must sit behind a nonlinearity. With
 that change the attack recovers every private image from random starts, and the attacker can tell which of their
 starts succeeded from the residual alone.
 
 | what changes | result |
 |---|---|
-| LoRA on the pixel layer (the replica) | 0 images; every minimiser is a blend of the privates |
+| LoRA on the pixel layer, raw privates (the replica as supplied) | 0 of 8 images |
+| LoRA on the pixel layer, on-chart privates | 2 of 8, at 30 of 400 starts; the modal minimiser is a 99.4% blend |
 | LoRA on a hidden layer, public PCA chart | 253/400 starts land, 8/8 images |
 | LoRA on the head, public PCA chart | 171/400 starts land, 8/8 images |
 | LoRA on the head, a fully trained or **over-trained** backbone, a new class | up to 200/200 starts land, 8/8 images |

@@ -4,39 +4,86 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
-## A certificate linear in the layer's input cannot separate the images it annihilates (2026-09-06)
+## A criterion that cannot fail is not evidence — three instances in two days (2026-09-06)
 
-The CIFAR replica of the certificate attack (`cifar_certificate.py`, jobs 252897/252898) put LoRA on the **first
-(pixel) layer**, so `C` acts linearly on pixels. Every sanity check passed to machine precision — `‖CH‖/(‖C‖‖H‖)` at
-3.6e-15, quotient form 5.9e-15, `rank C = r − N = 56`, excitation gap 1e14 — and the search still returned one
-blurred "mean apple" on all 400 starts. It was not a basin failure and not a chart failure.
+The class: a test whose bar sits where everything clears it, or nothing does, certifies nothing while looking like a
+result. It is invisible because the output has the shape of a yield. Check every acceptance criterion by asking what
+would have to be true for it to REJECT, and confirm that something in the run actually does.
 
-**The mechanism.** `C h_i = 0` for each i means `C` annihilates the whole *span*, so every linear combination
-`Σ c_i h_i` is an exact zero too. When the adapted layer's input is the image itself, those combinations are images,
-and a smooth chart represents the blend far better than any individual: the 8-apple mean has PCA-32 representation
-error 0.06 against 0.10–0.42 for the individual apples. The minimiser is therefore the blend, by construction. The
-audit measured it: the modal attractor (379 of 400 starts) is a least-squares blend of the eight privates to 99.4%,
-with coefficients that are not even convex (−0.70, 0.34, …, 0.46), and the blend's own residual is 3e-15.
+1. **A landing criterion satisfied by 400 of 400 starts with zero true landings.** The CIFAR replica scored a start
+   as landed when its residual fell below three times the largest chart-floor residual. Every start passed, no start
+   was near a private image, and the write-up reported "400/400 reached the certificate floor" as success. Landing
+   has to be an image-error test against the target, never a residual-level test.
+2. **A floor test whose absolute cut sat below most of the per-image floors** (the earlier at-floor cell): the bar
+   was a single cell-global number while the per-image floors spanned three orders, so it could not certify the
+   images it was meant to certify, and the fraction it produced looked like a yield.
+3. **A control computed with a different statistic from the attack.** The same-class control paired each private
+   image with an arbitrary public one, while the attack number was a maximum over 400 starts. The comparison was
+   therefore not between two attacks on the same footing. Corrected to the same max-over-starts statistic against
+   the projection of the nearest public image.
 
-**The fix is the layer, not the chart.** Two nonlinearities between the chart and the certificate make a blend of
-*features* generically not the feature vector of any chart image. Moving LoRA to the head, on the 256-dim
-penultimate features (the literal setting of the MNIST Figure-2 cell), lands 200 of 400 random starts on all eight
-apples at image error 1e-14, with the same chart, same solver and same seed (job 277289). The wrong-release control
-(certificate from eight *other* apples) gives 0 of 400 at residual 0.27–0.51 (277614).
+## Head-to-head between two attacks: the number of images one start must place is part of the design (2026-09-06)
 
-**What to carry forward.** (a) Before blaming a chart or an initializer, check whether the found point is a blend of
-the privates — a two-line least-squares fit in `span{φ(x_i)}`, now standard in `experiments/cifar/cifar_charts.py`.
-(b) The equation count (56 equations, 32 unknowns) is silent about this: it assumes generic position, and the span
-direction is exactly where position is not generic. (c) `‖CH‖ ≈ 0` and `rank C = r − N` are necessary, never
-sufficient — they hold identically in the degenerate case.
+Putting the certificate against the linearised reconstruction on the same release looked like a clean comparison —
+same release, same chart, same starts, same budget, same landing bar. It is not clean by default, because the two
+searches have different **arity**. One certificate start solves a k-dimensional problem for ONE image and the other
+N−1 never enter it. One linearised start must place all N at once, because its residual is a single sum over the
+whole batch, so every slot's descent direction is driven by the others' errors.
 
-**Two reporting bugs found in the same pass.** The replica's landing criterion `R < 3·max(chart-floor residual)` is
-vacuous: 400 of 400 starts satisfied it with zero true landings, and the write-up reported "400/400 reached the
-certificate floor" as if it were success. And the same-class control paired each private with an arbitrary public
-image while the attack number was a max over 400 starts; the control must use the same max-over-starts statistic
-and the chart projection, because window-3 SSIM rewards the blur that a collapsed attractor has.
+That asymmetry can produce a gap that has nothing to do with the equations being compared. Two ways it bites, and
+they need different handling:
 
----
+- **In the scoring.** If a joint start is scored all-or-nothing, its success rate is bounded by the smallest
+  per-image basin and behaves roughly like the product when the basins are near independent. With basins measured
+  between 1/89 and 53/89, a product over eight is 1e-6 or below, so zero out of a few hundred joint starts is the
+  expected outcome *even from perfectly identifying equations*. Check this at the source before believing a gap: in
+  our case the scoring was already per-image (every image slot of every start is a candidate, and a truth counts as
+  found if any candidate reaches it), so the artefact was not present — but the audit that raised it was right to,
+  and the check took two minutes against the code.
+- **In the optimisation.** Even with per-image scoring, the coupling remains in the gradient: a slot that would have
+  landed on its own can be dragged off by the other seven. That is a real property of the joint route, but it is a
+  statement about **separability**, not about one equation being better specified than another, and it must be
+  written that way.
+
+**The rule.** Whenever two attacks are compared, state how many images a single start has to place, match it or
+report it, and run the arity control — here N = 1, where the arities are equal and superposition is empty, so a
+remaining gap has to come from somewhere else. Design the comparison so its own confounds are separable, and say
+which of them each row rules out.
+
+## The certificate's zero set is a linear SUBSPACE, so a chart that contains blends cannot isolate the images (2026-09-06)
+
+A CIFAR replica with the adapter on the **pixel layer** recovered nothing while passing every sanity check to
+machine precision: `‖CH‖/(‖C‖‖H‖)` 3.6e-15, quotient form 5.9e-15, `rank C = r − N = 56`, excitation gap 1e14.
+
+**Cause.** `C hᵢ = 0` for each i means `C` annihilates their whole span, so every linear combination of the private
+inputs is an exact zero, not a near one. Where the adapted layer's input *is* the image, those combinations are
+themselves images; a mean is smoother than its parts, and a smooth chart represents it better than any individual
+(the 8-image mean has PCA-32 representation error 0.06 against 0.10–0.42 for the individuals). The minimiser is then
+the blend by construction. Measured: the modal attractor, 379 of 400 starts, is a least-squares blend of the eight
+privates at 99.4% with coefficients that are not even convex, and its own residual is 3e-15 — as low as the truths'.
+
+**What the count misses.** The capacity line `k < r − N′` assumes the chart meets that subspace only at the private
+points. The blend directions are exactly where that genericity fails, so the line is necessary and not sufficient.
+The sanity checks above cannot repair it, and the reason is stronger than the measurement: every one of them is a
+function of `C` and `H` alone and none of them mentions the chart, so none can certify anything about how the
+chart's image meets `ker C`.
+
+**The affine case is a lemma, not a conjecture.** If the composition from chart to adapted-layer input is affine and
+the private points are on the chart, the image of any affine combination of their latents *is* the corresponding
+blend of features, which lies in the span, which lies in `ker C`. So the zero set contains an affine subspace of
+dimension min(N−1, k) through the truths — at every k, however far below the capacity line. On pixels, k + N = 40
+against n = 3072: the dimension count is satisfied by two orders and the cell is still degenerate, which is why no
+tightening of the count could have caught it. In the framework's own terms this is `d_parallel > 0`, the case the
+"almost surely for each fixed x" phrasing quietly excluded.
+
+**The condition to state is transversality, not nonlinearity**: what is needed is that the chart's image meet
+`span{h_i}` only at the private points. Nonlinearity is how you buy that generically, not the condition itself — a
+nonlinear chart can still blend. Measured boundary across three layers: pixel layer (affine composition), 0 of 8
+from the raw replica and 2 of 8 on-chart with the modal attractor a 99.4% blend; one nonlinearity, still 97% blend
+at the argmin; the head, two nonlinearities, 8 of 8 at image error 1e-14, wrong-release control 0 of 400.
+
+**Practical check.** Before blaming a chart or an initializer, fit the found point in the span of the private
+features. It is two lines, and it would have diagnosed this in seconds.
 
 ## A relay is not a verification (2026-09-04)
 
