@@ -4,6 +4,44 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Read the header off the row, because the context is never as matched as it looks (2026-09-06)
+
+Three times in one day a number was read correctly and attributed to the wrong cell. A figure filename collision
+put one arm's outputs under another's name. A headline row conflated two pixel-layer cells that differed in whether
+the private images were on the chart. And a comparison of four rows across two datasets was read as a dataset
+effect when the rows differed in chart dimension: the two that recovered were at k = 16 and the one they were
+compared against was at k = 32, because the k was inherited from an adjacent table instead of read off the line.
+
+The common shape: the surrounding text says what the cell is, the line itself says what the cell is, and they
+disagree. Prose describes the cell you meant to run; the header describes the cell that ran.
+
+**The habit.** Before using a number, read its own header — dataset, chart, k, T, seed, job — from the same line the
+number came from, not from the table, the filename, the message that relayed it, or your own memory of what you
+submitted. It costs one grep. Every one of the three above was caught that way and two of them were caught after
+they had already travelled.
+
+## When a mechanism is proposed, check it against every cell, including the ones that do not fit (2026-09-06)
+
+Two explanations were offered for why one cell of four failed the linearised route. Mine was the composition of the
+private batch, one added class against two. It was refuted by a cell in my own table: a single-class CIFAR batch
+recovers 8 of 8, so single-class is not sufficient for failure. I had checked the two cells that fit.
+
+The reviewer's was conditioning, predicted from the certificate residual at the truths being two orders worse in the
+failing cell. Measured across all four: **refuted, and in the informative direction.** The failing cell is the *best*
+conditioned on every measure of the design the linearised route inverts — condition number 5.7 against 10.3, 10.1
+and 6.7; smallest singular value 1.60, the largest of the four; and its worst feature correlation, 0.70, is milder
+than a recovering cell's 0.90.
+
+What survived is the column the reviewer told me to read *before* attributing anything to collinearity: the
+release's own spectrum. The failing cell's eighth recorded direction sits at 3.4e-05 of the first, against 3.8e-03,
+1.1e-02 and 1.4e-02 in the three that recover — two to three orders down. That is a recording shortfall in the
+release rather than a numerical difficulty in a solver, and the two have opposite implications.
+
+**The rule.** A proposed mechanism is a claim: test it on the cells that would refute it, not the ones that
+suggested it, and say which column survived rather than which story did. Here the honest statement is that both
+proposed mechanisms are dead, one column is an outlier in the right direction, and it does not yet explain why the
+certificate recovers 8 of 8 in the same cell at 169 of 200 starts.
+
 ## A criterion that cannot fail is not evidence — three instances in two days (2026-09-06)
 
 The class: a test whose bar sits where everything clears it, or nothing does, certifies nothing while looking like a
