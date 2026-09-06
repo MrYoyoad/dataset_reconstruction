@@ -152,24 +152,32 @@ Readings:
   | 40 | 48 (5/8) | 162 (8/8) | 122 (7/8) | 111 | 4.28 |
   | 160 | 70 (6/8) | 151 (7/8) | 176 (7/8) | 132 | 4.72 |
   | 640 | 10 (5/8) | 42 (6/8) | 78 (7/8) | 43 | 5.90 |
-  | **linear PCA chart** | **253 (8/8)** | | | **253** | **1.00 by construction** |
+  | linear PCA chart, **one seed and NOT matched** (see below) | 171 (8/8) | — | — | — | 1.00 by construction |
 
-  Two things replicate and one does not, and the difference matters:
+  > **CORRECTION, 2026-09-07.** An earlier version of this table compared these cells against **253 of 400**. That
+  > number is the *hidden-layer* PCA cell; these are all *head-layer* cells, and the head-layer PCA cell is **171 of
+  > 400**. The comparison was against a mismatched reference and the conclusion drawn from it — that every
+  > learned-chart cell sits below the linear one — is **false**: seed 3 at 160 epochs reaches 176, above 171. The
+  > only head-layer PCA cell also differs from these in a second setting (it zeroes the new head row; these do not),
+  > so it is not a matched control either. Matched PCA cells at seeds 0, 2 and 3 are running; until they land there
+  > is **no supported claim that a linear chart beats a learned one**, and the sentence is withdrawn rather than
+  > rephrased.
 
-  - **The gap to the linear chart survives every budget and every seed.** All nine learned-chart cells sit below
-    the linear chart's 253 of 400, the best reaching 176, and none recovers all eight images where the linear chart
-    does. So the gap is *not* a training shortfall — which is the question that was asked, and it is answered.
+  What survives the seed replicates, independent of that reference:
+
   - **Training sixteen times longer actively hurts.** 640 epochs is worse than 40 in three of three seeds and worse
-    than 160 in three of three. Robust.
-  - **The peak at 160 is withdrawn.** It rises from 40 in only one of three seeds, and the seed-to-seed spread at a
+    than 160 in three of three. This is a within-budget comparison and needs no linear-chart reference at all.
+  - **The peak at 160 is withdrawn.** It rises from 40 in only one seed of three, and the seed-to-seed spread at a
     fixed budget (48 to 162 at 40 epochs) is larger than the difference between budgets. The single-seed run that
     suggested a sevenfold collapse drew the lowest cell of all three triples; the robust fall from the best budget
-    to the longest is about threefold, not sevenfold.
+    to the longest is about threefold.
   - **The chart's Jacobian conditioning rises monotonically with training in all three seeds**, 4.28 to 4.72 to
-    5.90 on average against exactly 1.00 for the linear chart. It is the only measured quantity that moves with the
-    budget in every seed. It remains a **correlate and not a cause**: it rises 1.4-fold where the landings fall
-    2.6-fold, which is a poor quantitative match, and the reading that learned decoders are *badly* conditioned in
-    absolute terms is false at every budget.
+    5.90 on average against exactly 1.00 for a linear chart by construction. It is the only measured quantity that
+    moves with the budget in every seed, and it remains a **correlate and not a cause**: it rises 1.4-fold where the
+    landings fall 2.6-fold, and the reading that learned decoders are *badly* conditioned in absolute terms is false
+    at every budget.
+  - **Whether a learned chart is worse than a linear one at its best budget is now an open question**, not a
+    finding. The comparison that would settle it is running.
 
   Two things the collapsed cell rules out. The exact zeros are still present and reachable at 640 epochs (residual
   at the truths 5e-15, isolation test full rank 32 of 32 at every private image, five images returned at 1e-14),
