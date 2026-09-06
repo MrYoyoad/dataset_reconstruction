@@ -4163,9 +4163,9 @@ wrong. The earlier "5 at 300 starts, 2 at 3000" was entirely the fixed-window ar
 
 **Distinct attractors (dedup) tracks distinct images exactly while precision holds, and explodes when
 it breaks.** Clustering the attacker's own candidates against each other in ascending residual order —
-no ground truth anywhere in it — gives 1, 1, 2, 5, 7 against the experimenter's 1, 1, 2, 5, 7 at
-k = 30, 50 (wait: 1,1 at 30/50 is 1,2) … precisely: it equals the distinct-image count at every k where
-precision is 1.000, and at k=1500 returns **222 attractors against 8 real images**. So its blow-up is
+no ground truth anywhere in it — equals the experimenter's distinct-image count at every k where
+precision is 1.000 (1, 1, 1, 2, 2, 5, 5, 7 at k = 1…750), and at k=1500 returns **222 attractors
+against 8 real images**. So its blow-up is
 itself the signal that the window has run past the attack. An attacker can both count their haul and
 know when to stop. It is an **upper bound** on distinct private images — a cluster can be a blend and
 the attacker cannot tell which — and that is the honest part of it, not a weakness.
