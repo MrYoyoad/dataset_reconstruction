@@ -273,3 +273,55 @@ about the certificate at all: **an adapter on the input layer, read through a li
 non-identifying for `N ≥ 2` by either route; identifiability begins when a nonlinearity separates the chart from
 the adapted layer's input.** That is checkable from the architecture before any release exists, it is a *positive*
 statement rather than a prohibition, and it is new.
+
+---
+
+## R3-AMENDED — I withdraw the scoring premise of R3. yoado-64 caught it in the code; the rivalry it named collapses, and two solver confounds replace it
+
+Recorded here rather than only in a message, and left beside the original rather than editing it away, because the
+original was relayed to three lanes and one of them held a claim on it.
+
+**What I got wrong.** R3 asserted that the linearised arm "scores zero if it misses any", making `0 of 8` the
+product-of-basins artefact of a joint search. **False, verified in `run_ntk`:** candidates are
+`Xc.permute(1,0,2).reshape(D, P*N)` and `found` counts truths whose minimum error over **all `P·N` slots** is under
+`1e-2`. It is a per-image union metric, the same one the certificate arm uses.
+
+**And the correction runs against me, which is the part worth stating.** The linearised arm contributes
+`P·N = 1600` candidate slots; the certificate arm contributes `P = 200`, one per start. So the arm that lost had
+**eight times the draws**. The comparison does not flatter the certificate through scoring; if anything it
+understates it.
+
+**What survives, restated.** The asymmetry is in the optimisation, not the scoring: slots descend on a coupled
+objective, so a slot that would land alone can be dragged off by the other seven. **That is not a rival to
+superposition — it is one of superposition's two mechanisms.** The live distinction is instead the project's own:
+
+| | mechanism | signature in rows already logged |
+|---|---|---|
+| (a) identifiability superposition | `d∥ > 0`: the zero set contains recombinations, so the minimiser is a blend | residual **at** the free-coefficient floor, images wrong ⇒ **alias** |
+| (b) landscape superposition | coupled descent never reaches a zero that exists | residual **above** the floor ⇒ **search failure** |
+
+**This is readable from rows in hand, with no new run.** Compare `ntk_res.min()` against `model_floor_at_truth`.
+The reported plateau of 0.46 sits far above any floor, and in the `lora` form at `T = 1` the floor is **zero by
+construction** — so on present evidence this is (b), a search failure, and the honest headline is *"the joint solve
+does not converge at this budget"*, not *"the linearised route carries less information"*. A landscape claim is
+beatable by a better solver, and a reviewer will say so.
+
+**Two solver confounds must be removed before any headline, and the first is a real bug-shaped hazard.**
+1. **`Rc` is initialised at zero, which makes the latent gradient identically zero at step 0.** The model is
+   `pred = Rc · F(Z)`, so `∂pred/∂Z ∝ Rc`. At `Rc = 0` the latents receive no gradient at all and the early
+   trajectory is entirely coefficient-driven. The certificate arm has no such pathology — its gradient is
+   generically nonzero at a random start. **The two arms are not on equal footing at initialisation.**
+2. **The fair algorithm is variable projection.** The model is *linear* in `Rc`, so eliminate it in closed form and
+   optimise over `Z` alone. That removes the zero-gradient start, removes the two-block scale mismatch under a
+   single Adam learning rate, and cuts the unknowns from `N(k+m)` to `Nk`. The eliminated objective is
+   `‖(I − P_{F(Z)}) target‖` — **the same shape as the certificate's**, which is what makes the head-to-head
+   apples-to-apples. This is the strongest fair version of the linearised route, and only if it still loses is the
+   comparison worth stating.
+
+**Answer to "a failure at `N=1, T=1` would be none of the three and I would not know what it is".** It would be
+**conditioning or parameterisation**, and the two items above are the first suspects, in that order. Diagnostics:
+the condition number of the joint Jacobian at the truth, and per-block learning rates or variable projection.
+
+**The `N = 1` controls (jobs 307866, 307867) remain correct and are still the discriminator** — they are simply now
+separating (a) from (b) and from conditioning, rather than separating superposition from a scoring artefact that
+does not exist.
