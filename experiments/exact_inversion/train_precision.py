@@ -450,7 +450,13 @@ def main():
                     d["null_landed"] = bool(d["null_err"] < 1e-2)
                 ranked = sorted(runs, key=lambda d: d["objective"])
                 prec_at_k = {}
-                for kk in sorted({1, 5, 10, 20, 50, len(recorded), 2 * len(recorded)}):
+                # the k grid must scale with the start budget. A grid that stops at 50 makes distinct-image counts
+                # incomparable across budgets: the window becomes a smaller, more extreme slice of a larger landing
+                # pool, so the count FALLS as starts rise (R14). Fixed-k distinct images measures window size
+                # against skew, not attacker capability -- see breadth_note below for the two that replace it.
+                kgrid = {1, 5, 10, 20, 50, len(recorded), 2 * len(recorded)}
+                kgrid |= {int(a.random_starts * f) for f in (0.01, 0.02, 0.05, 0.10, 0.25, 0.50)}
+                for kk in sorted(x for x in kgrid if x >= 1):
                     if kk > len(ranked): continue
                     top = ranked[:kk]
                     hits = [d for d in top if d["landed"]]
@@ -464,6 +470,26 @@ def main():
                 # closest approach per recorded image over ALL starts: a "not found" at a residual near the 1e-2 bar is a degraded
                 # recovery, not a miss (yoado-ed) -- report the image error, not only the pass/fail
                 min_err = {str(i): min([d["err"] for d in runs if d["nearest"] == i] or [float("nan")]) for i in recorded}
+                # BREADTH, the two attacker-computable statistics that replace fixed-k distinct images (R14).
+                # (1) dedup clusters: the attacker clusters their OWN candidates against each other -- no ground
+                #     truth anywhere in it -- and counts clusters. Greedy single-pass at the landing tolerance.
+                # (2) starts to first landing on each image, reported at its MAX over images. Breadth is a coupon
+                #     collector with unequal probabilities, so the cost of the full set is set by the RAREST image,
+                #     never the mean. Monotone in the budget, and it carries its budget by construction.
+                dedup = {}
+                for kk in sorted(x for x in kgrid if 1 <= x <= len(ranked)):
+                    reps = []
+                    for d in ranked[:kk]:
+                        xh = d["xhat"]
+                        if not any(float(torch.linalg.norm(xh - q) / torch.linalg.norm(q)) < 1e-2 for q in reps):
+                            reps.append(xh)
+                    dedup[str(kk)] = len(reps)
+                first_landing = {}
+                for i in recorded:
+                    hit = next((s for s, d in enumerate(runs) if d["landed"] and d["nearest"] == i), None)
+                    first_landing[str(i)] = (hit + 1) if hit is not None else None
+                seen = [v for v in first_landing.values() if v is not None]
+                starts_to_all = max(seen) if len(seen) == len(recorded) else None
                 rowB = dict(part="B", set=sname, chart=chart_name, k=k, N=a.N, r=a.r, m=bb.m, seed=a.seed, train_dtype=dname, cert_tol=tol, n_prime=Np,
                             cert_line=a.r - Np, below_cert_line=bool(k < a.r - Np), random_starts=a.random_starts, iters=a.iters,
                             cert_residual_at_truth=[float(v) for v in cert_res_truth], recorded=recorded,
@@ -491,6 +517,18 @@ def main():
                                       "is not the attack's.",
                             per_start_objective=[d["objective"] for d in runs],
                             per_start_landed=[bool(d["landed"]) for d in runs],
+                            per_start_nearest=[int(d["nearest"]) for d in runs],
+                            dedup_clusters_at_k=dedup,
+                            starts_to_first_landing_per_image=first_landing,
+                            starts_to_cover_all_recorded=starts_to_all,
+                            breadth_note="fixed-k distinct_images is NOT an attacker statistic: the top-k window is "
+                                         "the k lowest residuals, not a sample of landings, so as the landing pool "
+                                         "grows with k held fixed the window fills with the easiest images and the "
+                                         "count FALLS (measured: 5 at 300 starts, 2 at 3000, job 304540). It "
+                                         "measures window size against skew. Use dedup_clusters_at_k (attacker "
+                                         "clusters their own candidates, no ground truth) and "
+                                         "starts_to_cover_all_recorded (the max over images, since breadth is a "
+                                         "coupon collector whose cost is set by the rarest image).",
                             at_floor_note="frac_starts_at_floor uses the historical ABSOLUTE 1e-20 cut and is kept "
                                           "for continuity; frac_starts_at_achievability_floor is the correct one, "
                                           "relative to this cell's own measured floor at the pinned 1.5x factor.",
