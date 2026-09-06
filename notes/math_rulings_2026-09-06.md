@@ -544,3 +544,66 @@ fill the gap silently. Required instead:
 
 Choosing "visibly loose rather than tuned" was the right instinct; the right expression of it is to make the bar
 irrelevant and show that it is.
+
+---
+
+## R13 — The retrospective may ship. R9 does not reach it. But it predates R12 and gets the reason for the direction change wrong
+
+[read: document, `notes/ntk_vs_certificate_comparison.md`, in full]
+
+### The line yoado-72 could not draw alone
+
+It is **not** "our numbers against theirs". It is **a claim about a method** against **a claim about our own
+decisions**.
+
+- *"Route X performs worse than route Y"* is a claim about X. It needs a controlled comparison, which does not
+  exist here, and R9 forbids it.
+- *"We tried X, these are the numbers we got, this is why we moved"* is a decision log. It is a claim about our own
+  history, and the user is entitled to it — he is the one making the direction call, and **withholding our own
+  measurements from him because they might be misquoted later would leave him deciding blind.** That is
+  paternalism, not rigour.
+
+Same numbers, different claim, different bar. **R9 does not reach this document**, whose subject is this project's
+own prior phases — Experiment B, the anchor sweep, direct weight inversion, the gradient bridge — every one of them
+our own implementation. The safeguard is framing and caveats, not suppression.
+
+### But it predates R12, and its central explanation is now wrong
+
+Four corrections, and they strengthen the conclusion while replacing its reason.
+
+1. **"The linearization is never valid where the signal lives" is true only of the form we happened to pick.**
+   Measured today (job 308859): the full-weight form's floor is 0.96 at `T=1` and 0.72 at `T=400` — misspecified,
+   as the document says. The **LoRA-aware form's floor is machine precision at both ends**, and R12 shows that is a
+   theorem, not a lucky cell. **The wall was our parameterisation, not the route.** Leaving this uncorrected tells
+   the user a method is dead when what died was one way of writing it.
+2. **"Exact rather than fitted" is not the distinction either.** Under R12 the representer route is also exact —
+   the two routes have the **same zero set**. Whatever separates them, it is not exactness.
+3. **The batch-size wall is a property of the JOINT SEARCH, not of the information**, and this is the document's
+   best observation once reframed. Read its own table again: the NTK route collapses with `N` (0.922, 0.605, 0.536,
+   0.252); direct weight inversion collapses with `N` **despite knowing the entire recipe** (0.57, 0.27, 0.15); the
+   gradient bridge does the same. **Every route that solves for all `N` images at once collapses with `N`. The one
+   route that solves per image does not.** That is a clean, unifying, and previously unstated axis, and it is
+   supported by R12: since identifiability is shared, what differs is arity. The direction change was right, but
+   we moved from **joint to separable**, not from fitted to exact.
+4. **The last paragraph is the best thing in the document and is now partly out of date.** "The fraction of
+   recoveries an attacker can verify end to end has not yet been measured" was answered today by yoado-c6's
+   step126: on the letters cell, blind ranking gives five distinct private images in the top fifty starts at 300
+   starts, precision 1.00 against a disjoint-release null of 0.00, base rate 0.297. Update it and keep the rest of
+   the paragraph exactly as written — it is the most honest passage in the bundle.
+
+### Conditions on shipping
+
+- **Retitle it as a direction retrospective / decision log.** "Side by side" is the phrasing that invites the
+  lift into a comparison slide later.
+- **A framing line at the top:** these are our runs of our own implementations, the comparison is uncontrolled, and
+  no number here is evidence about any method other than our own attempts at it.
+- **Carry the verdict and the handicap.** R3-AMENDED's reading — search failure, not an information limit — and the
+  variable-projection result showing the joint solver was handicapped by a factor of 19 at `T=1`. Omitting a
+  handicap that flattered our own conclusion is the failure mode this whole day has been about.
+
+### Ordering, for the ETA the user asked for
+
+The comparison document is **cleared by this ruling** once the four corrections are in — minutes of editing, no
+compute. The headline fix is trivial and already partly done. **The F3 tensor recheck is the only real blocker**,
+and it belongs to yoado-64. If it will not clear quickly, ship the record-strength half alone: it is clean, its
+reproduction gate passes, and its one open item is a caveat rather than a correction.
