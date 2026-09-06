@@ -409,7 +409,8 @@ def main():
                     j, e = min(e_all.items(), key=lambda kv: kv[1])
                     with torch.no_grad(): fr = float(torch.linalg.norm(A_T @ bb.phi(x_hat.reshape(-1, 1))) / feat_ref)
                     landed = bool(e < 1e-2)
-                    runs.append(dict(objective=obj, iters=it, nearest=j, err=e, landed=landed, degenerate=bool(fr < 0.05)))
+                    runs.append(dict(objective=obj, iters=it, nearest=j, err=e, landed=landed,
+                                     degenerate=bool(fr < 0.05), xhat=x_hat.detach()))
                     if landed and j not in first: first[j] = x_hat.detach().cpu()
                 valid = [d for d in runs if not d["degenerate"]]
                 best = min(valid, key=lambda d: d["objective"]) if valid else None
@@ -434,16 +435,32 @@ def main():
                 # the chart: run B starts, rank by final objective, take the top k. Ground truth enters only in
                 # SCORING the outcome afterwards, which is the line between an attack number and an experimenter
                 # one. No per-image floor is used, so this arm is immune to the at_floor factor question.
+                # DISJOINT-RELEASE NULL. precision_at_k scores the attacker's blind ranking against the
+                # private images; a metric that calls any converged chart point a "landing" would score 1.00
+                # for reasons having nothing to do with this release. The control: score the SAME runs against
+                # N images from the public pool that this adapter never trained on, drawn on the same chart and
+                # from the same distribution. Any precision the null earns is the metric's, not the attack's.
+                gnull = torch.Generator().manual_seed(a.seed + 991)
+                null_idx = torch.randperm(public.shape[0], generator=gnull)[:a.N]
+                with torch.no_grad():
+                    X_null = chart.psi(chart.coords_of(public[null_idx].T))
+                for d in runs:
+                    d["null_err"] = min(float(torch.linalg.norm(d["xhat"] - X_null[:, j]) /
+                                              torch.linalg.norm(X_null[:, j])) for j in range(X_null.shape[1]))
+                    d["null_landed"] = bool(d["null_err"] < 1e-2)
                 ranked = sorted(runs, key=lambda d: d["objective"])
                 prec_at_k = {}
                 for kk in sorted({1, 5, 10, 20, 50, len(recorded), 2 * len(recorded)}):
                     if kk > len(ranked): continue
                     top = ranked[:kk]
                     hits = [d for d in top if d["landed"]]
+                    nhits = [d for d in top if d["null_landed"]]
                     prec_at_k[str(kk)] = dict(
                         distinct_images=len(set(d["nearest"] for d in hits)),
                         starts_landing=len(hits),
-                        precision=len(hits) / kk)
+                        precision=len(hits) / kk,
+                        null_precision=len(nhits) / kk,
+                        null_starts_landing=len(nhits))
                 # closest approach per recorded image over ALL starts: a "not found" at a residual near the 1e-2 bar is a degraded
                 # recovery, not a miss (yoado-ed) -- report the image error, not only the pass/fail
                 min_err = {str(i): min([d["err"] for d in runs if d["nearest"] == i] or [float("nan")]) for i in recorded}
@@ -468,6 +485,10 @@ def main():
                                            max(1, sum(1 for d in runs if at_floor(d)))),
                                 recall=(sum(1 for d in runs if at_floor(d) and d["landed"]) /
                                         max(1, sum(1 for d in runs if d["landed"])))),
+                            null_note="null_precision scores the same ranked starts against N public images this "
+                                      "adapter never trained on, same chart, same distribution. It is the "
+                                      "false-positive rate of the landing metric itself; any precision it earns "
+                                      "is not the attack's.",
                             per_start_objective=[d["objective"] for d in runs],
                             per_start_landed=[bool(d["landed"]) for d in runs],
                             at_floor_note="frac_starts_at_floor uses the historical ABSOLUTE 1e-20 cut and is kept "
