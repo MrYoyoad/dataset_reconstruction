@@ -479,3 +479,54 @@ genuine complementarity worth keeping**: the joint form requires the candidates 
 return the same image N times, while the certificate applied per candidate can. The certificate wins the search
 because it is separable; the representer enforces distinctness because it is joint. Coverage is the certificate's
 measured bottleneck, so that is a real division of labour rather than a diplomatic one.
+
+
+## 10. The pitch, consolidated after the three-object correction (2026-09-06 late)
+
+### The withdrawal I owe, since I led with it
+
+**"An adapter on the input layer read through a linear chart cannot identify two or more images" is WITHDRAWN as a
+defender-facing claim.** It is real mathematics and vacuous as protection: **the remedy belongs to the attacker.**
+A nonlinear chart, or an adapter one layer deeper, restores identifiability — and the attacker chooses the chart.
+A defender who moves their adapter to the input layer gains nothing, because the attacker simply does not use a
+linear chart. Caught by yoado-c6 against my own instruction to lead with it; I had relayed it to the user on the
+approver's framing and my endorsement, and both of us missed it.
+
+### Three objects, not two — and what each result actually covers
+
+| object | test |
+|---|---|
+| **certificate** | `C h = 0` |
+| **linearised representer** | fit the released update as a sum over candidates with free coefficients |
+| **full replay** | run the recipe on candidates and reproduce the released pair |
+
+**Nesting:** `{truth} ⊆ {replay = 0} ⊆ {certificate = 0}`. So `replay = 0 ⟹ C h = 0`, **never the converse.**
+The blend degeneracy lives in the **outer** set: a blend of the private images generally does **not** reproduce the
+release under replay, because blended inputs give different residuals at every step and so a different accumulated
+update. **R12's equivalence covers the first two only**, and is conditional on every private image being recorded;
+below that the representer's zero set is strictly larger. "Either route" is withdrawn as covering replay.
+
+**Consequence for inheritance, and c6's reason is stronger than mine.** I argued the broader claim was untestable by
+inheritance because the nesting runs the wrong way. c6 found the independent reason: the only link that could carry
+it is an *equivalence* rather than a nesting, it is *conditional*, and it has *already been corrected once* — the
+load-bearing joint is simultaneously the strongest kind of claim in the chain and the least settled part of it.
+
+**Open, named, and runnable:** full replay on a pixel-layer release through a linear chart. Never run. **Prediction,
+not result:** it does *not* suffer the blend degeneracy. If it comes back positive, the route that needs the recipe
+survives a geometry that kills the two that do not — and the chart's role becomes structural rather than incidental.
+
+### What survives, and what to lead with
+
+**Identifiability is a property of the release AND THE CHART together, never of the release alone.** Lead with that
+as **geometry** — a result about what makes the attack possible — not as protection. The input-layer-plus-linear-chart
+case stays as the *illustration of why the count is insufficient*, which is what it was for. It is not a
+recommendation to anybody.
+
+**And the corollary that IS defender-relevant, as an impossibility rather than a protection:**
+
+> Since fixing the release and varying the chart moves the answer, **no function of the release alone can certify
+> that a release is safe.**
+
+That is a real negative result about what a defender can ever check, honest in a way that "here is a safe
+configuration" was not — and it is **the same fact** as the counting rule being one-sided (§8). Register: derived,
+no artefact, resting on the nesting rather than on a run.
