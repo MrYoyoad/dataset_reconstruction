@@ -529,9 +529,14 @@ inheritance because the nesting runs the wrong way. c6 found the independent rea
 it is an *equivalence* rather than a nesting, it is *conditional*, and it has *already been corrected once* — the
 load-bearing joint is simultaneously the strongest kind of claim in the chain and the least settled part of it.
 
-**Open, named, and runnable:** full replay on a pixel-layer release through a linear chart. Never run. **Prediction,
-not result:** it does *not* suffer the blend degeneracy. If it comes back positive, the route that needs the recipe
-survives a geometry that kills the two that do not — and the chart's role becomes structural rather than incidental.
+**~~Open, named, and runnable~~ — RUN, AND THE PREDICTION HELD** (`affine_two_routes_331384`). Full replay on a
+pixel-layer release through a linear chart **does not** suffer the blend degeneracy. On the same release where the
+certificate is blind by theorem — every minimiser an exact blend, with coefficients summing to 1 to nine decimals,
+which is the affine chart's own signature rather than a coincidence — **replay recovers all eight images to 2e-15
+from 19 of 60 random starts, with zero aliases.** So the "either route" form is not merely unproven, it is
+**false**, and yoado-c6 was right to refuse to publish it on inheritance. The route that needs the recipe survives
+a geometry that kills the two that do not, and the scope becomes: **identifiability is a property of the release,
+the chart AND the route.**
 
 ### What survives, and what to lead with
 
