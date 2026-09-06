@@ -678,3 +678,40 @@ all eight and the attacker's cheapest window surfaces two. **That gap is the res
 by landing skew, not by what the release carries — and it is more interesting than either number alone. It also
 sharpens R12-CORRECTED's second item: the certificate's duplicate-landing waste is now measured, and removing it is
 what the hybrid buys.
+
+---
+
+## R15 — The two breadth instruments as built (yoado-c6, job 319712): four refinements, one of which is a bug test available now
+
+[derived; implementation described by the owner, not read by me — marked accordingly]
+
+**1. The dedup count measures distinct ATTRACTORS, not distinct images, and must be labelled that way.** Clustering
+the attacker's own candidates against each other is exactly right *because* it needs no ground truth — but a
+cluster can be a blend, and the attacker cannot tell. Calling the output "distinct images" silently reasserts the
+ground truth the statistic was built to avoid. Name it distinct attractors; it is an **upper bound** on distinct
+private images recovered, and its being an upper bound is the honest part.
+
+**2. Greedy single-pass clustering is order-dependent, so the order is part of the definition.** Fix it as
+ascending final objective — the attacker's own natural order, and the one already used for ranking — and state it
+beside the number. Otherwise the count moves with an implementation detail nobody records.
+
+**3. A consistency test that is available BEFORE the job lands, and that turns the pre-registration into a bug
+test.** The witness arm already reports 8 of 8 found at 3000 starts. Every recorded image therefore landed at least
+once, so `starts_to_cover_all_recorded` **cannot be null at that budget**. If 319712 returns null, the two
+harnesses disagree about the same rows and that is a defect, not a finding. c6's stated willingness to report the
+null rather than buy more starts is the right instinct and should be kept for budgets where no image is found — it
+just cannot fire on this cell, and knowing that in advance is what stops a bug being written up as a result.
+
+**4. The empirical first-hitting time is ONE geometric draw per image, and the max over images inherits its
+noise.** For the rarest image, 11 landings in 3000 starts gives `p̂ ≈ 3.7e-3`; a first-hitting time drawn from that
+geometric has a coefficient of variation near 1, so the realised value could be anywhere from a few starts to
+several thousand while looking like a precise measurement. Required: report the **per-image landing rate `p̂_i`
+with its counting error** as the estimate — 11 events is roughly 30% relative error, far better determined than
+the order statistic — and derive the coverage budget from it, with the realised first-hitting time beside it
+labelled as **one draw, not an estimate**. This is the same class as the "a count needs its gap" rule: a number
+whose sampling distribution is wider than the effect must carry that width.
+
+**Endorsed as written:** the `k` grid scaling with the start budget rather than stopping at 50; `per_start_nearest`
+saved; the mechanism paragraph carried in the source so the statistic travels with its own warning; and the
+coupon-collector reason for taking the max rather than the mean placed in the code comment where the next reader
+will meet it.
