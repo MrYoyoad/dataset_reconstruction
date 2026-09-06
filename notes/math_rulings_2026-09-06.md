@@ -833,3 +833,44 @@ exact. That supersedes the release-and-chart pair wording that yoado-72 and I ha
 **Scope, carried:** replay needs the recipe, a solver and starts, and 19 of 60 is a basin fraction, not a
 guarantee. The certificate needs none of those and gets nothing here. The trade is now measured at both ends on one
 release, which is the first time that has been true.
+
+---
+
+## R18 — The dedup ladder (job 335734): the stop signal is cut-independent, and its validity condition is ATTACKER-CHECKABLE
+
+[read: rows, relayed; the mechanism and the extension derived]
+
+**The requirement in R16 was "show the elbow does not move". The answer is stronger: over a 33-fold span of
+tolerance the cluster count is identical integer for integer** at every window where precision holds
+(1, 2, 5, 7), and explodes at every tolerance where precision breaks (200–225 against 8 real images).
+
+**The mechanism is why it could not have come out otherwise, and it is the part that generalises.** Genuine
+attractors sit `O(1)` apart; duplicates of one attractor sit at roundoff. **The whole ladder lies strictly inside
+that gap, so there is no cut to choose.** Any tolerance between machine precision and image scale returns the same
+integers. That is a structural property of the attack, not a lucky threshold — which is exactly what the "a
+threshold must be scoped to the physical scale it separates" lesson asks for, satisfied rather than merely
+respected.
+
+**And it predicts its own boundary,** as yoado-c6 flagged: the statistic becomes cut-dependent precisely where the
+attractors are genuinely close, i.e. **a batch containing near-duplicate private images.** Recorded now as the
+instrument's edge rather than discovered later.
+
+### The extension: the attacker can verify the validity condition, not just assume it
+
+The condition for the instrument to be sound is that the pairwise distances among the attacker's own candidates are
+**bimodal** — a mode at roundoff (duplicates) and a mode at image scale (distinct attractors), with nothing
+between. **Every quantity in that sentence is computed from the attacker's own output.** So they need not assume
+the gap exists; they can measure it:
+
+> Histogram the pairwise distances among your own recovered candidates. If it is bimodal with an empty middle, the
+> cluster count is cut-independent and the stop signal is valid. If mass appears in the middle, you are in the
+> near-duplicate regime and the count depends on where you cut.
+
+That makes this the first instrument in the project that **certifies its own preconditions from attacker-available
+data**, which is a stronger property than the residual ranking or the captured count has. Worth one line in the
+harness and no new compute — it is a distance matrix over candidates already in hand.
+
+**Limitation recorded and endorsed:** the `k` grid steps 750 → 1500, so the elbow is **bracketed to that interval,
+not located within it**. Tolerance-independence is supported at every window tested; the precise firing point is
+not measured, and no specific `k` may be quoted for it. Declining to submit for that tonight under the deadline is
+the right call.
