@@ -142,6 +142,17 @@ instances in one day, each caught only because someone re-checked the source rat
    Corollary: when a ruling fixes an unscoped threshold, check whether the fix needs a threshold of its own — here
    "reaches the floor" was undefined, and the gap got filled silently inside a wording pass.
 
+8. **Corrections are asymmetric, and a rule that forgets it keeps wrong things standing (2026-09-06).** The
+   science approver imposed a two-reader requirement before a reversal could reach the user — sound, since a
+   reversal arriving as a new fact on one reading is how wrong numbers have propagated here. But as drafted it also
+   forbade the GM from *withdrawing confidence in its own earlier statement*, which had already been relayed and
+   was now in doubt. **Asserting requires verification; un-asserting requires none, because it reduces what is
+   claimed rather than adding to it.** A rule demanding two readers before a retraction keeps wrong claims standing
+   longer than true ones — exactly backwards. The approver withdrew the over-broad wording within one exchange.
+   **Corollary on how to retract:** name the *scope*. "Something I told you is under review" is unusable, because
+   the listener cannot tell what to stop relying on; name the specific number and say a recheck is underway,
+   without asserting either version or which direction the correction runs.
+
 **Rules.** (a) Verify at the point of **application**, not at the point of relay — the session about to write
 the claim into a document is the last one that can catch it. (b) When a finding and a fix arrive together,
 check the finding against its source row before applying the fix; a correct diagnosis and a correct remedy are

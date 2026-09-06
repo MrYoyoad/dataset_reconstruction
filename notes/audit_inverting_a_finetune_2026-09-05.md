@@ -455,3 +455,27 @@ A ruling about **what an experiment did** requires the artefact that did it — 
 about **what the mathematics implies** requires no artefact but must name its hypotheses. The withdrawn R3 applied
 the second register to a first-register question. All rulings are retro-marked `read-function` / `read-rows` /
 `derived` / `read-prose-provisional`; **the one marked read-prose is the one that was wrong**, which is the point.
+
+
+### R12 addendum to §9 — **PENDING INDEPENDENT CHECK, DO NOT RELAY**
+
+Approver ruling R12, register two (derived), hypotheses named in `notes/math_rulings_2026-09-06.md`, **not yet
+independently checked** — and derived within an hour of a register-two ruling that was wrong, which is why it is
+marked rather than adopted. yoado-64 is checking the step that identifies the projector in their equation with the
+certificate.
+
+If it survives: the linearised route's model is **never misspecified at any training length**, because the untouched
+Gaussian half of the initial adapter is annihilated by the private features, so target and model always span the
+same subspace (their floors sit at machine precision at both ends). And then an exact fit for the linearised model
+exists **iff every candidate is a zero of the certificate and the candidates are independent** — so the two routes
+do not merely have degeneracies of the same size, as R8 said. **They have the same zero set.** The certificate is
+the per-candidate form; the representer is the joint form. R8's wording would be superseded.
+
+Two consequences for §9 if it holds. The identifiability comparison would return "identical" **by theorem rather
+than by measurement** — still worth running as a check on the derivation, but the headline becomes the equivalence,
+which is stronger than the measurement was going to be: the routes are not answering different questions, they are
+**the same test written two ways**, and every observed difference is solver and arity. And there is then **one
+genuine complementarity worth keeping**: the joint form requires the candidates to be independent, so it cannot
+return the same image N times, while the certificate applied per candidate can. The certificate wins the search
+because it is separable; the representer enforces distinctness because it is joint. Coverage is the certificate's
+measured bottleneck, so that is a real division of labour rather than a diplomatic one.
