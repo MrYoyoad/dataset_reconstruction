@@ -715,3 +715,17 @@ whose sampling distribution is wider than the effect must carry that width.
 saved; the mechanism paragraph carried in the source so the statistic travels with its own warning; and the
 coupon-collector reason for taking the max rather than the mean placed in the code comment where the next reader
 will meet it.
+
+**R15 addendum — the 815-start figure is the budget for ONE image, not for coverage.** [derived; arithmetic checked]
+`ln(0.05)/ln(1−p̂)` at `p̂ = 11/3000` gives **816**, and that is correct for *the rarest image alone* reaching a 95%
+chance of at least one landing. **Coverage means all `N` land**, which is the whole reason R14 took the max over
+images, and the multiplicity is exactly the part that gets dropped. Requiring each image to fail with probability
+at most `0.05/8` gives `ln(0.05/8)/ln(1−p̂)` = **1382 starts** — 1.7× larger. Publishing 815 as the coverage budget
+would undercount by that factor, and consistency supports the larger figure: all eight did land by 3000.
+
+**And the counting error propagates into the budget, so it must be quoted as a band.** At `p̂ = 3.67e-3 ± 30%` the
+joint-95% budget runs **1060 to 1975**. Quote it as *"of order 1400 starts, between about 1100 and 2000"*, never as
+a point. Same rule as the estimate it comes from: a derived number inherits the width of what it was derived from.
+
+State plainly which question each number answers — one image, or all of them — because they differ by more than
+the error band and the labels are interchangeable-looking.
