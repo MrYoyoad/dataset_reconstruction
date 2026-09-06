@@ -119,7 +119,70 @@ $dL=\langle D,dZ\rangle=\langle D,\;s\,dB\,AH+s\,B\,dA\,H\rangle
   $\operatorname{diag}R_H>0$. This makes $H\mapsto U(H)$ real-analytic; a
   QR without the sign convention is discontinuous at every sign change of a
   diagonal entry.
+\item[(A7)] \emph{One position per image.} The adapted module sees $P$
+  positions per image: $P=1$ for a classification or pooled head, one per token
+  for a transformer block's linear layers, one per spatial location for a
+  convolution. The recorded span then has dimension at least
+  $\min(N\!\cdot\!P,d)$ with $d$ the module's input width, so the dimension
+  available to the certificate is
+  $\text{margin}=\min(r,d)-\min(N\!\cdot\!P,d)$. Where the margin is zero,
+  $C$ has no rows off the recorded span and Theorem~\ref{thm:quot} is
+  identically vacuous --- not weak, absent. Every certificate statement in this
+  work is conditional on (A7), and every measurement of one sits on a head.
+\item[(A8)] \emph{Transversality to the private span.}
+  $\mathcal M\cap\operatorname{span}\{h_1,\dots,h_N\}=\{h_1,\dots,h_N\}$:
+  the chart's image meets the private span only at the private points.
+  Without it the certificate's count is necessary and \emph{not} sufficient
+  (Lemma~\ref{lem:blend}). It is a hypothesis on the \emph{chart}, not on the
+  release, and it is the only hypothesis here that the attacker controls.
 \end{itemize}
+
+\begin{lemma}[Blend degeneracy; why (A8) is needed]\label{lem:blend}
+Let $\Psi=\varphi\circ\psi$ be the composition from chart coordinates to the
+adapted layer's input, and let the privates be on-chart, $h_i=\Psi(z_i)$. If
+$\Psi$ is affine then for every $c$ with $\sum_ic_i=1$,
+\[
+  \Psi\Bigl(\sum_i c_iz_i\Bigr)=\sum_i c_ih_i\in\operatorname{col}H
+  \subseteq\ker C,
+  \qquad\text{hence}\qquad C\,\Psi\Bigl(\sum_i c_iz_i\Bigr)=0
+\]
+exactly. The zero set of the certificate on the chart therefore contains an
+affine subspace of dimension $\min(N-1,k)$ through the truths, which are not
+isolated zeros at any $k$, however far below $r-N'$.
+\end{lemma}
+
+\begin{proof}
+$\sum_ic_i=1$ is exactly what absorbs the intercept: for affine
+$\Psi(z)=Lz+b$, $\Psi(\sum c_iz_i)=L\sum c_iz_i+b=\sum c_i(Lz_i+b)$. The
+affine hull of $N$ points in $\mathbb R^k$ has dimension $\min(N-1,k)$, and
+each $z_i$ lies in it.
+\end{proof}
+
+\begin{remark}[Why the count does not see it]
+The capacity line comes from a transversality count, $\dim(\mathcal M\cap\ker
+C)=k-(r-N')$ generically. That count is valid off $\operatorname{col}H$ and
+invalid on it, because $\operatorname{col}H\subseteq\ker C$ is forced by
+construction rather than generic --- the blend directions are exactly where
+genericity fails. In the language of Rev~9's manifold pull-back (Prop.~4, where
+$\operatorname{rank}L_x=\min(r-N',k-d_\parallel)$ ``a.s.\ for each fixed $x$'')
+this is $d_\parallel>0$: the affine chart is the measure-zero exception that the
+``a.s.'' quietly excludes. Nonlinearity is how (A8) is bought, not what it
+says; a nonlinear $\Psi$ satisfies it generically once $k+N$ is small against
+the feature dimension.
+\end{remark}
+
+\begin{remark}[The available checks cannot substitute for (A8)]\label{rem:checks}
+$\|CH\|$, $\operatorname{rank}C$, the excitation gap and the residual at the
+truths are functions of $C$ and $H$ alone, and none of them mentions the chart.
+Hold $C$ and $H$ fixed and vary $\psi$: the intersection $\mathcal M\cap\ker C$
+passes from isolated to positive-dimensional while every one of those numbers
+is unchanged. \emph{No} function of $(C,H)$ alone can decide (A8). This is an
+impossibility over every check of that class, not an observation about these
+four. One test does bear on it, and it is one-sided: at a found $z^\ast$,
+$J=C\,D\Psi(z^\ast)$ of full column rank $k$ certifies that the zero is
+isolated, while $\operatorname{rank}J<k$ certifies nothing, since a degenerate
+isolated zero has it too. It needs only the release and the chart.
+\end{remark}
 
 \paragraph{The two coordinates of the seed.} Let $U=U(H)$ and let
 $V\in\mathbb R^{n\times(n-N)}$ be an orthonormal basis of $\operatorname{col}(H)^\perp$.
@@ -237,8 +300,9 @@ $\operatorname{Gr}(N,r)$, $N(r-N)$ numbers — and of $A_T$ only its projection
 off that subspace. The coefficient matrix $P_T$ is removed by the projection.
 The equations it imposes on candidate data are $CH(w)=0$: $C$ has rank $r-N$,
 so these are $(r-N)N$ scalar equations, $r-N$ per image; Rev~9 Thm~3 and
-Prop~4 show they pin $w$ locally iff $k<r-N$. No recipe and no solver are
-used.
+Prop~4 show they pin $w$ locally \emph{only if} $k<r-N$ --- and then only
+under (A8); without it the truths are never isolated, at any $k$
+(Lemma~\ref{lem:blend}). No recipe and no solver are used.
 
 \subsubsection*{Second reading: keep the seed and solve for it}
 
@@ -2711,6 +2775,148 @@ longer would eventually fill the rank and close the deep channel. They do not:
 the count plateaus at $90$--$110$ directions and is flat from $10$ steps to
 $3200$. Once the adapter's rank exceeds that plateau, no amount of further
 training closes the channel, and ``train longer'' is not a lever.
+
+\subsection{(A8) measured: the degeneracy is route-specific}
+\label{sec:a7-measured}
+
+Lemma~\ref{lem:blend} says the certificate cannot isolate the truths under an
+affine $\Psi$. It says nothing about replay, and the inclusion runs the wrong
+way to inherit it:
+\[
+  \{\text{truth}\}\;\subseteq\;\{\rho=0\}\;\subseteq\;\{CH=0\},
+\]
+so $\rho=0\Rightarrow CH=0$ and never the converse. A blend is an exact zero of
+$C$; it need not be a zero of $\rho$, because reproducing $B_T$ means
+reproducing what the recipe actually did, and the recipe run on blends does not
+return $B_T$. Both directions were put on one release.
+
+\paragraph{The cell.} $\psi$ linear and $\varphi$ the identity --- the adapted
+layer \emph{is} the input layer and the chart is linear, so $\Psi$ is affine by
+construction rather than by approximation. $k=12$, $N=8$, $r=24$, $m=20$, chosen
+below both capacity lines ($r-N'=16$, $m+r-N'=36$) and above $N-1=7$, so that
+nothing is explained by running out of equations and the chart is not trivially
+inside the affine hull. (A8) is then the only hypothesis that fails. Both arms
+run on the same release from the same random starts, differing only in which
+residual is minimised. Job~331384;
+\texttt{experiments/exact\_inversion/affine\_chart\_two\_routes.py}.
+
+\paragraph{Construction check, before either arm.} For an affine chart $D\Psi$
+is constant, so the one-sided test of Remark~\ref{rem:checks} is a single number
+for the whole chart --- the only case in this work where that holds. Predicted
+$k-(N-1)=5$; measured $5$.
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+ & certificate route & replay route \\
+\midrule
+starts recovering            & $0$ of $60$      & $19$ of $60$, \emph{all eight} \\
+image error                  & median $0.697$   & $2\times10^{-15}$ \\
+residual reached             & $\le2.2\times10^{-28}$ & $\min 5.1\times10^{-31}$ \\
+coefficient sum of returned  & $1.000000000$ (min $=$ max) & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Reading it.} The certificate arm confirms Lemma~\ref{lem:blend} twice
+over and in a form that could have failed: every returned point is an exact
+affine combination with coefficient sum $1.000000000$ at \emph{every} start ---
+the lemma's own hypothesis $\sum_ic_i=1$ appearing in the data rather than being
+assumed --- and the isolation deficit is exactly $N-1$, the dimension of the
+affine hull the lemma predicts. Nothing \emph{prefers} the blend: in exact
+arithmetic a blend and a truth are both exact zeros and the truth simply has no
+advantage. The zero set is $(N-1)$-dimensional, the truth is one point of it,
+and an optimiser minimising a \emph{computed} residual settles where roundoff is
+smallest, generically not that point.
+
+The replay arm recovers the whole batch, and the split is clean in exactly the
+way the reporting convention demands: the outcome is bimodal with nothing
+between ($41$ starts recover none, $19$ recover all eight), all $18$ starts that
+drove $\rho$ below $10^{-20}$ recovered the whole batch --- \emph{zero aliases}
+--- and the $42$ failures sit at median residual $5.5\times10^{-2}$, which is
+optimisation failure and not ambiguity. The two failure modes are separated by
+thirty orders of magnitude here, by measurement rather than by assertion.
+
+\begin{remark}[Identifiability is a property of the release, the chart, and the route]
+The same chart that makes one channel provably blind leaves the other exact.
+This is strictly stronger than saying identifiability depends on the chart: it
+is not a property of the release alone, nor of the (release, chart) pair, but of
+the triple. It also fixes the scope of the architectural statement (A8) yields
+--- an adapter on the input layer read through a linear chart is non-identifying
+\emph{for the certificate route}, and the wider ``by either route'' form is
+false. Nor is any of it a defence: the remedy --- a nonlinear chart, or an
+adapter one layer deeper --- belongs to the \emph{attacker}, who chooses the
+chart. It says what makes the attack possible; it protects nobody.
+\end{remark}
+
+\subsection{What the attacker can verify unaided}
+\label{sec:attacker-arm}
+
+Scored on the letters cell (a new class on a strong digit model, $k=32$, $r=64$,
+$N=8$, adapter trained in FP32, below the certificate line), $3000$ random
+starts; jobs 303157, 304540, 319712, 335734. Two arms that must never be merged.
+
+\paragraph{Witness validity (experimenter).} Per-image floors from a from-truth
+solve, which an attacker cannot run. All eight letters found and witness-valid.
+The factor is validated rather than assumed --- the solver clears each image's
+own bar from the truth at worst $0.68$ of it --- and the floor test agrees with
+the ground-truth test on all $3000$ starts: $972$ both, $0$ floor-not-landed,
+$0$ landed-not-floor.
+
+\paragraph{Precision at $k$ (attacker).} Ranking by residual alone, the fifty
+lowest are all true landings, and the same fifty score $0$ against eight public
+images the adapter never trained on. \emph{Both} controls are needed and they
+answer different questions: the disjoint-release null ($0.000$ at every $k$)
+says the landing metric does not fire on anything that merely converges; the
+base rate ($972/3000=0.324$) says the ranking does work, lifting $0.324$ to
+$1.000$. Quoted with no denominator --- the attacker does not know $N=8$, and
+the projector reads $N'=11$.
+
+\paragraph{Breadth, and the frontier.} A fixed top-$k$ window is not an attacker
+statistic: it is the $k$ lowest residuals rather than a sample of landings, so
+as the landing pool grows with $k$ held fixed the window fills with the easiest
+images and the distinct count \emph{falls} ($5$ at $300$ starts, $2$ at $3000$).
+With the window scaled to the budget, breadth accumulates: $1$ distinct image in
+the top $30$, $2$ in $50$, $5$ in $150$, $7$ in $750$, all at precision
+$1.000$ --- and all eight only at $1500$, where precision falls to $0.648$.
+\emph{The last image is not bought with more starts; it is bought by accepting
+that a third of the list is wrong.}
+
+\paragraph{Coverage budget: use the rates, not the draw.} From the eight
+measured per-image rates, $\prod_i[1-(1-p_i)^n]=0.95$ gives $n\approx840$ starts
+(band $650$--$1200$ under the $30\%$ counting error on the rarest rate; median
+$297$). The realised run took $228$, the $33$rd percentile --- one geometric
+draw with coefficient of variation near one, not an estimate. The draw makes the
+point better than the caution: the \emph{rarest} image, at eleven landings, was
+found sixth at start $26$, while the image that finished last at $228$ is
+$3.7\times$ commoner. The realised order statistic does not even rank by rate,
+so the identity of the binding image is itself noise. Note also that $840$ (all
+eight at $95\%$) and $816$ (the rarest image \emph{alone} at $95\%$) are a few
+percent apart and answer different questions; they must never share a name.
+
+\paragraph{A stop signal the attacker can read.} Deduplicating the attacker's
+own candidates against each other in ascending residual order --- no ground
+truth, no labels, no batch size --- counts \emph{distinct attractors}, an upper
+bound on distinct private images since a cluster may be a blend. It equals the
+experimenter's distinct-image count at every window where precision holds, and
+where precision breaks it does not degrade but explodes: $222$ attractors
+against $8$ real images. So the procedure is: widen the window, count your own
+clusters, stop when the count explodes. The count is cut-independent --- over a
+$33$-fold span of tolerance ($3\times10^{-3}$ to $10^{-1}$) it is identical
+integer for integer wherever precision holds --- because genuine attractors sit
+at image scale while duplicates of one attractor sit at roundoff, and the whole
+ladder falls inside that gap. Its precondition is therefore checkable from the
+same distances: bimodal with an empty middle means the count is cut-independent;
+mass between the modes is the near-duplicate regime, where the count depends on
+where one cuts. \emph{The precondition and the measurement are the same object},
+which is why this instrument can certify itself and the residual ranking cannot:
+the ranking's precondition is that low residual implies the correct image, a
+claim about ground truth, which is exactly what the attacker lacks.
+
+\paragraph{Limitation.} The $k$ grid steps $750\to1500$, so the point at which
+the stop signal fires is bracketed to that interval, not located within it.
+Tolerance-independence holds at every $k$ tested; the firing point is not
+measured.
 
 \subsection{What is open}
 \label{sec:opens}
