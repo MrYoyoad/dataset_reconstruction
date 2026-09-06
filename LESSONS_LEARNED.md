@@ -3145,3 +3145,39 @@ choice sets the line `k < r − N′`. `N′ ≤ min(m−1, r, N)` is a theorem,
 invalid read cost three dimensions of budget. The convention that resolves it is that `N′` is
 **imprint-relative and precision-scoped** — recorded iff `‖C_i‖/max‖C_j‖` exceeds the deployed format's
 roundoff — because the attacker's `B_T` and the FP64 `B_T` are genuinely different matrices.
+
+## 2026-09-06 — "The minimiser is a blend" was a stalled solver, not a degenerate zero
+
+**Bug.** `experiments/cifar/RESULT.md` §1 argued the pixel-layer certificate cell is defeated because
+"the blend's own certificate residual is 3e-15 — as low as the truths'." The headline built on it read
+"0 images; every minimiser is a blend."
+
+**How it presented.** Two numbers in the same document disagreeing: headline "0 images", detail table and
+`figures/cifar_charts/table.md` "2 of 8 at 30 of 400 starts". The detail table was right.
+
+**Root cause.** Two different objects were given one name. Recomputed from the run's own tensors
+(`experiments/cifar/k32_onchart/release_and_search.pt`) with the run's own objective:
+
+| object | certificate residual |
+|---|---|
+| ideal blend — an exact linear combination of the privates | 2.86e-14 (= the truths) |
+| the attractor the solver actually reached (mean of the 379) | **5.90e-03** |
+| truths | 2.86e-14 |
+
+The *ideal* blend is an exact zero — that is forced, `col H ⊆ ker C`. The point the solver *reached* is
+98.9% of the way to one and sits 2.1e+11 above the floor. The paragraph attributed the first object's
+residual to the second.
+
+**Consequence, and it inverted the claim.** Because the collapse never reached the floor, the residual still
+separated: the 14 landings at R = 7.9e-07…1.1e-06 against the 379 collapsed at median 5.83e-04, ~600×. That
+is why `top20_by_residual_landed` is 20/20 and images found is 1–2 rather than 0. The cell costs *coverage*,
+not *precision*.
+
+**Fix / rule.** Non-isolation is a property of the zero *set* and is proved (R1's blend lemma), never inferred
+from where a solver stopped. Before writing "the check cannot distinguish X from the truth", evaluate the check
+at X — at the actual X, not at the idealised object X approximates. A solver stalling near a degenerate
+subspace and a degenerate zero look identical in a landing histogram and differ by eleven orders in residual.
+
+**Second-order lesson.** §1's "379 of 400" and §2's "30 of 400" were different runs stitched as one cell. When
+a document's own two tables disagree, neither is necessarily wrong — check first whether they describe the
+same job.
