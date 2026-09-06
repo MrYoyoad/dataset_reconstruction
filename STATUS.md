@@ -4179,3 +4179,35 @@ that finished last at 228 was 3.7× commoner.** The realised order statistic doe
 
 Two budgets that must never share a name: **816** starts = the rarest image alone at 95%; **840** =
 all eight at 95%. A few percent apart, different questions.
+
+## 2026-09-06 (later still) — The affine degeneracy is ROUTE-SPECIFIC: replay recovers where the certificate provably cannot
+
+Job **331384**, `experiments/exact_inversion/affine_chart_two_routes.py`,
+`results/exact_inversion/affine_two_routes_331384.jsonl`. Both routes on ONE release, one affine chart
+(`psi` linear, `phi` identity — the adapted layer IS the input layer), the same random starts.
+`k=12`, `N=8`, `r=24`, `m=20`, asserted at startup to be below both capacity lines (certificate 16,
+replay 36) and above `N-1=7`, so nothing is explained by running out of equations and A8 is the only
+hypothesis failing.
+
+**Construction check, before either arm ran.** `DPsi` is constant for an affine chart, so the isolation
+test is one number for the whole chart: measured 5, predicted `k-(N-1)` = 5. yoado-0a derived the same
+5 independently at the algebra.
+
+**Certificate arm — nothing, exactly as pre-registered.** 0 of 60 starts land. Every returned point is
+an exact affine combination of the privates: **coefficient sum 1.000000000 at every start** (min = max),
+blend residual 1.1e-15. Median error to the nearest private 0.697. The objective at the found points
+(max 2.15e-28) is *below* the residual at the truths (9.4e-15) — the blends are better minimisers than
+the truths themselves.
+
+**Replay arm — all eight, exactly.** 19 of 60 random starts recover **all 8 images to ~2e-15**. The
+outcome is bimodal with nothing between: 41 starts recover 0, 19 recover 8.
+
+**Alias test (the reporting rule).** 18 starts drove `rho` below 1e-20; **every one recovered the whole
+batch**. Zero aliases. The 42 failures sit at median residual 0.055 — optimisation failure, not
+ambiguity. So the split is clean in exactly the way the rule demands.
+
+**What it settles.** The nesting `{truth} ⊆ {rho=0} ⊆ {Ch=0}` runs one way, so the certificate result
+could never be inherited by replay — and it does not transfer. Identifiability is a property of the
+release, the chart **and the route** together: the same chart that makes one channel provably blind
+leaves the other exact. This is why the "cannot identify by EITHER route" form was refused for the
+published page; it would have been false.
