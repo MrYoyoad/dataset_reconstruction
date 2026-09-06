@@ -3230,3 +3230,33 @@ subspace and a degenerate zero look identical in a landing histogram and differ 
 **Second-order lesson.** §1's "379 of 400" and §2's "30 of 400" were different runs stitched as one cell. When
 a document's own two tables disagree, neither is necessarily wrong — check first whether they describe the
 same job.
+
+## 2026-09-06 — One line of algebra beat an hour of judgement, and the algebra is the reproducible part
+
+**What happened.** A claim reached me for publication in the form "an adapter on the input layer read
+through a linear chart cannot identify two or more images **by either route**." The certificate half
+was proved and measured. I cut the second half and published only the certificate version. An hour
+later job 331384 measured the replay route on exactly that configuration: it recovers all eight images
+to 2e-15 from 19 of 60 random starts. Had the wider form gone out, it would have been falsified within
+the hour by our own cell.
+
+**What actually caught it — and it was not care.** The zero sets nest in one direction:
+
+    {truth}  subset  {rho = 0}  subset  {C h = 0}
+
+so `rho = 0` implies `C h = 0` and **never the converse**. The blend degeneracy lives in the outer set.
+A blend being an exact zero of `C` therefore says nothing about whether replaying the recipe on blends
+returns `B_T`, and generally it does not. That inclusion was already written on the page. Reading it
+in the right direction is what refused the claim.
+
+**The lesson, and why it is worth more than "be careful".** Care is not reproducible and does not
+transfer between people or sessions; an inclusion is. When a result is offered for extension from one
+object to another, find the arrow between them and check which way it points, *before* weighing how
+plausible the extension feels. If the arrow runs the wrong way, no amount of confidence in the
+extension matters. Three sessions spent an evening reasoning about this one and the settling argument
+was one line that had been sitting in the text the whole time.
+
+**Corollary that paid off the same night.** Because the question reduced to an arrow rather than a
+judgement, it also reduced to a cell: same release, same chart, same starts, two objectives. It took
+one job to end an argument that discussion had not closed. A dispute that can be phrased as an
+inclusion can usually be phrased as an experiment.
