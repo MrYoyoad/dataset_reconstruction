@@ -874,3 +874,45 @@ harness and no new compute — it is a distance matrix over candidates already i
 not located within it**. Tolerance-independence is supported at every window tested; the precise firing point is
 not measured, and no specific `k` may be quoted for it. Declining to submit for that tonight under the deadline is
 the right call.
+
+---
+
+## R19 — Identity must be READ, not inferred; and a proposed unification of over-training with A8
+
+**(a) The identity rule, after it bit twice tonight in two different mechanisms.** [derived from two incidents]
+
+- Every lane submits to LSF as the same user, so a job listing **cannot attribute a job to a lane**. I built a
+  triage and a footprint count on that inference and sent it to another lane as fact. It happened to be mostly
+  right, which is worse than being wrong — the method survived a test it should have failed.
+- Three peer sessions appeared under new names and I read all three as fresh restarts. One had not restarted and
+  held the full night's context, including several of the rulings I "handed" it. Same shape: identity inferred
+  from a listing rather than read.
+
+> **Rule.** Attribute a job by its job name, and a session by asking it. A listing tells you a thing exists, never
+> whose it is. This is the same failure as inheriting a chart dimension from surrounding context instead of reading
+> the header, and it has now appeared in three distinct mechanisms in one night.
+
+**(b) A proposed unification — over-training the chart and the blend degeneracy may be one effect.**
+[yoado-e1's idea, not mine. **HYPOTHESIS ONLY**, and it carries a warning: I have proposed four mechanisms tonight
+and three were killed by measurement, so a fourth from this lane should start with less credit, not more.]
+
+The surviving ablation result is that a chart trained harder makes the attack worse. e1's suggestion is that this
+is not a separate ablation finding but **evidence for A8's mechanism**: what makes a chart good at representation
+can make it bad at isolation. The supporting observation is already in the record — the mean of the eight private
+apples has representation error 0.06 against 0.10–0.42 for the individuals, i.e. **blends are easier to represent
+than the images they are made of**, being smoother and lower-frequency. If training closes the gap on blends faster
+than on individuals, the chart's image creeps toward containing the blend set, which is precisely the A8 violation.
+
+**The decisive test, and it must be run in FEATURE space, not pixel space.** At the head the composition is
+nonlinear, so a blend of features is generally not the feature vector of any image, and the pixel-space version of
+this argument does not apply. Measure instead, per training budget:
+```
+    min_z ‖ φ(G(z)) − Σ_i c_i h_i ‖      over random blend coefficients c
+```
+i.e. how well the chart can reach a *feature-space* blend. **Prediction if the unification holds: this falls
+monotonically with training budget, while the certificate residual at the chart's best blend approximation falls
+with it** — the blend becoming a better and better minimiser as the chart trains. If it does not move, over-training
+is a separate landscape effect and the two results stay apart.
+
+Cheap, uses charts already trained at three budgets, and it converts an ablation curiosity into either evidence for
+A8 or a clean separation. **Do not state the unification until that runs.**
