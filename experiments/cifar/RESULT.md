@@ -83,10 +83,22 @@ the chart is nonlinear and the blend subspace lies in its image only approximate
 the lemma predicts an affine subspace of dimension `min(N−1, k)` through the truths, and the Jacobian loses precisely
 those directions. That is a quantitative confirmation, not just a qualitative one.
 
-**The isolation test is what an attacker would have to notice this.** It needs only the release and the chart, no
-ground truth, and it separates the pair cleanly: deficient rank where the zero set is a subspace, full rank where the
-truths are isolated. It is read one-sided — full rank certifies isolation, deficient rank certifies nothing — so the
-correct reading of the 25 is "not certified", never "degenerate".
+**The returned points are affine, not merely in the span** (independent verification, 2026-09-06). The
+least-squares coefficients of what the search returns, against the eight private images, **sum to exactly 1.0** on
+every start checked. A point in the linear span with coefficients summing to anything else would also be an exact
+zero of `C`, so this did not have to come out this way: the search lands on the *affine hull* specifically, which is
+the precise hypothesis of the lemma and the reason the intercept cancels. The found points sit at 0.997 of the
+truths' own residual while being a median 0.28 of an image away from anything private, against a landing bar of
+0.01.
+
+**The isolation test is what an attacker would need to notice this.** It uses only the release and the chart, no
+ground truth, and it separates the pair cleanly. It is read one-sided — full rank certifies isolation, deficient
+rank certifies nothing — so the correct reading of the 25 is "not certified", never "degenerate".
+
+**What makes this cell conclusive is the agreement of three independent things, not the rank alone**: the deficit
+equals the lemma's predicted dimension `N − 1`, the coefficients are affine, and the residual sits at the truths'
+own floor. Any one of the three could have an innocent explanation; together they do not. The rank deficit must not
+later be quoted as if deficiency were itself proof.
 
 ## 2. The layer study: what actually fixes it
 
