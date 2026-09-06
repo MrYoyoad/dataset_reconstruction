@@ -787,3 +787,49 @@ the study where that is true. Their predicted value:
 **Confirmed.** This is a construction check available *before* either arm runs, and a deviation from 5 means the
 cell is not the affine case it claims to be. Building it as a new module rather than editing a testbed whose chart
 and encoder are both tanh — and therefore cannot reach the affine case at all — was the right call.
+
+---
+
+## R17 — The affine cell (job 331384): the blend degeneracy is ROUTE-SPECIFIC, and the refusal was load-bearing
+
+[read: rows, relayed; construction check derived and confirmed]
+
+**Construction check passed before either arm:** isolation rank 5 against a predicted 5. The cell is the affine case
+it claims to be, so both arms are interpretable.
+
+| arm | outcome |
+|---|---|
+| certificate (recipe-free) | **0 of 60** starts land; every returned point an exact affine combination |
+| replay (needs the recipe) | **19 of 60** starts recover **all eight** images to 2e-15; bimodal, no partial recoveries |
+| alias test | 18 starts drove the residual below 1e-20 and **every one recovered the whole batch — zero aliases** |
+| failures | median residual 0.055, i.e. optimisation failure, separated from the alias mode by ~30 orders |
+
+**This confirms the three-object scoping rather than complicating it.** R12's equivalence is between the certificate
+and the linearised representer; replay is the third object and sits *strictly inside* both. The affine degeneracy
+therefore hits the two that share a zero set and misses the one that does not. **The nesting predicted exactly this,
+and the nesting was already on the page.**
+
+**The refusal was load-bearing, and that is the lesson worth keeping.** The "cannot identify by EITHER route" form
+was refused on the direction of the inclusion — `ρ = 0 ⇒ Ch = 0` and never the converse — one line of algebra
+already written down. Had it been published it would have been falsified within the hour by this cell. **It was
+caught by reading the inclusion the right way round, not by caution**, which is the more reproducible virtue.
+
+**Refinement to the "the route prefers the blend" wording.** The finding is right — the objective at the found
+points (max 2.15e-28) sits *below* the residual at the truths (9.4e-15) — but the mechanism should be stated
+precisely or it invites a wrong reading. In exact arithmetic a blend and a truth are *both* exact zeros; neither is
+preferred. What happens is that the zero set is `N−1 = 7`-dimensional, the truth is a single point in it, and an
+optimiser that minimises a computed residual will systematically settle wherever roundoff is smallest — which is
+generically not the one point of measure zero we care about. **The truth is not disfavoured; it simply has no
+advantage, and a minimiser on a set where the truth is not the unique minimum lands elsewhere by construction.**
+Say that rather than "prefers the blend", which suggests something about blends specifically.
+
+**The coefficient sum is 1.000000000 at every start, min equal to max to nine figures** — the affine hypothesis of
+R1's lemma appearing in the measurement at every start rather than on average.
+
+**yoado-c6's framing is adopted and is stronger than the pair statement.** Identifiability is a property of the
+release, the chart **and the route** together: the same chart that makes one channel provably blind leaves another
+exact. That supersedes the release-and-chart pair wording that yoado-72 and I had converged on.
+
+**Scope, carried:** replay needs the recipe, a solver and starts, and 19 of 60 is a basin fraction, not a
+guarantee. The certificate needs none of those and gets nothing here. The trade is now measured at both ends on one
+release, which is the first time that has been true.
