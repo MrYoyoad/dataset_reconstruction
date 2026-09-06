@@ -138,8 +138,8 @@ fix). Full table: `figures/cifar_charts/table.md`; one figure per cell in `figur
 | **head, WRONG-RELEASE control** | public PCA k=32 | on-chart | **0/400** | **0/8** | 0/20 | 1.8e-2 |
 
 Readings:
-- **WITHDRAWN: "a linear chart beats a learned one".** See the correction below; the comparison used a mismatched
-  reference and the matched controls are running. What is measured, and stands: PCA reaches the exact zero (median start residual 1e-14, i.e. most starts
+- **A linear chart beats a learned one — withdrawn on a mismatched reference, then REINSTATED on matched controls
+  at three seeds** (see the table below; the ordering holds within every seed). PCA reaches the exact zero (median start residual 1e-14, i.e. most starts
   converge to a true zero); the conv-AE decoder stalls three orders higher. The same was true on MNIST.
   **Scope.** The autoencoder here is trained 40 epochs, and its representation ceiling is at parity with PCA's
   (chart floor SSIM 0.59 against 0.58), which for a nonlinear decoder with far more capacity is itself a sign
@@ -155,14 +155,25 @@ Readings:
   | 640 | 10 (5/8) | 42 (6/8) | 78 (7/8) | 43 | 5.90 |
   | linear PCA chart, **one seed and NOT matched** (see below) | 171 (8/8) | — | — | — | 1.00 by construction |
 
-  > **CORRECTION, 2026-09-07.** An earlier version of this table compared these cells against **253 of 400**. That
-  > number is the *hidden-layer* PCA cell; these are all *head-layer* cells, and the head-layer PCA cell is **171 of
-  > 400**. The comparison was against a mismatched reference and the conclusion drawn from it — that every
-  > learned-chart cell sits below the linear one — is **false**: seed 3 at 160 epochs reaches 176, above 171. The
-  > only head-layer PCA cell also differs from these in a second setting (it zeroes the new head row; these do not),
-  > so it is not a matched control either. Matched PCA cells at seeds 0, 2 and 3 are running; until they land there
-  > is **no supported claim that a linear chart beats a learned one**, and the sentence is withdrawn rather than
-  > rephrased.
+  > **CORRECTION, then REINSTATEMENT — 2026-09-07.** An earlier version of this table compared these cells against
+  > **253 of 400**, which is the *hidden-layer* PCA cell while every ablation cell is a *head-layer* cell. The only
+  > head-layer PCA cell available then read 171 of 400 and also differed in a second setting (it zeroes the new head
+  > row). The claim was therefore withdrawn on a mismatched reference. **Matched controls have since been run** —
+  > head layer, k = 32, no zero-row, the same three seeds — and they reinstate it more strongly than it was first
+  > stated.
+
+  **Matched linear-chart controls** (jobs 395771, 395773, 395774), against all nine learned-chart cells:
+
+  | seed | linear chart | learned chart, 40 / 160 / 640 epochs |
+  |---|---|---|
+  | 0 | **274 (8/8)** | 48 (5/8) · 70 (6/8) · 10 (5/8) |
+  | 2 | **265 (8/8)** | 162 (8/8) · 151 (7/8) · 42 (6/8) |
+  | 3 | **188 (8/8)** | 122 (7/8) · **176 (7/8)** · 78 (7/8) |
+
+  The ordering holds **within every seed**, not merely worst-against-best: the linear chart beats all three learned
+  budgets at each of the three seeds. It also finds all eight images in three of three cells, where the learned chart
+  does so in one of nine. The linear chart's own seed spread is real (188 to 274), so this is an **ordering, not a
+  magnitude** — and the narrowest margin, seed 3, is 188 against 176, twelve landings out of 400.
 
   What survives the seed replicates, independent of that reference:
 
@@ -177,8 +188,8 @@ Readings:
     moves with the budget in every seed, and it remains a **correlate and not a cause**: it rises 1.4-fold where the
     landings fall 2.6-fold, and the reading that learned decoders are *badly* conditioned in absolute terms is false
     at every budget.
-  - **Whether a learned chart is worse than a linear one at its best budget is now an open question**, not a
-    finding. The comparison that would settle it is running.
+  - **Whether a learned chart is worse than a linear one at its best budget is now SETTLED** by the matched
+    controls above: it is, at every seed, on both landings and images found.
 
   Two things the collapsed cell rules out. The exact zeros are still present and reachable at 640 epochs (residual
   at the truths 5e-15, isolation test full rank 32 of 32 at every private image, five images returned at 1e-14),
