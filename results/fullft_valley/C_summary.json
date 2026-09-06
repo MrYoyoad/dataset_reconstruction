@@ -1,0 +1,413 @@
+{
+  "arm": "C",
+  "tag": "",
+  "K": 50,
+  "N": 16,
+  "T": 1000,
+  "rank": 8,
+  "lr": 0.5,
+  "eps_scale": 0.22462100345130268,
+  "batch_size": null,
+  "layers": [
+    0
+  ],
+  "rungs": [
+    "p00_identity",
+    "p0_noise",
+    "p2_rot5",
+    "r_cross",
+    "r_far",
+    "r_nn"
+  ],
+  "encoder": "vit_small_patch16_224.dino",
+  "gauge": "attacker-visible dtheta incl eps*xi (full-FT) / dW=BA (LoRA)",
+  "baseline": {
+    "usable": 50,
+    "dropped_nan": 0,
+    "dropped_mem": 0,
+    "max_bce_min": 0.00031835835026630904,
+    "max_bce_max": 0.0003302156628516029,
+    "in_band": true,
+    "reseed_rms": {
+      "concat": 9.873789880109786
+    }
+  },
+  "targets": [
+    {
+      "tgt_id": 0,
+      "t_pos": 0,
+      "digit": 5,
+      "per_rung": [
+        {
+          "rung": "p00_identity",
+          "d_pixel": 0.0,
+          "d_encoder": 3.7166175648195576e-07,
+          "readouts": {
+            "concat": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d2_obs": 0.0,
+              "qeff": 0,
+              "dmu_norm": 0.0,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "p0_noise",
+          "d_pixel": 0.436494661060283,
+          "d_encoder": 0.08367658967658698,
+          "readouts": {
+            "concat": {
+              "sensitivity": 0.15151591836060693,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 0.16889015091910173,
+              "qeff": 0,
+              "dmu_norm": 0.043554828757711925,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "p2_rot5",
+          "d_pixel": 2.5742659980914246,
+          "d_encoder": 0.024537817111240035,
+          "readouts": {
+            "concat": {
+              "sensitivity": 4.378498580760947,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 4.869299078983165,
+              "qeff": 1,
+              "dmu_norm": 0.23390069976286137,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "r_nn",
+          "d_pixel": 7.600537223773421,
+          "d_encoder": 0.02204617523335206,
+          "readouts": {
+            "concat": {
+              "sensitivity": 21.817975183238815,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 24.464245553103964,
+              "qeff": 1,
+              "dmu_norm": 0.5227492978063379,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "r_far",
+          "d_pixel": 6.906582677075454,
+          "d_encoder": 0.16088183903900088,
+          "readouts": {
+            "concat": {
+              "sensitivity": 19.360622471862275,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 21.590468698240798,
+              "qeff": 1,
+              "dmu_norm": 0.49111134785775923,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "r_cross",
+          "d_pixel": 9.640448077698089,
+          "d_encoder": 0.09354989865763796,
+          "readouts": {
+            "concat": {
+              "sensitivity": 40.19190049657127,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 44.40716283085216,
+              "qeff": 1,
+              "dmu_norm": 0.7046965633207436,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        }
+      ],
+      "profiles": {
+        "concat": {
+          "normalizer_void": false,
+          "s_profile": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.0037698122380038384,
+            "p2_rot5": 0.1089398243592505,
+            "r_nn": 0.5428450736013363,
+            "r_far": 0.4817045781030909,
+            "r_cross": 1.0
+          },
+          "s_ref_sens": 40.19190049657127,
+          "d_star": {
+            "0.1": {
+              "point": 2.4605700972126843,
+              "interval": [
+                0.436494661060283,
+                2.5742659980914246
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "p2_rot5"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.3": {
+              "point": 5.043428889525968,
+              "interval": [
+                2.5742659980914246,
+                6.906582677075454
+              ],
+              "bracket_rungs": [
+                "p2_rot5",
+                "r_far"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.03": {
+              "point": 1.3037465215859565,
+              "interval": [
+                0.436494661060283,
+                2.5742659980914246
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "p2_rot5"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            }
+          },
+          "d_star_mini": {
+            "point": 2.6885606001921403,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        }
+      },
+      "p00_pass": true
+    },
+    {
+      "tgt_id": 1,
+      "t_pos": 1,
+      "digit": 5,
+      "per_rung": [
+        {
+          "rung": "p00_identity",
+          "d_pixel": 0.0,
+          "d_encoder": 5.202870273501858e-07,
+          "readouts": {
+            "concat": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d2_obs": 0.0,
+              "qeff": 0,
+              "dmu_norm": 0.0,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "p0_noise",
+          "d_pixel": 0.4461446667469011,
+          "d_encoder": 0.07279436380994964,
+          "readouts": {
+            "concat": {
+              "sensitivity": 0.20931258932475555,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 0.23156481307840962,
+              "qeff": 1,
+              "dmu_norm": 0.05110290193768958,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "p2_rot5",
+          "d_pixel": 2.950253940637708,
+          "d_encoder": 0.01992628960510623,
+          "readouts": {
+            "concat": {
+              "sensitivity": 15.229268260864476,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 16.91254173296823,
+              "qeff": 1,
+              "dmu_norm": 0.4368208608068161,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "r_nn",
+          "d_pixel": 6.002946860596849,
+          "d_encoder": 0.016536987176412277,
+          "readouts": {
+            "concat": {
+              "sensitivity": 24.211198451215346,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 27.021033969692812,
+              "qeff": 1,
+              "dmu_norm": 0.5501692075049534,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "r_far",
+          "d_pixel": 9.751275905041345,
+          "d_encoder": 0.16478910161587168,
+          "readouts": {
+            "concat": {
+              "sensitivity": 34.45767879017488,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 38.43068723926114,
+              "qeff": 1,
+              "dmu_norm": 0.6541940194161753,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "r_cross",
+          "d_pixel": 8.790098760357568,
+          "d_encoder": 0.12195196343747616,
+          "readouts": {
+            "concat": {
+              "sensitivity": 76.94014963015833,
+              "pvalue": 0.001996007984031936,
+              "d2_obs": 85.2868610069359,
+              "qeff": 1,
+              "dmu_norm": 0.9780820960581577,
+              "noise_rms": 9.873789880109786
+            }
+          },
+          "n_pairs": 50,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        }
+      ],
+      "profiles": {
+        "concat": {
+          "normalizer_void": false,
+          "s_profile": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.00272045986823388,
+            "p2_rot5": 0.19793655632422946,
+            "r_nn": 0.3146757390984492,
+            "r_far": 0.4478504260234563,
+            "r_cross": 1.0
+          },
+          "s_ref_sens": 76.94014963015833,
+          "d_star": {
+            "0.1": {
+              "point": 2.183755583131252,
+              "interval": [
+                0.4461446667469011,
+                2.950253940637708
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "p2_rot5"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.3": {
+              "point": 5.579328489239558,
+              "interval": [
+                2.950253940637708,
+                6.002946860596849
+              ],
+              "bracket_rungs": [
+                "p2_rot5",
+                "r_nn"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.03": {
+              "point": 1.2847335163564195,
+              "interval": [
+                0.4461446667469011,
+                2.950253940637708
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "p2_rot5"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            }
+          },
+          "d_star_mini": {
+            "point": 2.7502914673892707,
+            "interval": [
+              0.4461446667469011,
+              8.790098760357568
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        }
+      },
+      "p00_pass": true
+    }
+  ]
+}

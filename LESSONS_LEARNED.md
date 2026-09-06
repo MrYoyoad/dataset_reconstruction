@@ -4,6 +4,40 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A certificate linear in the layer's input cannot separate the images it annihilates (2026-09-06)
+
+The CIFAR replica of the certificate attack (`cifar_certificate.py`, jobs 252897/252898) put LoRA on the **first
+(pixel) layer**, so `C` acts linearly on pixels. Every sanity check passed to machine precision — `‖CH‖/(‖C‖‖H‖)` at
+3.6e-15, quotient form 5.9e-15, `rank C = r − N = 56`, excitation gap 1e14 — and the search still returned one
+blurred "mean apple" on all 400 starts. It was not a basin failure and not a chart failure.
+
+**The mechanism.** `C h_i = 0` for each i means `C` annihilates the whole *span*, so every linear combination
+`Σ c_i h_i` is an exact zero too. When the adapted layer's input is the image itself, those combinations are images,
+and a smooth chart represents the blend far better than any individual: the 8-apple mean has PCA-32 representation
+error 0.06 against 0.10–0.42 for the individual apples. The minimiser is therefore the blend, by construction. The
+audit measured it: the modal attractor (379 of 400 starts) is a least-squares blend of the eight privates to 99.4%,
+with coefficients that are not even convex (−0.70, 0.34, …, 0.46), and the blend's own residual is 3e-15.
+
+**The fix is the layer, not the chart.** Two nonlinearities between the chart and the certificate make a blend of
+*features* generically not the feature vector of any chart image. Moving LoRA to the head, on the 256-dim
+penultimate features (the literal setting of the MNIST Figure-2 cell), lands 200 of 400 random starts on all eight
+apples at image error 1e-14, with the same chart, same solver and same seed (job 277289). The wrong-release control
+(certificate from eight *other* apples) gives 0 of 400 at residual 0.27–0.51 (277614).
+
+**What to carry forward.** (a) Before blaming a chart or an initializer, check whether the found point is a blend of
+the privates — a two-line least-squares fit in `span{φ(x_i)}`, now standard in `experiments/cifar/cifar_charts.py`.
+(b) The equation count (56 equations, 32 unknowns) is silent about this: it assumes generic position, and the span
+direction is exactly where position is not generic. (c) `‖CH‖ ≈ 0` and `rank C = r − N` are necessary, never
+sufficient — they hold identically in the degenerate case.
+
+**Two reporting bugs found in the same pass.** The replica's landing criterion `R < 3·max(chart-floor residual)` is
+vacuous: 400 of 400 starts satisfied it with zero true landings, and the write-up reported "400/400 reached the
+certificate floor" as if it were success. And the same-class control paired each private with an arbitrary public
+image while the attack number was a max over 400 starts; the control must use the same max-over-starts statistic
+and the chart projection, because window-3 SSIM rewards the blur that a collapsed attractor has.
+
+---
+
 ## A relay is not a verification (2026-09-04)
 
 Findings passed between sessions arrive with their confidence intact and their evidence left behind. Three

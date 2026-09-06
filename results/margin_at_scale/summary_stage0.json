@@ -1,0 +1,246 @@
+{
+  "config": {
+    "n_targets": 4,
+    "N": 16,
+    "K": 12,
+    "lr": 0.5,
+    "T": 1000,
+    "rank": 8,
+    "pool_per_class": 60,
+    "bank_per_class": 500,
+    "n_perm_rho": 1000,
+    "n_boot": 0,
+    "knn_k": 10,
+    "n_folds": 5,
+    "metric_n_perm": 500,
+    "seeds0": 1000,
+    "stage0": true
+  },
+  "preregistered": "PRE-REGISTERED PREDICTION (plan SIII.1, audit C7): rho_spearman(sens, g0) > +0.6, positive in\nevery g0 stratum, AND bootstrap 95% CI on rho with half-width < 0.15 (the width target is the\ndeliverable). KILL: rho < +0.3 overall or sign flips across strata => capstone falls.",
+  "strata": [
+    {
+      "cls": 0,
+      "stratum": 0,
+      "g0_lo": 0.00018721922576726922,
+      "g0_hi": 0.1728240619698273,
+      "n_members": 30,
+      "picked_pool_idx": 28
+    },
+    {
+      "cls": 0,
+      "stratum": 1,
+      "g0_lo": 0.1885006065561102,
+      "g0_hi": 7.564830924708176,
+      "n_members": 30,
+      "picked_pool_idx": 5
+    },
+    {
+      "cls": 1,
+      "stratum": 0,
+      "g0_lo": 0.019065334092716768,
+      "g0_hi": 1.107961271088006,
+      "n_members": 30,
+      "picked_pool_idx": 83
+    },
+    {
+      "cls": 1,
+      "stratum": 1,
+      "g0_lo": 1.1201464429042578,
+      "g0_hi": 14.91038180264513,
+      "n_members": 30,
+      "picked_pool_idx": 0
+    }
+  ],
+  "context": {
+    "ctx_idx": [
+      2,
+      7,
+      8,
+      9,
+      11,
+      13,
+      14,
+      15,
+      1,
+      3,
+      4,
+      6,
+      10,
+      12,
+      17,
+      18
+    ],
+    "slot_pos": {
+      "0": 7,
+      "1": 15
+    },
+    "ctx_digits": [
+      0,
+      0,
+      2,
+      6,
+      2,
+      8,
+      4,
+      0,
+      5,
+      7,
+      1,
+      5,
+      7,
+      7,
+      3,
+      1
+    ]
+  },
+  "per_target": [
+    {
+      "sensitivity": 0.016058937815572886,
+      "pvalue": 0.00757020757020757,
+      "d2_obs": 0.0389791200960543,
+      "qeff": 1,
+      "rho_selected": 0.001,
+      "coherent_signal": 0.44331862722763343,
+      "reseed_noise": 9.16105398263746,
+      "base_dropped": 0,
+      "swap_dropped": 0,
+      "ref_max_bce": 0.00012788879364578065,
+      "memorized": true,
+      "mT": 9.812000488313082,
+      "lam": 5.4787128283255765e-05,
+      "gT_own": 0.001019534016708722,
+      "pool_idx": 28,
+      "cls": 0,
+      "digit": 0,
+      "stratum": 0,
+      "g0": 0.04528245708071511,
+      "m0": 5.937324696069265
+    },
+    {
+      "sensitivity": 0.17421049472172,
+      "pvalue": 0.00757020757020757,
+      "d2_obs": 0.37851604525977933,
+      "qeff": 1,
+      "rho_selected": 0.001,
+      "coherent_signal": 1.2662592172790783,
+      "reseed_noise": 9.543213864533579,
+      "base_dropped": 0,
+      "swap_dropped": 0,
+      "ref_max_bce": 0.00015390515489954737,
+      "memorized": true,
+      "mT": 9.200705812079057,
+      "lam": 0.00010095791863787688,
+      "gT_own": 0.0014599662758568144,
+      "pool_idx": 5,
+      "cls": 0,
+      "digit": 8,
+      "stratum": 1,
+      "g0": 0.9850587857721781,
+      "m0": 2.3957719876985095
+    },
+    {
+      "sensitivity": 0.015400510373651834,
+      "pvalue": 0.00757020757020757,
+      "d2_obs": 0.03524384124281783,
+      "qeff": 1,
+      "rho_selected": 0.001,
+      "coherent_signal": 0.33565508530468297,
+      "reseed_noise": 9.283082120987974,
+      "base_dropped": 0,
+      "swap_dropped": 0,
+      "ref_max_bce": 0.00013396102092092793,
+      "memorized": true,
+      "mT": 8.98246657261928,
+      "lam": 0.0001255769101249675,
+      "gT_own": 0.0016144545696178958,
+      "pool_idx": 83,
+      "cls": 1,
+      "digit": 1,
+      "stratum": 0,
+      "g0": 0.24663027300449408,
+      "m0": 3.8083715754811767
+    },
+    {
+      "sensitivity": 0.6042878938537719,
+      "pvalue": 0.00757020757020757,
+      "d2_obs": 1.2417909908414981,
+      "qeff": 1,
+      "rho_selected": 0.001,
+      "coherent_signal": 2.016742180269263,
+      "reseed_noise": 9.557844908321877,
+      "base_dropped": 0,
+      "swap_dropped": 0,
+      "ref_max_bce": 0.00013087351539222097,
+      "memorized": true,
+      "mT": 9.559202707845694,
+      "lam": 7.054404761489058e-05,
+      "gT_own": 0.0009961798650675933,
+      "pool_idx": 0,
+      "cls": 1,
+      "digit": 5,
+      "stratum": 1,
+      "g0": 3.74398284377663,
+      "m0": 0.770569703445585
+    }
+  ],
+  "headline": {
+    "rho_sens_g0": 0.8,
+    "perm_p": 0.1798201798201798,
+    "n": 4,
+    "ci95": [
+      NaN,
+      NaN
+    ],
+    "ci_halfwidth": NaN,
+    "n_bad_boot": 0,
+    "per_class_rho": {
+      "0": NaN,
+      "1": NaN
+    },
+    "tercile_rhos": [
+      NaN,
+      NaN,
+      NaN
+    ],
+    "sign_flip_across_terciles": false,
+    "rho_split_even": NaN,
+    "rho_split_odd": NaN
+  },
+  "mechanism_table": {
+    "rho_sens_g0": 0.8,
+    "rho_sens_m0": -0.8,
+    "rho_sens_lam": -0.4,
+    "perm_p_g0": 0.1798201798201798,
+    "perm_p_m0_neg": 0.15384615384615385,
+    "perm_p_lam": 0.8141858141858141,
+    "g0_vs_lam_gap": 1.2000000000000002
+  },
+  "typicality_control": {
+    "rho_sens_atypicality": 0.4,
+    "rho_sens_dist_digit_mean": 0.4,
+    "rho_sens_knn_digit": 0.4,
+    "rho_sens_dist_class_mean_secondary": 0.2,
+    "rho_g0_atypicality": -0.2,
+    "partial_rho_sens_g0_given_atyp": 0.979957887012223,
+    "partial_parts": {
+      "rxy": 0.8,
+      "rxz": 0.4,
+      "ryz": -0.2
+    },
+    "partial_ci95": [
+      NaN,
+      NaN
+    ]
+  },
+  "lazy_diagnostic": {
+    "spearman_g0_gT_representative": 0.8,
+    "spearman_g0_gT_own_context_secondary": -0.4,
+    "per_module_dW_over_W0": {
+      "layer0 (the single LoRA target module)": 0.22265856961532793
+    },
+    "lazy_all_modules": false,
+    "rep_max_bce": 0.00011766760443105565,
+    "rep_memorized": true
+  },
+  "verdict": "STAGE-0 (no verdict: CI requirement waived, n=4)"
+}

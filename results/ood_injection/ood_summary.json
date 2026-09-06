@@ -1,0 +1,103 @@
+{
+  "N": 16,
+  "K": 50,
+  "n_ood": 2,
+  "lr": 0.5,
+  "T": 1000,
+  "rank": 8,
+  "stage0": false,
+  "ood_pos": [
+    0,
+    1
+  ],
+  "ood_digits": [
+    5,
+    5
+  ],
+  "usps_indices": [
+    [
+      32,
+      1313
+    ],
+    [
+      1377,
+      860
+    ]
+  ],
+  "usps_preproc": "16x16 test split -> 28x28 bilinear (align_corners=False), clamp [0,1], float64; centered with the FROZEN MNIST ds_mean like every member",
+  "mbce_base": 0.00013533199288495723,
+  "mbce_ood": 0.00019365374683388836,
+  "memorized_base": true,
+  "memorized_ood": true,
+  "reseed_noise_base": 9.97044874151052,
+  "reseed_noise_ood": 9.5985276874245,
+  "g0_usps_mean": 8.47228578586384,
+  "g0_mnist_matched_mean": 2.5762738814389263,
+  "g0_ratio": 3.288581174114847,
+  "predicted_more_leakage": true,
+  "per_member": [
+    {
+      "pos": 0,
+      "digit": 5,
+      "usps_idx": [
+        32,
+        1313
+      ],
+      "g0_usps": 5.25401664640444,
+      "m0_usps": 1.1435235811470852,
+      "xnorm_usps": 11.304519372199945,
+      "g0_mnist": 3.7439828437766303,
+      "m0_mnist": 0.7705697034455853,
+      "xnorm_mnist": 6.5726271843590185,
+      "sens_ood": 2.3903111442789946,
+      "p_ood": 0.001996007984031936,
+      "qeff_ood": 1,
+      "coh_ood": 0.49245627512057205,
+      "sens_mnist": 12.993530816380357,
+      "p_mnist": 0.001996007984031936,
+      "qeff_mnist": 1,
+      "coh_mnist": 1.3470762388124633,
+      "sens_style": 4.995972713745051,
+      "p_style": 0.001996007984031936,
+      "qeff_style": 1,
+      "coh_style": 0.784510836520768,
+      "amplification": 0.18396163275848296,
+      "dropped": 0
+    },
+    {
+      "pos": 1,
+      "digit": 5,
+      "usps_idx": [
+        1377,
+        860
+      ],
+      "g0_usps": 11.690554925323239,
+      "m0_usps": -0.7766361646978387,
+      "xnorm_usps": 9.170983661382419,
+      "g0_mnist": 1.4085649191012224,
+      "m0_mnist": 1.9417178546633367,
+      "xnorm_mnist": 6.519017885735593,
+      "sens_ood": 2.3409802648727256,
+      "p_ood": 0.001996007984031936,
+      "qeff_ood": 2,
+      "coh_ood": 0.6243660548024987,
+      "sens_mnist": 17.105657438597746,
+      "p_mnist": 0.001996007984031936,
+      "qeff_mnist": 1,
+      "coh_mnist": 1.3958425300511652,
+      "sens_style": 6.678809365119552,
+      "p_style": 0.001996007984031936,
+      "qeff_style": 1,
+      "coh_style": 0.9707997410985927,
+      "amplification": 0.13685415326922565,
+      "dropped": 0
+    }
+  ],
+  "amplification_mean": 0.1604078930138543,
+  "measured_more_leakage": false,
+  "sens_style_mean": 5.837391039432301,
+  "spearman_g0_sens_pooled": -1.0,
+  "spearman_n": 4,
+  "predictor_verdict": "g0 direction FAILS to predict the measured amplification (g0 says MORE, measured LESS/equal); pooled Spearman(g0,sens)=-1.000 (n=4, SMALL-n \u2014 directional only)",
+  "confounds": "USPS global stats differ (stroke thickness/contrast/scale; 16->28 bilinear smoothing lowers HF energy); ds_mean is MNIST's frozen mean applied to USPS members too (mandatory, but mixes mis-centering into the amplification); ||x0|| per member saved so the norm/contrast confound is checkable; pooled Spearman is n=4 (SMALL-n)."
+}

@@ -1,0 +1,15 @@
+MNIST 28x28      n=    784   max_s s.log(n/s) =     288.4  at s =    288.4
+    r=16         8 conditions  ratio_min =   0.03  -> crossable, needs s >~ 2
+    r=64        56 conditions  ratio_min =   0.19  -> crossable, needs s >~ 14
+    r=256      248 conditions  ratio_min =   0.86  -> crossable, needs s >~ 150
+    r=1024    1016 conditions  ratio_min =   3.52  -> ALWAYS ABOVE: no basis can bracket the transition from below
+CIFAR 32x32x3    n=   3072   max_s s.log(n/s) =    1130.1  at s =   1130.1
+    r=16         8 conditions  ratio_min =   0.01  -> crossable, needs s >~ 1
+    r=64        56 conditions  ratio_min =   0.05  -> crossable, needs s >~ 10
+    r=256      248 conditions  ratio_min =   0.22  -> crossable, needs s >~ 65
+    r=1024    1016 conditions  ratio_min =   0.90  -> crossable, needs s >~ 662
+224x224x3        n= 150528   max_s s.log(n/s) =   55376.2  at s =  55376.2
+    r=16         8 conditions  ratio_min =   0.00  -> crossable, needs s >~ 1
+    r=64        56 conditions  ratio_min =   0.00  -> crossable, needs s >~ 6
+    r=256      248 conditions  ratio_min =   0.00  -> crossable, needs s >~ 29
+    r=1024    1016 conditions  ratio_min =   0.02  -> crossable, needs s >~ 147

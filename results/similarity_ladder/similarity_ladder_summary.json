@@ -1,0 +1,384 @@
+{
+  "N": 16,
+  "K": 50,
+  "T": 1000,
+  "lr": 0.5,
+  "rank": 8,
+  "n_targets": 2,
+  "bank": 200,
+  "encoder": "vit_small_patch16_224.dino",
+  "base_dropped": 0,
+  "reseed_noise": 9.97044874151052,
+  "ref_max_bce": 0.00013533199288495723,
+  "memorized": true,
+  "target_pos": [
+    0,
+    1
+  ],
+  "results": [
+    {
+      "tgt_id": 0,
+      "t_pos": 0,
+      "digit": 5,
+      "encoder": "vit_small_patch16_224.dino",
+      "g0_T": 3.7439828437766316,
+      "rungs": [
+        "p00_identity",
+        "p0_noise",
+        "p1_bright",
+        "p2_rot5",
+        "p3_rot15",
+        "p4_blur",
+        "r_nn",
+        "r_med",
+        "r_far",
+        "r_cross"
+      ],
+      "per_rung": [
+        {
+          "sensitivity": 0.0,
+          "pvalue": 1.0,
+          "d2_obs": 0.0,
+          "qeff": 0,
+          "coherent_signal": 0.0,
+          "swap_subspace_cos": 0.9999999999999987,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p00_identity",
+          "d_pixel": 0.0,
+          "d_encoder": 3.716560633693078e-07,
+          "dg0": 0.0
+        },
+        {
+          "sensitivity": 0.031302324455736,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 0.035353968183812784,
+          "qeff": 0,
+          "coherent_signal": 0.06478914118048264,
+          "swap_subspace_cos": 0.999999899024342,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p0_noise",
+          "d_pixel": 0.436494661060283,
+          "d_encoder": 0.08352505088113593,
+          "dg0": 0.18712553192602677
+        },
+        {
+          "sensitivity": 0.3900784314129708,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 0.4400544740990608,
+          "qeff": 1,
+          "coherent_signal": 0.2567944944058662,
+          "swap_subspace_cos": 0.9999956995040717,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p1_bright",
+          "d_pixel": 1.8549188014822258,
+          "d_encoder": 0.011196694187212586,
+          "dg0": 1.0595591528010901
+        },
+        {
+          "sensitivity": 0.7700655193398279,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 0.8718763410107191,
+          "qeff": 1,
+          "coherent_signal": 0.3488042044654068,
+          "swap_subspace_cos": 0.9999966462143268,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p2_rot5",
+          "d_pixel": 2.574265998091424,
+          "d_encoder": 0.02451089273892959,
+          "dg0": 1.243896677120155
+        },
+        {
+          "sensitivity": 2.8347475219750553,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 3.2108455539388325,
+          "qeff": 1,
+          "coherent_signal": 0.6644871429055133,
+          "swap_subspace_cos": 0.9999886236073152,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p3_rot15",
+          "d_pixel": 5.27359037313869,
+          "d_encoder": 0.04853832246898071,
+          "dg0": 2.1446309543807676
+        },
+        {
+          "sensitivity": 4.293830385638143,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 4.83263527158798,
+          "qeff": 1,
+          "coherent_signal": 0.5791229092230707,
+          "swap_subspace_cos": 0.9999828927759756,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p4_blur",
+          "d_pixel": 2.9935899133619137,
+          "d_encoder": NaN,
+          "dg0": 0.3644543774962776
+        },
+        {
+          "sensitivity": 3.1384060220783367,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 3.5576840431581456,
+          "qeff": 1,
+          "coherent_signal": 0.7694963773747946,
+          "swap_subspace_cos": 0.9999812654924622,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "r_nn",
+          "d_pixel": 7.600537223773421,
+          "d_encoder": 0.022029365914802534,
+          "dg0": 2.87770600129425
+        },
+        {
+          "sensitivity": 3.189080238994965,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 3.609795576519755,
+          "qeff": 1,
+          "coherent_signal": 0.7803595299179947,
+          "swap_subspace_cos": 0.9999776472126185,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "r_med",
+          "d_pixel": 8.422824668368634,
+          "d_encoder": 0.060734743166572236,
+          "dg0": 2.759476138466817
+        },
+        {
+          "sensitivity": 3.0830715224195795,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 3.4634407979062654,
+          "qeff": 1,
+          "coherent_signal": 0.7588545856594161,
+          "swap_subspace_cos": 0.9999777453734082,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "r_far",
+          "d_pixel": 6.906582677075454,
+          "d_encoder": 0.16111787538892752,
+          "dg0": 3.6659060152572316
+        },
+        {
+          "sensitivity": 8.056642606923981,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 9.062062282593933,
+          "qeff": 1,
+          "coherent_signal": 1.0815821740926719,
+          "swap_subspace_cos": 0.9999491152916776,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "r_cross",
+          "d_pixel": 9.640448077698089,
+          "d_encoder": 0.09367455529014901,
+          "dg0": 2.3928610733246143
+        }
+      ],
+      "spearman": {
+        "d_encoder": {
+          "rho": 0.5333333333333333,
+          "n": 9
+        },
+        "d_pixel": {
+          "rho": 0.8787878787878788,
+          "n": 10
+        },
+        "dg0": {
+          "rho": 0.5878787878787879,
+          "n": 10
+        }
+      }
+    },
+    {
+      "tgt_id": 1,
+      "t_pos": 1,
+      "digit": 5,
+      "encoder": "vit_small_patch16_224.dino",
+      "g0_T": 1.408564919101221,
+      "rungs": [
+        "p00_identity",
+        "p0_noise",
+        "p1_bright",
+        "p2_rot5",
+        "p3_rot15",
+        "p4_blur",
+        "r_nn",
+        "r_med",
+        "r_far",
+        "r_cross"
+      ],
+      "per_rung": [
+        {
+          "sensitivity": 0.0,
+          "pvalue": 1.0,
+          "d2_obs": 0.0,
+          "qeff": 0,
+          "coherent_signal": 0.0,
+          "swap_subspace_cos": 0.9999999999999987,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p00_identity",
+          "d_pixel": 0.0,
+          "d_encoder": 5.204776982736803e-07,
+          "dg0": 0.0
+        },
+        {
+          "sensitivity": 0.07089444842739598,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 0.08010606499269843,
+          "qeff": 1,
+          "coherent_signal": 0.07557852022381392,
+          "swap_subspace_cos": 0.9999999517639891,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p0_noise",
+          "d_pixel": 0.4461446667469011,
+          "d_encoder": 0.07270355825527597,
+          "dg0": 0.07263100089347851
+        },
+        {
+          "sensitivity": 0.831418318771196,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 0.9431213339480926,
+          "qeff": 1,
+          "coherent_signal": 0.2974261111260126,
+          "swap_subspace_cos": 0.9999976822199996,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p1_bright",
+          "d_pixel": 2.0412861849175115,
+          "d_encoder": 0.01101158171165717,
+          "dg0": 0.370303107356468
+        },
+        {
+          "sensitivity": 6.0268784029656,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 6.804387846113138,
+          "qeff": 1,
+          "coherent_signal": 0.6602528153456183,
+          "swap_subspace_cos": 0.9999861644687769,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p2_rot5",
+          "d_pixel": 2.9502539406377086,
+          "d_encoder": 0.019830679295295917,
+          "dg0": 0.7639211787411404
+        },
+        {
+          "sensitivity": 33.22872324411796,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 37.673340778547406,
+          "qeff": 1,
+          "coherent_signal": 1.7093477703131612,
+          "swap_subspace_cos": 0.9998846675207166,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p3_rot15",
+          "d_pixel": 6.599173773181387,
+          "d_encoder": 0.019027439382259814,
+          "dg0": 5.488018432019756
+        },
+        {
+          "sensitivity": 8.516318612175164,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 9.557404030595759,
+          "qeff": 1,
+          "coherent_signal": 0.7396173110304683,
+          "swap_subspace_cos": 0.9999875987234401,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "p4_blur",
+          "d_pixel": 3.3582306505571906,
+          "d_encoder": NaN,
+          "dg0": 0.5811653814079962
+        },
+        {
+          "sensitivity": 5.784404207867439,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 6.520609699346631,
+          "qeff": 1,
+          "coherent_signal": 0.7589387676460927,
+          "swap_subspace_cos": 0.9999899997694209,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "r_nn",
+          "d_pixel": 6.002946860596849,
+          "d_encoder": 0.01650693790267599,
+          "dg0": 0.38314863679298394
+        },
+        {
+          "sensitivity": 17.713597513582126,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 19.90151061336714,
+          "qeff": 1,
+          "coherent_signal": 1.3430817594203541,
+          "swap_subspace_cos": 0.999974272672196,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "r_med",
+          "d_pixel": 10.219264737743346,
+          "d_encoder": 0.0419658292282753,
+          "dg0": 2.829543151068659
+        },
+        {
+          "sensitivity": 8.470871227542514,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 9.542619650344413,
+          "qeff": 1,
+          "coherent_signal": 0.9562962600986245,
+          "swap_subspace_cos": 0.9999819256850466,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "r_far",
+          "d_pixel": 9.751275905041345,
+          "d_encoder": 0.16492091157670374,
+          "dg0": 1.3304880905818213
+        },
+        {
+          "sensitivity": 23.857757145707527,
+          "pvalue": 0.001996007984031936,
+          "d2_obs": 26.95295787601788,
+          "qeff": 1,
+          "coherent_signal": 1.4753979108292417,
+          "swap_subspace_cos": 0.999910479310756,
+          "dropped": 0,
+          "n_pairs": 50,
+          "rung": "r_cross",
+          "d_pixel": 8.790098760357568,
+          "d_encoder": 0.12191095897063564,
+          "dg0": 2.9632235646670404
+        }
+      ],
+      "spearman": {
+        "d_encoder": {
+          "rho": 0.48333333333333334,
+          "n": 9
+        },
+        "d_pixel": {
+          "rho": 0.806060606060606,
+          "n": 10
+        },
+        "dg0": {
+          "rho": 0.9636363636363636,
+          "n": 10
+        }
+      }
+    }
+  ],
+  "pooled_spearman": {
+    "d_encoder": {
+      "rho": 0.39855451878127796,
+      "n": 18
+    },
+    "d_pixel": {
+      "rho": 0.8073739653875094,
+      "n": 20
+    },
+    "dg0": {
+      "rho": 0.6568848758465011,
+      "n": 20
+    }
+  }
+}

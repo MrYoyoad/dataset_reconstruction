@@ -1,0 +1,74 @@
+{
+  "gate": "B1",
+  "arm_d_tag": "_stage0",
+  "D_full": 1785000,
+  "K_reseed": 10,
+  "fractions": [
+    25000,
+    100000
+  ],
+  "targets": [
+    {
+      "file": "D_stage0_t0.pth",
+      "per_fraction": [
+        {
+          "n_coords": 25000,
+          "d_star": {
+            "point": 2.799432822582104,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          },
+          "s_profile": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.0031413264429715074,
+            "r_cross": 1.0
+          },
+          "sens": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.0025891044026045197,
+            "r_cross": 0.8242073689595218
+          }
+        },
+        {
+          "n_coords": 100000,
+          "d_star": {
+            "point": 2.722985002975087,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          },
+          "s_profile": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.003563927485248357,
+            "r_cross": 1.0
+          },
+          "sens": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.0027113649641901075,
+            "r_cross": 0.7607800594745161
+          }
+        }
+      ]
+    }
+  ],
+  "dstar_max_over_min": {
+    "D_stage0_t0.pth": 1.0280750057468153
+  }
+}

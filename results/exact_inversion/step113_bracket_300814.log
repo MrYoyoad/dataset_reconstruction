@@ -1,0 +1,19 @@
+dataset     basis    err@50   s95  s.log(n/s)   ratio   side
+cifar_grey  dct      0.1268    10        43.6    5.69  ABOVE
+fashion     dct      0.2321    55       146.1    1.70  ABOVE
+emnist      pca      0.2557    61       155.8    1.59  ABOVE
+emnist      dct      0.3038    78       180.0    1.38  ABOVE
+cifar_grey  pca      0.2889    83       186.4    1.33  ABOVE
+mnist       pca      0.3106    87       191.3    1.30  ABOVE
+fashion     pca      0.2842    87       191.3    1.30  ABOVE
+mnist       pixel    0.6478    98       203.8    1.22  ABOVE
+mnist       dct      0.3948   130       233.6    1.06  ABOVE
+emnist      pixel    0.7367   135       237.5    1.04  ABOVE
+fashion     pixel    0.8608   289       288.4    0.86  BELOW
+cifar_grey  pixel    0.9141   593       165.6    1.50  ABOVE
+
+span reading A -- error at FIXED s=50 : x7.2
+span reading B -- s95 for FIXED energy : x59.3
+brackets the transition: YES  (11 above, 1 below)
+
+Reading A fails the >=1 order bar; reading B clears it by a wide margin. The lanes fix which is the axis.

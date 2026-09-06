@@ -1,0 +1,18 @@
+dataset     basis    s99  s.log(n/s)   ratio   side  valid
+cifar_grey  dct       80       182.6    1.36  ABOVE    yes
+mnist       pixel    117       222.6    1.11  ABOVE    yes
+emnist      pca      159       253.7    0.98  BELOW    yes
+emnist      pixel    162       255.4    0.97  BELOW    yes
+mnist       pca      200       273.2    0.91  BELOW    yes
+emnist      dct      201       273.6    0.91  BELOW    yes
+fashion     dct      220       279.6    0.89  BELOW    yes
+cifar_grey  pca      229       281.8    0.88  BELOW    yes
+fashion     pca      257       286.6    0.87  BELOW    yes
+mnist       dct      320       286.7    0.86  BELOW     NO
+fashion     pixel    329       285.7    0.87  BELOW     NO
+cifar_grey  pixel    705        74.9    3.31  ABOVE     NO
+
+valid cells: 2 above, 7 below
+ratio range over valid cells: 0.87 .. 1.36   (below-side spread 13%)
+7e notes the CS constant may be ~3x off. A crossing is locatable only if the ratio range EXCEEDS that
+uncertainty on both sides; here the below side spans 13%, so it does not.

@@ -1,0 +1,443 @@
+{
+  "arm": "B2",
+  "tag": "_stage0",
+  "K": 10,
+  "N": 16,
+  "T": 1000,
+  "rank": 8,
+  "lr": 0.1,
+  "eps_scale": 0.0,
+  "batch_size": 4,
+  "layers": [
+    0,
+    1,
+    2
+  ],
+  "rungs": [
+    "p00_identity",
+    "p0_noise",
+    "r_cross"
+  ],
+  "encoder": "vit_small_patch16_224.dino",
+  "gauge": "attacker-visible dtheta incl eps*xi (full-FT) / dW=BA (LoRA)",
+  "baseline": {
+    "usable": 10,
+    "dropped_nan": 0,
+    "dropped_mem": 0,
+    "max_bce_min": 0.00047574076394918516,
+    "max_bce_max": 0.00047830397011011075,
+    "in_band": true,
+    "reseed_rms": {
+      "L0": 0.0042057022694474595,
+      "L1": 0.0023889211225193467,
+      "L2": 0.0009385739822896145,
+      "concat": 0.004927047475830286
+    }
+  },
+  "targets": [
+    {
+      "tgt_id": 0,
+      "t_pos": 0,
+      "digit": 5,
+      "per_rung": [
+        {
+          "rung": "p00_identity",
+          "d_pixel": 0.0,
+          "d_encoder": 3.7166175603786655e-07,
+          "readouts": {
+            "L0": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d2_obs": 0.0,
+              "qeff": 0,
+              "dmu_norm": 0.0,
+              "noise_rms": 0.0042057022694474595
+            },
+            "L1": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d2_obs": 0.0,
+              "qeff": 0,
+              "dmu_norm": 0.0,
+              "noise_rms": 0.0023889211225193467
+            },
+            "L2": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d2_obs": 0.0,
+              "qeff": 0,
+              "dmu_norm": 0.0,
+              "noise_rms": 0.0009385739822896145
+            },
+            "concat": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d2_obs": 0.0,
+              "qeff": 0,
+              "dmu_norm": 0.0,
+              "noise_rms": 0.004927047475830286
+            }
+          },
+          "n_pairs": 10,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "p0_noise",
+          "d_pixel": 0.436494661060283,
+          "d_encoder": 0.08367658967658698,
+          "readouts": {
+            "L0": {
+              "sensitivity": 5371.968725413493,
+              "pvalue": 0.030303030303030304,
+              "d2_obs": 10723.0330654807,
+              "qeff": 1,
+              "dmu_norm": 0.021117748085195294,
+              "noise_rms": 0.0042057022694474595
+            },
+            "L1": {
+              "sensitivity": 1421.9089191592273,
+              "pvalue": 0.030303030303030304,
+              "d2_obs": 2838.2880421817194,
+              "qeff": 1,
+              "dmu_norm": 0.01265946370141883,
+              "noise_rms": 0.0023889211225193467
+            },
+            "L2": {
+              "sensitivity": 1341.6937039346765,
+              "pvalue": 0.030303030303030304,
+              "d2_obs": 2678.2152696470307,
+              "qeff": 1,
+              "dmu_norm": 0.0030775220052809186,
+              "noise_rms": 0.0009385739822896145
+            },
+            "concat": {
+              "sensitivity": 4102.810664759958,
+              "pvalue": 0.030303030303030304,
+              "d2_obs": 8189.622118133717,
+              "qeff": 1,
+              "dmu_norm": 0.024813150688501828,
+              "noise_rms": 0.004927047475830286
+            }
+          },
+          "n_pairs": 10,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        },
+        {
+          "rung": "r_cross",
+          "d_pixel": 9.640448077698089,
+          "d_encoder": 0.09354989865763763,
+          "readouts": {
+            "L0": {
+              "sensitivity": 734752.8489171149,
+              "pvalue": 0.030303030303030304,
+              "d2_obs": 1466641.4451125278,
+              "qeff": 1,
+              "dmu_norm": 0.3320135913998119,
+              "noise_rms": 0.0042057022694474595
+            },
+            "L1": {
+              "sensitivity": 177877.43187243474,
+              "pvalue": 0.030303030303030304,
+              "d2_obs": 355062.3003824122,
+              "qeff": 1,
+              "dmu_norm": 0.224022802943097,
+              "noise_rms": 0.0023889211225193467
+            },
+            "L2": {
+              "sensitivity": 450114.81187028345,
+              "pvalue": 0.030303030303030304,
+              "d2_obs": 898485.7055041125,
+              "qeff": 1,
+              "dmu_norm": 0.058251430944191065,
+              "noise_rms": 0.0009385739822896145
+            },
+            "concat": {
+              "sensitivity": 536075.2310065352,
+              "pvalue": 0.030303030303030304,
+              "d2_obs": 1070059.322109928,
+              "qeff": 1,
+              "dmu_norm": 0.4047375326303811,
+              "noise_rms": 0.004927047475830286
+            }
+          },
+          "n_pairs": 10,
+          "dropped_nan": 0,
+          "dropped_mem": 0
+        }
+      ],
+      "profiles": {
+        "L0": {
+          "normalizer_void": false,
+          "s_profile": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.0073112594708965705,
+            "r_cross": 1.0
+          },
+          "s_ref_sens": 734752.8489171149,
+          "d_star": {
+            "0.1": {
+              "point": 2.2637614460288726,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.3": {
+              "point": 4.519257736941772,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.03": {
+              "point": 1.0612080835976327,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            }
+          },
+          "d_star_mini": {
+            "point": 2.2637614460288726,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        },
+        "L1": {
+          "normalizer_void": false,
+          "s_profile": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.00799375673569963,
+            "r_cross": 1.0
+          },
+          "s_ref_sens": 177877.43187243474,
+          "d_star": {
+            "0.1": {
+              "point": 2.203947995742717,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.3": {
+              "point": 4.456422802864455,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.03": {
+              "point": 1.018803693085233,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            }
+          },
+          "d_star_mini": {
+            "point": 2.203947995742717,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        },
+        "L2": {
+          "normalizer_void": false,
+          "s_profile": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.0029807810553040257,
+            "r_cross": 1.0
+          },
+          "s_ref_sens": 450114.81187028345,
+          "d_star": {
+            "0.1": {
+              "point": 2.830833612648235,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.3": {
+              "point": 5.07960691017594,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.03": {
+              "point": 1.4915823273434172,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            }
+          },
+          "d_star_mini": {
+            "point": 2.830833612648235,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        },
+        "concat": {
+          "normalizer_void": false,
+          "s_profile": {
+            "p00_identity": 0.0,
+            "p0_noise": 0.007653423302278894,
+            "r_cross": 1.0
+          },
+          "s_ref_sens": 536075.2310065352,
+          "d_star": {
+            "0.1": {
+              "point": 2.2331811058587006,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.3": {
+              "point": 4.4872329367465245,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            },
+            "0.03": {
+              "point": 1.0394541551560237,
+              "interval": [
+                0.436494661060283,
+                9.640448077698089
+              ],
+              "bracket_rungs": [
+                "p0_noise",
+                "r_cross"
+              ],
+              "n_bracket_pairs": 1,
+              "censored": null,
+              "interval_only": true
+            }
+          },
+          "d_star_mini": {
+            "point": 2.2331811058587006,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        }
+      },
+      "p00_pass": true
+    }
+  ]
+}

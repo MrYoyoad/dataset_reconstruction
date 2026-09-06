@@ -1,0 +1,90 @@
+{
+  "arm": "F",
+  "tag": "_stage0",
+  "K": 10,
+  "N": 16,
+  "T": 1000,
+  "rank": 8,
+  "lr_full": 0.2,
+  "eps_scale": 0.22462100345130268,
+  "lr_lora": 0.5,
+  "n_targets": 1,
+  "gauge": "full: attacker-visible \u0394\u03b8 incl \u03b5\u00b7\u03be; LoRA: \u0394W=BA",
+  "P5b_cross_regime_rank": {
+    "rho": null,
+    "n": 1,
+    "note": "HEADLINE, offset-immune; pass \u2265 +0.5"
+  },
+  "P5a_detectable": {
+    "full_all_p_lt_002": false,
+    "lora_all_p_lt_002": false,
+    "note": "DESCRIPTIVE (N\u2192N\u22121 offset caveat)"
+  },
+  "g0_piggyback": {
+    "rho": null,
+    "n": 1,
+    "note": "SMALL-n descriptive; does LoRA g0-predictor transfer?"
+  },
+  "per_target": [
+    {
+      "tgt_id": 0,
+      "removed_idx": 0,
+      "digit": 5,
+      "g0": 3.7439828437766303,
+      "full": {
+        "L0": {
+          "sensitivity": 0.33830846612436466,
+          "pvalue": 0.030303030303030304,
+          "d2_obs": 0.6756843746968835,
+          "qeff": 1,
+          "dmu_norm": 0.26046959255059005,
+          "noise_rms": 9.463069006166982
+        },
+        "L1": {
+          "sensitivity": 0.9421807407558879,
+          "pvalue": 0.030303030303030304,
+          "d2_obs": 1.8818491651759623,
+          "qeff": 1,
+          "dmu_norm": 0.18442266186545467,
+          "noise_rms": 3.9277610466588926
+        },
+        "L2": {
+          "sensitivity": 2.9254441575902903,
+          "pvalue": 0.030303030303030304,
+          "d2_obs": 5.841101942431823,
+          "qeff": 1,
+          "dmu_norm": 0.051552883563062556,
+          "noise_rms": 0.5217763450537026
+        },
+        "concat": {
+          "sensitivity": 0.4377676529114429,
+          "pvalue": 0.030303030303030304,
+          "d2_obs": 0.8741484621974197,
+          "qeff": 1,
+          "dmu_norm": 0.3232859827717201,
+          "noise_rms": 10.259104854195941
+        }
+      },
+      "lora": {
+        "concat": {
+          "sensitivity": 0.06137479283257245,
+          "pvalue": 0.030303030303030304,
+          "d2_obs": 0.16854473439164294,
+          "qeff": 1,
+          "dmu_norm": 1.2349391536673724,
+          "noise_rms": 9.698113831549131
+        }
+      },
+      "meta_full": {
+        "n_pairs": 10,
+        "dropped_nan": 0,
+        "dropped_mem": 0
+      },
+      "meta_lora": {
+        "n_pairs": 10,
+        "dropped_nan": 0,
+        "dropped_mem": 0
+      }
+    }
+  ]
+}

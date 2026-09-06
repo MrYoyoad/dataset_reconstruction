@@ -1,0 +1,830 @@
+{
+  "target_rms": 9.97044874151052,
+  "target_provenance": "loaded from /home/projects/galvardi/yoado/results/similarity_ladder/similarity_ladder_summary.json (job 268959)",
+  "lr": {
+    "C": {
+      "selected": 0.5,
+      "achieved_max_bce": 0.0003262218134901782,
+      "grid": [
+        [
+          2.0,
+          7.837343723087358e-05
+        ],
+        [
+          1.0,
+          0.00016017470789457227
+        ],
+        [
+          0.5,
+          0.0003262218134901782
+        ],
+        [
+          0.2,
+          0.0008395399873946582
+        ],
+        [
+          0.1,
+          0.0017204435081338517
+        ],
+        [
+          0.05,
+          0.0035249252801790648
+        ],
+        [
+          0.02,
+          0.009027076153675238
+        ],
+        [
+          0.01,
+          0.018101593352834924
+        ],
+        [
+          0.005,
+          0.035420612228057834
+        ]
+      ],
+      "in_band": true
+    },
+    "D": {
+      "selected": 0.2,
+      "achieved_max_bce": 0.00020778874811327221,
+      "grid": [
+        [
+          2.0,
+          1.5734899683650383e-05
+        ],
+        [
+          1.0,
+          3.158481809784064e-05
+        ],
+        [
+          0.5,
+          6.980918081374812e-05
+        ],
+        [
+          0.2,
+          0.00020778874811327221
+        ],
+        [
+          0.1,
+          0.00048132776000071534
+        ],
+        [
+          0.05,
+          0.0011253175388017734
+        ],
+        [
+          0.02,
+          0.0034711138969823045
+        ],
+        [
+          0.01,
+          0.008039175265939086
+        ],
+        [
+          0.005,
+          0.018065051456938992
+        ]
+      ],
+      "in_band": true
+    },
+    "B2": {
+      "selected": 0.1,
+      "achieved_max_bce": 0.0004759433167384344,
+      "grid": [
+        [
+          2.0,
+          0.6931471805599453
+        ],
+        [
+          1.0,
+          6.393564479286929e-05
+        ],
+        [
+          0.5,
+          7.779490212959103e-05
+        ],
+        [
+          0.2,
+          0.0002045490865145594
+        ],
+        [
+          0.1,
+          0.0004759433167384344
+        ],
+        [
+          0.05,
+          0.0011147039003095638
+        ],
+        [
+          0.02,
+          0.0034451282189933586
+        ],
+        [
+          0.01,
+          0.007990321828841893
+        ],
+        [
+          0.005,
+          0.01798024053156747
+        ]
+      ],
+      "in_band": true
+    },
+    "lora": {
+      "selected": 0.5,
+      "achieved_max_bce": 0.0001234877732412394,
+      "in_band": true
+    }
+  },
+  "eps": {
+    "C": {
+      "eps_scale": 0.22462100345130268,
+      "achieved_rms": 9.322052664396582,
+      "target_rms": 9.97044874151052,
+      "history": [
+        [
+          0.22462100345130268,
+          9.322052664396582
+        ]
+      ],
+      "converged": true
+    },
+    "D": {
+      "eps_scale": 0.11231050172565134,
+      "achieved_rms": 9.321296990987253,
+      "target_rms": 9.97044874151052,
+      "history": [
+        [
+          0.22462100345130268,
+          9.321296990987253
+        ]
+      ],
+      "converged": true,
+      "shrunk_iters": 1,
+      "rms_undershoot_note": "eps shrunk 1x below the LoRA-RMS match to restore linearity \u2014 IMMATERIAL to the normalized s(d)/d* headline (\u03b5-invariant; magnitude floats), confirmed by d*-bracket stability (ratio=1.002<2); the RMS-undershoot caveat attaches to the RAW-sensitivity panel only."
+    },
+    "E_eps": {
+      "eps_scale": 1.4825915147529634,
+      "achieved_rms": 8.41753605548582,
+      "target_rms": 9.97044874151052,
+      "history": [
+        [
+          0.22462100345130268,
+          0.9801563571039706
+        ],
+        [
+          2.2849132028231156,
+          6.090649368648507
+        ],
+        [
+          3.740423818323277,
+          7.448755810400591
+        ],
+        [
+          5.006702448218886,
+          8.41753605548582
+        ]
+      ],
+      "converged": false,
+      "shrunk_iters": 2,
+      "rms_undershoot_note": "eps shrunk 2x below the LoRA-RMS match to restore linearity \u2014 IMMATERIAL to the normalized s(d)/d* headline (\u03b5-invariant; magnitude floats), confirmed by d*-bracket stability (ratio=1.196<2); the RMS-undershoot caveat attaches to the RAW-sensitivity panel only."
+    }
+  },
+  "bracket": {
+    "C": {
+      "points": {
+        "eps0": {
+          "eps": 0.07487366781710089,
+          "rungs": {
+            "p0_noise": {
+              "sensitivity": 0.13316498146935302,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 0.436494661060283,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            }
+          }
+        },
+        "eps1": {
+          "eps": 0.22462100345130268,
+          "rungs": {
+            "p00_identity": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d_pixel": 0.0,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "p0_noise": {
+              "sensitivity": 0.014522003168650236,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 0.436494661060283,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "r_cross": {
+              "sensitivity": 3.855127942034385,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 9.640448077698089,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            }
+          }
+        },
+        "eps2": {
+          "eps": 0.673863010353908,
+          "rungs": {
+            "p00_identity": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d_pixel": 0.0,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "p0_noise": {
+              "sensitivity": 0.0014370987084274974,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 0.436494661060283,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "r_cross": {
+              "sensitivity": 0.3867118046174542,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 9.640448077698089,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            }
+          }
+        }
+      },
+      "gate": {
+        "slope": -2.061219673679453,
+        "curvature_ratio": 1.049755626739464,
+        "dstar_ratio": 1.0030989252604352,
+        "passed": true,
+        "slope_ok": true,
+        "curvature_ok": true,
+        "dstar_ok": true,
+        "mini_dstar": [
+          {
+            "point": 2.689030844930705,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          },
+          {
+            "point": 2.69736395054215,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        ],
+        "note": "curvature tol = factor 1.5 vs endpoint chord (inline CI substitute)",
+        "shrink_iters": 0,
+        "measurable": true
+      }
+    },
+    "D": {
+      "points": {
+        "eps0": {
+          "eps": 0.037436833908550446,
+          "rungs": {
+            "p0_noise": {
+              "sensitivity": 0.1658546016731216,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 0.436494661060283,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            }
+          }
+        },
+        "eps1": {
+          "eps": 0.11231050172565134,
+          "rungs": {
+            "p00_identity": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d_pixel": 0.0,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "p0_noise": {
+              "sensitivity": 0.018119479732521065,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 0.436494661060283,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "r_cross": {
+              "sensitivity": 4.922356533373543,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 9.640448077698089,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            }
+          }
+        },
+        "eps2": {
+          "eps": 0.336931505176954,
+          "rungs": {
+            "p00_identity": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d_pixel": 0.0,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "p0_noise": {
+              "sensitivity": 0.0017092889379922633,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 0.436494661060283,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "r_cross": {
+              "sensitivity": 0.4686718943504069,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 9.640448077698089,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            }
+          }
+        }
+      },
+      "gate": {
+        "slope": -2.082187728961773,
+        "curvature_ratio": 1.0761534931782373,
+        "dstar_ratio": 1.0021019551536103,
+        "passed": true,
+        "slope_ok": true,
+        "curvature_ok": true,
+        "dstar_ok": true,
+        "mini_dstar": [
+          {
+            "point": 2.7031947881319516,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          },
+          {
+            "point": 2.708876782348078,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        ],
+        "note": "curvature tol = factor 1.5 vs endpoint chord (inline CI substitute)",
+        "shrink_iters": 1,
+        "measurable": true
+      }
+    },
+    "E_eps": {
+      "points": {
+        "eps0": {
+          "eps": 0.49419717158432114,
+          "rungs": {
+            "p0_noise": {
+              "sensitivity": 2.2017925311372455,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 0.436494661060283,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            }
+          }
+        },
+        "eps1": {
+          "eps": 1.4825915147529634,
+          "rungs": {
+            "p00_identity": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d_pixel": 0.0,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "p0_noise": {
+              "sensitivity": 0.35843726430866735,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 0.436494661060283,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "r_cross": {
+              "sensitivity": 86.74530897253739,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 9.640448077698089,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            }
+          }
+        },
+        "eps2": {
+          "eps": 4.44777454425889,
+          "rungs": {
+            "p00_identity": {
+              "sensitivity": 0.0,
+              "pvalue": 1.0,
+              "d_pixel": 0.0,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "p0_noise": {
+              "sensitivity": 0.032764645781321655,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 0.436494661060283,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            },
+            "r_cross": {
+              "sensitivity": 19.030104248157514,
+              "pvalue": 0.00757020757020757,
+              "d_pixel": 9.640448077698089,
+              "n_pairs": 12,
+              "dropped_nan": 0,
+              "dropped_mem": 0
+            }
+          }
+        }
+      },
+      "gate": {
+        "slope": -1.9149963441708822,
+        "curvature_ratio": 1.3345111856940624,
+        "dstar_ratio": 1.1955265225687652,
+        "passed": true,
+        "slope_ok": true,
+        "curvature_ok": true,
+        "dstar_ok": true,
+        "mini_dstar": [
+          {
+            "point": 2.6317805949143698,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          },
+          {
+            "point": 3.1463635028019326,
+            "interval": [
+              0.436494661060283,
+              9.640448077698089
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "r_cross"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        ],
+        "note": "curvature tol = factor 1.5 vs endpoint chord (inline CI substitute)",
+        "shrink_iters": 2,
+        "measurable": true
+      }
+    }
+  },
+  "null_uniformity": {
+    "C": {
+      "pvalues": [
+        0.15604395604395604,
+        0.0231990231990232,
+        0.7655677655677655,
+        0.7347985347985349,
+        0.7108669108669109,
+        0.6561660561660562,
+        0.8442002442002442,
+        0.04664224664224664,
+        0.515995115995116,
+        0.0231990231990232,
+        0.9296703296703297,
+        0.6405372405372405,
+        0.08571428571428572,
+        0.031013431013431014,
+        0.578021978021978,
+        0.8671550671550672,
+        0.6952380952380952,
+        0.6717948717948717,
+        0.05445665445665446,
+        0.4295482295482295
+      ],
+      "qeffs": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "frac_p_lt_05": 0.2,
+      "mean_qeff": 0.1,
+      "passed": true
+    },
+    "D": {
+      "pvalues": [
+        0.09352869352869353,
+        0.015873015873015872,
+        0.8046398046398047,
+        0.7811965811965812,
+        0.5389499389499389,
+        0.5076923076923077,
+        0.874969474969475,
+        0.06227106227106227,
+        0.4608058608058608,
+        0.10134310134310134,
+        0.8984126984126984,
+        0.6483516483516484,
+        0.06227106227106227,
+        0.10915750915750916,
+        0.5623931623931624,
+        0.7733821733821734,
+        0.5467643467643467,
+        0.6717948717948717,
+        0.0778998778998779,
+        0.42173382173382173
+      ],
+      "qeffs": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "frac_p_lt_05": 0.05,
+      "mean_qeff": 0.1,
+      "passed": true
+    }
+  },
+  "arm_a_precheck": {
+    "per_target": [
+      {
+        "tgt_id": 0,
+        "s_profile": {
+          "p00_identity": 0.0,
+          "p0_noise": 0.0038852814978828005,
+          "p1_bright": 0.04841699581879584,
+          "p2_rot5": 0.09558144216028942,
+          "p3_rot15": 0.35185221192992194,
+          "p4_blur": 0.5329553010019298,
+          "r_nn": 0.38954266376184427,
+          "r_med": 0.3958324074415599,
+          "r_far": 0.3826744802816434,
+          "r_cross": 1.0
+        },
+        "d_star": {
+          "0.1": {
+            "point": 2.5845024127178133,
+            "interval": [
+              2.574265998091424,
+              2.9935899133619137
+            ],
+            "bracket_rungs": [
+              "p2_rot5",
+              "p4_blur"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          },
+          "0.3": {
+            "point": 2.8462694432400237,
+            "interval": [
+              2.574265998091424,
+              2.9935899133619137
+            ],
+            "bracket_rungs": [
+              "p2_rot5",
+              "p4_blur"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          },
+          "0.03": {
+            "point": 1.409617637306147,
+            "interval": [
+              0.436494661060283,
+              1.8549188014822258
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "p1_bright"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        },
+        "d_star_mini": {
+          "point": 2.6699640085217067,
+          "interval": [
+            0.436494661060283,
+            9.640448077698089
+          ],
+          "bracket_rungs": [
+            "p0_noise",
+            "r_cross"
+          ],
+          "n_bracket_pairs": 1,
+          "censored": null,
+          "interval_only": true
+        },
+        "sens": {
+          "p00_identity": 0.0,
+          "p0_noise": 0.031302324455736,
+          "p1_bright": 0.3900784314129708,
+          "p2_rot5": 0.7700655193398279,
+          "p3_rot15": 2.8347475219750553,
+          "p4_blur": 4.293830385638143,
+          "r_nn": 3.1384060220783367,
+          "r_med": 3.189080238994965,
+          "r_far": 3.0830715224195795,
+          "r_cross": 8.056642606923981
+        }
+      },
+      {
+        "tgt_id": 1,
+        "s_profile": {
+          "p00_identity": 0.0,
+          "p0_noise": 0.002971547073533325,
+          "p1_bright": 0.03484897233605986,
+          "p2_rot5": 0.25261714108989297,
+          "p3_rot15": 1.3927848724915222,
+          "p4_blur": 0.3569622475475409,
+          "r_nn": 0.2424538137654807,
+          "r_med": 0.7424670058211715,
+          "r_far": 0.3550573164027109,
+          "r_cross": 1.0
+        },
+        "d_star": {
+          "0.1": {
+            "point": 2.483288406355052,
+            "interval": [
+              2.0412861849175115,
+              2.9502539406377086
+            ],
+            "bracket_rungs": [
+              "p1_bright",
+              "p2_rot5"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          },
+          "0.3": {
+            "point": 3.1464956698274165,
+            "interval": [
+              2.9502539406377086,
+              3.3582306505571906
+            ],
+            "bracket_rungs": [
+              "p2_rot5",
+              "p4_blur"
+            ],
+            "n_bracket_pairs": 3,
+            "censored": null,
+            "interval_only": false
+          },
+          "0.03": {
+            "point": 1.8608537301809698,
+            "interval": [
+              0.4461446667469011,
+              2.0412861849175115
+            ],
+            "bracket_rungs": [
+              "p0_noise",
+              "p1_bright"
+            ],
+            "n_bracket_pairs": 1,
+            "censored": null,
+            "interval_only": true
+          }
+        },
+        "d_star_mini": {
+          "point": 2.7022319568227164,
+          "interval": [
+            0.4461446667469011,
+            8.790098760357568
+          ],
+          "bracket_rungs": [
+            "p0_noise",
+            "r_cross"
+          ],
+          "n_bracket_pairs": 1,
+          "censored": null,
+          "interval_only": true
+        },
+        "sens": {
+          "p00_identity": 0.0,
+          "p0_noise": 0.07089444842739598,
+          "p1_bright": 0.831418318771196,
+          "p2_rot5": 6.0268784029656,
+          "p3_rot15": 33.22872324411796,
+          "p4_blur": 8.516318612175164,
+          "r_nn": 5.784404207867439,
+          "r_med": 17.713597513582126,
+          "r_far": 8.470871227542514,
+          "r_cross": 23.857757145707527
+        }
+      }
+    ],
+    "mid_rung_rec": "p2_rot5"
+  },
+  "config": {
+    "N": 16,
+    "T": 1000,
+    "rank": 8,
+    "K_cal": 8,
+    "K_bracket": 12,
+    "null_pool": 24
+  }
+}

@@ -1,5 +1,54 @@
 # Project Status
 
+## CIFAR: the attack works on colour images, and the failure of the first replica was structural (2026-09-06; jobs 252897–297325)
+
+A CIFAR replica of the certificate attack was supplied with the adapter on the **pixel layer**. It recovered
+nothing, while passing every sanity check to machine precision (`‖CH‖/(‖C‖‖H‖)` 3.6e-15, quotient form 5.9e-15,
+`rank C = r − N = 56`, excitation gap 1e14). **Cause: a certificate that is linear in the layer's input annihilates
+every blend of the private images, so the blend — which a chart represents far better than any individual image —
+is the minimiser by construction.** Measured: the collapsed attractor (379 of 400 starts) is a least-squares blend
+of the eight privates to 99.4%, its own residual 3e-15. The sanity checks are necessary and never sufficient; they
+hold identically in the degenerate case. Logged in LESSONS_LEARNED.
+
+**Fixed by the layer, not the chart or the solver.** With the adapter behind a nonlinearity the attack lands from
+random starts: hidden layer 253/400 starts and 8/8 images, head 171/400 and 8/8, and in every landing cell **all
+twenty lowest-residual starts are true landings**, so the attacker can tell which of their starts succeeded without
+ground truth. Wrong-release control (certificate from a release trained on eight *other* images of the same class):
+**0/400**, residual 0.27–0.51 at the original privates.
+
+**It does not need a strong or a weak base model, and it survives the original paper's over-trained regime.** Four
+added-on classes on a pixel MLP of the project's own structure (3072-1000-1000-10 GELU), 200 random starts each:
+keyboard 200/200 (7/8 images), skyscraper 160/200 (8/8), mushroom 157/200 (8/8), **Flowers-102 photographs 163/200
+(8/8)** — the last being a different corpus, not a held-out CIFAR label. Repeating on a backbone **over-trained to
+100.00% train accuracy, train loss 6.8e-4, median margin 9.05** (no augmentation, no weight decay): 179/200 (8/8),
+118/200 (8/8), 99/200 (7/8), 152/200 (7/8). Over-training suppresses what the model already knows and narrows the
+basin, but the new class is exactly what it did not know, so the recovery survives.
+
+**The chart sets fidelity, and the exchange rate is now measured** (ε-oracle ladder, not attacker-available, jobs
+279934–279958): with a chart error of 0 / 5% / 10% / 20% the recovered image reaches SSIM 0.90 / 0.85 / 0.76 / 0.62
+against a chart ceiling of 1.00 / 0.94 / 0.84 / 0.67 and a same-class control of ~0.47. Exact landing needs a chart
+accurate to about 2%; below that, fidelity degrades smoothly rather than failing. **Raw images never land on a
+public chart**, and quantitatively so: their projections sit at residual 0.25 while the blend floor is 0.013.
+
+**Caveat that must travel with the CIFAR numbers:** at k = 32 every image's chart projection is a similar blur, so
+window-3 SSIM does not separate the attack from a same-class control (0.58 vs 0.60 in the head cell). Identification
+there rests on image error (1e-14 against 0.25) and on the residual ranking, not on appearance. Where the chart is
+accurate the visual claim holds (0.90 vs 0.50).
+
+Write-up `experiments/cifar/RESULT.md`; figures `figures/cifar_charts/`, `figures/cifar_newclass/`.
+
+## Record strength is a threshold in exact arithmetic, graded only under reduced precision (2026-09-06; jobs 255095, 255098, 279342)
+
+Re-ran the certificate search start-for-start on the letters (760909/764976) and confident-digit (706721) releases,
+with per-example record strength `σ_i = ‖B_T ã_i‖` saved. **Every landing count reproduces the original jobs
+exactly.** In FP64, σ_i varies over eleven orders of magnitude with no effect on recovery error (all recorded
+examples return at 1e-15 … 2e-5 against a 1e-2 bar; the one unrecorded example sits at 0.48–0.65, with nothing in
+between). What σ_i does track is the basin size, loosely. A graded effect appears only when the release itself is
+inexact: fp32 recovers everything at a degraded residual, bf16 and fp16 recover nothing, while σ_i changes by at
+most 15% across formats. σ_i is predicted by the accumulated softmax residual across 30 orders of magnitude.
+Caveat measured: the cross term from other images' adapter drift is 28–42% of σ_i in the letters cell.
+Write-up `experiments/record_strength/RESULT.md`; figures `figures/record_strength/`.
+
 ## The channel EXISTS and is SPECIFIC in the live regime, on a real pretrained network (2026-09-05, job 307760)
 
 The counting rule said the live cells are single-image personalisation at low position count. Tested there for the

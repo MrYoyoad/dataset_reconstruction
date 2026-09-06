@@ -1,0 +1,15 @@
+measured FPR 0/1000; one-sided 95% upper bound on the per-candidate rate: 2.99e-03
+
+augmentation group              |G|  bound at |G| candidates  reading
+horizontal flip                   2                    0.006  free
+flip x 5-blur family             10                    0.030  cheap
+5x5 crop grid                    25                    0.072  a real cost
+flip x 5x5 crop grid             50                    0.139  a real cost
+flip x crop x blur              250                    0.527  defeats the test
+flip x crop x blur x scale     1250                    0.976  defeats the test
+full RandAugment-scale stack  10000                    1.000  defeats the test
+
+So the multiplier is FREE for a small group and is NOT free for a full stack: the per-candidate rate is
+bounded at ~3e-3 by 1000 non-members, so a few hundred candidates per image already carries a real
+false-positive budget and ~1e4 defeats the test outright. 'Enumerable therefore free' holds only where
+|G| is small. Tightening it needs more non-members, not a better argument: the bound is 1/n-limited.
