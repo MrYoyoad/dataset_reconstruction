@@ -367,7 +367,37 @@ it yields a positive architectural statement the project did not have:
 Checkable before any release exists, **positive rather than prohibitive**, and new. That is a better thing to lead
 with than a rule that only ever forbids.
 
-### A confound that constrains the head-to-head, and my own prediction with it
+### ~~A confound that constrains the head-to-head~~ — WITHDRAWN 2026-09-06, see below
+
+**The paragraph that follows is withdrawn** (approver ruling `f3681a2`, R3-AMENDED, kept beside the original because
+I had already acted on it and relayed it to the user). It is left in place rather than deleted so the correction is
+legible. **What was wrong:** both arms score by per-image union over every candidate slot, not by all-or-nothing per
+start — and the linearised arm contributes 1600 slots against the certificate's 200, so *the arm that lost had eight
+times the draws*. The scoring does not manufacture the certificate's advantage. The approver had read the script's
+docstring and reasoned from it rather than reading the function; the docstring was accurate about the mechanism and
+silent about the metric, which is exactly how prose beside a number misleads.
+
+### Why the head-to-head is still held, on the better reason
+
+Not arity against superposition — the gradient coupling **is** superposition. The live question is whether the
+linearised route fails because **the information is not there** (an alias: residual at the floor, wrong images) or
+because **the search does not converge** (a search failure: residual never reaches the floor). Those are two of the
+four verdicts this project refuses to merge. The reported plateau sits far above a floor that is **zero by
+construction** in the fair form at one training step, so on present evidence it is a **search failure**.
+
+**Narrative consequence, which is mine to rule on and I have.** A search-failure result says only *our solver did not
+converge on their equations at this budget*. A reviewer needs one sentence to dismiss it, and anyone with a better
+solver overturns it. It is weaker than either framing proposed so far and **nothing is to be built on it.**
+
+**And there is a structural conflict of interest in the design that I had not seen.** Making the comparison fair
+requires tuning the *other* method's arm well — and we are the party that benefits if it fails while also controlling
+its configuration. A known solver-side handicap is already on the record: the coefficient block starts at zero and
+the model is linear in it, so the latents receive no gradient at all on the first step, while the certificate arm
+carries no such penalty. **The honest options are therefore: do not make the comparison; or run their arm at their
+published implementation and hyperparameters rather than ours; or report our result alone and cite theirs as
+published.** A comparison we tune both sides of is not evidence about their method, whatever it returns.
+
+### The original (withdrawn) confound paragraph, retained for legibility
 
 The certificate arm is **separable** (one start solves one image; 8 of 8 accumulates over 200 starts); the linearised
 arm is **joint** (one start places all eight at once). Joint success is bounded by the smallest per-image basin, and
