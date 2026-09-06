@@ -31,14 +31,22 @@ times MORE often. Within a backbone: the excitation gap fails to order landings 
 cell with a gap two times higher lands fewer starts. And across corpora: an off-corpus class (SVHN) records
 slightly WEAKER on both measures than same-corpus classes, yet lands 90% of starts against 67%.
 
-What does track recovery in that last comparison is the chart: SVHN's representation error is 0.096 against 0.257,
-and its chart ceiling 0.84 against 0.37. The classes that recover better are the ones the public chart represents
-better, which is the mechanism this study has already established for fidelity and which evidently governs the
-basin too.
-
 **The rule.** Recording strength is a property of the release and a precondition for recovery; it is not a
 predictor of it. Quote it for what it measures — whether the information is there — and never as evidence about how
 well an attack will do.
+
+**What replaces it is NOT established, and two groups cannot establish it.** The classes that recovered better also
+had the better-fitting chart — representation error 0.096 against 0.257, ceiling 0.84 against 0.37 — but those two
+groups differ in corpus, class homogeneity, chart fit and ceiling all at once, so nothing here identifies a
+predictor. Distance from the model's prior is **unmeasured in either direction** until classes matched on chart
+representation error, varying only in corpus, are run. Write that, not an ordering.
+
+**And keep the chart's two jobs apart.** The ε-oracle ladder measured chart error setting **fidelity**, for RAW
+private images, where a chart that cannot represent the target blocks the recovery outright. These cells are
+**on-chart**: the chart contains the private images exactly, so representation error cannot block a landing at all.
+Whatever it does here it does to the **basin** — plausibly because a chart that fits its class tightly draws random
+starts from a distribution concentrated nearer the private images. Two effects of one quantity, with separate
+evidence, and the ladder must not be cited in support of the basin reading.
 
 ## Read the header off the row, because the context is never as matched as it looks (2026-09-06)
 
