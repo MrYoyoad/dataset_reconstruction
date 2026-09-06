@@ -476,3 +476,71 @@ a published argument. Under this lane's own rule that nobody audits their own ro
 (yoado-64) confirms c6's recomputation** before the page is edited. Not because it looks wrong — the ideal blend
 landing exactly on the truths' residual is strong internal evidence it is right — but because a reversal is the
 one direction where a single reader is not enough.
+
+---
+
+## R12 — APPROVE the zero-floor theorem, and it implies something stronger: the two routes have the SAME ZERO SET, exactly
+
+[derived; hypotheses named below. Checked step by step, and offered for checking — I was wrong once today in the
+confident voice.]
+
+**Their argument is correct.** `V^T H = 0` because `V` spans the complement of `col H`, so the untouched Gaussian
+block never appears in `A_T H`:
+```
+        A_T H  =  XΩU^T H + c_T Y V^T H  =  XΩ (U^T H)        hence  col(A_T H) = col(X),
+        B_T    =  P_T X^T                                     hence  row(B_T)   = col(X)   [rank P_T = N]
+```
+Target rows and design columns span the same subspace, so an exact `R` exists at **every** `T`. The floor is zero
+by theorem, and their measurement (2.89e-16 at `T=1`, 8.05e-16 at `T=400`) is a confirmation, not the evidence.
+**The regime-boundary framing is dead, correctly.**
+
+### The stronger statement it implies
+
+`B_T = R G^T` with `G = A_T Ĥ` is solvable in `R` iff `row(B_T) ⊆ col(G)`. With exactly `N` candidates,
+`dim col(G) ≤ N = dim col(X)`, so containment forces **equality**, so every candidate reading lies in `col(X)`,
+i.e. `P_{col(X)^⊥} A_T φ(x̂_i) = 0`. And `P_{col(X)^⊥} A_T` **is the certificate**. Conversely, if every candidate
+is a certificate zero and their readings are independent, the span is `col(X)` and an exact `R` exists. So:
+
+> **The free-coefficient representer model admits an exact fit if and only if every candidate is a zero of the
+> certificate and their readings are linearly independent.**
+
+**The two routes do not merely have degeneracies of the same size — they have the same zero set.** The certificate
+is the *per-candidate* form of the representer condition; the representer is its *joint* form. R8's unification
+was approximate ("essentially the same size, up to which copy of `A`'s kernel appears"); this is exact, and it
+supersedes that wording.
+
+**Hypotheses, all standing and all falsifiable:** `rank P_T = N` (framework hypothesis 3 — if it fails, `row(B_T)`
+is a proper subspace of `col(X)`, `C` is contaminated, and the equivalence weakens rather than reverses); `Ω` and
+`U^T H` invertible; exactly `N` candidates; `B_0 = 0` and step-invariant `H` inherited from closure.
+
+### Two consequences that change what is planned
+
+1. **R9's identifiability comparison will return "identical", by theorem rather than by measurement.** Run the
+   `d∥` computation anyway as a check on the derivation, but the headline is now the equivalence itself, which is
+   a better result than the measurement was going to be: *the two routes are the same test, written per-candidate
+   and jointly.* That is the sharpest possible form of "different questions under different conditions" — they are
+   not even different questions. All of the observed difference is solver and arity, which is exactly what
+   yoado-64's rows show (residual thirteen orders above a floor of `2.89e-16`, i.e. a search failure).
+2. **The one thing the joint form buys is DISTINCTNESS, and it is worth naming.** The equivalence needs the
+   candidate readings *independent*. The certificate, applied per candidate, accepts `N` copies of the same image;
+   the representer cannot. So the representer **structurally enforces coverage** where the certificate must earn
+   it from basin luck — and coverage is exactly the certificate's measured bottleneck (53 of 89 landings on one
+   image; 1–2 of 8 on the pixel layer). **That is a real complementarity rather than a consolation:** the
+   certificate wins the search because it is separable, the representer wins distinctness because it is joint, and
+   the hybrid is to generate candidates with the certificate and then use the representer's independence condition
+   to select a spanning subset. That is the "assemble a joint start" step the chaining plan named and never
+   specified.
+
+### On the proposed 3× verdict bar — do not introduce a second threshold
+
+`derived_verdict.py` already pins `FLOOR_FACTOR = 1.5` over 311 corpus rows. A `3×` bar here would be a **second,
+inconsistent threshold for the same concept**, which is the exact failure the "a threshold must be scoped to the
+physical scale it separates" lesson records, plus its corollary that a fix needing a threshold of its own must not
+fill the gap silently. Required instead:
+- report `residual / floor` as a **raw ratio on every row** — here it is `3.6e13`, and no bar is doing any work;
+- use the existing **1.5** for the verdict field, so the project carries one threshold;
+- mark any row whose ratio lands between the bar and `10×` as **undetermined**, not classified. A verdict that
+  depends on the bar is a verdict we do not have.
+
+Choosing "visibly loose rather than tuned" was the right instinct; the right expression of it is to make the bar
+irrelevant and show that it is.
