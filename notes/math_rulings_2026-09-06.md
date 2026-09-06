@@ -607,3 +607,38 @@ The comparison document is **cleared by this ruling** once the four corrections 
 compute. The headline fix is trivial and already partly done. **The F3 tensor recheck is the only real blocker**,
 and it belongs to yoado-64. If it will not clear quickly, ship the record-strength half alone: it is clean, its
 reproduction gate passes, and its one open item is a caveat rather than a correction.
+
+---
+
+## R12-CORRECTED — yoado-64 checked the identification and found two limits. Both are right, and R12 as committed overstates
+
+I asked them to check the step where I identify the complement projector composed with `A_T` as the certificate.
+They did, and returned two refinements. **Both are correct and both narrow my claim.**
+
+**1. The biconditional needs `N′ = N`, and `N′ < N` is this project's COMMON case, not its edge case.**
+My "only if" direction ran: `dim row(B_T) = N` equals the number of candidates, so containment forces equality,
+so each candidate reading lies in `col(X)`. That forcing **requires `rank P_T = N`**, i.e. every private image
+recorded. With `N′ < N` recorded, `row(B_T)` is only `N′`-dimensional, the design has to cover just that subspace,
+and `N` candidates have room to spare — **so candidates need not be certificate zeros at all.** The "if" direction
+survives (independent certificate zeros span `col(X) ⊇ row(B_T)`, so an exact fit exists); the "only if" does not.
+
+> **Corrected statement.** Certificate zeros with independent readings ⇒ exact representer fit, always.
+> The converse holds **only when every private image is recorded** (`N′ = N`). Below that the routes' zero sets
+> come apart, and the representer's is strictly larger.
+
+This is not a technicality here: the recorded-versus-unrecorded split is the project's own central phenomenon, so
+**the shared-zero-set result is the special case and the divergence is the general one.** R12's headline stands for
+the fully-recorded cells and must carry `N′ = N` wherever it is quoted.
+
+**2. The distinctness advantage is narrower than I claimed, and my "enforces coverage" was wrong.**
+I wrote that the joint form structurally enforces coverage. It does not. `N` **independent blends** of the private
+images satisfy the independence clause *and* are certificate zeros, so they are exact fits. **The representer
+excludes duplicate candidates; it does not exclude blends, and it does not escape superposition.** Coverage is not
+bought. Withdraw "structurally enforces coverage" and replace with "excludes duplicates".
+
+The hybrid construction in consequence 2 survives, but for a smaller reason: it removes the certificate's
+duplicate-landing waste, not its blend exposure.
+
+**Process note.** This is the check working in the direction it is supposed to: I derived R12 an hour after being
+wrong in the same register, flagged it as underchecked, asked the owner to verify, and two of its three claims came
+back narrowed. The refinements are theirs and are recorded as theirs.
