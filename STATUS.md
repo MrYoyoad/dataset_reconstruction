@@ -4211,3 +4211,29 @@ could never be inherited by replay — and it does not transfer. Identifiability
 release, the chart **and the route** together: the same chart that makes one channel provably blind
 leaves the other exact. This is why the "cannot identify by EITHER route" form was refused for the
 published page; it would have been false.
+
+## 2026-09-06 (final) — The dedup stop signal is cut-independent: it is an instrument, not a number
+
+Job **335734** (`results/exact_inversion/step126_verified_335734.jsonl`), required by R16 before the
+cluster count could be quoted as an instrument. Dedup run at four tolerances, order stated in the row
+as ascending final objective.
+
+| top-k | precision | distinct images | clusters at tol 3e-3 / 1e-2 / 3e-2 / 1e-1 |
+|---|---|---|---|
+| 1–30 | 1.000 | 1 | 1 / 1 / 1 / 1 |
+| 50–60 | 1.000 | 2 | 2 / 2 / 2 / 2 |
+| 150–300 | 1.000 | 5 | 5 / 5 / 5 / 5 |
+| 750 | 1.000 | 7 | 7 / 7 / 7 / 7 |
+| 1500 | **0.648** | 8 | **225 / 222 / 212 / 200** |
+
+**Answer: the elbow does not move.** Over a 33× span of tolerance the count is identical integer for
+integer wherever precision holds, and blows up at every tolerance where it breaks. The mechanism is
+that genuine attractors sit O(1) apart while duplicates sit at 1e-15, so the entire ladder falls inside
+that gap and there is no cut to choose. The stop signal is a property of the attack.
+
+**Limitation, stated because the grid does not resolve it.** The k grid steps 750 → 1500, so the elbow
+is bracketed to that interval rather than located within it. Tolerance-independence is fully supported
+at every k tested; the elbow's precise position is not measured.
+
+**How to use it (attacker-side, no ground truth, no labels, no batch size):** widen the window, count
+your own clusters, stop when the count explodes.
