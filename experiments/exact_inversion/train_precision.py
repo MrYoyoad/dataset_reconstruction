@@ -476,14 +476,23 @@ def main():
                 # (2) starts to first landing on each image, reported at its MAX over images. Breadth is a coupon
                 #     collector with unequal probabilities, so the cost of the full set is set by the RAREST image,
                 #     never the mean. Monotone in the budget, and it carries its budget by construction.
-                dedup = {}
-                for kk in sorted(x for x in kgrid if 1 <= x <= len(ranked)):
-                    reps = []
-                    for d in ranked[:kk]:
-                        xh = d["xhat"]
-                        if not any(float(torch.linalg.norm(xh - q) / torch.linalg.norm(q)) < 1e-2 for q in reps):
-                            reps.append(xh)
-                    dedup[str(kk)] = len(reps)
+                # The count is computed at a TOLERANCE in a stated ORDER, so both are part of the definition
+                # and the elbow's position could be an artefact of the cut (R16). Ladder it: if the k at which
+                # the count explodes moves with the tolerance, the stop signal is a property of the chosen cut
+                # and must be quoted with it. Order is ascending final objective -- the attacker's own ranking,
+                # the same one they already sort by -- not an implementation detail.
+                def dedup_at(tol):
+                    out = {}
+                    for kk in sorted(x for x in kgrid if 1 <= x <= len(ranked)):
+                        reps = []
+                        for d in ranked[:kk]:
+                            xh = d["xhat"]
+                            if not any(float(torch.linalg.norm(xh - q) / torch.linalg.norm(q)) < tol for q in reps):
+                                reps.append(xh)
+                        out[str(kk)] = len(reps)
+                    return out
+                dedup_ladder = {f"{tol:g}": dedup_at(tol) for tol in (3e-3, 1e-2, 3e-2, 1e-1)}
+                dedup = dedup_ladder["0.01"]
                 first_landing = {}
                 for i in recorded:
                     hit = next((s for s, d in enumerate(runs) if d["landed"] and d["nearest"] == i), None)
@@ -519,6 +528,8 @@ def main():
                             per_start_landed=[bool(d["landed"]) for d in runs],
                             per_start_nearest=[int(d["nearest"]) for d in runs],
                             dedup_clusters_at_k=dedup,
+                            dedup_clusters_ladder=dedup_ladder,
+                            dedup_order="ascending final objective (the attacker's own ranking)",
                             starts_to_first_landing_per_image=first_landing,
                             starts_to_cover_all_recorded=starts_to_all,
                             breadth_note="fixed-k distinct_images is NOT an attacker statistic: the top-k window is "
