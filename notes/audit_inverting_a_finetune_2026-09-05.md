@@ -293,10 +293,18 @@ All of it is existence, none of it is magnitude.
   attacker's chart*, exact to machine precision, while that projection sits far from the raw image.
   **Recognisability was never assessed.** This is the load-bearing gap: if reaching a chart floor never yields
   something a person would identify, every theorem survives and the privacy framing does not.
-- **That self-verification survives realistic arithmetic.** Train the same letters in FP32 rather than FP64 and
+- ~~**That self-verification survives realistic arithmetic.** Train the same letters in FP32 rather than FP64 and
   16.2% of starts still land at `k=32` while **none** reach the floor. Audited against the correct per-image
   floor, the lead cell gives ~3% certifiable against ~29.7% landing. Found and attacker-confirmable come apart
-  exactly where the arithmetic gets realistic.
+  exactly where the arithmetic gets realistic.~~
+  **RESOLVED — this is now MEASURED and the bullet is withdrawn (2026-09-06, jobs 303157/304540).** Two floor
+  definitions were doing the damage. "None reach the floor" used the historical *absolute* 1e-20 cut, which no
+  FP32-trained release can reach by construction; and the "correct per-image floor" was still scored against a
+  cell-global bar spanning three orders, not against the floor of the image each start landed on. Rescored per
+  landed image, with the 1.5× factor validated from the truth rather than assumed (`factor_transfers: true`,
+  worst image at 0.68 of its own bar), the same FP32 cell over 3000 starts gives **32.40% certifiable against
+  32.40% landing** — 972 and 972, `floor_not_landed` 0, `landed_not_floor` 0. Found and attacker-confirmable do
+  not come apart under realistic arithmetic; they coincide exactly.
 - **Scale.** MLP heads, `N ≤ 14`, one real-network cell at a single private example.
 
 ### The chaining question, split by what is provable

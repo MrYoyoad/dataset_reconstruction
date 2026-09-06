@@ -291,6 +291,14 @@ path, disjoint index files).
 - The attacker needs: the release, the public base model, a public chart. NOT the recipe, labels, N, or a
   start near the truth. Chart error 0.235 at k=32 → **instance-level** (self top-1 0.94 on held-out).
 
+> **✅ SUPERSEDED 2026-09-06 — the attacker arm is now measured (jobs 303157 / 304540 / 319712 / 335734).** The
+> caution below was right when written and is kept for provenance; it is no longer the state. Scored against each
+> image's own achievability floor, with the factor validated from the truth, the FP32 cell gives 32.40%
+> certifiable against 32.40% landing over 3000 starts with no disagreement in either direction, and blind ranking
+> by residual alone is exact at the top (precision 1.000 to k=50) against a 0.000 disjoint-release null and a
+> 0.324 base rate. What remains genuinely open is **breadth**, not verifiability: the eighth image arrives only
+> where precision falls to 0.648. See the 2026-09-06 entries at the end of this file.
+>
 > **⚠ AUDIT STATUS — 2026-09-05 (genuineness, yoado-b2; job 394731, cross-checked at source). The "all eight found"
 > figures above are EXPERIMENTER ground truth, NOT an attacker-verifiable result.**
 > All eight recorded and recovered (experimenter, ground truth): 300 random starts, 29.7% landing on a recorded
