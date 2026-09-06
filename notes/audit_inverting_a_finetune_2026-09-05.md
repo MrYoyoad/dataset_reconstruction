@@ -322,3 +322,56 @@ statement that makes a framework look like a framework rather than a single tric
 *Not* "we have a criterion". **"We have a derived condition that has predicted correctly everywhere it has been
 tested, including on a real pretrained model, and small-scale existence demonstrations that the channel it
 predicts can be read and checked from nothing. Whether what comes back is an image is the next measurement."*
+
+
+## 8. The pitch after the A8 ruling (2026-09-06) — supersedes §6's "what to lead with"
+
+Ruled by the math/science approver (yoado-0a) in `notes/math_rulings_2026-09-06.md`, R1 and R8. Three of my own
+claims were corrected; the net effect **strengthens** the pitch, and §6 above now over-promises in one specific way.
+
+### What was wrong in my derivation, recorded because I relayed it
+
+- **"The representer route's degeneracy is strictly larger."** Wrong. The two zero sets are essentially the same
+  size; their kernels differ only by training drift in `A`, and **neither contains the other** — the certificate
+  *discards* the per-image error-size conditions the representer keeps and gains kernel slack in exchange. The
+  unification is the **shared breaker**, not a size comparison.
+- **"Free parameters that can absorb a recombination."** Hand-waving until named. The well-posed quantity is the
+  **local degeneracy dimension at the truth**: `dim ker` of the Jacobian of the full residual w.r.t. all unknowns,
+  evaluated at ground truth, modulo permutations. It is already `d_parallel` from primitive 2. One SVD, either route.
+- **The oracle-coefficient arm is not a sound discriminator.** It removes gauge, scale and conditioning together,
+  so a success is unattributable; the scale confound is live; and its own floor is worse than the free arm's above
+  `T=1`. Replaced by three oracle-free tests: `N=1` vs `N=2` at `T=1` (superposition empty at `N=1`,
+  misspecification zero at `T=1`, so the contrast isolates superposition), a direct measurement of `d_parallel`,
+  and fitting the returned points in the span of the truths so superposition is **observed** rather than inferred
+  from a failure.
+
+### What survived, and is now a lemma
+
+Both routes' zero sets are *the private span, plus a kernel, intersected with the chart*, and **one condition breaks
+both**: the chart meets the private span only at the private points. That is **A8**. A defence satisfying it closes
+both routes at once; a setting violating it defeats both.
+
+### THE CORRECTION THAT CHANGES THE PITCH
+
+**The counting rule is ONE-SIDED.** It is sound when it says the channel is **closed** and **silent** when it says
+open, because closure needs A8 as well. §6 calls it "the defender's meter"; as written that promises more than it
+delivers, and a defender who checks their configuration, reads "open", and relaxes has been misled.
+
+This is not a demotion. A8 is *also* architecture-checkable, so **the tool becomes two checks rather than one**, and
+it yields a positive architectural statement the project did not have:
+
+> An adapter on the **input layer** read through a **linear chart** is provably non-identifying for two or more
+> images **by either route**. Identifiability begins when a nonlinearity separates the chart from the adapted
+> layer's input.
+
+Checkable before any release exists, **positive rather than prohibitive**, and new. That is a better thing to lead
+with than a rule that only ever forbids.
+
+### A confound that constrains the head-to-head, and my own prediction with it
+
+The certificate arm is **separable** (one start solves one image; 8 of 8 accumulates over 200 starts); the linearised
+arm is **joint** (one start places all eight at once). Joint success is bounded by the smallest per-image basin, and
+measured basins are skewed from 53/89 down to 1/89, so the product over eight is ~1e-6 or worse. **`0 of 8` from 200
+joint starts is expected even with perfectly identifying equations.** Superposition and arity predict the same row.
+So my expectation that the linearised route fails at `T=1` from superposition may be registered as primary **only
+with the `N=1` control attached**; registered bare it cannot be falsified by the run meant to test it.
