@@ -144,10 +144,32 @@ Readings:
   (chart floor SSIM 0.59 against 0.58), which for a nonlinear decoder with far more capacity is itself a sign
   of an undertrained chart rather than a limited one. What fails is the search, not the expressiveness: with
   on-chart privates an exact latent exists in both charts by construction, and only the linear one is reached.
-  **Measured, ONE SEED, replicates running (seeds 2 and 3 at each budget).** Training the autoencoder sixteen times
-  longer does not close the gap and past a point reverses it: landings go 48, 70, 10 of 400 at 40, 160 and 640
-  epochs, against the linear chart's 253 of 400. So the gap is not a training shortfall — but a non-monotonic curve
-  on a single draw is not a finding, and nothing here may be quoted until the replicates land.
+  **Measured across three seeds and three training budgets, nine cells** (seed 0 was the peer's original run; seeds
+  2 and 3 are replicates at identical settings). Landings out of 400, with images found:
+
+  | autoencoder epochs | seed 0 | seed 2 | seed 3 | mean landed | mean chart-Jacobian conditioning |
+  |---|---|---|---|---|---|
+  | 40 | 48 (5/8) | 162 (8/8) | 122 (7/8) | 111 | 4.28 |
+  | 160 | 70 (6/8) | 151 (7/8) | 176 (7/8) | 132 | 4.72 |
+  | 640 | 10 (5/8) | 42 (6/8) | 78 (7/8) | 43 | 5.90 |
+  | **linear PCA chart** | **253 (8/8)** | | | **253** | **1.00 by construction** |
+
+  Two things replicate and one does not, and the difference matters:
+
+  - **The gap to the linear chart survives every budget and every seed.** All nine learned-chart cells sit below
+    the linear chart's 253 of 400, the best reaching 176, and none recovers all eight images where the linear chart
+    does. So the gap is *not* a training shortfall — which is the question that was asked, and it is answered.
+  - **Training sixteen times longer actively hurts.** 640 epochs is worse than 40 in three of three seeds and worse
+    than 160 in three of three. Robust.
+  - **The peak at 160 is withdrawn.** It rises from 40 in only one of three seeds, and the seed-to-seed spread at a
+    fixed budget (48 to 162 at 40 epochs) is larger than the difference between budgets. The single-seed run that
+    suggested a sevenfold collapse drew the lowest cell of all three triples; the robust fall from the best budget
+    to the longest is about threefold, not sevenfold.
+  - **The chart's Jacobian conditioning rises monotonically with training in all three seeds**, 4.28 to 4.72 to
+    5.90 on average against exactly 1.00 for the linear chart. It is the only measured quantity that moves with the
+    budget in every seed. It remains a **correlate and not a cause**: it rises 1.4-fold where the landings fall
+    2.6-fold, which is a poor quantitative match, and the reading that learned decoders are *badly* conditioned in
+    absolute terms is false at every budget.
 
   Two things the collapsed cell rules out. The exact zeros are still present and reachable at 640 epochs (residual
   at the truths 5e-15, isolation test full rank 32 of 32 at every private image, five images returned at 1e-14),
