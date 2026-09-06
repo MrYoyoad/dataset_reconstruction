@@ -28,8 +28,7 @@ threshold of 1e-2, and every unrecorded one is at 0.48 … 0.65 — no intermedi
 track σ_i: the four weakest recorded examples (σ_i = 4e-10 … 5e-5) come back at errors 4e-8 … 1e-12, better than or
 equal to examples five orders stronger. What varies with σ_i is not the error but the **basin**, and even that only
 loosely, and stated without a statistic because eight points do not support one: the k = 6 example at σ_i = 0.43
-draws 414 of 2000 starts, the one at
-σ_i = 1.2e-5 draws 11).
+draws 414 of 2000 starts and the one at σ_i = 1.2e-5 draws 11.
 
 **Graded behaviour appears only when the release is not exact.** Same eight letters, same chart, releases trained in
 different formats:
