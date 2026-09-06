@@ -26,6 +26,9 @@ Levenberg-Marquardt on ||C phi(G(z))|| / ||A_T phi(G(z))|| from random starts at
 
 New classes (--newclass), chosen to be visually alien to CIFAR-10:
     cifar100:<name|idx>   any CIFAR-100 fine class -- e.g. keyboard, skyscraper, mushroom, clock, lobster
+    fashion:<name>        a FashionMNIST class rendered at 32x32x3 -- sneaker, ankle_boot, bag, sandal, trouser and
+                          the rest. NOT in CIFAR-10 or CIFAR-100 at all: a different corpus, a different domain, and
+                          a distinctive asymmetric silhouette rather than the keyboard's repetitive texture
     flowers102            Flowers-102 photographs downsampled to 32x32 (a different corpus, not just a new label)
 
 Controls in every run: certificate sanity (||CH||, quotient form, rank C, excitation gap); residual at the truths
@@ -65,6 +68,31 @@ def load_cifar100_class(root, name):
         lab = np.array(b[b"fine_labels"]); X = b[b"data"].astype(np.float32) / 255.0
         out[split] = X[lab == idx]
     return out, names[idx]
+
+
+FASHION = ["t_shirt", "trouser", "pullover", "dress", "coat", "sandal", "shirt", "sneaker", "bag", "ankle_boot"]
+
+
+def load_fashion(root, name):
+    """A FashionMNIST class as a CIFAR-shaped added-on class: 28x28 grey -> 32x32, replicated to 3 channels,
+       flattened channel-major so it drops straight into the CIFAR-10 pipeline. Nothing in CIFAR-10 or CIFAR-100 is
+       footwear, a bag or a garment, so this is a class from OUTSIDE the corpus the backbone was built from -- and
+       unlike a keyboard it has a distinctive asymmetric silhouette that a reader can identify at a glance."""
+    import torch.nn.functional as Fn
+    idx = FASHION.index(name) if not str(name).isdigit() else int(name)
+    d = os.path.join(root, "FashionMNIST", "raw")
+    out = {}
+    for split, ip, lp in (("train", "train-images-idx3-ubyte", "train-labels-idx1-ubyte"),
+                          ("test", "t10k-images-idx3-ubyte", "t10k-labels-idx1-ubyte")):
+        with open(os.path.join(d, ip), "rb") as f:
+            f.read(16); img = np.frombuffer(f.read(), dtype=np.uint8).reshape(-1, 28, 28)
+        with open(os.path.join(d, lp), "rb") as f:
+            f.read(8); lab = np.frombuffer(f.read(), dtype=np.uint8)
+        sel = img[lab == idx].astype(np.float32) / 255.0
+        t = torch.tensor(sel)[:, None]                                                  # (n,1,28,28)
+        t = Fn.interpolate(t, size=(32, 32), mode="bilinear", align_corners=False)
+        out[split] = t.expand(-1, 3, -1, -1).reshape(len(t), -1).numpy().astype(np.float64)
+    return out, f"fashion_{FASHION[idx]}"
 
 
 def load_flowers102(root, n_public=2000, n_private=64, seed=1):
@@ -184,6 +212,11 @@ def main():
     ap.add_argument("--train-gate", type=float, default=None, help="minimum TRAIN accuracy: 'fully trained' means converged on its own training set. The gate exists to catch an UNTRAINED backbone, not to demand memorisation; the pixel MLP reaches 93.6% train / 57.9% test and the conv net ~99% / ~88%.")
     ap.add_argument("--ckpt", default=None)
     ap.add_argument("--data-root", default="data"); ap.add_argument("--flowers-root", default="data")
+    ap.add_argument("--fashion-root", default="dataset_reconstruction/data")
+    ap.add_argument("--degrade28", action="store_true", help="RESOLUTION CONTROL: put the public and private images through "
+                    "32 -> 28 -> 32 bilinear, the same path the FashionMNIST classes travel. The off-corpus cells differ from "
+                    "the CIFAR-100 cells in resolution history as well as in domain, and this cell removes that confound so a "
+                    "difference can be attributed to domain alone.")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", default=None); ap.add_argument("--save-dir", default="results/cifar_newclass"); ap.add_argument("--fig-dir", default="figures/cifar_newclass")
     a = ap.parse_args(); dev = torch.device(a.device)
@@ -201,9 +234,15 @@ def main():
     for p_ in net.parameters(): p_.requires_grad_(False)
 
     if a.newclass.startswith("cifar100:"): pool, cname = load_cifar100_class(a.data_root, a.newclass.split(":", 1)[1])
+    elif a.newclass.startswith("fashion:"): pool, cname = load_fashion(a.fashion_root, a.newclass.split(":", 1)[1])
     elif a.newclass == "flowers102": pool, cname = load_flowers102(a.flowers_root, seed=a.seed)
     else: raise ValueError(a.newclass)
     Pub = torch.tensor(pool["train"], dtype=torch.float64, device=dev); Pri = torch.tensor(pool["test"], dtype=torch.float64, device=dev)
+    if a.degrade28:
+        rt = lambda X: F.interpolate(F.interpolate(X.reshape(-1, 3, 32, 32), size=(28, 28), mode="bilinear", align_corners=False),
+                                     size=(32, 32), mode="bilinear", align_corners=False).reshape(len(X), -1)
+        Pub, Pri = rt(Pub), rt(Pri); cname = cname + "_28roundtrip"
+        log(f"# RESOLUTION CONTROL: public and private images sent through 32 -> 28 -> 32, matching the footwear cells' path")
     g = torch.Generator().manual_seed(a.seed + 7); sel = torch.randperm(Pri.shape[0], generator=g)[: 2 * a.N]
     X_raw = Pri[sel[: a.N]].T.contiguous(); X_other = Pri[sel[a.N:]].T.contiguous()          # the wrong-release control's images
     m, n = 11, net.head.weight.shape[1]

@@ -203,6 +203,33 @@ suppresses what the model already knows, and the new class is precisely what it 
 Flowers-102 is the strongest form of the claim, because the private images are photographs from a different corpus
 downsampled to 32×32, not merely a held-out CIFAR label.
 
+## 3c. PRE-REGISTERED: distance from the model's prior, as a controlled axis (jobs 335732, 335733, and the resolution control)
+
+Two ends of one axis, everything else matched — same backbone, same rank, same batch size, same chart construction,
+same starts:
+
+- **near end**, held-out labels from the same corpus the backbone's classes come from: motorcycle, lawn mower,
+  tractor, lobster (CIFAR-100, natural photographs at native resolution).
+- **far end**, a different corpus *and* a different domain: sneaker, ankle boot, bag, sandal (FashionMNIST, which
+  contains nothing CIFAR-10 or CIFAR-100 has).
+
+**Prediction, recorded before the rows exist.** The imprint law says a model records most strongly what it had least
+capacity to explain, so the far end should record *more* strongly: its certificate residual at the private images
+should be **lower** than the near end's at matched rank, chart dimension and batch size. If recovery is instead
+comparable at both ends, distance from the model's prior barely matters, which is the more surprising outcome and
+the more useful one.
+
+**A confound named in advance, and its control.** The far end reaches 32×32 by bilinear upsampling from 28 pixels,
+so the two ends differ in *resolution history* as well as in domain, and interpolation smoothness plausibly flatters
+a PCA chart — which matters because this study has already established that the chart is what sets fidelity. Any
+difference therefore cannot be attributed to domain alone. The control is a CIFAR-100 class sent through the same
+32 → 28 → 32 path (`--degrade28`); it is running, and the domain claim stands only on the comparison against it.
+
+**Why the far end is not the headline.** Its entire scientific increment over the Flowers-102 cell, which already
+gives the different-corpus result with natural photographs, *is* the domain shift — and that is precisely what
+invites "the private data was trivially separable from anything the model knew". The marginal science and the
+marginal liability are the same thing, so the near end leads and the far end calibrates the axis.
+
 ## 4. A caveat on SSIM that matters for how this is presented
 
 In the on-chart head cell the attack's SSIM against the raw image (0.58) equals the chart ceiling (0.58) and is *not*
