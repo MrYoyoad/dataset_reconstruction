@@ -242,6 +242,19 @@ def isolation_rank(z1):
     f = lambda w: (phi(G(w.reshape(1, -1))) @ C.T).reshape(-1)
     sv = torch.linalg.svdvals(tfn.jacrev(f)(z1).detach())
     return int((sv > 1e-10 * sv[0]).sum()), float(sv[-1] / sv[0])
+# CHART-JACOBIAN CONDITIONING, the quantity that separates a chart's CAPACITY from its usability by a search.
+# For PCA the decoder is affine with orthonormal columns, so its Jacobian is an isometry and cond = 1 at every
+# latent. For a learned decoder the conditioning varies with the latent, and a search stepping in latent space is
+# then badly scaled wherever it is large -- which more training need not fix.
+def chart_cond(z1):
+    J = tfn.jacrev(lambda w: G(w.reshape(1, -1)).reshape(-1))(z1).detach()
+    sv = torch.linalg.svdvals(J)
+    return float(sv[0] / sv[-1].clamp(min=1e-300)), float(sv[-1])
+z_truth = enc(H_proj) if args.chart == "ae" else enc(H_proj)
+cond_truth = [chart_cond(z_truth[i]) for i in range(args.N)]
+cond_found = [chart_cond(Z[j]) for j in order[:20].tolist()]
+print(f"chart Jacobian conditioning at the private latents: cond {[f'{c:.1f}' for c, _ in cond_truth]}")
+print(f"chart Jacobian conditioning at the top-20 starts   : median cond {float(np.median([c for c, _ in cond_found])):.1f}")
 iso_best = [isolation_rank(Z[best_idx[i]]) for i in range(args.N)]
 iso_top = [isolation_rank(Z[j]) for j in order[:20].tolist()]
 print(f"isolation test at the closest start per image: ranks {[r for r, _ in iso_best]} of k={args.k} "
@@ -258,6 +271,8 @@ res = dict(layer=args.layer, chart=args.chart, solver=args.solver, private=args.
            min_err_per_image=err.min(0).values.tolist(), best_ssim_vs_train=best_ssim.tolist(), best_ssim_vs_raw=raw_ssim.tolist(),
            chart_floor_ssim=floor_ssim.tolist(), chart_floor_ssim_vs_raw=floor_ssim_raw.tolist(), control_ssim=ctrl_ssim.tolist(), residual_best_per_image=[float(R[j]) for j in best_idx.tolist()],
            residual_min=float(R.min()), residual_median=float(R.median()), collapse=collapse, top20_by_residual_landed=top,
+           chart_cond_at_truths=[c for c, _ in cond_truth], chart_cond_at_top20_median=float(np.median([c for c, _ in cond_found])),
+           chart_sigma_min_at_truths=[v for _, v in cond_truth], ae_epochs=args.ae_epochs,
            isolation_rank_per_image=[r for r, _ in iso_best], isolation_smin_ratio_per_image=[v for _, v in iso_best],
            isolation_full_rank_top20=sum(1 for r, _ in iso_top if r == args.k),
            isolation_note="one-sided: full column rank (k) certifies the zero is isolated; deficient rank certifies nothing",

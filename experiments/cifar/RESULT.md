@@ -138,8 +138,25 @@ fix). Full table: `figures/cifar_charts/table.md`; one figure per cell in `figur
 | **head, WRONG-RELEASE control** | public PCA k=32 | on-chart | **0/400** | **0/8** | 0/20 | 1.8e-2 |
 
 Readings:
-- **A linear chart beats a learned one.** PCA reaches the exact zero (median start residual 1e-14, i.e. most starts
+- **At this training budget, a linear chart beats a learned one — and the cause is untested.** PCA reaches the exact zero (median start residual 1e-14, i.e. most starts
   converge to a true zero); the conv-AE decoder stalls three orders higher. The same was true on MNIST.
+  **Scope.** The autoencoder here is trained 40 epochs, and its representation ceiling is at parity with PCA's
+  (chart floor SSIM 0.59 against 0.58), which for a nonlinear decoder with far more capacity is itself a sign
+  of an undertrained chart rather than a limited one. What fails is the search, not the expressiveness: with
+  on-chart privates an exact latent exists in both charts by construction, and only the linear one is reached.
+  **Measured, ONE SEED, replicates running (seeds 2 and 3 at each budget).** Training the autoencoder sixteen times
+  longer does not close the gap and past a point reverses it: landings go 48, 70, 10 of 400 at 40, 160 and 640
+  epochs, against the linear chart's 253 of 400. So the gap is not a training shortfall — but a non-monotonic curve
+  on a single draw is not a finding, and nothing here may be quoted until the replicates land.
+
+  Two things the collapsed cell rules out. The exact zeros are still present and reachable at 640 epochs (residual
+  at the truths 5e-15, isolation test full rank 32 of 32 at every private image, five images returned at 1e-14),
+  so this is neither a loss of identifiability nor a degeneracy: the solutions are intact and the search stops
+  finding them, the same shape as the one failing MNIST cell. And the decoder's Jacobian conditioning is small at
+  every budget — 4.1, 4.3, 6.0 against exactly 1.0 for PCA by construction — so the original "learned decoders are
+  badly conditioned" reading is wrong in absolute terms. It is the only measured quantity that moves monotonically
+  with training while the landings peak and fall, which makes it a **correlate and not a cause**: it rises 1.5-fold
+  where the landings fall sevenfold, and that is a poor quantitative match.
 - **The basin shrinks toward the capacity line.** At k=48, eight below the certificate line `r − N = 56`, landings
   fall from 253 to 84 (hidden layer) and 171 to 50 (head), with images found falling from 8 to 7 and 6.
 - **The attacker's own ranking is perfect wherever anything lands**: in every landing cell all twenty
