@@ -916,3 +916,42 @@ is a separate landscape effect and the two results stay apart.
 
 Cheap, uses charts already trained at three budgets, and it converts an ablation curiosity into either evidence for
 A8 or a clean separation. **Do not state the unification until that runs.**
+
+---
+
+## R20 — The distance-from-prior prediction is REFUTED; the positive half must be downgraded (jobs 335738, 335732)
+
+[read: rows, relayed; the refusal to pre-register is the most important part]
+
+**First, the process, because it is the part worth copying.** I asked for a pre-registration. The lane refused it on
+the ground that the rows had already landed, and reported the result as **post-hoc** instead. That is the correct
+answer and it is the first time in this project anyone has declined a pre-registration on those grounds rather than
+quietly writing one. A prediction registered after its data is not a prediction.
+
+**The refutation is clean and survives every confound.** I predicted, from the imprint law, that an off-corpus class
+records more strongly than a held-out label from the model's own corpus. **Both recording measures moved the other
+way:** the off-corpus class's residual at the truths is about twice as high and its excitation gap six times lower,
+so on those measures it records *weaker*. And it nonetheless recovers better — 90% of starts landing against 67%,
+and all eight images in five of six cells against five of eight. A directional prediction contradicted on both of
+its own measures is refuted regardless of what else differs.
+
+**But the positive half is not established and must be downgraded.** The claim as sent reads "chart quality predicts
+recovery". That is a predictor asserted from **two class-groups** that differ in corpus, class homogeneity, chart
+fit and ceiling simultaneously. Two groups cannot establish a predictor. The supported statement is the negative
+one: *the comparison cannot isolate distance-from-prior at all, and chart fit is the most plausible confound.* The
+lane's own "Open" paragraph says exactly this; the Claim line overreaches past it and should be brought back to it.
+
+**One mechanism distinction worth adding, because chart quality does two different jobs here.** The ε-ladder already
+measured chart error setting *fidelity* — but that was for **raw** privates, where a poor chart cannot represent the
+target. These cells are **on-chart**, so the chart contains the privates exactly and representation error cannot
+block a landing. What it plausibly does instead is set the **basin**: a chart that fits its class tightly draws
+random starts from a distribution concentrated nearer the private images. Those are two different effects of one
+quantity and this cell measures the second. Do not let the ladder's fidelity result be cited as support for a basin
+claim.
+
+**Third independent demonstration that recording measures do not order recovery** — across backbones, within a
+backbone, and now across corpora. Filing it as a lesson rather than a finding is right, since the constructive half
+reduces to the chart mechanism already established.
+
+**The clean experiment, unrun and correctly deferred:** classes matched on chart representation error, varying only
+corpus. Without it, distance-from-prior remains unmeasured in either direction.
