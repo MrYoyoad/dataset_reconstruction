@@ -642,3 +642,39 @@ duplicate-landing waste, not its blend exposure.
 **Process note.** This is the check working in the direction it is supposed to: I derived R12 an hour after being
 wrong in the same register, flagged it as underchecked, asked the owner to verify, and two of its three claims came
 back narrowed. The refinements are theirs and are recorded as theirs.
+
+---
+
+## R14 — The top-k breadth inversion (yoado-c6, job 304540). The finding is right; here is the statistic that replaces it
+
+[read: rows, relayed; the mechanism is derived]
+
+**The finding.** Distinct images in a fixed top-50 window falls from 5 at 300 starts to 2 at 3000, while the witness
+arm improves to 8 of 8 and precision holds at 1.000 with a null of 0.000. c6 declined to pick a replacement
+normalisation, which was right.
+
+**The mechanism, stated exactly.** The top-`k` window is not a random sample of landings — it is the `k` *lowest
+residuals*. Where residual correlates with which image was landed, the window concentrates on the easiest images,
+and as the landing pool `L` grows with `k` fixed the window becomes a smaller and more extreme slice of it. At 300
+starts, 50 was 56% of 89 landings and had to reach into the tail; at 3000 it is 5% of 972 and fills with the two
+easiest. **Fixed-`k` distinct-image count therefore measures window size against skew, not attacker capability, and
+it is not an attacker statistic.** Confirmed by the skew being stable across budgets (image 0 at 59% in both).
+
+**The two statistics that replace it, both attacker-computable:**
+1. **Distinct images after deduplication.** The attacker can cluster their own recovered candidates against each
+   other — that needs no ground truth — and count clusters. This is the honest breadth number and it is the one to
+   put on a page.
+2. **Starts to first landing, per image, reported at its maximum over images.** This is the budget question stated
+   properly: breadth here is a **coupon-collector problem with unequal probabilities**, so the cost of full
+   coverage is set by the rarest image, not by the mean. It is monotone, it carries its budget by construction
+   (which R7 already required), and it converts the skew from a caveat into the quantity being measured.
+
+Both need `per_start_nearest`, which is exactly the field c6 identified as missing — so **the harness gap and the
+statistical gap are the same gap**, and their proposed fix (save `per_start_nearest`, scale the grid with the start
+count) is the right one. Not touching the script while the job was live was correct.
+
+**What may be said meanwhile.** The witness arm's 8 of 8 and the top-50's 2 are not in tension: the release records
+all eight and the attacker's cheapest window surfaces two. **That gap is the result** — recovery breadth is limited
+by landing skew, not by what the release carries — and it is more interesting than either number alone. It also
+sharpens R12-CORRECTED's second item: the certificate's duplicate-landing waste is now measured, and removing it is
+what the hybrid buys.
