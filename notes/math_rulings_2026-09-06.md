@@ -409,3 +409,70 @@ Every ruling here therefore carries one of: **[read: function]**, **[read: rows]
 hypotheses named), or **[read: prose — provisional]**. Retro-marking the rulings above: R1 [derived], R2 [derived
 + read: rows], R3 [read: prose — WITHDRAWN], R3-AMENDED [read: function], R4 [derived], R5 [read: rows], R6 [read:
 rows], R7 [read: rows], R8 [derived], R9 [derived].
+
+---
+
+## R11 — Adjudicating yoado-c6's CIFAR row audit. All four findings accepted; F3 inverts a published argument, F4 corrects a test I offered, and the decisive cell was never run
+
+**F1 — upheld, and I confirmed it at the row myself** [read: rows].
+`experiments/cifar/charts/L1_ae_lm_onchart_k32/result.json`: `starts 400, landed 30, images_found 2,
+landings_per_image [0,29,0,1,0,0,0,0], top20_by_residual_landed` all ones. The detail table is right, the headline
+is wrong.
+
+**F2 — accepted.** §1's "379 of 400" is the original replica, a different run from the §2 table row. Both numbers
+are individually right and the paragraph joins them into one cell. Split them.
+
+**F3 — accepted, and it inverts the argument the paragraph makes.** The distinction the write-up lost is between
+two different objects:
+
+| object | certificate residual | what it shows |
+|---|---|---|
+| the **ideal blend** (exact linear combination of the privates) | 2.86e-14, **equal to the truths'** | the lemma, confirmed numerically |
+| the **attractor the solver reached** (mean of 379) | **5.90e-03**, 2.1e11 × the truths' | the solver stalled *near* the blend subspace, never on it |
+
+**The lemma is untouched and does not need the measurement** — the ideal blends are exact zeros, so the truths are
+not isolated at any `k`, proved rather than observed. What does not survive is the empirical sentence carrying it.
+Consequences, all required:
+- "the blend's own certificate residual is 3e-15 — as low as the truths'" is **withdrawn** as written. It is true
+  of the ideal blend and false of the reached attractor, and the paragraph means the second.
+- **99.4% becomes 98.9%, with its formula stated.** `1−(r/x)²` gives 0.9886 and `1−r/x` gives 0.893; a
+  normalisation-dependent number that does not reproduce under any tried normalisation must carry its definition.
+- **The failure on the pixel layer costs COVERAGE, not PRECISION.** The 14 landings sit at ~1e-06 against the 379
+  collapsed at ~5.8e-04, a factor of ~600, which is exactly why top-20 is 20/20 and images found is 1–2 rather
+  than 0. The page may not say the checks were defeated by a blend sitting at the floor, because in this run
+  nothing reached the floor.
+
+**And the reconciliation, which points at a cell that was never run.** The tested cell used a **conv-autoencoder**
+chart, so `Ψ = φ∘G` is **nonlinear** and the blend subspace lies only *approximately* in `M`. The lemma's exact
+degeneracy therefore does not apply to it — which is precisely why the solver stalls at 5.9e-03 instead of
+reaching 2.9e-14, and why the residual still separates.
+
+> **The affine case — the pixel layer read through a PCA chart — has never been run.** The charts directory
+> contains `L1_ae`, `L2_ae`, `L2_pca`, `L3_ae`, `L3_oracle`: **no `L1_pca` cell exists.**
+
+That single cell is the lemma's direct test and the only configuration in which **precision** should fail. Its
+pre-registration writes itself: exact zeros reachable at the blends, the residual ranking **not** separating, the
+top-20 populated by blends rather than truths, and images found 0. It is cheap, it uses machinery already built,
+and it is the honest way to recover the strong form of "necessary and not sufficient" that F3 has just taken away.
+`cifar_certificate.py`'s own docstring predicted it and it was never tested.
+
+**F4 — accepted; my offered test was stated two-sided and only one direction holds** [derived]. With
+`g(z) = CΨ(z)`, full column rank of `Dg(z*)` makes `g` an immersion at `z*`, hence locally injective, hence the
+zero is isolated. **The converse fails:** a degenerate isolated zero (first-order term vanishing, isolation only at
+higher order) also has `rank J < k`. So the test **certifies isolation and never certifies its absence**. State it
+one-sided. The attacker-side value is entirely in the positive direction, so nothing is lost.
+
+**And c6's strengthening of the R1 corollary is adopted over my own wording.** I wrote that the sanity checks are
+insufficient because none of them mentions the chart. c6's form is an impossibility rather than an observation:
+
+> Fix `C` and `H`. Then `G` may be varied freely while `M ∩ ker C` changes from isolated to positive-dimensional.
+> Therefore **no function of `(C, H)` alone can decide isolation** — not these three checks, and not any check of
+> that class.
+
+That covers every future check anyone proposes, which mine did not. Use c6's.
+
+**One cross-check obligation before the pages change.** F3 rests on a recomputation from tensors, and it reverses
+a published argument. Under this lane's own rule that nobody audits their own rows, the **owner of those tensors
+(yoado-64) confirms c6's recomputation** before the page is edited. Not because it looks wrong — the ideal blend
+landing exactly on the truths' residual is strong internal evidence it is right — but because a reversal is the
+one direction where a single reader is not enough.
