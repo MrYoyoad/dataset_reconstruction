@@ -553,3 +553,37 @@ recommendation to anybody.
 That is a real negative result about what a defender can ever check, honest in a way that "here is a safe
 configuration" was not — and it is **the same fact** as the counting rule being one-sided (§8). Register: derived,
 no artefact, resting on the nesting rather than on a run.
+
+
+## 11. The FP32 reversal, split by access model (2026-09-07)
+
+**My relay collapsed two arms and needs splitting.** I told the user "certification and landing coincide at 32.4%
+each", which reads as an attacker result. It is not.
+
+- **Experimenter arm — witness validity.** The 0.324-against-0.324 equality scores against a floor obtained from a
+  **from-truth solve**; those rows carry `start_attacker_buildable: false`. It says that reaching an image's own
+  achievability floor *coincides with landing on that image* — the **precondition** for any residual-based attacker
+  procedure, not something an attacker performs, since an attacker cannot compute a from-truth floor.
+- **Attacker arm — and it survives too.** Blind ranking by final objective gives **precision 1.000** against a
+  **disjoint-release null of 0.000**, base rate 0.324, computed from attacker-available information only.
+
+**The honest two-sentence form:** in FP32 the residual is a sound witness, exactly as in FP64; and an attacker
+ranking blind still separates perfectly against a null that fires on nothing. Both true, neither borrowing the
+other's access model.
+
+### The floor question, settled at the code rather than the note
+
+The rows' `at_floor_note` says the fraction is scored "relative to **this cell's** own measured floor", singular —
+which is exactly the cell-global construction that produced an earlier withdrawn artefact here. **It is stale
+wording.** `train_precision.py:367-369` defines `at_floor(d)` as `d["objective"] <= 1.5 * floor_by_image[d["nearest"]]`,
+with the docstring *"Each start is judged against the floor of the image IT LANDED ON, never the cell minimum."*
+So the computation is **per-image** and the equality is as strong as it looked. **The note should be fixed**, or the
+next reader repeats this check.
+
+**Caveat that stays in the same sentence, not a footnote:** those rows read `n_prime = 11` for eight images, so any
+"all eight" statement on this cell inherits the tolerance that produced the eleven.
+
+**And one more from the same file, worth carrying:** `breadth_note` records that a fixed-window distinct-image count
+is **not** an attacker statistic — the window is the k lowest residuals rather than a sample of landings, so as the
+landing pool grows the window fills with the easiest images and the count *falls* (5 at 300 starts, 2 at 3,000).
+Coverage is a coupon-collector cost set by the rarest image; use `starts_to_cover_all_recorded`.
