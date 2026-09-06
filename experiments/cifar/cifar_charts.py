@@ -233,6 +233,21 @@ with torch.no_grad():
     per_img = [int((landed & (nearest == i)).sum()) for i in range(args.N)]
     # attacker's view: rank starts by residual; how many of the lowest-residual starts are landings?
     order = torch.argsort(R); top = [int(landed[j]) for j in order[:20].tolist()]; n_degenerate = int(degenerate.sum())
+# ---- ISOLATION TEST (attacker-side; release and chart only, no ground truth). At a returned point the rank of
+# C times the chart Jacobian decides local isolation: FULL column rank (k) certifies the zero is isolated. Rank
+# deficiency does NOT certify non-isolation -- a degenerate isolated zero is also rank-deficient -- so this is
+# read ONE-SIDED, in the positive direction only (yoado-c6's correction to the test as first offered).
+import torch.func as tfn
+def isolation_rank(z1):
+    f = lambda w: (phi(G(w.reshape(1, -1))) @ C.T).reshape(-1)
+    sv = torch.linalg.svdvals(tfn.jacrev(f)(z1).detach())
+    return int((sv > 1e-10 * sv[0]).sum()), float(sv[-1] / sv[0])
+iso_best = [isolation_rank(Z[best_idx[i]]) for i in range(args.N)]
+iso_top = [isolation_rank(Z[j]) for j in order[:20].tolist()]
+print(f"isolation test at the closest start per image: ranks {[r for r, _ in iso_best]} of k={args.k} "
+      f"(full rank certifies an isolated zero; deficient rank certifies nothing)")
+print(f"isolation test on the top-20 by residual: {sum(1 for r, _ in iso_top if r == args.k)}/20 at full rank")
+
 res = dict(layer=args.layer, chart=args.chart, solver=args.solver, private=args.private, obj=args.obj, k=args.k, r=args.r, N=args.N, T=args.T, lr=args.lr,
            seed=args.seed, starts=args.starts, base_acc=acc, zero_row=args.zero_row, wrong_release=args.wrong_release, eps=args.eps, n_degenerate=n_degenerate,
            blend_fraction_privates=blend_truth.tolist(), blend_fraction_public_median=float(blend_public.median()),
@@ -243,6 +258,9 @@ res = dict(layer=args.layer, chart=args.chart, solver=args.solver, private=args.
            min_err_per_image=err.min(0).values.tolist(), best_ssim_vs_train=best_ssim.tolist(), best_ssim_vs_raw=raw_ssim.tolist(),
            chart_floor_ssim=floor_ssim.tolist(), chart_floor_ssim_vs_raw=floor_ssim_raw.tolist(), control_ssim=ctrl_ssim.tolist(), residual_best_per_image=[float(R[j]) for j in best_idx.tolist()],
            residual_min=float(R.min()), residual_median=float(R.median()), collapse=collapse, top20_by_residual_landed=top,
+           isolation_rank_per_image=[r for r, _ in iso_best], isolation_smin_ratio_per_image=[v for _, v in iso_best],
+           isolation_full_rank_top20=sum(1 for r, _ in iso_top if r == args.k),
+           isolation_note="one-sided: full column rank (k) certifies the zero is isolated; deficient rank certifies nothing",
            lm_iters_median=float(np.median(iters)), seconds=time.time() - t0, host=socket.gethostname(), cmd=" ".join(sys.argv))
 log("\n=== RESULT ===")
 log(f"landed {res['landed']}/{args.starts}; per image {per_img}; images found {res['images_found']}/{args.N}; collapse {collapse:.2f}")

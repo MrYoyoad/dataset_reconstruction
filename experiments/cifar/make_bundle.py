@@ -8,12 +8,12 @@ the scripts that produced them, and an INDEX.md that says what each file is and 
 """
 import argparse, glob, json, os, zipfile
 
-FIG_DIRS = ["figures/record_strength", "figures/cifar_charts", "figures/cifar_newclass"]
+FIG_DIRS = ["figures/record_strength", "figures/cifar_charts", "figures/cifar_newclass", "figures/cifar_study", "figures/ntk_vs_cert"]
 FIG_FILES = ["experiments/cifar/k32/cifar_certificate.png", "experiments/cifar/k48/cifar_certificate.png",
              "experiments/cifar/k32_onchart/cifar_certificate_onchart.png", "experiments/cifar/k48_onchart/cifar_certificate_onchart.png",
              "figures/exact_inversion/letters_recovery_k32_760909.png", "figures/exact_inversion/certificate_recovery_k6_706721.png"]
 DOCS = ["experiments/record_strength/RESULT.md", "experiments/cifar/RESULT.md"]
-EXTRA_DOCS = [("notes/ntk_vs_certificate_comparison.md", "COMPARISON_ntk_vs_certificate.md")]
+EXTRA_DOCS = [("notes/ntk_vs_certificate_comparison.md", "EQUIVALENCE_linearised_vs_certificate.md")]
 SCRIPTS = ["cifar_certificate.py", "experiments/cifar/cifar_certificate_onchart.py", "experiments/cifar/cifar_charts.py",
            "experiments/cifar/cifar_trained_newclass.py", "experiments/cifar/cifar_newclass.py", "experiments/cifar/replot_grids.py",
            "experiments/record_strength/record_strength.py", "experiments/record_strength/sigma_decomposition.py",
@@ -55,15 +55,54 @@ Figures:
   cifar_newclass/           weird added-on classes on fully trained backbones (MLP, CNN, over-trained)
   mnist_reference/          the MNIST cells this replicates: letters (760909) and the k=6 digits (706721)
 
-## 3. How this compares with the route we were on before
+## 3. THE COMPARISON TO THE NTK-REGIME ROUTE  (`EQUIVALENCE_linearised_vs_certificate.md`)
 
-`COMPARISON_ntk_vs_certificate.md` puts the NTK-regime / linearized reconstruction results (Experiment B, the anchor
-sweep, direct weight inversion, the gradient bridge) beside the certificate results, with each number labelled by
-what the attacker had to know to get it. Short version: the earlier route's best numbers are oracle-coefficient or
-full-recipe numbers, its recognisable recovery is an N=2 phenomenon, and its linearization is not valid in the
-regime that carries signal; the certificate route is exact and self-checking but has its own open gap, stated there.
+**If you are looking for the comparison to the NTK regime, this is it.** It is filed under "equivalence" rather than
+"comparison" because the result changed: the two routes turn out to have the same zero set, so a comparison of which
+recovers more would have been measuring solvers rather than information. The rename was our decision and the
+document opens by withdrawing the earlier comparison framing.
 
-## 4. Scripts
+## 3b. What that document says
+
+`EQUIVALENCE_linearised_vs_certificate.md`. This is NOT a comparison of which route recovers more, and an earlier
+draft that was has been withdrawn. Two results: the LoRA-aware linearised model is never mis-specified, at any step
+count, as a corollary of the closure lemma; and the two routes have the SAME ZERO SET, the certificate being the
+per-candidate form of the condition and the linearised representer its joint form plus an independence clause. So
+the equations cannot be the difference between them, and every measured gap is solver and search arity. The document
+also records the two solver corrections found in review, one of which was a handicap that favoured the certificate.
+
+## 4. THE TWO-TYPES-OF-IMAGES FIGURES
+
+Three different pairings could be meant by this, so all three are named here and each is one search away.
+
+**(i) Two kinds of image in ONE private batch** — the mixed-class cells, which is what was asked for in the session:
+CIFAR keyboards *and* apples fine-tuned together with a new output row each, and MNIST letters *a* and *t* together.
+Files: `figures/ntk_vs_cert/cifar_keyboard+apple_*.png` and `figures/ntk_vs_cert/mnist_letter_a+letter_t_*.png`.
+What the pair shows: the certificate recovers 8 of 8 from a heterogeneous private batch, so mixing two unrelated
+added classes does not degrade it.
+
+**(ii) The raw private image against its chart projection** — every panel in `figures/cifar_newclass/` and
+`figures/cifar_charts/` has three rows: the raw private image, its chart projection, and what the attack returned.
+What the pair shows: the attack returns the chart's projection of the private image, not the image itself, which is
+the fidelity caveat. It is also why identification rests on image error rather than on a similarity score.
+
+**(iii) Held-out classes against a different corpus** — `figures/cifar_newclass/mlp_keyboard_*`,
+`mlp_skyscraper_*`, `mlp_mushroom_*` are held-out CIFAR-100 classes; `mlp_flowers102_*` are photographs from a
+different dataset entirely. What the pair shows: the recovery does not depend on the private images coming from the
+same corpus as anything the model saw.
+
+## 5. THE STUDY FIGURES  (`figures/cifar_study/`)
+
+  F1_blend_degeneracy.png     the certificate residual along the affine hull of the private images: FLAT at machine
+                              precision for an affine composition, which is the lemma with nothing left to argue;
+                              a bowl touching the floor only at the truths once a nonlinearity is in the way
+  F2_coverage_vs_precision.png  the pixel-layer cell fails at coverage, not precision
+  F3_equivalence.png          the certificate residual against the linearised fit's floor: they vanish together
+  F4_verdict_axis.png         alias against search failure on one axis, with the project's existing threshold
+  F5_solver_handicap.png      a handicap in our OWN comparison, found and removed
+  F6_isolation_test.png       the isolation test, read one-sided: full rank certifies, deficiency certifies nothing
+
+## 6. Scripts
 
 `scripts/` holds every script used, including the job submitters. `cifar_certificate.py` is the file as supplied,
 unmodified; everything else is new and lives under `experiments/`.

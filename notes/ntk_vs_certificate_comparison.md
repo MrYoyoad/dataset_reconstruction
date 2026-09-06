@@ -1,82 +1,117 @@
-# The NTK-regime route and the certificate route, side by side (2026-09-06)
+# The linearized route and the certificate: the same zero set, a different search (2026-09-06)
 
-The thesis spent its first phase on a **linearized (NTK-regime) reconstruction**: assume the base weights are public,
-observe the weight change, and fit pixels to it through a first-order model of training. This note puts that route's
-measured results next to the **certificate** route that replaced it, so the change of direction can be judged on
-numbers rather than on preference. Every figure below is quoted from a recorded run with its job id, and each is
-labelled with what the attacker had to know to obtain it.
+The thesis spent its first phase on a **linearized reconstruction**: assume the base weights are public, observe the
+weight change, and fit candidate images to it through a first-order model of training. This note replaces an earlier
+draft that presented the two routes as competitors and reported which recovered more images. That framing is
+withdrawn. The routes are not competitors, and the reason is algebraic rather than empirical.
 
-## What each route assumes
+Nothing below claims one route beats the other. Two of the three main statements are proved; the third is measured
+and is a statement about solvers, not about information.
 
-| route | what it needs beyond the released weights | what it optimises |
+## 1. The LoRA-aware linearized model is never mis-specified
+
+Write the release as the two factors `(A_T, B_T)`, the private inputs to the adapted layer as `H`, and the model as
+`B_T ≈ Σ_i r_i (A_T h_i)^T` with the coefficients `r_i` free. This is the linearized route written in the released
+factors rather than in the merged weight change, and it is the form an attacker can actually write, because at the
+first step the released down-projection *is* the initialization.
+
+**The model fits exactly at every step count, not only at the first.** By the closure lemma the released `B_T` has
+the form `Q_T (A_0U)^T`, so every row of it lies in `S = col(A_0U)`. The design `A_T H` spans that same `S`. Target
+rows and design columns therefore span the same subspace and an exact coefficient matrix exists for every `T`.
+
+Measured, as a confirmation rather than as the evidence (job 308859, MNIST letter a, PCA chart at k=32; the floor is
+the closed-form least squares at the true images):
+
+| | model floor, LoRA-aware form | model floor, merged-weight form |
 |---|---|---|
-| **NTK / Experiment B** | the public base weights | pixels, against `‖ΔW + η Σ ĉᵢ ∇f(θ₀; x̂ᵢ)‖²`, a first-order surrogate evaluated at the frozen base point |
-| **Anchor sweep** | base and final weights | the same loss, with the linearization point moved to `(1−α)θ₀ + αθ_T` |
-| **Direct weight inversion** | the **whole recipe**: learning rate, step count, labels, batch composition, adapter init | pixels, through an unrolled simulation of training |
-| **Gradient bridge** | an abundant public proxy dataset in-distribution | a decoder from adapter to full gradient, trained on the proxy |
-| **Certificate** (current) | the public base model and a public chart. **No seed, no recipe, no labels, no batch size** | the exact linear condition `C hᵢ = 0`, where `C = P_{row(B_T)^⊥} A_T` is computed from the released factors alone |
+| T = 1 | 2.89e-16 | 9.64e-01 |
+| T = 400 | 8.05e-16 | 7.15e-01 |
 
-The difference is not a matter of degree. The first four fit a residual and score the fit against ground truth the
-attacker does not have; the last checks an algebraic identity the attacker can evaluate.
+So there is no regime boundary in the linearization to find, and the earlier plan to measure one is abandoned. The
+merged-weight form, which fits `ΔW ≈ Σ_i r_i φ(x_i)^T`, *is* mis-specified at every T, because a LoRA step moves the
+adapter by the gradient composed with the adapter rather than by the gradient. That form is the original Experiment
+B written against a merged release, and it should not be used as the comparison's linearized arm.
 
-## The NTK route's measured results
+## 2. The two routes have the same zero set
 
-**Its best numbers are oracle numbers.** With the per-sample coefficients computed from the true images — an upper
-bound, not an attack — full fine-tuning reaches SSIM 0.9999 at N=2, T=1, and LoRA reaches 0.797 to 0.826 across
-ranks 8 to 32 (Sprint 1). Even there the signal is fragile: over 200 seeds, only 22 (11%) gave a strong recovery.
+Fitting the released factor exactly requires the target's row space to sit inside the design's column space. With
+exactly `N` candidates the design spans at most `N` dimensions while the target's row space has dimension exactly
+`N`, so containment forces equality, and every individual candidate reading must lie in that subspace. The projector
+onto its orthogonal complement composed with the released `A_T` is precisely the certificate. Hence:
 
-**In the realistic free-coefficient mode the numbers are modest and fall off fast.** On MNIST at N=2, T=5 the best
-cell is SSIM 0.922 against a same-class control of 0.643 and a mean-image baseline of 0.763; the LoRA cells sit at
-0.790 to 0.866. On 32×32 flowers the best is 0.681 against a baseline of 0.646.
+> the free-coefficient linearized fit is exact **if and only if** every candidate is a zero of the certificate *and*
+> the candidate readings are linearly independent.
 
-**The batch size is the wall.** Holding everything else fixed and raising N, mean per-image SSIM goes 0.922, 0.605,
-0.536, 0.252 at N = 2, 4, 6, 10, against baselines of 0.763, 0.674, 0.606, 0.564. The route beats the trivial
-baseline only at N=2, and by N=10 no single image is recognisable, with identity matching at the 1-in-N chance
-floor. Direct weight inversion shows the same collapse (0.57, 0.27, 0.15 at N = 4, 10, 20) despite knowing the
-entire recipe, and the gradient bridge behaves the same way.
+The certificate is the per-candidate form of that condition; the linearized representer is its joint form. I checked
+this identification at the algebra at the request of the reviewer who derived it, and it is definitional rather than
+contingent, given one hypothesis: it needs `rank B_T = N`, that is, all `N` images recorded. **Where that fails the
+"only if" direction breaks specifically**: with `N' < N` recorded, an exact fit requires only that the design cover
+an `N'`-dimensional subspace, so candidates need not be certificate zeros at all, and the independence clause cannot
+be satisfied by `N` candidates spanning `N'` dimensions.
 
-**The linearization is never valid where the signal lives.** The route's own validity check demands a weight change
-below 0.01, while the regime that carries recoverable signal is a weight change of 0.1 to 0.3. Those two bands do
-not overlap, which is recorded in the project status as a finding rather than a tuning problem.
+Two consequences worth stating plainly.
 
-**The anchor idea helps only the path that was already working.** Moving the linearization point lifts full
-fine-tuning to SSIM 0.939 at α = 0.75 (with oracle coefficients, jobs 532232 and 863020), but on the adapter alone
-it never beats the mean-image baseline at any α, and under free coefficients on flowers it buys almost nothing
-(0.020 to 0.084). The earlier claim that the anchor creates LoRA leakage was seed-specific and has been withdrawn.
+- **The equations cannot be the difference between the routes.** Whatever one route can identify, so can the other.
+- **The blend degeneracy is shared.** `N` independent blends of the private images satisfy both conditions, so the
+  representer does not escape the superposition problem; it only excludes duplicate candidates.
 
-## The certificate route, on the same kind of data
+## 3. What differs is the search, and it cuts both ways
 
-Measured today on CIFAR (this bundle), with only the released factors, the public model and a public chart:
+Since the zero sets coincide, every measured gap is a property of the solver and of how many images one start must
+place. Measured on the same release, chart, starts and budget:
 
-| cell | result |
-|---|---|
-| head LoRA, public PCA chart, 8 private apples | 171 of 400 random starts land, 8 of 8 images, image error 1e-14 |
-| hidden layer, same chart | 253 of 400, 8 of 8 |
-| keyboards, skyscrapers, mushrooms, Flowers-102 photographs, plain MLP | 157 to 200 of 200 starts, 8 of 8 in three of four classes |
-| the same on a backbone over-trained to 100% train accuracy | 99 to 179 of 200, 8 of 8 in two of four |
-| wrong-release control | 0 of 400 |
+| | linearized, LoRA-aware, free coefficients | certificate |
+|---|---|---|
+| residual reached | 1.05e-02 | 4.39e-14 |
+| its own model floor | 2.89e-16 | — |
+| ratio to floor | 3.6e13 | — |
+| images recovered, 20 starts | 0 of 8 | 4 of 8 |
 
-Three differences matter more than the headline counts.
+Residual far **above** its floor with wrong images is a search failure, not an alias. The linearized solve does not
+converge at this budget; it is not carrying less information.
 
-1. **It does not degrade with batch size the way the NTK route does.** What limits it is the number of examples the
-   adapter failed to record, a separately measured quantity, not N itself.
-2. **The attacker can tell which of their own starts succeeded.** In every landing cell all twenty lowest-residual
-   starts are true landings, so success is detectable from the residual, with no ground truth. The NTK route has no
-   such criterion measured anywhere in the repo, and its fidelity is always scored against the held-out truth.
-3. **It is exact rather than fitted.** Certificate residuals at the private inputs are 1e-14 in float64 and 1e-5 in
-   float32, against 0.25 for any other image.
+**The certificate's advantage is separability.** One certificate start solves for one image and the other `N−1` never
+enter it, so coverage accumulates over starts. One linearized start must place all `N` at once, and its descent
+direction is driven by the joint residual, so a candidate that would have landed alone can be dragged off by the
+others.
 
-## The honest ledger
+**The representer's advantage is distinctness, and it is real.** Its exactness condition requires the candidate
+readings to be independent, which the per-candidate certificate condition does not: the certificate happily accepts
+`N` copies of the same image. Coverage is exactly the certificate's measured bottleneck — 53 of 89 landings on a
+single image in one cell, and 1 to 2 of 8 on the pixel layer.
 
-The NTK route measures fidelity it cannot certify, and its best numbers need knowledge an attacker does not have:
-oracle coefficients, or the full training recipe, or a rich in-distribution proxy. Its two walls, batch size and the
-invalidity of the linearization in the useful regime, are measured and severe. That is why the direction changed.
+That is a division of labour rather than a ranking, and it names a construction: generate candidates with the
+certificate, which is separable and cheap, then use the representer's independence condition to select a spanning
+subset. That is the chaining step earlier plans named without specifying.
 
-The certificate route is not finished either, and two gaps should be stated whenever it is presented. Its recovery
-is exact only for images the adapter actually recorded, and on raw, unprojected images it does not land at all
-unless the chart is accurate to about 2%; a public chart returns the chart's projection of the private image, which
-on CIFAR at k = 32 is too blurry for SSIM to distinguish from another image of the same class. And while the
-attacker's residual ranking is a genuine self-check, the fraction of recoveries an attacker can verify end to end
-has not yet been measured on these cells. The fair summary is that the earlier route could not certify what it
-found, while the current route certifies an exact condition but has not yet closed the distance from found to
-verifiably found.
+## 4. Solver fairness, since the comparison rests on it
+
+Two corrections were needed before any of the numbers above could be quoted, both found in review.
+
+- **The joint solver was handicapped at initialization.** With the coefficients starting at zero and the model being
+  their product with the candidate features, the latents receive exactly zero gradient on the first step. Measured
+  cost on the same cell: a factor of 19 at T=1 and 7 at T=400.
+- **The fix is also the right algorithm.** The model is linear in the coefficients, so they are eliminated in closed
+  form and the search runs over the latents alone. The objective becomes the release projected off the span of the
+  candidate readings, which is the same shape as the certificate's objective, and the unknowns drop by a third. Both
+  solvers are reported per cell so the handicap stays a measured row.
+
+## 5. What the earlier route measured, kept for the record
+
+These numbers are from the pre-certificate work and are unchanged; they are the reason the direction moved. Each is
+labelled by what the attacker had to know.
+
+- Best full fine-tuning results, SSIM 0.9999, need **oracle coefficients** computed from the true images.
+- In the realistic free-coefficient mode, recognizable recovery is an **N=2 phenomenon**: mean per-image SSIM 0.922,
+  0.605, 0.536, 0.252 at N = 2, 4, 6, 10, against trivial mean-image baselines of 0.763, 0.674, 0.606, 0.564. It
+  beats the baseline only at N=2.
+- Direct weight inversion collapses the same way while knowing the entire recipe, and the gradient-bridge decoder's
+  cosine never converts into pixels.
+
+## 6. Open
+
+The remaining question is not which route identifies more. It is whether the joint solve can be made to converge —
+it is beatable by a better solver, and that objection should stand rather than be argued around — and whether the
+hybrid in section 3 buys the coverage the certificate lacks. An N=1 cell is running: with one image there is no
+coupling, no arity gap and, in the LoRA-aware form, a zero model floor, so a failure there would be conditioning or
+parameterization rather than anything scientific.

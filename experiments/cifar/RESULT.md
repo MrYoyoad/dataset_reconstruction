@@ -14,7 +14,7 @@ starts succeeded from the residual alone.
 | what changes | result |
 |---|---|
 | LoRA on the pixel layer, raw privates (the replica as supplied) | 0 of 8 images |
-| LoRA on the pixel layer, on-chart privates | 2 of 8, at 30 of 400 starts; the modal minimiser is a 99.4% blend |
+| LoRA on the pixel layer, on-chart privates | 2 of 8, at 30 of 400 starts; the modal minimiser is 0.99 blend by energy |
 | LoRA on a hidden layer, public PCA chart | 253/400 starts land, 8/8 images |
 | LoRA on the head, public PCA chart | 171/400 starts land, 8/8 images |
 | LoRA on the head, a fully trained or **over-trained** backbone, a new class | up to 200/200 starts land, 8/8 images |
@@ -27,14 +27,66 @@ zero as well. When the adapted layer's input *is* the image, those combinations 
 chart represents the blend far better than any individual image: the 8-apple mean has PCA-32 representation error
 0.06 against 0.10–0.42 for the individual apples. The minimiser is therefore the blend by construction.
 
-Measured (audit, 2026-09-06): the collapsed attractor of the original on-chart run (379 of 400 starts) is a
-least-squares blend of the eight privates to 99.4%, with coefficients that are not even convex (−0.70, 0.34, …,
-0.46), and the blend's own certificate residual is 3e-15 — as low as the truths'. Every sanity check passed
-throughout: `‖CH‖/(‖C‖‖H‖)` at 3.6e-15, quotient form 5.9e-15, `rank C = r − N = 56`, excitation gap 1e14. **Those
-checks are necessary and never sufficient**; they hold identically in the degenerate case.
+Measured, and stated separately for the two distinct cells, because they are not the same run
+(verification job 309357, recomputed from the saved tensors under both normalisations):
 
-The equation count (56 equations against 32 unknowns) is silent about this, because it assumes generic position and
-the span direction is exactly where position is not generic.
+| quantity, replica on-chart cell (job 257893) | `‖Cx‖/(‖C‖‖x‖)` | `‖Cx‖/‖A_T x‖` |
+|---|---|---|
+| the private images | 3.93e-15 | 2.89e-14 |
+| the **ideal** blend: an exact least-squares combination of them | 2.88e-15 | 2.87e-14 |
+| the attractor the solver actually **reached** (mean of the collapsed cluster) | 5.44e-04 | 5.45e-03 |
+
+The first two lines are the lemma, numerically: an exact blend of the private inputs is an exact zero, sitting where
+the truths sit. The third line is a separate fact about the search, and the distinction matters:
+
+- **What the lemma costs is coverage, not precision.** In this cell the solver stalls *near* the blend subspace
+  without reaching it, so the residual still separates: the landings sit at 7.9e-07 … 1.1e-06 against the collapsed
+  cluster's median 5.83e-04, a factor of about 600. That separation is why the top-20 by residual is 20/20 clean and
+  why images found is 1–2 rather than 0. The page does not claim the checks were defeated by a blend sitting at the
+  floor, because in this run nothing reached the floor.
+- **Why the exact degeneracy did not bite here.** This cell reads the pixel layer through the conv-autoencoder
+  chart, which is nonlinear, so the blend subspace lies only approximately in the chart's image. The one
+  configuration where the lemma applies exactly — pixel layer with a linear chart, affine all the way from chart
+  coordinate to layer input — is running now and is pre-registered below.
+- **The blend fraction of the attractor is 0.99 by energy**, `1 − (‖r‖/‖x‖)²` with `r` the residual of the
+  least-squares fit in the span, or 0.90 as `1 − ‖r‖/‖x‖`. An earlier draft said 99.4% without a formula; it does
+  not reproduce under either normalisation and is withdrawn. Coefficients (−0.66, 0.32, −0.06, 0.13, −0.06, 0.43,
+  0.17, 0.22), sum 0.48, three negative — not a convex mixture.
+
+Every sanity check passed throughout: `‖CH‖/(‖C‖‖H‖)` at 3.6e-15, quotient form 5.9e-15, `rank C = r − N = 56`,
+excitation gap 1e14. **Those checks are necessary and never sufficient, and the reason is an impossibility rather
+than an observation**: fix `C` and `H` and vary the chart, and whether the truths are isolated changes, so no
+function of `C` and `H` alone can decide it.
+
+**Pre-registered, and confirmed in every particular** (jobs 311215 and 311217, a matched pair differing only in
+where the adapter sits: same private images, same public PCA chart at k=32, same starts, same budget).
+
+| | pixel layer (affine composition) | head (two nonlinearities) |
+|---|---|---|
+| starts landing on a private image | **0 of 400** | 171 of 400 |
+| images recovered | **0 of 8** | 8 of 8 |
+| best residual reached | 2.3e-14 | 7.1e-15 |
+| residual at the private images | 2.3e-14 | 1.3e-14 |
+| top-20 by residual that are true landings | **0 of 20** | 20 of 20 |
+| blend fraction of the returned points, median | **1.000** | 0.994 |
+| isolation test: rank of `C·(chart Jacobian)`, `k = 32` | **25** | 32 |
+
+Read the first column against the second. The search **reaches the exact floor** — the best residual equals the
+residual at the truths — and still returns nothing: every returned point is an exact blend, and the residual ranking
+gives the attacker no signal at all, where in every working cell it is 20 of 20. This is the strong form of
+*necessary and not sufficient*: the algebraic checks pass, the search converges, the residual is at machine
+precision, and the answer is wrong. It is also the case the conv-autoencoder cell could not exhibit, because there
+the chart is nonlinear and the blend subspace lies in its image only approximately, which is why that cell stalls at
+5.5e-03 instead and keeps a clean ranking.
+
+**The rank deficit is exactly `N − 1`.** The isolation test returns 25 against `k = 32`, and `32 − 25 = 7 = N − 1`:
+the lemma predicts an affine subspace of dimension `min(N−1, k)` through the truths, and the Jacobian loses precisely
+those directions. That is a quantitative confirmation, not just a qualitative one.
+
+**The isolation test is what an attacker would have to notice this.** It needs only the release and the chart, no
+ground truth, and it separates the pair cleanly: deficient rank where the zero set is a subspace, full rank where the
+truths are isolated. It is read one-sided — full rank certifies isolation, deficient rank certifies nothing — so the
+correct reading of the 25 is "not certified", never "degenerate".
 
 ## 2. The layer study: what actually fixes it
 

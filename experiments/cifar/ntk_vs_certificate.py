@@ -148,6 +148,11 @@ def main():
     ap.add_argument("--lr", type=float, default=0.01)
     ap.add_argument("--starts", type=int, default=200); ap.add_argument("--adam_iters", type=int, default=4000); ap.add_argument("--adam_lr", type=float, default=5e-2)
     ap.add_argument("--lm_iters", type=int, default=300); ap.add_argument("--ae_epochs", type=int, default=150)
+    ap.add_argument("--ntk-solvers", nargs="*", default=["varpro", "joint"], help="varpro: eliminate the coefficients in closed "
+                    "form and search the latents alone (the right algorithm, and the fair one -- the objective becomes the target "
+                    "projected off the span of the candidate features, the same shape as the certificate's). joint: Adam over latents "
+                    "AND coefficients together, which is what Experiment B does; kept so the handicap is measured rather than assumed, "
+                    "since with the coefficients initialised at zero the latents receive exactly zero gradient on the first step.")
     ap.add_argument("--ntk-forms", nargs="*", default=["lora", "dW"], help="lora: fit the released B_T with sum_i r_i (A_T phi_i)^T (the fair form, exact at T=1). dW: fit the merged Delta W with sum_i r_i phi_i^T (Experiment B verbatim, mis-specified for LoRA)")
     ap.add_argument("--oracle-diag", action="store_true", help="DIAGNOSTIC ONLY, off by default: additionally run the linearised route with ORACLE "
                     "coefficients at the step counts in --oracle-diag-Ts. It uses the private images and is therefore an UPPER BOUND, never an attack "
@@ -215,42 +220,58 @@ def main():
                 def err_matrix(Xc):
                     return torch.stack([torch.linalg.norm(Xc - X_on[:, i:i + 1], dim=0) / torch.linalg.norm(X_on[:, i]) for i in range(a.N)], 1)
 
-                # ---- NTK, batched Adam over restarts. coef="free" is THE ATTACK; coef="oracle" is a labelled diagnostic.
-                def run_ntk(coef, fname):
-                    tgt, _ = FORMS[fname]; ntgt = torch.linalg.norm(tgt)
-                    t0 = time.time(); Z = Z0.clone().requires_grad_(True)
-                    if coef == "free":
-                        Rc = torch.zeros(a.starts, m, a.N, device=dev, requires_grad=True); params = [Z, Rc]
-                    else:                                                                     # fixed at the T=1 closed form
-                        Rc = (-(a.lr / a.N) * R_true)[None].expand(a.starts, m, a.N).contiguous(); params = [Z]
+                # ---- NTK. coef="free" is THE ATTACK; coef="oracle" is a labelled diagnostic (joint solver only).
+                def run_ntk(coef, fname, solver):
+                    tgt, _ = FORMS[fname]; ntgt = torch.linalg.norm(tgt); tgtT = tgt.T.contiguous()
+                    t0 = time.time(); Z = Z0.clone().requires_grad_(True); Rc = None; params = [Z]
+                    if solver == "joint":
+                        if coef == "free":
+                            Rc = torch.zeros(a.starts, m, a.N, device=dev, requires_grad=True); params = [Z, Rc]
+                        else:
+                            Rc = (-(a.lr / a.N) * R_true)[None].expand(a.starts, m, a.N).contiguous()
                     opt = torch.optim.Adam(params, a.adam_lr)
-                    def model(Z_, Rc_):
+                    eyeN = torch.eye(a.N, device=dev)
+
+                    def resid(Z_):
                         Xc = chart.psi_batch(Z_)
                         Hc = phi(Xc.permute(1, 0, 2).reshape(D, -1)).reshape(n, a.starts, a.N).permute(1, 0, 2)
-                        Fc = torch.einsum("rn,pnN->prN", A_T, Hc) if fname == "lora" else Hc
-                        return Xc, torch.einsum("pmN,pcN->pmc", Rc_, Fc)
+                        Fc = torch.einsum("rn,pnN->prN", A_T, Hc) if fname == "lora" else Hc      # (P, c, N)
+                        if solver == "joint":
+                            pred = torch.einsum("pmN,pcN->pmc", Rc, Fc)
+                            r = torch.linalg.norm((pred - tgt[None]).reshape(a.starts, -1), dim=1) / ntgt
+                        else:
+                            # VARIABLE PROJECTION: the model is linear in the coefficients, so eliminate them exactly.
+                            # min_R ||tgt - R F^T|| leaves the target projected off col(F); no coefficients to optimise,
+                            # no zero-gradient start, no two-block scale mismatch, and Nk unknowns instead of N(k+m).
+                            Ft = Fc.transpose(1, 2)                                               # (P, N, c)
+                            G = Ft @ Fc                                                           # (P, N, N)
+                            ridge = (1e-12 * torch.diagonal(G, dim1=1, dim2=2).sum(1) / a.N).clamp(min=1e-300)
+                            Rsol = torch.linalg.solve(G + ridge[:, None, None] * eyeN, Ft @ tgtT)  # (P, N, m)
+                            r = torch.linalg.norm((Fc @ Rsol - tgtT[None]).reshape(a.starts, -1), dim=1) / ntgt
+                        return Xc, r
+
                     for it in range(a.adam_iters):
-                        _, pred = model(Z, Rc)
-                        loss_p = torch.linalg.norm((pred - tgt[None]).reshape(a.starts, -1), dim=1) / ntgt
-                        opt.zero_grad(); loss_p.sum().backward(); opt.step()
+                        _, r = resid(Z)
+                        opt.zero_grad(); r.sum().backward(); opt.step()
                     with torch.no_grad():
-                        Xc, pred = model(Z, Rc)
-                        res = (torch.linalg.norm((pred - tgt[None]).reshape(a.starts, -1), dim=1) / ntgt).detach()
+                        Xc, r = resid(Z)
                         cand_ = Xc.detach().permute(1, 0, 2).reshape(D, -1)
                         E_ = err_matrix(cand_); best_ = E_.min(0).values
-                    return dict(res=res, best=best_, idx=E_.argmin(0), found=int((best_ < 1e-2).sum()), sec=time.time() - t0, cand=cand_)
+                    return dict(res=r.detach(), best=best_, idx=E_.argmin(0), found=int((best_ < 1e-2).sum()),
+                                sec=time.time() - t0, cand=cand_, solver=solver, form=fname, coef=coef)
 
                 ntk_by_form = {}
                 for fname in a.ntk_forms:
-                    nt = run_ntk("free", fname); ntk_by_form[fname] = nt
-                    log(f"     NTK[{fname:4s}] free coefficients: residual {float(nt['res'].min()):.3e} (median {float(nt['res'].median()):.3e}; "
-                        f"model floor at the truth {floors[fname]:.2e}); images recovered {nt['found']}/{a.N}; "
-                        f"closest per image {[f'{v:.3f}' for v in nt['best'].tolist()]}  [{nt['sec']:.0f}s]")
-                    if a.oracle_diag and T in a.oracle_diag_Ts:
-                        oc = run_ntk("oracle", fname); ntk_by_form[fname + "_ORACLE_DIAG"] = oc
-                        log(f"     NTK[{fname:4s}] ORACLE coefficients — DIAGNOSTIC UPPER BOUND, uses the private images, NOT an attack: "
+                    for solver in a.ntk_solvers:
+                        nt = run_ntk("free", fname, solver); ntk_by_form[f"{fname}:{solver}"] = nt
+                        log(f"     NTK[{fname:4s}/{solver:6s}] free coefficients: residual {float(nt['res'].min()):.3e} "
+                            f"(median {float(nt['res'].median()):.3e}; model floor at the truth {floors[fname]:.2e}); "
+                            f"images recovered {nt['found']}/{a.N}; closest per image {[f'{v:.3f}' for v in nt['best'].tolist()]}  [{nt['sec']:.0f}s]")
+                    if a.oracle_diag and T in a.oracle_diag_Ts and "joint" in a.ntk_solvers:
+                        oc = run_ntk("oracle", fname, "joint"); ntk_by_form[f"{fname}:joint_ORACLE_DIAG"] = oc
+                        log(f"     NTK[{fname:4s}/joint ] ORACLE coefficients — DIAGNOSTIC UPPER BOUND, uses the private images, NOT an attack: "
                             f"residual {float(oc['res'].min()):.3e}; images recovered {oc['found']}/{a.N}  [{oc['sec']:.0f}s]")
-                main_form = "lora" if "lora" in a.ntk_forms else a.ntk_forms[0]
+                main_form = ("lora:varpro" if "lora:varpro" in ntk_by_form else list(ntk_by_form)[0])
                 ntk = ntk_by_form[main_form]
                 ntk_res, ntk_best, ntk_idx, ntk_found, ntk_sec, cand = ntk["res"], ntk["best"], ntk["idx"], ntk["found"], ntk["sec"], ntk["cand"]
 
@@ -272,20 +293,22 @@ def main():
                             k=k, T=T, lr=a.lr, N=a.N, r=a.r, m=m, n=n, seed=a.seed, starts=a.starts, n_prime=Np,
                             chart_repr_err_median=float(repr_err.median()), chart_repr_err=repr_err.tolist(),
                             cert_residual_at_truth=cert_truth.tolist(), model_floor_at_truth=floors, ntk_main_form=main_form,
+                            ntk_verdict={fn: ("alias: residual AT the model floor, wrong images (identifiability)" if v["found"] < a.N and float(v["res"].min()) <= 3 * max(floors.get(fn.split(":")[0], 0.0), 1e-14)
+                                              else "search failure: residual ABOVE the model floor" if v["found"] < a.N else "recovered")
+                                         for fn, v in ntk_by_form.items()},
                             ntk_by_form={fn: dict(images_found=v["found"], residual_min=float(v["res"].min()),
                                                   residual_median=float(v["res"].median()), closest_per_image=v["best"].tolist(),
-                                                  model_floor_at_truth=floors.get(fn.replace("_ORACLE_DIAG", "")),
+                                                  model_floor_at_truth=floors.get(fn.split(":")[0]), solver=v["solver"],
                                                   is_diagnostic_upper_bound=fn.endswith("_ORACLE_DIAG"))
                                          for fn, v in ntk_by_form.items()},
                             ntk_residual_min=float(ntk_res.min()), ntk_residual_median=float(ntk_res.median()),
                             ntk_images_found=ntk_found, ntk_closest_per_image=ntk_best.tolist(), ntk_seconds=ntk_sec,
                             cert_residual_min=float(objs.min()) ** 0.5, cert_images_found=cert_found, cert_landed_starts=landed,
                             cert_top20_landed=top20, cert_closest_per_image=cert_best.tolist(), cert_seconds=cert_sec,
-                            ntk_oracle_DIAGNOSTIC=(None if orc is None else dict(
-                                images_found=orc["found"], residual_min=float(orc["res"].min()), closest_per_image=orc["best"].tolist(),
-                                label="UPPER BOUND, NOT AN ATTACK: coefficients fixed at the true base-model residuals of the private images",
-                                reads="recovers here + free arm fails  => the obstruction is the free coefficients absorbing a recombination "
-                                      "(superposition). both fail => superposition is not the whole account.")),
+                            oracle_note="entries whose key ends in _ORACLE_DIAG are UPPER BOUNDS, NOT attack results: their coefficients "
+                                        "are fixed at the T=1 closed form, which uses the private images. They exist only to separate two "
+                                        "candidate obstructions: recovering there while the free arm fails means the free coefficients are "
+                                        "absorbing a recombination; failing in both means that is not the whole account.",
                             backbone=accs, host=socket.gethostname(), cmd=" ".join(sys.argv))
                 cells.append(cell)
                 print(json.dumps(cell), flush=True)
@@ -297,13 +320,13 @@ def main():
     # ---------------------------------------------------------------- summary table + figures
     tag = f"{a.dataset}_{cname.replace('+','_and_')}_N{a.N}_r{a.r}"
     torch.save(dict(cells=cells, panels=panels, y=y.cpu()), os.path.join(a.save_dir, f"{tag}.pth"))
-    tab = ["| chart | k | T | chart repr. err | model floor at truth | NTK images (lora form) | NTK residual | certificate images | certificate landed | top-20 |",
+    tab = ["| chart | k | T | chart repr. err | model floor at truth | NTK images (lora/varpro) | NTK residual | verdict | certificate images | certificate landed | top-20 |",
            "|---|---|---|---|---|---|---|---|---|---|"]
     for c in cells:
-        fl = c["model_floor_at_truth"].get(c["ntk_main_form"], float("nan"))
+        fl = c["model_floor_at_truth"].get(c["ntk_main_form"].split(":")[0], float("nan"))
         tab.append(f"| {c['chart']} | {c['k']} | {c['T']} | {c['chart_repr_err_median']:.3f} | {fl:.2e} | "
-                   f"**{c['ntk_images_found']}/{c['N']}** | {c['ntk_residual_min']:.2e} | **{c['cert_images_found']}/{c['N']}** | "
-                   f"{c['cert_landed_starts']}/{c['starts']} | {c['cert_top20_landed']}/20 |")
+                   f"**{c['ntk_images_found']}/{c['N']}** | {c['ntk_residual_min']:.2e} | {c['ntk_verdict'].get(c['ntk_main_form'], '')[:34]} | "
+                   f"**{c['cert_images_found']}/{c['N']}** | {c['cert_landed_starts']}/{c['starts']} | {c['cert_top20_landed']}/20 |")
     open(os.path.join(a.fig_dir, f"{tag}_table.md"), "w").write("\n".join(tab) + "\n")
     log("\n=== HEAD TO HEAD (free coefficients only; no oracle anywhere) ===\n" + "\n".join(tab))
 
@@ -343,7 +366,7 @@ def main():
         fig.suptitle(f"'{cname}' as {'a new class' if ncls == 1 else f'{ncls} new classes'} — head LoRA r={a.r}, T={T} SGD steps (lr={a.lr}), {c['chart_desc']}\n"
                      f"NTK linearised, free coefficients, {c['ntk_main_form']} form, recovered {c['ntk_images_found']}/{a.N}; certificate recovered "
                      f"{c['cert_images_found']}/{a.N} ({c['cert_landed_starts']}/{a.starts} starts). "
-                     f"Model floor at the truth: {c['model_floor_at_truth'].get(c['ntk_main_form'], float('nan')):.2e}", fontsize=9)
+                     f"Model floor at the truth: {c['model_floor_at_truth'].get(c['ntk_main_form'].split(':')[0], float('nan')):.2e}", fontsize=9)
         fig.savefig(os.path.join(a.fig_dir, f"{tag}_{ch}_k{k}_T{T}.png"), dpi=150); plt.close(fig)
     log(f"saved {a.save_dir}/{tag}.pth and {a.fig_dir}/{tag}_*.png")
 
