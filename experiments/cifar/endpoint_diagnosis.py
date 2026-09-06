@@ -69,6 +69,8 @@ def main():
             B, A = B - lr * (Dm @ (A @ H).T), A - lr * (B.T @ Dm @ H.T)
         A_T, B_T = A, B; nB = torch.linalg.norm(B_T); B_T_T = B_T.T.contiguous()
         sB = torch.linalg.svdvals(B_T)
+        Np = int((sB > 1e-12 * sB[0]).sum()); _, _, VhB = torch.linalg.svd(B_T, full_matrices=False)
+        Qc = VhB[:Np].T; C = A_T - Qc @ (Qc.T @ A_T)                       # the certificate, saved beside the endpoint
         # the residual the design WOULD leave if it spanned exactly the top j recorded directions
         tail = torch.sqrt(torch.flip(torch.cumsum(torch.flip(sB ** 2, [0]), 0), [0])) / nB      # tail[j] = residual if top j captured
         # ---- the variable-projection solve, same starts and budget as the sweep
@@ -127,8 +129,14 @@ def main():
                    angle_to_endpoint_span_deg=[float(v) for v in angles],
                    n_images_near_span_lt10deg=int((angles < 10).sum()), n_images_far_gt60deg=int((angles > 60).sum()),
                    closest_err_per_image=[float(v) for v in err_per_image],
-                   angle_vs_error_agree=[int(i) for i in torch.argsort(angles, descending=True)[:3]] ==
-                                        [int(i) for i in torch.argsort(err_per_image, descending=True)[:3]])
+                   # the three images FURTHEST from the endpoint span, and the three worst recovered, compared as
+                   # SETS rather than as ordered lists -- the ordering within the top three is noise, and on a cell
+                   # where everything recovers the error ordering is noise entirely, so an ordered comparison would
+                   # read false for a reason that has nothing to do with the question.
+                   worst_by_angle=[int(i) for i in torch.argsort(angles, descending=True)[:3]],
+                   worst_by_error=[int(i) for i in torch.argsort(err_per_image, descending=True)[:3]],
+                   angle_vs_error_agree=set(int(i) for i in torch.argsort(angles, descending=True)[:3]) ==
+                                        set(int(i) for i in torch.argsort(err_per_image, descending=True)[:3]))
         out.append(row); print(json.dumps(row), flush=True)
         print(f"   angles of each private reading to the endpoint span (deg): {[f'{v:.1f}' for v in angles.tolist()]}", flush=True)
         print(f"   closest error per image:                                  {[f'{v:.3f}' for v in err_per_image.tolist()]}", flush=True)

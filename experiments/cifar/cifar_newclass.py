@@ -26,7 +26,10 @@ Levenberg-Marquardt on ||C phi(G(z))|| / ||A_T phi(G(z))|| from random starts at
 
 New classes (--newclass), chosen to be visually alien to CIFAR-10:
     cifar100:<name|idx>   any CIFAR-100 fine class -- e.g. keyboard, skyscraper, mushroom, clock, lobster
-    fashion:<name>        a FashionMNIST class rendered at 32x32x3 -- sneaker, ankle_boot, bag, sandal, trouser and
+    svhn[:<digit>]        Street View House Numbers, NATIVE 32x32x3 photographs with no resampling at all -- a
+                          different corpus and domain from CIFAR, strongly structured, no symmetry
+    fashion:<name>        a FashionMNIST class rendered at 32x32x3 (UPSAMPLED from 28, so it carries a resolution
+                          confound the svhn cells do not -- prefer svhn) -- sneaker, ankle_boot, bag, sandal, trouser and
                           the rest. NOT in CIFAR-10 or CIFAR-100 at all: a different corpus, a different domain, and
                           a distinctive asymmetric silhouette rather than the keyboard's repetitive texture
     flowers102            Flowers-102 photographs downsampled to 32x32 (a different corpus, not just a new label)
@@ -68,6 +71,23 @@ def load_cifar100_class(root, name):
         lab = np.array(b[b"fine_labels"]); X = b[b"data"].astype(np.float32) / 255.0
         out[split] = X[lab == idx]
     return out, names[idx]
+
+
+def load_svhn(root, digit=None):
+    """SVHN as an added-on class: NATIVE 32x32x3 photographs, no resampling of any kind. Street View House Numbers
+       is a different corpus and a different domain from CIFAR -- cropped house-number plates, with strong
+       structure, hard edges and no symmetry -- and nothing in CIFAR-10 or CIFAR-100 resembles it. Public images
+       come from the train split, private from test, as in every other cell.
+       digit=None uses the whole corpus as one new class; digit=d restricts to that numeral."""
+    from scipy.io import loadmat
+    out = {}
+    for split, fn in (("train", "train_32x32.mat"), ("test", "test_32x32.mat")):
+        m = loadmat(os.path.join(root, "svhn", fn))
+        X = m["X"].astype(np.float64) / 255.0                       # (32, 32, 3, n) native, never resampled
+        lab = m["y"].reshape(-1) % 10                               # SVHN labels 1..10 with 10 meaning zero
+        X = X.transpose(3, 2, 0, 1).reshape(X.shape[3], -1)         # (n, 3072) channel-major, CIFAR's layout
+        out[split] = X if digit is None else X[lab == int(digit)]
+    return out, ("svhn" if digit is None else f"svhn_{digit}")
 
 
 FASHION = ["t_shirt", "trouser", "pullover", "dress", "coat", "sandal", "shirt", "sneaker", "bag", "ankle_boot"]
@@ -235,6 +255,8 @@ def main():
 
     if a.newclass.startswith("cifar100:"): pool, cname = load_cifar100_class(a.data_root, a.newclass.split(":", 1)[1])
     elif a.newclass.startswith("fashion:"): pool, cname = load_fashion(a.fashion_root, a.newclass.split(":", 1)[1])
+    elif a.newclass == "svhn": pool, cname = load_svhn(a.data_root)
+    elif a.newclass.startswith("svhn:"): pool, cname = load_svhn(a.data_root, a.newclass.split(":", 1)[1])
     elif a.newclass == "flowers102": pool, cname = load_flowers102(a.flowers_root, seed=a.seed)
     else: raise ValueError(a.newclass)
     Pub = torch.tensor(pool["train"], dtype=torch.float64, device=dev); Pri = torch.tensor(pool["test"], dtype=torch.float64, device=dev)

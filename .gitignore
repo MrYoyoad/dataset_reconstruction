@@ -186,3 +186,12 @@ papers/MISNAMED__do_not_use__*
 Untitled.ipynb
 dataset_reconstruction/claude_permission_email_last_sent
 dataset_reconstruction/tmp_read_resource_*
+
+# --- Large binary artefacts (2026-09-07): weights and per-cell tensors ---
+# Model checkpoints and search/release tensors are reproducible from the
+# committed scripts + recorded seeds; keeping them out of git.
+models/**/*.pth
+models/**/*.pt
+experiments/cifar/charts/**/*.pt
+*.zip
+!papers/*.zip
