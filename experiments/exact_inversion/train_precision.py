@@ -493,6 +493,42 @@ def main():
                     return out
                 dedup_ladder = {f"{tol:g}": dedup_at(tol) for tol in (3e-3, 1e-2, 3e-2, 1e-1)}
                 dedup = dedup_ladder["0.01"]
+                # THE INSTRUMENT CERTIFIES ITS OWN PRECONDITION (R18). The cluster count is cut-independent
+                # only because genuine attractors sit at IMAGE scale while duplicates of one attractor sit at
+                # ROUNDOFF, so every tolerance between those scales gives the same integer. That gap is not an
+                # assumption: it is measurable from the attacker's OWN candidates, with no ground truth, no
+                # labels and no batch size. Histogram the pairwise distances among them -- bimodal with an
+                # empty middle means the count is cut-independent and the stop signal is valid; mass in the
+                # middle means near-duplicate privates, where the count DOES depend on where you cut and must
+                # be quoted with the cut attached.
+                def bimodality(cands):
+                    if len(cands) < 2: return None
+                    M = torch.stack(cands)
+                    D = torch.cdist(M, M) / M.norm(dim=1)[None, :]
+                    d = D[torch.triu(torch.ones_like(D), diagonal=1) > 0]
+                    d = d[d > 0]
+                    if d.numel() == 0: return None
+                    lg = torch.log10(d)
+                    hist = {}
+                    for e in range(-16, 2):
+                        hist[str(e)] = int(((lg >= e) & (lg < e + 1)).sum())
+                    occupied = sorted(int(e) for e, c in hist.items() if c > 0)
+                    runs, cur = [], None
+                    for e in range(occupied[0], occupied[-1] + 1):
+                        if hist[str(e)] == 0: cur = (cur or 0) + 1
+                        elif cur: runs.append(cur); cur = None
+                    if cur: runs.append(cur)
+                    mid = float(((d >= 1e-10) & (d <= 1e-2)).sum()) / d.numel()
+                    return dict(log10_hist=hist, largest_empty_decade_run=max(runs) if runs else 0,
+                                middle_band_fraction=mid, n_pairs=int(d.numel()),
+                                verdict=("bimodal with an empty middle: the cluster count is cut-independent "
+                                         "and the stop signal is valid"
+                                         if (runs and max(runs) >= 3 and mid < 0.01) else
+                                         "mass between the modes: near-duplicate regime, the count depends on "
+                                         "the cut and must be quoted with it"),
+                                note="attacker-side: computed from the attacker's own candidates alone.")
+                bimod = {str(kk): bimodality([d["xhat"] for d in ranked[:kk]])
+                         for kk in sorted(x for x in kgrid if 2 <= x <= len(ranked))}
                 first_landing = {}
                 for i in recorded:
                     hit = next((s for s, d in enumerate(runs) if d["landed"] and d["nearest"] == i), None)
@@ -529,6 +565,7 @@ def main():
                             per_start_nearest=[int(d["nearest"]) for d in runs],
                             dedup_clusters_at_k=dedup,
                             dedup_clusters_ladder=dedup_ladder,
+                            dedup_bimodality=bimod,
                             dedup_order="ascending final objective (the attacker's own ranking)",
                             starts_to_first_landing_per_image=first_landing,
                             starts_to_cover_all_recorded=starts_to_all,
