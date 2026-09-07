@@ -97,3 +97,44 @@ measured operator norm with its own job id), or the experiment cannot fail and i
 - The mandatory three-arm metadata control, and the rule that anything the metadata-only arm also produces is not
   a reconstruction. This is the single most important control in the document.
 - Rule 9 keeping precision out of supervisor-facing material.
+
+---
+
+## Addenda after the auditors' first pass (yoado-e1)
+
+### A8 — E5 is NOT new. It ran last night as job 331384 and matches its spec clause for clause
+
+Retag **done** and point it at `results/exact_inversion/affine_two_routes_331384.jsonl`. Recomputed from the rows
+and the run's own tensors [read: rows]: linear chart in feature space, `N=8`, `k=12` below both capacity lines and
+above `N−1`; certificate landings **0 of 60**; coefficient sum of every returned point **1.000000000**, min equal
+to max rather than a median; isolation rank 5, i.e. deficit exactly `N−1`; replay on the **same release and the
+same starts** recovers all eight from **19 of 60**, with **zero aliases** — all 18 starts reaching residual below
+1e-20 recovered the whole batch — and the 42 failures at median 5.5e-02, optimisation failure rather than
+ambiguity. **Lemma 15 has its measurement.** The only thing E5 as written would add is a second chart
+nonlinearity, which is A4's point and belongs to E2.
+
+### A9 — E2's failure criterion needs a convergence column, and this is the sharper form of A4
+
+Mine said E2 must not ship at a single chart nonlinearity. yoado-e1's addition is better and I am adopting it:
+**E2 must report which arm the starts CONVERGED in, not only whether they recovered.** On the linear chart the
+certificate arm converges *beautifully* — objective 2.15e-28, **below the residual at the truths** — while
+recovering nothing.
+
+> An arm that reaches a **lower objective** and a **worse image** is the exact signature of this confound, and a
+> table of objectives alone scores it as a win.
+
+So every E2 row carries objective *and* image error, and the verdict is a function of both — which is cross-cutting
+rule 4 from last night's ledger, arriving in a new place. **Fail any E2 file that reports objectives without image
+errors beside them.**
+
+### A10 — W1's spine is NOT gated on the new experiments, and should start now
+
+Several W1 links are already proved and measured and depend on nothing in Tracks I–III: the certificate stated with
+`q`, the Gaussian quotient-sensing form, the rank and capacity line, the affine-hull lemma (now with A8's
+measurement), and the one-way nesting `{ρ=0} ⊆ Z_C` with its falsifying cell. That spine is in
+`notes/exact_channel_rev10.tex`, compiling at 46 pp with A7 and A8 stated and the necessary-not-sufficient
+correction in place.
+
+**Ruling: start W1 on that spine immediately.** It is item 1 of §1.3 and the answer to Q4 depends on it existing.
+The gate stays on everything downstream — no reconstruction claim from count alone, and nothing from Tracks I–III
+enters until its experiment file has two PASSes.
