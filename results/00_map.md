@@ -123,7 +123,17 @@ So `qb = rank B_T = 8 = N` and `q = r - rank C = 24 - 16 = 8 = N` are the same n
 each sitting in a fourteen-order spectral gap rather than near a threshold. **The hazard is real but inapplicable
 here** — none of these matrices can vanish on this release (`B_T` is trained away from its zero init, `H` is data,
 `A_T` is the released seed plus update). It would apply to any cell where the certificate can legitimately be
-annihilated, and there the absolute floor is required.
+annihilated, and there the absolute floor is required. **Two such places are already on this project's roadmap, and
+in the second the bug fails in the direction that matters:**
+
+1. **The collapse regime.** `rank C = r - q` goes to zero as `q` approaches `r`, so `C` becomes numerically zero
+   exactly at the capacity boundary — where this project's sharpest measurements sit. A relative threshold there
+   reports a rank that is pure noise structure.
+2. **Defence evaluation — where an absolute floor is MANDATORY.** The merged and balanced-factorisation defences
+   give `C = 0` identically. A relative threshold applied to a merged release would report `C` as **full rank**,
+   i.e. report as OPEN a channel the defence has CLOSED, and conclude the defence does not work. That is wrong in
+   the direction that gets a paper attacked. **No defence evaluation in this project may use a relative-only rank
+   threshold**, and merging is the named case.
 
 ## 5. Standing constraints carried from the brief
 
