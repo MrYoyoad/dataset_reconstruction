@@ -4,6 +4,25 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## The saving convention that felt like overhead is what made a requested figure a replot (2026-09-07)
+
+Most of tonight's lessons are about errors. This one is about a habit that paid, and it is worth recording on that
+side of the ledger.
+
+The project's rule is that every experiment saves its tensors, not only its numbers — here, every one of the 200
+random starts' latent coordinates, each start's landing flag and each start's objective value, alongside the images.
+That felt like overhead when it was written, and it is the reason two late requests cost nothing:
+
+- **A new figure row showing what a FAILED start returns.** The latents were saved and the chart is deterministic
+  given the class and seed, so a failure could be decoded without re-running a single search. Rerunning would have
+  been a GPU job per cell across thirty-five cells, at a point in the night when the queue was the bottleneck.
+- **A layout rebuild of every panel.** Same reason: redrawn from tensors, so no number could change in the process
+  and no reviewer has to re-verify anything they already checked.
+
+The general form: save the *state the analysis might want*, not the state the current plot needs. A figure request
+answered by a replot is answered in minutes and cannot introduce an inconsistency; the same request answered by a
+rerun costs compute, needs its numbers re-checked, and can silently differ from the rows already published.
+
 ## A diagnostic that crashes in its own logging destroys the run it was diagnosing (2026-09-07)
 
 The endpoint diagnosis died on a NameError in a `torch.save` line added to preserve tensors for later — a variable

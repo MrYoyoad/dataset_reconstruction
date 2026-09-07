@@ -50,11 +50,26 @@ def main():
                      f"residual at the truths {max(r['residual_at_truth']):.0e}, best start {r['residual_min']:.0e}, median start {r['residual_median']:.0e}", fontsize=9)
         p = os.path.join(a.out, os.path.basename(d) + ".png"); fig.savefig(p, dpi=150); plt.close(fig)
         rows.append((os.path.basename(d), r)); print(f"# {p}")
-    tab = ["| cell | landed / starts | images found | residual at truths | best start | median start | top-20 by residual landed | SSIM vs raw (attack) | SSIM vs raw (chart floor) | SSIM vs raw (control) |", "|---|---|---|---|---|---|---|---|---|---|"]
+    # ORACLE CELLS ARE NEVER POOLED WITH ATTACK CELLS, and the split is enforced here rather than remembered by
+    # whoever reads the table: an oracle chart is built from the private images, so its landings and images-found are
+    # a fidelity ceiling. Once summed into a total with attack cells, no label on any figure can undo it.
+    is_oracle = lambda r: r.get("chart") == "oracle"
+    attack_rows = [(n, r) for n, r in rows if not is_oracle(r)]
+    oracle_rows = [(n, r) for n, r in rows if is_oracle(r)]
+    hdr = "| cell | landed / starts | images found | residual at truths | best start | median start | top-20 by residual landed | SSIM vs raw (attack) | SSIM vs raw (chart floor) | SSIM vs raw (control) |"
+    tab = [hdr, "|---|---|---|---|---|---|---|---|---|---|"]
     mean = lambda v: sum(v) / len(v)
-    for n, r in rows:
+    for n, r in attack_rows:
         tab.append(f"| {label_of(r)} | {r['landed']}/{r['starts']} | {r['images_found']}/{r['N']} | {max(r['residual_at_truth']):.1e} | {r['residual_min']:.1e} | {r['residual_median']:.1e} | "
                    f"{sum(r['top20_by_residual_landed'])}/20 | {mean(r['best_ssim_vs_raw']):.2f} | {mean(r.get('chart_floor_ssim_vs_raw', r['chart_floor_ssim'])):.2f} | {mean(r['control_ssim']):.2f} |")
+    if oracle_rows:
+        tab += ["", "### NOT ATTACKER-AVAILABLE — oracle charts, built from the span of the private images.",
+                "These are FIDELITY CEILINGS, not attacks. They are listed separately because they must never be pooled",
+                "with the rows above, and no total or median in this file mixes them.", "", hdr,
+                "|---|---|---|---|---|---|---|---|---|---|"]
+        for n, r in oracle_rows:
+            tab.append(f"| {label_of(r)} | {r['landed']}/{r['starts']} | {r['images_found']}/{r['N']} | {max(r['residual_at_truth']):.1e} | {r['residual_min']:.1e} | {r['residual_median']:.1e} | "
+                       f"{sum(r['top20_by_residual_landed'])}/20 | {mean(r['best_ssim_vs_raw']):.2f} | {mean(r.get('chart_floor_ssim_vs_raw', r['chart_floor_ssim'])):.2f} | {mean(r['control_ssim']):.2f} |")
     open(os.path.join(a.out, "table.md"), "w").write("\n".join(tab) + "\n")
     print("\n".join(tab))
 

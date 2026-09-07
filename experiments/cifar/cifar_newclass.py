@@ -233,6 +233,11 @@ def main():
     ap.add_argument("--ckpt", default=None)
     ap.add_argument("--data-root", default="data"); ap.add_argument("--flowers-root", default="data")
     ap.add_argument("--fashion-root", default="dataset_reconstruction/data")
+    ap.add_argument("--chart", choices=["pca", "oracle"], default="pca", help="pca: the attacker's chart, fitted on PUBLIC images of "
+                    "the added class. oracle: NOT ATTACKER-AVAILABLE -- the span of the private images themselves plus PCA filler, which "
+                    "is the FIDELITY CEILING of the attack rather than an attack. It answers 'how good could the picture be if the chart "
+                    "were perfect', and must never be presented as a recovery an attacker could obtain.")
+    ap.add_argument("--eps", type=float, default=0.0, help="oracle chart: relative noise added to the privates before spanning (0 = exact)")
     ap.add_argument("--degrade28", action="store_true", help="RESOLUTION CONTROL: put the public and private images through "
                     "32 -> 28 -> 32 bilinear, the same path the FashionMNIST classes travel. The off-corpus cells differ from "
                     "the CIFAR-100 cells in resolution history as well as in domain, and this cell removes that confound so a "
@@ -274,6 +279,13 @@ def main():
     with torch.no_grad(): log(f"# the trained model reads the private images as CIFAR-10 classes: {(W0 @ phi(X_raw)).argmax(0).tolist()}")
 
     mean = Pub.mean(0); U_, S_, Vh_ = torch.linalg.svd(Pub - mean, full_matrices=False); V = Vh_[: a.k].T.contiguous()
+    if a.chart == "oracle":                                                     # NOT attacker-available: the fidelity ceiling
+        go = torch.Generator().manual_seed(a.seed + 99); Xd = X_raw.T - mean
+        noise = torch.randn(Xd.shape, generator=go, dtype=torch.float64).to(dev)
+        noise = noise / noise.norm(dim=1, keepdim=True) * Xd.norm(dim=1, keepdim=True) * a.eps
+        Q_, _ = torch.linalg.qr(torch.cat([(Xd + noise).T, V[:, : max(a.k - a.N, 0)]], 1)); V = Q_[:, : a.k].contiguous()
+        log(f"# ORACLE CHART (eps={a.eps}): spans the private images themselves plus {max(a.k - a.N, 0)} public PCA directions. "
+            f"NOT ATTACKER-AVAILABLE -- this is the fidelity ceiling, not a recovery an attacker could obtain.")
     psi = lambda W: mean[:, None] + V @ W; coords = lambda X: V.T @ (X - mean[:, None])
     X_on = psi(coords(X_raw)); X_train = X_on if a.private == "onchart" else X_raw
     X_rel = (psi(coords(X_other)) if a.private == "onchart" else X_other) if a.wrong_release else X_train
@@ -337,7 +349,8 @@ def main():
         else:
             per.append(dict(i=i, landings=land, best_err=None, best_objective=None, blend=None, ssim_vs_raw=None, ssim_vs_train=None, control_ssim_max=None)); best_imgs.append(torch.zeros(3072))
         per[-1].update(chart_floor_err=float(repr_err[i]), chart_floor_ssim=ssim(X_on[:, i], X_raw[:, i]), res_truth=float(res_truth[i]), res_projection=float(res_on[i]))
-    row = dict(part="cifar_newclass", arch=a.arch, overtrained=a.overtrain, newclass=a.newclass, class_name=cname, backbone_test_acc=te, backbone_train_acc=tr, private=a.private, wrong_release=a.wrong_release,
+    row = dict(part="cifar_newclass", arch=a.arch, overtrained=a.overtrain, chart_kind=a.chart, chart_eps=a.eps,
+               chart_attacker_available=(a.chart == "pca"), newclass=a.newclass, class_name=cname, backbone_test_acc=te, backbone_train_acc=tr, private=a.private, wrong_release=a.wrong_release,
                k=a.k, r=a.r, N=a.N, m=m, n=n, T=a.T, lr=a.lr, seed=a.seed, tol=a.tol, sanity=san, cert_line=a.r - Np, capacity_line=m + a.r - a.N,
                residual_at_truth=res_truth.tolist(), residual_at_projection=res_on.tolist(), res_public_median=float(res_pub.median()), res_public_min=float(res_pub.min()),
                res_chart_random_median=float(res_rand.median()), starts=len(runs), landed=sum(r_["landed"] for r_ in runs), landings_per_image=[p_["landings"] for p_ in per],
@@ -353,8 +366,10 @@ def main():
     print(json.dumps(row), flush=True)
     if a.out:
         with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
-    tag = f"{a.arch}{'_overtrained' if a.overtrain else ''}_{cname}_k{a.k}_{a.private}{'_wrongrelease' if a.wrong_release else ''}"
-    torch.save(dict(x_raw=X_raw.cpu(), x_chart=X_on.cpu(), x_train=X_train.cpu(), x_found_best=torch.stack(best_imgs, 1), A_T=A_T.cpu(), B_T=B_T.cpu(), A0=A0.cpu(), C=C.cpu(), W=W.cpu(), runs=runs, meta=row),
+    tag = (f"{a.arch}{'_overtrained' if a.overtrain else ''}_{cname}_k{a.k}_{a.private}"
+           f"{'_oracle' if a.chart == 'oracle' else ''}{'_wrongrelease' if a.wrong_release else ''}")
+    torch.save(dict(chart_mean=mean.cpu(), chart_V=V.cpu(), chart_kind=a.chart, chart_eps=a.eps,
+                    x_raw=X_raw.cpu(), x_chart=X_on.cpu(), x_train=X_train.cpu(), x_found_best=torch.stack(best_imgs, 1), A_T=A_T.cpu(), B_T=B_T.cpu(), A0=A0.cpu(), C=C.cpu(), W=W.cpu(), runs=runs, meta=row),
                os.path.join(a.save_dir, f"{tag}.pth"))
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
     panels = [("private (raw)", X_raw.cpu()), ("chart projection (public PCA)", X_on.cpu()), ("closest random start (certificate only)", torch.stack(best_imgs, 1))]
