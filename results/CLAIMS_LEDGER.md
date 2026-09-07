@@ -57,6 +57,24 @@ reason, never deleted.
 | E4 | **Breadth frontier.** With the window scaled to the budget, distinct images climb 1, 2, 5, 7 and reach 8 only where precision falls to 0.648 — the last image is bought by accepting a third of the list is wrong. | letters cell | — | that more starts buy the last image; **a fixed-k distinct-image count is not an attacker statistic** and *falls* as starts grow, 5 at 300 and 2 at 3000 | 304540 | read-rows | HELD, one PASS |
 | E5 | Against a shadow-model membership attack the certificate matches on separation and wins only on assumptions: no shadows, no recipe, no distributional assumption. | ViT-B/16 head, 128 shadows | frozen backbone | that it detects more | 287241 | read-rows | SETTLED |
 
+## G. Chart fidelity — the oracle ladder (28 cells, complete; read in 2026-09-07)
+
+Approver read both examples off the logs; **two pre-registered predictions held** (the public-chart arm and the
+wrong-release arm were both called at zero before the rows existed).
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| G1 | Exact landing survives a chart error up to a bracket and then stops: **between 1.24% and 1.86%** on the MLP example, **between 0.45% and 0.90%** on the CNN one. | motorcycle/MLP 212/180/71/0 landings at measured error 0.0000/0.0062/0.0124/0.0186; keyboard/CNN 224/115/0 at 0.0000/0.0045/0.0090; every higher cell 0 | fp64; oracle chart built around the privates | **a single threshold.** The two examples **DISAGREE by about a factor of two and must never be averaged** — they differ in backbone *and* class simultaneously, so the difference is attributable to neither | 435271-435322 | read-rows | SETTLED |
+| G2 | The public PCA chart returns **zero** landings in both examples, at its own measured error of 0.3176 and 0.2432 — **predicted before the rows**. | same | same | that a public chart fails for lack of starts; it fails on fidelity | 435271-435322 | read-rows | SETTLED |
+| G3 | The quotable consequence, **with both ends**: the public chart is **twenty to thirty-five times coarser** than the gate. | G1 and G2 | same | a midpoint, a single factor, or an average of the two examples | 435271-435322 | derived from G1, G2 | SETTLED |
+| G4 | Negative control: the wrong-release arm returns zero landings in both examples. | same | same | — | 435271-435322 | read-rows | SETTLED |
+
+**Axis warning, binding on every figure and sentence from this group.** The perturbation *parameter* is **not** the
+measured chart error — their ratio falls from 0.62 to 0.40 across the range. Any plot or claim uses the **measured**
+axis. A figure drawn against the parameter would compress the very quantity the group exists to report.
+
+---
+
 ## F. Withdrawn, kept in place with the reason
 
 | # | text | why withdrawn | replaced by | date |
