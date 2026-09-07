@@ -46,7 +46,7 @@ reason, never deleted.
 | # | text | measured on | holds under | NOT shown | job ids | register | status |
 |---|---|---|---|---|---|---|---|
 | D1 | Certificate and linearised representer share a zero set **where every representation is recorded**; replay is a third, strictly stronger object. | derivation | full recording | that the equivalence holds at partial recording — it does not | approver R12 corrected | derived | SETTLED |
-| D2 | Identifiability is a property of the release, the chart **and the route**: on one release the certificate recovers 0 of 60 while replay recovers all images from 19 of 60. | affine cell | same release, same chart, matched starts | that either route dominates generally | 331384 | read-rows | SETTLED |
+| D2 | Identifiability is a property of the release, the chart **and the route**: on one release the certificate recovers 0 of 60 while **19 of 60** replay starts recover every image **at the 1e-2 landing criterion** (best start 6.6e-16; at a 2e-15 bar the count is 18). | affine cell, `starts=60`, `q=N=8` | same release, same chart, matched starts; **tolerance named with its count** | that either route dominates generally; **that a typical start recovers** — `replay_worst_err_median` is 1.17, so the 19 are the starts where *every* image clears the bar | 331384 | read-rows | SETTLED |
 | D3 | Any statement of the form "cannot identify by **either** route" is **false**. | as D2 | — | — | 331384 | derived from D2 | SETTLED |
 
 **Quotation hazard on D2, and it is the live one.** The airtight form is the **negative**: *identifiability is not

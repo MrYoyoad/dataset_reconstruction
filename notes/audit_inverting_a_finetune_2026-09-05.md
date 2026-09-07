@@ -532,8 +532,7 @@ load-bearing joint is simultaneously the strongest kind of claim in the chain an
 **~~Open, named, and runnable~~ — RUN, AND THE PREDICTION HELD** (`affine_two_routes_331384`). Full replay on a
 pixel-layer release through a linear chart **does not** suffer the blend degeneracy. On the same release where the
 certificate is blind by theorem — every minimiser an exact blend, with coefficients summing to 1 to nine decimals,
-which is the affine chart's own signature rather than a coincidence — **replay recovers all eight images to 2e-15
-from 19 of 60 random starts, with zero aliases.** So the "either route" form is not merely unproven, it is
+which is the affine chart's own signature rather than a coincidence — **19 of 60 random starts recover every image at the 1e-2 landing criterion, best start 6.6e-16** (job row `affine_two_routes_331384`). *Corrected 2026-09-07:* an earlier form here read "all eight to 2e-15 from 19 of 60", which **spliced two tolerances** — the count of 19 is the 1e-2 criterion, while the tighter 2e-15 bar is met by 18. Quote one tolerance with its own count, never a count from one beside a bar from another. The row's `replay_worst_err_median` is 1.17, so a *typical* start does not recover; the 19 are the starts where every image clears the bar. So the "either route" form is not merely unproven, it is
 **false**, and yoado-c6 was right to refuse to publish it on inheritance. The route that needs the recipe survives
 a geometry that kills the two that do not, and the scope becomes: **identifiability is a property of the release,
 the chart AND the route.**
