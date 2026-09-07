@@ -188,3 +188,40 @@ sentence that answers the realism objection.
   be cited about nonlinear charts in either direction.
 - **The linear-autoencoder assertion passed** to three decimals at every `k` in every regime — the theory check
   the arm exists for. Report as passed, not assumed.
+
+### A11 CORRECTED — both of my numbers were wrong, and the second is an error in the brief itself
+
+The executor rejected two figures I supplied. Both rejections are right; the second traces to a mislabelled
+quantity in §6.1 of the brief, which I propagated without checking.
+
+**1. My 60% was computed at unmatched fidelity.** I set the shared-concept count at 95% variance
+(`15 + 8·205 = 1655`) against a per-image chart at `k = 128` (`1024`), which is *below* that threshold — DINO
+target residual at `k=128` is 0.288, not the 95% point. The fidelity-matched comparison is
+```
+    shared-concept   15 + 8·205 = 1655
+    per-image             8·205 = 1640
+```
+**Weaker as a percentage and stronger as an argument, which is the executor's point and it is correct:** the
+shared part amortises *nothing*; it simply **adds** `k_shared` to a cost already dominated by per-image nuisance.
+And it generalises without any measurement — `k_shared + N·k_nuisance > N·k_nuisance` for any positive concept
+axis — so **the shared-concept parametrisation can only pay when the nuisance axis is small, which is exactly the
+condition the measurement refutes.** My 60% would have been the first thing an opponent recomputed.
+
+**2. The 0.25 pixel figure is not a projection residual at all — it is a CERTIFICATE residual.** The executor
+found it had no job row and lives only in a docstring, and refused to quote it back to me as circular. The
+provenance is worse than that. Its origin is `experiments/cifar/RESULT.md:212`:
+
+> *"their chart projections have **certificate residual** 0.25, while the blend floor sits at 0.013"*
+
+§6.1 of the brief restates that as *"private images sit off a 32-dimensional public PCA chart by a **projection
+residual** of 0.25 while blends of privates sit within 0.01."* Same two numbers, **relabelled as a different
+quantity.** A certificate residual at a chart projection and a chart's projection error are not comparable, so the
+headline I asked for would have divided one by the other.
+
+**The executor's substitution is correct and better founded than it knew:** the oracle ladder's own public rows —
+**0.2432** on the keyboard release and **0.3176** on the motorcycle release — *are* measured projection errors of
+the true photographs onto a public PCA chart, with job ids. So C1 reads 0.2432–0.3176 in pixels against 0.5991
+(DINO) and 0.4078 (CLIP), like-for-like, every figure sourced to a row.
+
+**Carry the correction back into the brief**, since §6.1 is the user's document and the mislabelling will otherwise
+be quoted again: the 0.25/0.01 pair there is a certificate residual and a blend floor, not projection residuals.
