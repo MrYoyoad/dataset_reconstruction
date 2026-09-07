@@ -170,12 +170,21 @@ Three quantities are easy to conflate, and only the third bears on identifiabili
 \item \textbf{Directions.} $\sum_\ell s_\ell$, with $s_\ell=r_\ell-q_\ell$ --- constraint directions
       per image.
 \item \textbf{Raw scalar equations on the training set.} $C_\ell H_\ell=0$ is an $s_\ell\times N$
-      system, so each adapted layer contributes $s_\ell N$ scalar equalities and the release
-      contributes $N\sum_\ell s_\ell$ in total.
+      system, so each adapted layer contributes $s_\ell N$ \emph{raw scalar equalities} and the release
+      contributes $N\sum_\ell s_\ell$ raw rows in total. This is a row count, not information.
 \item \textbf{Independent information on a chart.} The rank of the stacked Jacobian $J_F$, where
       $F(z)$ stacks $C_\ell\Phi^0_\ell(G(z))$ over the adapted layers. For one layer this is
       Theorem~\ref{thm:tangent}; across layers it is \emph{unmeasured}.
 \end{enumerate}
+
+Only the third bears on identifiability, and the chain from the first to a defensible statement has
+four links, each of which can lose information: \textbf{raw rows} $\to$ \textbf{per-example
+restrictions} $\to$ \textbf{rank on the chart actually searched} $\to$ \textbf{remaining joint
+degrees of freedom}. The third link depends on which chart regime the attacker is in --- a
+\emph{universal} chart over all natural images, a \emph{target-conditioned} chart built from public
+data about a declared target, or a \emph{shared-concept} chart $x_i=G(z_{\text{shared}},z_i)$ ---
+and the three differ in the $k$ needed to represent the private data at a given fidelity. That
+comparison is being measured; it is not assumed here.
 
 Worked from the architecture: with $N=8$, $r=16$, $q=8$, each module gives $s=8$, so one module is
 $8$ directions per image and $64$ raw equalities; four modules $32$ and $256$; eight modules $64$ and
