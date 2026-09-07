@@ -112,4 +112,13 @@ construction.
   The arithmetic in their version of C3 (1655 against 1024) compares at unmatched fidelity and is not used; the
   fidelity-matched form is above.
 - The pixel-space comparison figure was taken from this repo's own measured ladder rows (0.2432 / 0.3176), not from
-  the 0.25 quoted in the script docstring, whose provenance this session did not verify.
+  the 0.25 quoted in the script docstring, which this session refused as circular (it is sourced only to prose I
+  wrote, with no job row behind it).
+- **That refusal turned up a mislabelled quantity in the brief itself, and it is not ours to fix silently.** Traced
+  by yoado-8b: the 0.25 and 0.01 pair originates at `experiments/cifar/RESULT.md`, where it is a **certificate
+  residual** at a chart projection against a blend floor. §6.1 of the brief restates the same pair as *"private
+  images sit off a 32-dimensional public PCA chart by a **projection residual** of 0.25 while blends of privates sit
+  within 0.01"*. A certificate residual evaluated at a chart projection is not a chart's projection error, and the
+  headline this session was asked to write would have divided one by the other. C1 uses measured projection errors
+  with job ids instead. **The brief's §6.1 still carries the mislabelling and should be corrected at the source
+  rather than worked around here** — flagged to the ledger (yoado-35) rather than quietly superseded.

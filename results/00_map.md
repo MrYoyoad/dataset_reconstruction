@@ -105,6 +105,26 @@ halving the offset dividing the residual by 2.05. Linear rather than quadratic m
 the scale direction, so scale is **first-order** identifiable. The prediction still open is `||h_hat||/||h||` near
 1 in the seed-free arm.
 
+## 4c. Rank thresholds — verified, not assumed (job 688520)
+
+The multilayer lane found that a purely relative threshold `s > rtol*s[0]` calls a numerically **zero** matrix
+**full** rank (a zero matrix's own `s[0]` is at rounding level, so every singular value clears the bar), and that
+this inverted the sign of a result there. Every rank in the E1B scripts uses that form. Checked on this release
+against an **absolute** floor tied to `||A_T||` or `||H||` (`experiments/e1b/rank_threshold_check.py`):
+
+| object | rank, relative | rank, absolute | agree | gap at the cut |
+|---|---|---|---|---|
+| `B_T` | 8 | 8 | yes | s[7]=2.53e-01 → s[8]=4.09e-16, ratio **6.2e14** |
+| `C` | 16 | 16 | yes | s[15]=4.34e-01 → s[16]=2.04e-15, ratio **2.1e14** |
+| `H` | 8 | 8 | yes | full rank, s[-1]=1.98 |
+| `A_T` | 24 | 24 | yes | full rank, s[-1]=4.18e-01 |
+
+So `qb = rank B_T = 8 = N` and `q = r - rank C = 24 - 16 = 8 = N` are the same number reached two independent ways,
+each sitting in a fourteen-order spectral gap rather than near a threshold. **The hazard is real but inapplicable
+here** — none of these matrices can vanish on this release (`B_T` is trained away from its zero init, `H` is data,
+`A_T` is the released seed plus update). It would apply to any cell where the certificate can legitimately be
+annihilated, and there the absolute floor is required.
+
 ## 5. Standing constraints carried from the brief
 
 Rule 1: report **q and N side by side**, always; `q = r - rank C` is a span dimension and never an image count.
