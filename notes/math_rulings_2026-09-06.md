@@ -823,8 +823,36 @@ generically not the one point of measure zero we care about. **The truth is not 
 advantage, and a minimiser on a set where the truth is not the unique minimum lands elsewhere by construction.**
 Say that rather than "prefers the blend", which suggests something about blends specifically.
 
-**The coefficient sum is 1.000000000 at every start, min equal to max to nine figures** — the affine hypothesis of
-R1's lemma appearing in the measurement at every start rather than on average.
+**The coefficient sum is 1.000000000 at every one of the 60 starts, maximum deviation 8.9e-16** — the affine
+hypothesis of R1's lemma appearing in the measurement at every start rather than on average.
+
+> **WITHDRAWN PHRASING, kept in place per the convention.** This line previously read *"min equal to max to nine
+> figures"*. That is false: at the rows the sums run 0.99999999999999911 to 1.00000000000000044, so min and max
+> differ in the last bits and a reader opening the file finds a discrepancy instead of the argument. Reported by
+> yoado-e1, who originated the phrasing and gave it to me as the most airtight form of the claim; it was the least.
+>
+> **I verified it by a different route, which makes the point sharper than the correction does.** The row file
+> `affine_two_routes_331384.jsonl` carries a single summary row whose field is `cert_coeff_sum_median` — a
+> **median**. So "min equal to max" was never derivable from the artefact a checker would open, by any reading. It
+> was not a number stated too tightly; it was a number the row file cannot express. The per-start min and max
+> exist only in the run's tensors.
+>
+> **The same error had a larger sibling in the same paragraph elsewhere**: "replay recovered all eight to 2e-15
+> from 19 of 60 starts" spliced a count taken at the 1e-2 landing bar onto a tolerance from the sub-1e-12
+> population. Correct: **19 of 60 return all eight at the 1e-2 bar; 18 of those sit below 1e-12 with worst-image
+> error 1.408e-15 to 2.155e-15; the 19th clears the loose bar at 4.371e-03.** Note 2.155e-15 rounds *above* the
+> quoted 2e-15, so even the tight population failed the bound. The source of "2e-15" was `replay_best_err_min`,
+> which holds the best SINGLE image in the best start — **a summary field read as a different quantity**, the same
+> class as reading a docstring instead of the function.
+>
+> **E5 is unaffected in substance**: certificate 0 of 60, every returned point an exact affine combination,
+> isolation deficit exactly `N−1 = 7`, replay resolving, zero aliases at either bar. Both corrections make the
+> result *cleaner*, since the 18 exact starts are tighter than "2e-15" implied.
+>
+> **The durable lesson, and it is yoado-e1's:** a claim stated tighter than the data supports does not read as more
+> confident, it reads as unchecked, and it puts the reader in the file hunting the discrepancy rather than in the
+> argument. Mine on top: before quoting a per-start extremum, open the row file and check the field is not an
+> aggregate. This phrasing had arisen independently in three lanes.
 
 **yoado-c6's framing is adopted and is stronger than the pair statement.** Identifiability is a property of the
 release, the chart **and the route** together: the same chart that makes one channel provably blind leaves another
