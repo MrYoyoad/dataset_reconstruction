@@ -1,0 +1,211 @@
+\section*{What the released adapter determines}
+
+This note states and proves what a released LoRA pair $(A_T,B_T)$ determines about the data it was
+trained on. It is theorem-first: each statement is proved, or marked as measured with the job that
+measured it, or marked open. Nothing here is inferred from a count alone.
+
+\paragraph{Setting.} One adapted layer $\ell$ with input dimension $d_\ell$, output dimension
+$m_\ell$, LoRA rank $r_\ell$; the frozen weight is $W_\ell^0$ and the adapter makes it
+$W_\ell^0+B_\ell A_\ell$. Let $H_\ell=[h_{\ell,1},\dots,h_{\ell,N}]\in\mathbb R^{d_\ell\times N}$ be
+the representations that entered the layer during training, and
+\[
+  q_\ell \;:=\; \operatorname{rank}H_\ell .
+\]
+Throughout, \textbf{$q$ and not $N$ is the operative quantity}: the release determines the dimension
+of the span of the training representations, never the number of photographs. $q_\ell=N$ only when
+the $N$ representations are linearly independent, and augmentation makes $N_{\text{repr}}\ge q_\ell$
+with $N_{\text{image}}$ smaller still. Training is $B_0=0$, $A_0$ drawn from a density, plain
+gradient descent, and the layer's inputs are fixed across steps.
+
+\medskip
+Write $S_\ell=\operatorname{row}(B_{\ell,T})\subseteq\mathbb R^{r_\ell}$, let $\Pi_\ell$ be the
+orthogonal projector onto $S_\ell^{\perp}$, and define the \emph{certificate}
+\[
+  C_\ell \;:=\; \Pi_\ell\,A_{\ell,T}, \qquad s_\ell:=\operatorname{rank}C_\ell .
+\]
+$C_\ell$ is computed from the released factors alone --- no recipe, no labels, no seed, no $N$.
+
+\subsection*{1. The certificate annihilates the training span}
+
+\begin{theorem}\label{thm:cert}
+Assume $B_0=0$, plain gradient descent with fixed layer inputs, $\operatorname{rank}A_0=r$, and
+\emph{excitation} --- the training signal moves the adapter along every private direction, so that
+$S=\operatorname{col}(A_0H)$ exactly. Then
+\[
+  C\,H=0,\qquad s=r-q,\qquad \ker C=\operatorname{span}(H)\oplus\ker A_0 .
+\]
+\end{theorem}
+
+\begin{proof}
+Under $B_0=0$ every gradient step adds to $B$ a matrix whose rows lie in $\operatorname{col}(A_tH)$,
+and the closure of the factor dynamics keeps $A_t=A_0(I+HM_tH^{\top})$, so
+$\operatorname{col}(A_tH)=\operatorname{col}(A_0H)$ for every $t$. Hence
+$S=\operatorname{col}(A_0H)$, which is excitation stated as an identity. Then
+$\Pi A_TH=\Pi A_0(H+HM_TH^{\top}H)=\Pi(A_0H)(I+M_TH^{\top}H)=0$ because $\Pi$ annihilates
+$\operatorname{col}(A_0H)$. Since $\dim S=\operatorname{rank}(A_0H)=q$ when
+$\operatorname{rank}A_0=r$, the projector has rank $r-q$ and so does $C=\Pi A_0$ restricted off
+$\ker A_0$. Finally $Cx=0$ iff $A_0x\in\operatorname{col}(A_0H)$ iff
+$x\in\operatorname{span}(H)+\ker A_0$.
+\end{proof}
+
+\begin{remark}[the certificate is a rejection test]\label{rem:rejection}
+$Ch=0$ is exact for \emph{subspace} consistency and nothing more. Every point of
+$\operatorname{span}(H)$ passes it, including points that are not training representations. It can
+refute a candidate; it cannot accept one. This is used again in Lemma~\ref{lem:hull}.
+\end{remark}
+
+\begin{remark}[homogeneity]
+$C(\alpha h)=\alpha Ch$, so a candidate's norm is unconstrained: the certificate cannot determine
+$\|h\|$. Whether replay determines it is an experiment, not a theorem.
+\end{remark}
+
+\subsection*{2. Quotient sensing: what the release reveals about the seed}
+
+\begin{proposition}\label{prop:sensing}
+Under the hypotheses of Theorem~\ref{thm:cert}, $C=c_T\,\Pi A_0$ for a scalar $c_T$. Consequently,
+for a fixed $h$ with off-span component $h_\perp$ and Gaussian $A_0$ with entry scale $\sigma_0$,
+\[
+  \frac{\|Ch\|^{2}}{c_T^{2}\sigma_0^{2}\|h_\perp\|^{2}}\;\sim\;\chi^{2}_{\,r-q},
+\]
+while every $h\in\operatorname{span}(H)$ gives exactly zero.
+\end{proposition}
+
+\begin{proof}
+$A_T=A_0(I+HM_TH^{\top})$, and $\Pi$ kills the second term as in Theorem~\ref{thm:cert}, leaving
+$\Pi A_0$ up to the scalar accumulated by weight decay or its absence. $\Pi A_0$ restricted to
+$\operatorname{span}(H)^{\perp}$ is a Gaussian matrix of rank $r-q$ acting on $h_\perp$, giving the
+stated $\chi^{2}$.
+\end{proof}
+
+The release therefore pins the $S^{\perp}$-component of the random seed up to one scalar. This gives
+a membership test that needs no shadow models, no recipe and no distributional assumption --- an
+assumptions result rather than a detection result.
+
+\subsection*{3. What a chart of dimension $k$ leaves free}
+
+An attacker searches a chart $\psi:\mathbb R^{k}\to\mathbb R^{d}$ rather than all of $\mathbb R^d$.
+
+\begin{theorem}[generic tangent rank]\label{thm:tangent}
+For a single adapted layer, with $U_x$ an orthonormal basis of the chart's tangent space at $x$ and
+$d_\parallel$ the number of tangent directions lying inside $\operatorname{span}(H)$,
+\[
+  \operatorname{rank}\bigl(C\,J_\psi(x)\,U_x\bigr)\;=\;\min\bigl(r-q,\;k-d_\parallel\bigr)
+  \quad\text{almost surely over the seed.}
+\]
+Cross-layer stacking is \emph{not} covered by this statement; the rank of the stacked Jacobian across
+adapted layers is unmeasured.
+\end{theorem}
+
+\subsection*{4. The certificate can never separate the span --- and what fixes it}
+
+\begin{lemma}[affine-hull degeneracy]\label{lem:hull}
+$C$ is linear and $CH=0$, so $C\bigl(\sum_i\alpha_ih_i\bigr)=0$ for \emph{every} coefficient vector
+$\alpha$. Hence the certificate alone cannot distinguish the training representations from their
+span. Moreover, let $\Psi=\varphi\circ\psi$ be the composition from chart coordinates to the adapted
+layer's input, with the privates on-chart, $h_i=\Psi(z_i)$. If $\Psi$ is affine then for every
+$\alpha$ with $\sum_i\alpha_i=1$,
+\[
+  \Psi\Bigl(\sum_i\alpha_iz_i\Bigr)=\sum_i\alpha_ih_i\in\operatorname{col}H\subseteq\ker C ,
+\]
+so the certificate's zero set on the chart contains an affine subspace of dimension $\min(N-1,k)$
+through the training points, and they are not isolated zeros at any $k$.
+\end{lemma}
+
+\begin{proof}
+The first claim is linearity. For the second, $\sum_i\alpha_i=1$ is exactly what absorbs the
+intercept: for affine $\Psi(z)=Lz+b$, $\Psi(\sum\alpha_iz_i)=L\sum\alpha_iz_i+b=\sum\alpha_i(Lz_i+b)$.
+The affine hull of $N$ points of $\mathbb R^k$ has dimension $\min(N-1,k)$ and contains each $z_i$.
+\end{proof}
+
+\begin{remark}[why a count cannot see this]\label{rem:count-blind}
+The capacity count is a transversality count and is valid off $\operatorname{col}H$; it is invalid
+\emph{on} it, because $\operatorname{col}H\subseteq\ker C$ is forced by construction rather than
+generic. In the language of Theorem~\ref{thm:tangent} this is $d_\parallel>0$. Nonlinearity between
+chart and adapter is how the condition is bought, not what it says; the condition is that the chart
+meet the training span only at the training points.
+\end{remark}
+
+\begin{remark}[the available checks cannot substitute for it]\label{rem:checks}
+$\|CH\|$, $\operatorname{rank}C$, the excitation gap and the residual at the truths are functions of
+$C$ and $H$ alone, and none of them mentions the chart. Holding $C$ and $H$ fixed while varying the
+chart moves the training points from isolated to non-isolated with every one of those numbers
+unchanged. \emph{No} function of $(C,H)$ alone can decide the condition of
+Remark~\ref{rem:count-blind}. One test does bear on it and is one-sided: at a found $z^{\ast}$,
+$J=C\,D\Psi(z^{\ast})$ of full column rank $k$ certifies the zero is isolated, while
+$\operatorname{rank}J<k$ certifies nothing, a degenerate isolated zero having it too.
+\end{remark}
+
+\paragraph{Measured (job 331384; register: read-rows).} One release, one affine chart
+($\psi$ linear, $\varphi$ the identity), the same random starts, with $k=12$, $N=8$, $r=24$, $m=20$
+chosen below both capacity lines and above $N-1$ so that the hypothesis of Lemma~\ref{lem:hull} is
+the only one failing. The certificate route recovered nothing from 60 starts; every returned point
+was an exact affine combination of the training representations with coefficient sum
+$1.000000000$ at \emph{every} start (min equal to max, not a median), and the isolation rank was $5$,
+a deficit of exactly $N-1=7$. Replay on the same release and the same starts recovered all eight
+representations to $2\times10^{-15}$ from 19 of those 60 starts, with zero aliases.
+
+\subsection*{5. Replay resolves what the certificate cannot}
+
+The two routes have nested zero sets, in one direction only:
+\[
+  \{\text{truth}\}\;\subseteq\;\{\rho=0\}\;\subseteq\;\{CH=0\},
+\]
+where $\rho$ is the residual of simulating the training recipe on candidate data against the released
+pair. So $\rho=0\Rightarrow CH=0$ and never the converse: a blend is an exact zero of $C$ and is not
+generally a zero of $\rho$, because reproducing $B_T$ means reproducing what the recipe actually did.
+The measurement above is this inclusion being strict.
+
+\begin{remark}[identifiability is a property of release, chart and route]
+The same chart that makes one channel provably blind leaves the other exact. Identifiability is
+therefore not a property of the release alone, nor of the (release, chart) pair, but of all three.
+A corollary: an adapter on the input layer read through a linear chart is non-identifying
+\emph{for the certificate route}; the corresponding statement for replay is false.
+\end{remark}
+
+\subsection*{6. The count, as arithmetic}
+
+Three quantities are easy to conflate, and only the third bears on identifiability.
+
+\begin{enumerate}
+\item \textbf{Directions.} $\sum_\ell s_\ell$, with $s_\ell=r_\ell-q_\ell$ --- constraint directions
+      per image.
+\item \textbf{Raw scalar equations on the training set.} $C_\ell H_\ell=0$ is an $s_\ell\times N$
+      system, so each adapted layer contributes $s_\ell N$ scalar equalities and the release
+      contributes $N\sum_\ell s_\ell$ in total.
+\item \textbf{Independent information on a chart.} The rank of the stacked Jacobian $J_F$, where
+      $F(z)$ stacks $C_\ell\Phi^0_\ell(G(z))$ over the adapted layers. For one layer this is
+      Theorem~\ref{thm:tangent}; across layers it is \emph{unmeasured}.
+\end{enumerate}
+
+Worked from the architecture: with $N=8$, $r=16$, $q=8$, each module gives $s=8$, so one module is
+$8$ directions per image and $64$ raw equalities; four modules $32$ and $256$; eight modules $64$ and
+$512$; twelve modules $96$ and $768$. With $r=32$ and $q=8$, $s=24$, and eight modules give $192$ per
+image and $1536$ raw. Deep modules inherit the caveat that exactness holds only where the layer's
+inputs are fixed during training.
+
+\begin{remark}[multiplicity]
+If images are parameterised independently, the system is block-diagonal: each image's
+$\sum_\ell s_\ell$ equations act on its own $k$ unknowns, ranks add across images but never exceed
+$k$ per image, and multiplying both sides by $N$ changes no ratio. The relevant comparison is
+$\sum_\ell s_\ell$ per image against $k$ per image. Only a chart that \emph{shares} parameters,
+$x_i=G(z_{\text{shared}},z_i)$, pools all $N\sum_\ell s_\ell$ equations onto the shared block.
+Replay differs: all images are coupled through the common released endpoint even when their latents
+are independent, so its identifiability is joint from the start.
+\end{remark}
+
+\begin{remark}[what a count may and may not conclude]\label{rem:count-language}
+A configuration is \emph{ruled out by count}, \emph{not ruled out by count}, or \emph{marginal ---
+requires a measured Jacobian rank}. ``Not ruled out by count'' never means identifiable:
+identifiability additionally requires that the chart meet the training span only at the training
+points, and the count does not test that condition (Lemma~\ref{lem:hull},
+Remark~\ref{rem:count-blind}). No reconstruction claim follows from a count alone.
+\end{remark}
+
+\subsection*{7. Status}
+
+Proved here: Theorem~\ref{thm:cert}, Proposition~\ref{prop:sensing}, Lemma~\ref{lem:hull} and the
+remarks. Theorem~\ref{thm:tangent} is proved for a single layer; the stacked-Jacobian rank across
+layers is open and is the quantity item~3 of \S6 actually needs. The capacity line $k<m+r-q$ for the
+reduced $B_T$ channel is measured sharp to one unit of $k$ on synthetic and MNIST releases and
+remains a candidate for the full factor pair. The deep-layer perturbative bound is not proved and is
+stated as open; a counterexample would be written up as one.
