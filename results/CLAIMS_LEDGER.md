@@ -94,6 +94,29 @@ axis. A figure drawn against the parameter would compress the very quantity the 
 
 ---
 
+## H. Charts in feature space (E4a, 2026-09-07)
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| H1 | **The shared-concept chart is worse, not better.** Identity is 15–16 directions; pose, lighting, crop and background are 205–208. So the shared-concept parametrisation costs 15 + 8×205 = **1655** unknowns against 8×128 = **1024** per-image — about **60% worse**. | DINO ViT-B/16, CLIP ViT-L/14 | **both dimensions counted at the same variance threshold**, or the comparison is void | that per-image charts are cheap in absolute terms; only that shared-concept is the *more* expensive of the two | E4a (670533, 670536) | read-rows | HELD, one PASS |
+| H2 | A 32-dimensional public chart represents private data **better in pixels (0.25) than in a frozen ViT embedding (0.60)** — same quantity, same k. **Moving to a foundation-model embedding does not dissolve the chart problem; it worsens it.** | same | like-for-like, no transfer assumed | — | E4a | read-rows | HELD, one PASS |
+| H3 | The affine-hull degeneracy **reproduces in feature space** at every cell of both backbones and both regimes: blends sit about **twice as close** to the public chart as the privates themselves. So it is a property of what public charts represent well, **not a pixel artefact**. | same | — | that it is caused by the pixel parametrisation | E4a | read-rows | HELD, one PASS |
+
+**H1 is a plan change, not a table row.** §6.2 proposed shared-concept as the regime that *reduces* the unknown
+count, illustrated at concept 32 against nuisance 8, and said explicitly that E4a would measure whether reality has
+that structure. It does not — **the structure is inverted**. This *removes* a regime rather than adding one.
+
+**BLOCKED FROM TRAVEL — "the best public feature chart is 16 to 44 times too coarse."** Arithmetically right,
+but it divides a **feature-space** residual (DINO/CLIP) by a gate measured in **pixel space** on the CIFAR releases
+with a different search. The gate is a property of a release, not a constant, and its transfer to feature space is
+**unmeasured**. It goes out only with the transferability named open in the same sentence, or not at all. **Use H2
+instead** — like-for-like, needs no conditional, and answers Gal's realism objection without anything to take apart.
+
+**NOT A RESULT — the nonlinear-chart arm.** It is **non-monotone in k**, which proves an optimisation failure.
+It must never be cited about nonlinear charts in **either** direction.
+
+---
+
 ## F. Withdrawn, kept in place with the reason
 
 | # | text | why withdrawn | replaced by | date |
