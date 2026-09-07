@@ -46,8 +46,19 @@ reason, never deleted.
 | # | text | measured on | holds under | NOT shown | job ids | register | status |
 |---|---|---|---|---|---|---|---|
 | D1 | Certificate and linearised representer share a zero set **where every representation is recorded**; replay is a third, strictly stronger object. | derivation | full recording | that the equivalence holds at partial recording — it does not | approver R12 corrected | derived | SETTLED |
-| D2 | Identifiability is a property of the release, the chart **and the route**: on one release the certificate recovers 0 of 60 while **19 of 60** replay starts recover every image **at the 1e-2 landing criterion** (best start 6.6e-16; at a 2e-15 bar the count is 18). | affine cell, `starts=60`, `q=N=8` | same release, same chart, matched starts; **tolerance named with its count** | that either route dominates generally; **that a typical start recovers** — `replay_worst_err_median` is 1.17, so the 19 are the starts where *every* image clears the bar | 331384 | read-rows | SETTLED |
+| D2 | Identifiability is a property of the release, the chart **and the route**: on one release the certificate recovers 0 of 60 while **19 of 60** replay starts recover every image **at the 1e-2 landing criterion** (at a **2.2e-15** worst-image bar the count is 18; at a strict **2.0e-15** bar it is **16**; best single image in the best start 6.6e-16). | affine cell, `starts=60`, `q=N=8` | same release, same chart, matched starts; **tolerance named with its count** | that either route dominates generally; **that a typical start recovers** — `replay_worst_err_median` is 1.17, so the 19 are the starts where *every* image clears the bar | 331384 | read-rows | SETTLED |
 | D3 | Any statement of the form "cannot identify by **either** route" is **false**. | as D2 | — | — | 331384 | derived from D2 | SETTLED |
+
+**Field hazard on D2 — the one that produced the error.** `replay_best_err_min` is the **best single image in the
+best start**, not a per-start worst case. Counting against it gives 18 at 2.0e-15; counting against
+`worst_image_err`, which is what "recovers every image" means, gives **16** at that bar. Verified at the 60
+per-start rows (GM, `read-rows`): worst-image ≤2.0e-15 → 16, ≤2.2e-15 → 18, ≤1e-2 → 19. **Any count of starts that
+recovered everything reads `worst_image_err`.**
+
+**And the general lesson, from the lane that made the original slip.** The phrase that propagated was the *weakest*
+form of a true claim, because it was the one a reader could disprove by opening the file. **A claim stated tighter
+than the data supports does not read as more confident; it reads as unchecked**, and it puts the reader in the file
+hunting the discrepancy instead of in the argument. The honest bound here is barely looser and survives inspection.
 
 **Quotation hazard on D2, and it is the live one.** The airtight form is the **negative**: *identifiability is not
 determined by the release and the chart alone.* The inclusion `{truth} ⊆ {replay=0} ⊆ {certificate=0}` is **proved**;
