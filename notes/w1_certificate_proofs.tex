@@ -28,24 +28,49 @@ $C_\ell$ is computed from the released factors alone --- no recipe, no labels, n
 \subsection*{1. The certificate annihilates the training span}
 
 \begin{theorem}\label{thm:cert}
-Assume $B_0=0$, plain gradient descent with fixed layer inputs, $\operatorname{rank}A_0=r$, and
-\emph{excitation} --- the training signal moves the adapter along every private direction, so that
-$S=\operatorname{col}(A_0H)$ exactly. Then
+Assume
+\begin{itemize}
+\item[(H1)] $B_0=0$, plain gradient descent with no weight decay, and the layer's inputs fixed
+  across steps;
+\item[(H2)] $\operatorname{rank}A_0=r$ and $\operatorname{col}(H)\cap\ker A_0=\{0\}$ --- generic
+  over the seed, and needed because $A_0$ maps $\mathbb R^{d}$ to $\mathbb R^{r}$ with $r<d$ and so
+  has a kernel of dimension $d-r$;
+\item[(H3)] $I+M_tG$ is invertible for every $t\le T$, where $G=H^{\top}H$ and $M_t$ is the
+  coefficient matrix of the trajectory. At $t=0$ this is the identity, so it holds for a small enough
+  step size; it can fail in principle;
+\item[(H4)] \emph{excitation}: $\operatorname{rank}B_T=q$. Unlike the others this one is
+  \emph{checkable by the attacker}, directly from the released factor.
+\end{itemize}
+Then
 \[
+  \Pi A_T=\Pi A_0\ \text{ exactly},\qquad
   C\,H=0,\qquad s=r-q,\qquad \ker C=\operatorname{span}(H)\oplus\ker A_0 .
 \]
 \end{theorem}
 
 \begin{proof}
-Under $B_0=0$ every gradient step adds to $B$ a matrix whose rows lie in $\operatorname{col}(A_tH)$,
-and the closure of the factor dynamics keeps $A_t=A_0(I+HM_tH^{\top})$, so
-$\operatorname{col}(A_tH)=\operatorname{col}(A_0H)$ for every $t$. Hence
-$S=\operatorname{col}(A_0H)$, which is excitation stated as an identity. Then
-$\Pi A_TH=\Pi A_0(H+HM_TH^{\top}H)=\Pi(A_0H)(I+M_TH^{\top}H)=0$ because $\Pi$ annihilates
-$\operatorname{col}(A_0H)$. Since $\dim S=\operatorname{rank}(A_0H)=q$ when
-$\operatorname{rank}A_0=r$, the projector has rank $r-q$ and so does $C=\Pi A_0$ restricted off
-$\ker A_0$. Finally $Cx=0$ iff $A_0x\in\operatorname{col}(A_0H)$ iff
-$x\in\operatorname{span}(H)+\ker A_0$.
+Under (H1) the factor dynamics close: $B_t=P_t(A_0H)^{\top}$ and $A_t=A_0(I+HM_tH^{\top})$ for
+coefficient matrices $P_t,M_t$. Hence $A_tH=A_0H\,(I+M_tG)$, and under (H3)
+$\operatorname{col}(A_tH)=\operatorname{col}(A_0H)$ for every $t\le T$.
+
+Every row of $B_T=P_T(A_0H)^{\top}$ is a combination of the columns of $A_0H$, so
+$S=\operatorname{row}(B_T)\subseteq\operatorname{col}(A_0H)$ always. Under (H2),
+$\dim\operatorname{col}(A_0H)=\operatorname{rank}(A_0H)=q$, and (H4) gives $\dim S=q$; a subspace
+contained in another of the same finite dimension equals it, so
+$S=\operatorname{col}(A_0H)$. \emph{Excitation is therefore a consequence of (H4), not an extra
+assumption about the training signal.}
+
+Now $A_T=A_0+A_0HM_TH^{\top}$, and $\Pi$ annihilates $\operatorname{col}(A_0H)=S$, so
+$\Pi A_0H=0$ and the second term dies:
+\[
+  \Pi A_T=\Pi A_0+(\Pi A_0H)M_TH^{\top}=\Pi A_0 ,
+\]
+an exact identity with no scalar. Consequently $C=\Pi A_T=\Pi A_0$, and
+$CH=\Pi A_0H=0$.
+
+For the rank, $\Pi$ has rank $r-q$ and, by (H2), $\Pi A_0$ attains it, so $s=r-q$. Finally $Cx=0$
+iff $A_0x\in\operatorname{col}(A_0H)$ iff $x\in\operatorname{span}(H)+\ker A_0$, and (H2) makes the
+sum direct.
 \end{proof}
 
 \begin{remark}[the certificate is a rejection test]\label{rem:rejection}
@@ -62,24 +87,30 @@ $\|h\|$. Whether replay determines it is an experiment, not a theorem.
 \subsection*{2. Quotient sensing: what the release reveals about the seed}
 
 \begin{proposition}\label{prop:sensing}
-Under the hypotheses of Theorem~\ref{thm:cert}, $C=c_T\,\Pi A_0$ for a scalar $c_T$. Consequently,
-for a fixed $h$ with off-span component $h_\perp$ and Gaussian $A_0$ with entry scale $\sigma_0$,
+Under the hypotheses of Theorem~\ref{thm:cert}, $C=\Pi A_0$ --- \emph{with no free scalar}.
+Consequently, for a fixed $h$ with off-span component $h_\perp$ and Gaussian $A_0$ with entry scale
+$\sigma_0$,
 \[
-  \frac{\|Ch\|^{2}}{c_T^{2}\sigma_0^{2}\|h_\perp\|^{2}}\;\sim\;\chi^{2}_{\,r-q},
+  \frac{\|Ch\|^{2}}{\sigma_0^{2}\|h_\perp\|^{2}}\;\sim\;\chi^{2}_{\,r-q},
 \]
 while every $h\in\operatorname{span}(H)$ gives exactly zero.
 \end{proposition}
 
 \begin{proof}
-$A_T=A_0(I+HM_TH^{\top})$, and $\Pi$ kills the second term as in Theorem~\ref{thm:cert}, leaving
-$\Pi A_0$ up to the scalar accumulated by weight decay or its absence. $\Pi A_0$ restricted to
+Immediate from $\Pi A_T=\Pi A_0$ in Theorem~\ref{thm:cert}. $\Pi A_0$ restricted to
 $\operatorname{span}(H)^{\perp}$ is a Gaussian matrix of rank $r-q$ acting on $h_\perp$, giving the
 stated $\chi^{2}$.
 \end{proof}
 
-The release therefore pins the $S^{\perp}$-component of the random seed up to one scalar. This gives
-a membership test that needs no shadow models, no recipe and no distributional assumption --- an
-assumptions result rather than a detection result.
+Three consequences follow, and the first is sharper than the form this project carried until now.
+The release pins the $S^{\perp}$-component of the seed \emph{exactly}, not up to a scalar, so the
+seed reduction leaves $q\,d$ unknowns rather than $q\,d+1$. The constant is not fitted: it is $1$ by
+the proof, and measured at $1.000000000000$ on the gate of job 675031. And a measured $c_T\neq1$ is
+then a \emph{diagnostic} rather than noise --- it is the signature of weight decay or of an optimiser
+that is not plain gradient descent, either of which breaks (H1).
+
+This gives a membership test that needs no shadow models, no recipe and no distributional
+assumption --- an assumptions result rather than a detection result.
 
 \subsection*{3. What a chart of dimension $k$ leaves free}
 
@@ -114,7 +145,8 @@ through the training points, and they are not isolated zeros at any $k$.
 \begin{proof}
 The first claim is linearity. For the second, $\sum_i\alpha_i=1$ is exactly what absorbs the
 intercept: for affine $\Psi(z)=Lz+b$, $\Psi(\sum\alpha_iz_i)=L\sum\alpha_iz_i+b=\sum\alpha_i(Lz_i+b)$.
-The affine hull of $N$ points of $\mathbb R^k$ has dimension $\min(N-1,k)$ and contains each $z_i$.
+The affine hull of $N$ points of $\mathbb R^k$ has dimension $\min(N-1,k)$ when the $z_i$ are
+affinely independent --- generic --- and contains each $z_i$.
 \end{proof}
 
 \begin{remark}[why a count cannot see this]\label{rem:count-blind}
