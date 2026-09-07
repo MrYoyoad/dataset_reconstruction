@@ -99,8 +99,18 @@ axis. A figure drawn against the parameter would compress the very quantity the 
 | # | text | measured on | holds under | NOT shown | job ids | register | status |
 |---|---|---|---|---|---|---|---|
 | H1 | **The shared-concept chart is worse, not better.** Identity is 15–16 directions; pose, lighting, crop and background are 205–208. **At matched fidelity** the shared-concept parametrisation costs 15 + 8×205 = **1655** unknowns against 8×205 = **1640** per-image. And it generalises: `k_shared + N·k_nuisance` exceeds `N·k_nuisance` for **any** positive concept axis, so shared-concept can only pay when the nuisance axis is small — precisely the condition the measurement refutes. | DINO ViT-B/16, CLIP ViT-L/14 | both dimensions from the **same 95% cumulative-variance rule** in the same script — **precondition verified, PASSES** | that the margin is large; it is ~1%, and the force is in the generalisation, not the gap | E4a (674521, 674524) | read-rows | HELD, one PASS |
-| H2 | A 32-dimensional public chart fitted on images **not of the private class** represents private data **better in pixels (0.2432–0.3176) than in a frozen ViT embedding (0.5991 DINO, 0.4078 CLIP)** — same quantity, same k, same hold-out. **Moving to a foundation-model embedding does not dissolve the chart problem; on DINO it roughly doubles it.** | pixel figures are the oracle ladder's own public-PCA rows (keyboard 0.2432, motorcycle 0.3176); embedding figures from E4a | like-for-like, no transfer assumed | a single pixel number — the two ladder examples differ | 435271-435322 (pixels), 674521/674524 (embeddings) | read-rows | HELD, one PASS |
+| H2 | **Moving to a foundation-model embedding does not dissolve the chart problem.** Target-conditioned at k=32: pixels **0.2432–0.3176**, DINO **0.4091**, CLIP **0.2634**. Nothing gets dramatically cheaper, and the best cell anywhere remains far from the gate. | pixels = oracle ladder's public-PCA rows, **a chart fitted on public images OF the added class** (ladder docstring line 16) — i.e. **target-conditioned**; embeddings = E4a **target** arm | **every number target-conditioned**, same k, same hold-out | that pixels beat embeddings **generally** — **CLIP target (0.2634) sits INSIDE the pixel range**, so the claim is false for that backbone; and DINO is worse by ~1.3–1.7×, **not** "roughly doubles" | 435271-435322 (pixels), 674521/674524 (embeddings) | read-function + read-rows | HELD, one PASS |
 | H3 | The affine-hull degeneracy **reproduces in feature space** at every cell of both backbones and both regimes: blends sit about **twice as close** to the public chart as the privates themselves. So it is a property of what public charts represent well, **not a pixel artefact**. | same | — | that it is caused by the pixel parametrisation | E4a | read-rows | HELD, one PASS |
+
+**H2 FAILED its second audit, 2026-09-07, and the reason is the one an expert would test first.** As first
+ledgered it set a **target-conditioned pixel** chart (0.2432–0.3176) against a **universal embedding** chart
+(DINO 0.5991) and attributed the difference to the *space*. Conditioning is worth a lot at every k, so most of that
+gap was the **regime**, not pixels-versus-embeddings. Target against target the gap is 1.3–1.7×, and **CLIP sits
+inside the pixel range**, making the original claim false for one of its two backbones.
+
+**The rule that catches it, and it is new: a comparison carries the CONSTRUCTION of both sides, not just their
+values.** This was not a bad number. It was two good numbers that do not belong in the same sentence. Every number
+in a comparison names its regime **inside the claim**, since the regime is the field that went wrong.
 
 **Provenance failure, corrected 2026-09-07, and it is the third of its kind today.** H2 was first ledgered with a
 pixel residual of **0.25**. That number occurs in exactly one place in this repository: the **docstring of the E4a
