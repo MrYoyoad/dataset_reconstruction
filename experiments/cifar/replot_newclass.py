@@ -41,7 +41,7 @@ def failed_starts(blob, meta, N):
     runs = blob.get("runs") or []
     bad = [i for i, r in enumerate(runs) if not r.get("landed") and not r.get("degenerate")]
     if not bad or "W" not in blob: return None, None
-    bad = sorted(bad, key=lambda i: -runs[i]["objective"])[:N]
+    bad = sorted(bad, key=lambda i: -runs[i]["objective"])[:N]                   # may be FEWER than N in a cell where nearly every start lands
     mean, V = rebuild_chart(blob, meta)
     X = mean[:, None] + V @ blob["W"][:, bad].double()
     return X, [runs[i]["objective"] for i in bad]
@@ -82,8 +82,10 @@ def main():
         if "meta" not in blob or "x_found_best" not in blob: continue
         meta = blob["meta"]; N = meta["N"]
         Xf, obj_f = failed_starts(blob, meta, N)
-        if Xf is None: continue                                   # a cell where every start landed has no failure to show
-        blob = dict(blob); blob["x_found_failed"] = Xf
+        n_fail = 0 if Xf is None else Xf.shape[1]
+        rows_here = list(ROWS) if n_fail else list(ROWS[:3])       # no failing start to show -> no fourth row
+        blob = dict(blob)
+        if n_fail: blob["x_found_failed"] = Xf
         oracle = meta.get("chart_kind") == "oracle"
         what, did, foot = pretty(meta)
         per = {p["i"]: p for p in meta["per_image"]}
@@ -91,13 +93,20 @@ def main():
         # Geometry chosen so nothing collides: a wide left gutter for the row labels, generous headroom above the
         # last row for its per-image captions, and one line of footnote at the bottom.
         cell = 1.15
-        fig_w, fig_h = 2.85 + cell * N, 1.80 + cell * 4 + 0.75
+        n_rows_ = len(rows_here)
+        fig_w, fig_h = 2.85 + cell * N, 1.80 + cell * n_rows_ + 0.75
         fig = plt.figure(figsize=(fig_w, fig_h))
         left, right, top, bottom = 2.75 / fig_w, 1 - 0.12 / fig_w, 1 - 1.52 / fig_h, 0.52 / fig_h
-        gs = fig.add_gridspec(4, N, left=left, right=right, top=top, bottom=bottom, wspace=0.08, hspace=0.42)
-        for ri, (label, key) in enumerate(ROWS):
+        gs = fig.add_gridspec(len(rows_here), N, left=left, right=right, top=top, bottom=bottom, wspace=0.08, hspace=0.42)
+        for ri, (label, key) in enumerate(rows_here):
             M = blob[key]
+            if ri == 3: label = label.replace("the 8 WORST", f"the {n_fail} WORST")
             for j in range(N):
+                if ri == 3 and j >= n_fail:                        # fewer failures than columns: leave the slot empty
+                    ax = fig.add_subplot(gs[ri, j]); ax.axis("off")
+                    if j == n_fail:
+                        ax.text(0.0, 0.5, "no further\nfailing starts", fontsize=7.5, va="center", color="#888888")
+                    continue
                 ax = fig.add_subplot(gs[ri, j])
                 ax.imshow(M[:, j].reshape(3, 32, 32).permute(1, 2, 0).clamp(0, 1).float().numpy())
                 ax.set_xticks([]); ax.set_yticks([])
@@ -122,7 +131,8 @@ def main():
         fig.text(0.5, 1 - 0.34 / fig_h, what, fontsize=12.5, ha="center", va="top")
         fig.text(0.5, 1 - 0.74 / fig_h, did, fontsize=10, ha="center", va="top", color="#333333")
         fig.text(0.5, 1 - 1.06 / fig_h,
-                 "bottom two rows are the two ends of the attacker's OWN ranking by residual — no ground truth is used to sort them",
+                 ("bottom two rows are the two ends of the attacker's OWN ranking by residual — no ground truth is used to sort them"
+                  if n_fail else "every non-degenerate start recovered a private image, so there is no failing start to show"),
                  fontsize=8.5, ha="center", va="top", color="#555555")
         fig.text(0.5, 0.16 / fig_h, foot, fontsize=7.5, ha="center", va="bottom", color="#666666")
         out = os.path.join(a.out, os.path.basename(f).replace(".pth", ".png"))

@@ -289,6 +289,26 @@ gives the different-corpus result with natural photographs, *is* the domain shif
 invites "the private data was trivially separable from anything the model knew". The marginal science and the
 marginal liability are the same thing, so the near end leads and the far end calibrates the axis.
 
+## 3d. Oracle-chart cells — NOT attacker-available, and kept out of every pooled number (job 412814)
+
+Two cells re-run with the chart replaced by one built from the span of the private images themselves (`--chart
+oracle --eps 0`), everything else matched to the 3c near-end rows: same backbone, r = 64, k = 32, N = 8, 200 random
+starts, on-chart privates. **This chart is not available to an attacker** — it is the fidelity ceiling, so these
+rows live in their own table and are never averaged into a landing rate or an image count that is quoted as an
+attack result.
+
+| class | oracle chart (k=32) | matched public PCA chart (k=32) |
+|---|---|---|
+| SVHN digits | 197/200 starts, 8/8 images | 196/200, 8/8 (job 335738) |
+| motorcycle (CIFAR-100) | 109/200, 7/8 | 135/200, 8/8 (job 335732) |
+
+Objective at the landings is 5.6e-29 / 4.4e-28 (median), i.e. the solve is exact in both cells. The observation is
+that at k = 32 the oracle chart does **not** buy landings over the public PCA chart — it is level on SVHN and
+*behind* on motorcycle. That is one seed per cell and two cells, so it is an observation and not a result about
+chart choice; it does say that the k = 32 public chart is not the binding constraint in these two cells, which is
+the opposite end of the ε-ladder in §3, where chart error above ~2% destroyed exact landing. Figure:
+`figures/cifar_newclass/mlp_svhn_k32_onchart_oracle.png`, whose banner names the chart on the image itself.
+
 ## 4. A caveat on SSIM that matters for how this is presented
 
 In the on-chart head cell the attack's SSIM against the raw image (0.58) equals the chart ceiling (0.58) and is *not*
