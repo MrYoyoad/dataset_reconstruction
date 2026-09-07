@@ -52,6 +52,13 @@ addition is flagged as an addition, not as the named cell.
 chart, `k = 12` below both capacity lines and above `N-1`, certificate landings **0 of 60** with every returned
 point an exact affine combination (coefficient sum 1.000000000 at every one of 60 starts, max deviation 8.9e-16), isolation rank 5 = `k - (N-1)`,
 and replay on the same release and the same starts recovering all eight from **19 of 60** with **zero aliases**.
+Two of those figures were quoted loosely elsewhere and are stated precisely here after a row check (this session,
+against the 60 per-start rows): the coefficient sum is **1.000000000 at every one of the 60 starts, maximum
+deviation 8.9e-16** — *not* "min equal to max", which is literally false (min 0.99999999999999911, max
+1.00000000000000044) and is disprovable by opening the file. And the two bars must stay separate: **18** starts
+return all eight with worst-image error at or below **2.2e-15** and replay residual below 1e-12; a **19th** clears
+the 1e-2 landing bar at **4.4e-3**. The summary field `replay_best_err_min` = 6.6e-16 is the best SINGLE image in
+the best start and is not a per-start worst case.
 Already noted in the plan audit as A8. Retag `done`; do not re-run.
 
 **D3. The "20 attacker-buildable starts" are referenced in `experiments/exact_inversion/constrained_replay.py`,
@@ -63,10 +70,40 @@ regenerate them from the constrained-replay path rather than load them; noted so
 | item | status |
 |---|---|
 | 00_map.md (this file) | done, before the first job |
-| E1B-tiny | pre-check first (A2 scale symmetry, no solve), then the two arms |
-| E4a | DINO-ViT-B/16 and CLIP ViT-L/14 embeddings, public subjects disjoint from privates |
-| E6 request | drafted, **not sent** |
+| E1B-tiny | RUN. A2 pre-check **passed before any solve** (not flat; sharp minimum at alpha=1, first-order). Jobs **670990** seed_known, **670993** seed_free (unreduced baseline), **675031** reduced seed-free (E3, gate-first) |
+| E4a | RUN as **674521** (DINO) and **674524** (CLIP). First attempt (670533/670536) **died at a shape bug before any measurement** — the blend matrix was built N-transposed; nothing was reported from it |
+| E6 request | **drafted, NOT SENT** — `notes/e6_code_request_draft.md`. Was blocked (§11's spec was not on disk); the approver supplied §11/§12 verbatim. Two paragraphs to Haim and Irani for the stage-2 code paths (DIP+cosine for DINO/ViT; Karlo UnCLIP for CLIP), plus the rebuild-locally table and §13's questions. Sending is Gal's call and the user's. |
 | oracle ladder (E8-adjacent) | **all 28 cells COMPLETE**, jobs 435271-435322; rows in `results/oracle_ladder/rows.jsonl` |
+
+## 4b. Registered predictions — written BEFORE the rows land
+
+Timestamped here so a deviation cannot be reinterpreted after the fact.
+
+**P1 — E1B reduced arm (job 675031), the scalar c.** The arm is *reduced seed-free, 513 unknowns, of which 512 are
+the theorem's and one is a deliberate diagnostic slack*. The theorem (W1): `Pi A_T = Pi A_0 + Pi A_0 H M_T H^T`,
+and the second term vanishes because `Pi` annihilates `col(A_0 H)`, so under plain gradient descent with no weight
+decay the scalar is **exactly 1**, derivably — not a fitted constant. The gate confirmed it from the *seed* side at
+3.409e-15 with `A_0` known. The free `c` confirms it from the *search* side, from starts that never saw `A_0`.
+
+**This release IS plain SGD with no weight decay, so the prediction is `c_hat = 1` to machine precision. A
+departure from 1 on THIS release is a HARNESS BUG, not a discovery** — the parametrisation or the reconstruction
+would be wrong, and it must be chased as a defect and never written up as evidence about optimisers. The
+diagnostic reading of `c` (a departure signalling weight decay or a non-SGD optimiser) becomes available only on
+releases whose recipe we do not control.
+
+**Why `c` is left free rather than pinned at the theorem's value.** Pinning it would import "the release was
+trained with plain gradient descent and no weight decay" into the *attacker's* parametrisation, trading the
+certificate route's recipe-free property for one unknown out of 513 — no measurable gain for a quiet weakening of
+the threat model. The pinned-`c` variant (`q*d` unknowns) is a **contingency, not a deliverable**: it is worth
+running only if the free-`c` arm fails to land, where it would isolate whether that one unknown was the
+obstruction. If the free-`c` arm lands, the pinned arm adds nothing the gate has not already given.
+
+**P2 — E1B scale (jobs 670990 / 670993).** Registered in the plan audit before the solve and already measured by
+the no-solve pre-check: the replay residual is not flat under `(alpha h*, A_0/alpha)`. Measured: sharp
+machine-precision minimum at `alpha = 1` (7.5e-16), rising **linearly** on both sides, two-sided slope 0.414,
+halving the offset dividing the residual by 2.05. Linear rather than quadratic means the zero is non-degenerate in
+the scale direction, so scale is **first-order** identifiable. The prediction still open is `||h_hat||/||h||` near
+1 in the seed-free arm.
 
 ## 5. Standing constraints carried from the brief
 

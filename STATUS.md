@@ -1,5 +1,54 @@
 # Project Status
 
+## E4a: a public chart of FEATURES is worse than a public chart of pixels — the premise is refuted (2026-09-07; jobs 674521 DINO, 674524 CLIP)
+
+The realism objection said: private images sit far off a public pixel chart, but surely a foundation-model
+*embedding* needs far fewer dimensions. **Measured, and it goes the other way.** At k=32, with the chart fitted on
+public images not of the private class, the private data sits **0.5991** off the chart for DINO ViT-B/16 and
+**0.4078** for CLIP ViT-L/14, against **0.2432–0.3176** measured in pixel space on the two oracle-ladder releases
+at the same k. The best cell measured anywhere is CLIP/target/k=128 at **0.1963**. Conditioning the chart on the
+private category (subjects still disjoint) helps a lot; it does not close the gap. **Moving to a frozen
+foundation-model embedding does not dissolve the chart problem; on DINO it roughly doubles it.**
+
+**Lemma 15's signature reproduces in feature space** at every cell of both backbones and both regimes: blends of
+the privates sit about twice as close to the public chart as the privates themselves (DINO target k=32: 0.4091
+against 0.2014). The affine-hull degeneracy is not a pixel artefact — it is a property of what public charts
+represent well.
+
+**The shared-concept regime is removed from the plan, not added to it.** The plan proposed
+`k_shared + N*k_nuisance` as a cheaper unknown count, illustrated with a large concept axis and a small nuisance
+axis, and marked "whether reality has this structure" as what E4a measures. Measured: concept axis **15–16**
+directions, within-concept nuisance **205–208**, both at the same 95% variance threshold. At matched fidelity that
+is `15 + 8*205 = 1655` against `8*205 = 1640` per-image — the shared part amortises nothing, it *adds*. Pose,
+lighting, crop and background are where the dimension lives, not identity.
+
+Not claimed: the nonlinear-autoencoder rows are non-monotone in k (0.6843 at k=32 against 0.7064 at k=64), which
+proves an optimisation failure and is evidence about a 300-epoch fit on 2000 samples, not about nonlinear charts.
+No ratio is quoted against the oracle ladder's landing gate — that would divide a feature-space residual by a
+pixel-space gate from a different release and search, and gate transferability is unmeasured. Full write-up:
+[experiments/e4a/RESULT.md](experiments/e4a/RESULT.md).
+
+## E1B/E3: the seed's off-span component is pinned by the release, and the scale is first-order identifiable (2026-09-07; jobs 670990, 670993, 675031)
+
+Two measurements landed before any search finished, both from checks that cost no solve.
+
+**The scale symmetry is broken, measurably.** Rescaling `h -> alpha h` with `A_0 -> A_0/alpha` leaves the adapter
+path fixed but sends the frozen base path to `alpha W_0 h`, moving the logits and hence the released `B_T`. The
+replay residual has a sharp machine-precision minimum at `alpha = 1` (7.5e-16) rising **linearly** on both sides,
+two-sided slope **0.414**, halving the offset dividing the residual by 2.05. Linear rather than quadratic means
+the zero is non-degenerate in that direction: scale is **first-order** identifiable, pinned to order 1e-15 against
+the fp64 floor, not merely identifiable in principle.
+
+**The E3 gate passed at 3.409e-15 with `c_T = 1.000000000000` exactly.** `Pi A_T = c_T Pi A_0` where
+`Pi = P_{row(B_T)^perp}` — and the scalar is exactly 1 *derivably*, because `Pi` annihilates `col(A_0 H)` so the
+update term vanishes under plain GD with no weight decay. A theorem confirmed by measurement rather than a constant
+fitted to data. It licenses the reduced seed parametrisation: **513 unknowns against 1536**, of which 512 are the
+theorem's and one is deliberate diagnostic slack (`c` is left free so that a departure from 1 on an
+unknown-recipe release becomes a measurable signature of weight decay or a non-SGD optimiser; pinning it would
+import a recipe assumption into a route whose selling point is being recipe-free). Predictions registered before
+the rows in `results/00_map.md` §4b, including that a `c_hat != 1` on *this* release is a harness bug and not a
+discovery.
+
 ## CIFAR: the attack works on colour images, and the failure of the first replica was structural (2026-09-06; jobs 252897–297325)
 
 A CIFAR replica of the certificate attack was supplied with the adapter on the **pixel layer**. It recovered

@@ -3348,3 +3348,59 @@ was one line that had been sitting in the text the whole time.
 judgement, it also reduced to a cell: same release, same chart, same starts, two objectives. It took
 one job to end an argument that discussion had not closed. A dispute that can be phrased as an
 inclusion can usually be phrased as an experiment.
+
+
+## A generator can be correct and its prose still false (2026-09-07, oracle ladder)
+
+The oracle ladder's 28 cell measurements were right. The *sentences the generator derived from them* were not, in
+two ways, and both would have been read as findings.
+
+- **Off-by-one on a threshold.** The code found the first chart that *leaves* the SSIM ceiling and printed it as
+  the last chart that *tracks* it. Every number in the sentence was real; the sentence was wrong by one row.
+- **A comparison against a threshold that does not exist.** Where no chart recovered all eight images, the code
+  still printed the public chart as sitting "below the last error at which every photograph is recovered" —
+  because the direction defaulted to `below` when the threshold was `None`. It pointed the way that would suggest
+  the public chart ought to work.
+
+**The fix that generalises:** when a derived sentence depends on a quantity that can fail to exist, the
+non-existent branch needs its own sentence saying so, never a default direction. A boolean `'above' if x else
+'below'` is a bug whenever the `else` also covers "there is no x".
+
+**And the reporting rule it taught:** a regenerated write-up is not a regenerated result. The file now states that
+the cells were never re-run, names both wrong sentences, and tells a reader to discard rather than reconcile any
+earlier copy. Those are different claims and conflating them would have looked like quietly rerunning until the
+numbers changed.
+
+## Two ways a number can be true and unusable (2026-09-07)
+
+Both surfaced within an hour of each other while auditing across sessions.
+
+**Splicing populations.** A claim read "replay recovers all eight to 2e-15 from 19 of 60 starts". The 19 is the
+count at a 1e-2 image-error bar; the 2e-15 came from a summary field (`replay_best_err_min`) holding the best
+*single image* in the best start. The defensible statement is: 18 of 60 return all eight with **worst**-image
+error at or below 2.2e-15, and a 19th clears the 1e-2 bar at 4.4e-3. **Check which population a tolerance is
+quantified over before attaching it to a count**, and prefer the field with `worst` in its name.
+
+**Comparing at unmatched fidelity.** A parametrisation costing `15 + 8*205 = 1655` dimensions was compared against
+`8*128 = 1024`, making it look 60% worse — but 128 is below the 95%-variance threshold the first count uses. The
+fidelity-matched comparison is 1655 against 1640, which is weaker as a percentage and stronger as an argument,
+because it generalises: `k_shared + N*k_nuisance` exceeds `N*k_nuisance` for any positive concept axis.
+**Two costs are only comparable at equal quality**, and the inflated version is the first thing an opponent
+recomputes.
+
+**A related trap: circular provenance.** The headline comparison for the same experiment was nearly written as
+"0.25 in pixels against 0.60 in a ViT embedding". Grepping for that 0.25 found it in exactly one place — the
+docstring of the script being reported on, with no job behind it. The repo's own measured figure is 0.2432–0.3176
+from the ladder rows. **A number you can only source to your own prose is not a measurement**, and quoting it back
+as support is circular.
+
+## A finished-looking output directory is not evidence the job finished (2026-09-07, via the multilayer lane)
+
+A replot job crashed partway with an `IndexError` after writing 40 files, so the working tree looked complete and
+the figures were committed. The crash fired on a cell where *nearly every start landed*, leaving fewer failing
+starts than the figure had columns for — **a failure mode that only triggers when the science goes well**, which
+is exactly when it is least likely to be questioned.
+
+**Check the exit status and stderr, not the file list.** Applied immediately afterwards to two E4a jobs whose row
+counts and `.pth` files looked right: both did report `Successfully completed` (CLIP's stderr was a single timm
+`FutureWarning`), so the claim survived — but it survived because it was checked.
