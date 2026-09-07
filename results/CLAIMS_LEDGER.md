@@ -38,6 +38,8 @@ reason, never deleted.
 | C1 | The recipe-free channel is **closed** where the recorded span fills the adapter: margin = min(r,d) - min(q*p, d), evaluable from architecture and batch size before any release exists. | ViT-B/16, DINO ViT-S/16, ResNet-18/50 | real photographs, pretrained, ranks 8 to 64 | **the converse.** ONE-SIDED: sound when it says closed, **silent when it says open** | 273322, 279182, 296789 | read-rows | SETTLED |
 | C2 | The capacity condition is **necessary and not sufficient**: where the map from chart coordinates to the adapted input is affine, every blend of the private representations is an exact solution at any chart dimension. | pixel-layer cell, linear chart | affine chart-to-input map | that a larger `k` or a better solver helps — it cannot | approver R1 | derived + read-rows | SETTLED |
 | C3 | A raw equation count is **never** evidence of identifiability; only the rank of the stacked Jacobian on the chart answers it. | — | — | that N*sum(s) bounds anything | — | derived, rule 2 | SETTLED |
+| C4 | The capacity line for the reduced channel is measured **sharp to one unit of k** on synthetic and MNIST releases. | N=8 recovered at 27, alias at 28; N=14 at 21/22; N=4 at 31/32 | fp64; reduced `B_T` channel; those releases only | that it is established **for the full factor pair** — there it is a *candidate*, not a result | 467914, 481079, 593146 | read-rows | SETTLED |
+| C5 | The single-layer tangent rank is **proved**; the stacked-Jacobian rank **across layers is open**, and it is the quantity the count actually needs. | — | — | that the count is unsupported — the single-layer half is a theorem; only the cross-layer stacking is open | E4b when it runs | derived | SETTLED |
 
 ## D. Routes
 
@@ -46,6 +48,12 @@ reason, never deleted.
 | D1 | Certificate and linearised representer share a zero set **where every representation is recorded**; replay is a third, strictly stronger object. | derivation | full recording | that the equivalence holds at partial recording — it does not | approver R12 corrected | derived | SETTLED |
 | D2 | Identifiability is a property of the release, the chart **and the route**: on one release the certificate recovers 0 of 60 while replay recovers all images from 19 of 60. | affine cell | same release, same chart, matched starts | that either route dominates generally | 331384 | read-rows | SETTLED |
 | D3 | Any statement of the form "cannot identify by **either** route" is **false**. | as D2 | — | — | 331384 | derived from D2 | SETTLED |
+
+**Quotation hazard on D2, and it is the live one.** The airtight form is the **negative**: *identifiability is not
+determined by the release and the chart alone.* The inclusion `{truth} ⊆ {replay=0} ⊆ {certificate=0}` is **proved**;
+the measurement is that inclusion being **strict**. The positive form — "a property of all three" — follows, but it
+is the form that survives being quoted out of context, and section headings and glossary lines are exactly what get
+quoted. **Where a bare positive appears without the negative beside it, cite this line rather than the source.**
 
 ## E. Attacker-side instruments
 
