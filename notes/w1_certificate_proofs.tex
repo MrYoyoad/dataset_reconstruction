@@ -140,9 +140,12 @@ $\operatorname{rank}J<k$ certifies nothing, a degenerate isolated zero having it
 chosen below both capacity lines and above $N-1$ so that the hypothesis of Lemma~\ref{lem:hull} is
 the only one failing. The certificate route recovered nothing from 60 starts; every returned point
 was an exact affine combination of the training representations with coefficient sum
-$1.000000000$ at \emph{every} start (min equal to max, not a median), and the isolation rank was $5$,
-a deficit of exactly $N-1=7$. Replay on the same release and the same starts recovered all eight
-representations to $2\times10^{-15}$ from 19 of those 60 starts, with zero aliases.
+$1.000000000$ at \emph{every one} of the 60 starts (maximum deviation $8.9\times10^{-16}$), and the
+isolation rank was $5$,
+a deficit of exactly $N-1=7$. Replay on the same release and the same starts returned all eight
+representations from 18 of those 60 starts with a worst-image error at or below
+$2.2\times10^{-15}$ and a replay residual below $10^{-12}$; a 19th start cleared the $10^{-2}$ landing
+bar at a worst-image error of $4.4\times10^{-3}$. Zero aliases at either bar.
 
 \subsection*{5. Replay resolves what the certificate cannot}
 

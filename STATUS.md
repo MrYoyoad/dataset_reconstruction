@@ -4214,12 +4214,12 @@ test is one number for the whole chart: measured 5, predicted `k-(N-1)` = 5. yoa
 5 independently at the algebra.
 
 **Certificate arm — nothing, exactly as pre-registered.** 0 of 60 starts land. Every returned point is
-an exact affine combination of the privates: **coefficient sum 1.000000000 at every start** (min = max),
+an exact affine combination of the privates: **coefficient sum 1.000000000 at every one of the 60 starts** (max deviation 8.9e-16),
 blend residual 1.1e-15. Median error to the nearest private 0.697. The objective at the found points
 (max 2.15e-28) is *below* the residual at the truths (9.4e-15) — the blends are better minimisers than
 the truths themselves.
 
-**Replay arm — all eight, exactly.** 19 of 60 random starts recover **all 8 images to ~2e-15**. The
+**Replay arm — all eight, exactly.** 18 of 60 starts return **all 8 images** with worst-image error <= 2.2e-15 at replay residual < 1e-12; a 19th clears the 1e-2 landing bar at 4.4e-3. The
 outcome is bimodal with nothing between: 41 starts recover 0, 19 recover 8.
 
 **Alias test (the reporting rule).** 18 starts drove `rho` below 1e-20; **every one recovered the whole
