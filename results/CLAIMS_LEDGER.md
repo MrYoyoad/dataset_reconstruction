@@ -1,0 +1,87 @@
+# Claims ledger
+
+**Owner:** GM lane (narrative gate + second auditor seat). Created 2026-09-07 under §12 of the 7 Sept brief.
+
+**The rule this file exists to enforce:** *every sentence that reaches Gal or the co-authors traces to a line
+below.* If a sentence has no line, it does not go out. If a line's **NOT shown** column covers what the sentence
+implies, the sentence is wrong even when its number is right.
+
+**Columns.** `text` — the claim in the language of §2. `measured on` — the cell, with `q` and `N` side by side.
+`holds under` — the conditions, precision included. `NOT shown` — what a reader would wrongly infer.
+`register` — `derived` / `read-rows` / `read-function` / `read-prose`; **read-prose never counts as a PASS**.
+
+**Status.** `SETTLED` two independent PASSes · `HELD` awaiting a second PASS · `WITHDRAWN` kept in place with its
+reason, never deleted.
+
+---
+
+## A. Structure of the release
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| A1 | The trajectory closes on two batch-sized coefficient matrices, so the release is a deterministic function of the data and the seed's reading of the private span. | forward check, 54 rows | `B0 = 0`; SGD-class; one adapted layer; fixed inputs; FP64 | survival under Adam, augmentation, or a moving input | 487882 | derived + read-rows | SETTLED |
+| A2 | The seed enters only through its reading of the private span, so the unknown part is rank x span-dimension, not rank x feature-dimension. | same | as A1 | that the complement carries *no information* — it carries no *constraint* | 487882 | derived | SETTLED |
+| A3 | The certificate annihilates every recorded representation, with no recipe, no labels and no seed. | cells where `q = N` | `q = N`; SGD-class; `B0 = 0`; non-shared module | exactness when `q < N` — see A4 | 701679 | derived + read-rows | SETTLED |
+| A4 | Certificate exactness is conditional: at `q = N` the residual sits near 1e-16; under partial recording the worst representation climbs toward order one while the median stays small. | 26-logit head, 20 images | FP64; recorded counts 19 to 14 | that the loss is uniform — it concentrates in a handful | 725918 | read-rows | SETTLED |
+
+## B. What the release records
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| B1 | What leaks is what the model had to learn: a representation enters at the scale of that example's accumulated error, so a model that already fits its data records nothing. | 40 batches x 4 encoders | FP64; output layer | that this bounds a *stronger* attacker; it bounds this channel | 631392, 627166 | read-rows | SETTLED |
+| B2 | The release determines `q`, never the number of photographs. | derivation + measurement | all cells | that `N` is recoverable — it is not | 709507 | derived | SETTLED |
+
+## C. Counting, and its one-sidedness
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| C1 | The recipe-free channel is **closed** where the recorded span fills the adapter: margin = min(r,d) - min(q*p, d), evaluable from architecture and batch size before any release exists. | ViT-B/16, DINO ViT-S/16, ResNet-18/50 | real photographs, pretrained, ranks 8 to 64 | **the converse.** ONE-SIDED: sound when it says closed, **silent when it says open** | 273322, 279182, 296789 | read-rows | SETTLED |
+| C2 | The capacity condition is **necessary and not sufficient**: where the map from chart coordinates to the adapted input is affine, every blend of the private representations is an exact solution at any chart dimension. | pixel-layer cell, linear chart | affine chart-to-input map | that a larger `k` or a better solver helps — it cannot | approver R1 | derived + read-rows | SETTLED |
+| C3 | A raw equation count is **never** evidence of identifiability; only the rank of the stacked Jacobian on the chart answers it. | — | — | that N*sum(s) bounds anything | — | derived, rule 2 | SETTLED |
+
+## D. Routes
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| D1 | Certificate and linearised representer share a zero set **where every representation is recorded**; replay is a third, strictly stronger object. | derivation | full recording | that the equivalence holds at partial recording — it does not | approver R12 corrected | derived | SETTLED |
+| D2 | Identifiability is a property of the release, the chart **and the route**: on one release the certificate recovers 0 of 60 while replay recovers all images from 19 of 60. | affine cell | same release, same chart, matched starts | that either route dominates generally | 331384 | read-rows | SETTLED |
+| D3 | Any statement of the form "cannot identify by **either** route" is **false**. | as D2 | — | — | 331384 | derived from D2 | SETTLED |
+
+## E. Attacker-side instruments
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| E1 | Below the certificate's line the residual **selects the landings**: the fraction reaching each landed image's own floor equals the fraction landing on a private image, with no false certification in any cell. | digits k=6; letters k=16/32 | FP64; below the line; **per-image floor** (at_floor indexes by the landed image, not the cell minimum) | that this is an *attacker* number — the floor comes from a from-truth solve | 706721, 760909 | read-function + read-rows | SETTLED |
+| E2 | The residual remains a sound witness in ordinary single precision: 0.324 certified against 0.324 landed over 3,000 starts, no disagreement either way. | letters k=32, FP32-trained | **experimenter arm**, start_attacker_buildable false; rows read `q = 11` for `N = 8` | that an attacker achieves 0.324 — they cannot compute a from-truth floor | 304540, 319712, 335734 | read-rows | SETTLED |
+| E3 | An attacker ranking blind by final objective separates perfectly: precision 1.000 against a disjoint-release null of 0.000, base rate 0.324. | same cell | attacker-available information only | breadth — see E4 | 304540 | read-rows | HELD, one PASS |
+| E4 | **Breadth frontier.** With the window scaled to the budget, distinct images climb 1, 2, 5, 7 and reach 8 only where precision falls to 0.648 — the last image is bought by accepting a third of the list is wrong. | letters cell | — | that more starts buy the last image; **a fixed-k distinct-image count is not an attacker statistic** and *falls* as starts grow, 5 at 300 and 2 at 3000 | 304540 | read-rows | HELD, one PASS |
+| E5 | Against a shadow-model membership attack the certificate matches on separation and wins only on assumptions: no shadows, no recipe, no distributional assumption. | ViT-B/16 head, 128 shadows | frozen backbone | that it detects more | 287241 | read-rows | SETTLED |
+
+## F. Withdrawn, kept in place with the reason
+
+| # | text | why withdrawn | replaced by | date |
+|---|---|---|---|---|
+| F1 | "An adapter on the input layer read through a linear chart cannot identify two or more images, **by either route**." | Replay escapes the degeneracy — measured. | D2, D3 | 2026-09-06 |
+| F2 | The same statement **as a defence**. | Real mathematics, vacuous as protection: **the remedy belongs to the attacker**, who picks the chart. | C1 as one-sided; and: no function of the release alone can certify a release is safe | 2026-09-06 |
+| F3 | "Self-verification does not survive realistic arithmetic, about 3% certifiable against 29.7% landing." | Artefact of scoring against a historical **absolute** cut no FP32 release can reach. | E2 | 2026-09-06 |
+| F4 | "The collapsed attractor sits at the certificate floor." | The *ideal* blend does; the point the solver reached is orders above it. | C2 | 2026-09-06 |
+| F5 | A fixed-k distinct-image breadth count. | The window fills with the easiest image; the count falls as starts grow. | E4 | 2026-09-07 |
+| F6 | "A linear chart beats a learned one." | Three seeds: learned median 151/400 against linear 171 from **one** seed; one learned seed reaches 176. | *Over-training the chart hurts* — 640 epochs worst in all three seeds | 2026-09-07 |
+
+---
+
+## Standing prohibitions, enforced here
+
+Never in Gal-facing or co-author-facing text: reduced-precision results unless asked; SimuDy's memory table as our
+speedup; "recovers scale"; "exact acceptance test"; "works for linear heads"; "N from the release";
+"feasible/infeasible"; a raw equation count as evidence of identifiability.
+
+**The one most likely to slip** is the last, because the worked numbers in the brief are raw counts and read
+persuasively. Any sentence quoting them must carry the chain **raw rows, then per-example restrictions, then rank
+on the chart, then remaining joint degrees of freedom**, or it does not go out.
+
+## Open, and blocking nothing
+
+- `q` versus `N` is now the project's notation. Every earlier claim written with `N` must be re-read for whether it
+  meant the span dimension or the photograph count; E2's cell is the live example, reading `q = 11` for `N = 8`.
+- Whether a recovered representation is recognisable as an image is unmeasured, and it is the load-bearing gap.
