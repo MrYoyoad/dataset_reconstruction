@@ -4,6 +4,31 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A figure crashed on the cell that worked best, and a crashed replot got committed (2026-09-07)
+
+**The bug.** `replot_newclass.py` drew a fourth row of the N worst-scoring *failing* starts. In a cell where
+nearly every start lands there are fewer than N failing starts — the SVHN oracle cell has three out of two hundred —
+so the row indexing walked off the end: `IndexError: index 3 is out of bounds for dimension 1 with size 3`. It fired
+twice (jobs 412849/412850, then 413710) before the guard was added: draw the failing starts that exist and label the
+rest "no further failing starts", and drop the row entirely when there are none.
+
+**Worth naming:** the plotting code failed precisely on the *strongest* cells. A near-total landing rate is the
+result one most wants to show, and it was the input the figure could not render. Assume every "there are always at
+least N of these" in plotting code is false in the best cell.
+
+**How it presented, and the part that cost something.** The crash is loud in stderr but the job had already written
+40 of its figures before dying, and the *working tree looked complete*. Those partial figures were then committed
+(013aaee) as if they were a finished replot, and only the job log said otherwise. **A finished-looking output
+directory is not evidence a job finished — read the job's exit status and stderr before committing its output.**
+Fixed by re-running to completion (414813, empty stderr) and replacing the figures in 3f83844.
+
+**Second lesson, cheaper to learn here than later:** a `git add -A` used to commit a result swept in an unrelated
+source fix that was sitting in the tree, and the commit message described only the result. Stage explicitly when
+the tree has someone else's edit in it, and if the message is already wrong, correct it in the next commit's text
+rather than leaving the record to the diff.
+
+---
+
 ## The saving convention that felt like overhead is what made a requested figure a replot (2026-09-07)
 
 Most of tonight's lessons are about errors. This one is about a habit that paid, and it is worth recording on that
