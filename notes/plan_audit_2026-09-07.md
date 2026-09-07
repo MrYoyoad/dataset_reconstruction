@@ -138,3 +138,53 @@ correction in place.
 **Ruling: start W1 on that spine immediately.** It is item 1 of §1.3 and the answer to Q4 depends on it existing.
 The gate stays on everything downstream — no reconstruction claim from count alone, and nothing from Tracks I–III
 enters until its experiment file has two PASSes.
+
+---
+
+## A11 — E4a audit (jobs 674521 DINO, 674524 CLIP). The shared-concept regime is REFUTED, and the headline ratio needs a conditional
+
+[read: rows, relayed by the executor; arithmetic and both findings derived here]
+
+### The result that was measured but not drawn out: §6.2's shared-concept regime is worse, not better
+
+§6.2 proposes `x_i = G(z_shared, z_i)` as the regime that **reduces** the unknown count, illustrated with
+`k_shared = 32, k_nuisance = 8, N = 8` giving 96 unknowns instead of 256 — and states explicitly that *"whether
+reality has this structure is what E4a measures."* **E4a measured it.** Concept axis **15–16** directions at 95%
+variance over 20 concepts; within-concept nuisance **205–208**.
+
+```
+    shared-concept   k_shared + N·k_nuisance = 15 + 8·205 = 1655
+    per-image target            N·k          = 8·128      = 1024
+```
+
+**The shared-concept parametrisation is worse by about 60%.** The brief's illustration has the ratio inverted: it
+assumed a large concept axis and a small nuisance axis, and the measurement says the concept axis is tiny and the
+nuisance axis is enormous. **Pose, lighting, crop and background are where the dimension lives, not identity.**
+
+This **removes a regime from the plan** rather than adding one, which is worth more than the residual table because
+it changes what would be built. Precondition before it lands: both counts must be dimensions at the **same**
+variance threshold or the comparison is void.
+
+### Required conditional on "16 to 44 times too coarse"
+
+The arithmetic is right — `0.196/0.0124 = 15.8`, `0.196/0.0045 = 43.6` — but it divides a **feature-space**
+residual on DINO/CLIP embeddings by a gate measured in **pixel space** on the CIFAR MLP and CNN releases.
+Different space, different data, different release, different search. **The gate is a property of a release and
+its search, not a universal constant**, and its transfer to a feature-space attack on a foundation backbone is
+unmeasured. State the ratio conditionally with the transferability named open in the same sentence.
+
+**Let the like-for-like claim carry the weight instead**, since it needs no conditional: a 32-dimensional public
+chart represents private data **better in pixels (0.25) than in a frozen ViT embedding (0.60)**. Same quantity,
+same `k`. Moving to a foundation-model embedding does not dissolve the chart problem — it worsens it. That is the
+sentence that answers the realism objection.
+
+### Endorsed as reported
+- **Lemma 15's signature reproduces in feature space** at every cell of both backbones and both regimes — blends
+  about twice as close to the public chart as the privates themselves (DINO target k=32: 0.4091 against 0.2014).
+  The affine-hull degeneracy is a property of **what public charts represent well**, not a pixel artefact. Make it
+  a numbered claim.
+- **The nonlinear-chart caveat is correctly handled.** Non-monotone in `k` proves an optimisation failure rather
+  than a property. "Not competitive as trained here (300 epochs, 2000 samples)" is the right form and it must not
+  be cited about nonlinear charts in either direction.
+- **The linear-autoencoder assertion passed** to three decimals at every `k` in every regime — the theory check
+  the arm exists for. Report as passed, not assumed.
