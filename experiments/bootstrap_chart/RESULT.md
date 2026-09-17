@@ -110,14 +110,68 @@ Commands (from `scripts/run_bootstrap_chart_wexac.sh full`):
 `python -u -m experiments.bootstrap_chart.bootstrap --releases cifar --starts 200 --local-starts 2 --a-rounds 2 --b-rounds 4 --K 200`
 Rows → `results/bootstrap_chart/rounds_355987.jsonl`, `rounds_355988.jsonl`. `mnist_mlp_strong_full.pth` did not exist at
 submission and per the 2026-09-18 audit would not have been used anyway.
-_(table below filled in after the jobs finish)_
+### MNIST — job 355987 (DONE 2026-09-18; 16 rows; 200 starts per global chart, 1 warm + 8 random per slot in B)
+Base gate measured in-job 99.83 % / 98.21 % / CE 6.35e-3 PASS. Release rank B_T 8, rank C 56, k = 32 < 56. Recogniser
+(8 epochs): validation 90.7 % raw, **90.0 % on PCA-32 projections, 86.9 % for class `a`**.
 
-| release | variant | round | arm | chart err median | err_proj median | err median | reached / N | at floor | alias | solver-short | recognised (true rank) |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| | | | | | | | | | | | |
+**Void decisions.** `void_round0 = False`: median err(recovery, x*_chart) 0.553 > 1e-2, but the objective at the recovery
+is above the oracle-start optimum on only **1/8** images (objective 3e-4 at the matched candidates vs x*_chart 3e-4 … 1.1e-3)
+— 2/8 reached x*_chart exactly, 5/8 are aliases within the chart, 1/8 solver-short. `void_variant_A = False`: round-0
+top-1 correct **7/8** (≥ 5) and calibration on projections of `a` 0.869 > 0.625; round-level class ordering `a, n, h, g, r`
+(true class rank 1). Every "landed vs truth" count is 0/8 in every row (chart error 0.25–0.45 of the truths).
+
+Medians over the 8 truths (per-truth view). `x*→truth` = err(x*_chart, truth), the chart's fidelity at its own optimum.
+
+| variant | round | arm (chart) | chart err | err(rec, x*) | x*→truth | err(rec, truth) | reached x* / landed | alias-in-chart | solver-short | top-1 on cands (calib. proj.) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| round 0 | 0 | generic PCA-32, 124,800 letters | 0.286 | 0.553 | 0.433 | 0.604 | 2 / 0 | 5 | 1 | 63 % (`a` 86.9 %) |
+| A | 1 | recognised `a` (4,800) | 0.245 | 0.730 | 0.401 | 0.758 | 2 / 0 | 5 | 1 | 88 % |
+| A | 1 | wrong-class `n` (control) | 0.306 | 0.824 | 0.501 | 0.831 | 1 / 0 | 7 | 0 | 38 % |
+| A | 1 | oracle class `a` | = recognised (identical chart, `identical_to`) | | | | | | | |
+| A | 2 | — | re-recognition on round-1 candidates: `a` again → STABLE, stopped | | | | | | | |
+| B | 1 | recovery-anchor | 0.281 | 0.000 | 0.266 | 0.838 | 2 / 0 | 0 | 0 | 100 % |
+| B | 1 | random-anchor (control) | 0.454 | 0.195 | 0.727 | 0.830 | 2 / 0 | 2 | 0 | 38 % |
+| B | 1 | oracle truth-anchor | 0.249 | 0.000 | 0.316 | 0.711 | 3 / 0 | 0 | 0 | 100 % |
+| B | 2 | recovery-anchor | 0.299 | 0.000 | 0.301 | 0.809 | 2 / 0 | 0 | 0 | 100 % |
+| B | 2 | random-anchor | 0.339 | 0.000 | 0.396 | 0.614 | 4 / 0 | 0 | 1 | 88 % |
+| B | 2 | oracle truth-anchor | 0.249 | 0.000 | 0.316 | 0.711 | 3 / 0 | 0 | 0 | 100 % |
+| B | 3 | recovery-anchor | 0.291 | 0.000 | 0.257 | 0.812 | 2 / 0 | 0 | 0 | 100 % |
+| B | 3 | random-anchor | 0.329 | 0.000 | 0.498 | 0.671 | 3 / 0 | 0 | 1 | 88 % |
+| B | 3 | oracle truth-anchor | 0.249 | 0.000 | 0.316 | 0.711 | 3 / 0 | 0 | 0 | 100 % |
+| B | 4 | recovery-anchor | 0.315 | 0.000 | 0.307 | 0.816 | 2 / 0 | 0 | 0 | 100 % |
+| B | 4 | random-anchor | 0.314 | 0.000 | 0.433 | 0.550 | 3 / 0 | 1 | 1 | 88 % |
+| B | 4 | oracle truth-anchor | 0.249 | 0.000 | 0.316 | 0.711 | 3 / 0 | 0 | 0 | 100 % |
+
+In variant B the optimum-based columns are per SLOT (one oracle start per slot, for the slot's nearest truth); the
+per-truth `err(rec, truth)` medians are dominated by **slot collapse**: the 8 recovery-anchored slots point at only
+2 truths in every round (`nearest_truth` = [7,0,7,0,7,0,0,0]), the oracle-anchored at 3, the random-anchored at 4–5.
+Per slot, recovery-anchored err(candidate, its truth) is 0.26–0.50 in round 1 and 0.28–0.39 in round 4; the
+random-anchor control's per-slot fidelity is 0.36–1.07 (r1) and 0.28–0.61 (r4).
+
+**MNIST verdicts (pre-registered categories, read literally).**
+* **Variant A — STALLS.** Recognition works (7/8, class rank 1, well above the 5/8 bar) and the recognised-class chart is
+  more faithful than the generic one at its own optimum (x*→truth 0.401 vs 0.433; chart err 0.245 vs 0.286) and than the
+  wrong-class control (0.501) — but the recovery error to the truth does not fall (0.758 vs 0.604 at round 0) and
+  err(rec, x*) rises (0.730 vs 0.553): inside the `a` chart the certificate objective is minimised by ONE mode (grid: 7 of
+  8 candidates are the same upright "A"), 5/8 aliases within the chart. Round 2 stable. Not IMPROVES (recovery error did
+  not fall); not REFIT-ONLY (the wrong-class control is worse on every column).
+* **Variant B — STALLS per truth; a per-slot fidelity gain that the control does not match.** Per-truth median recovery
+  error is flat over rounds 1–4 (0.84 → 0.82) and is BEATEN by the random-anchor control (0.83 → 0.55), purely because the
+  random anchors cover 4–5 truths while the recovery anchors collapse onto 2. Per slot, the recovery-anchored local chart
+  reaches its own optimum exactly (err(rec, x*) = 0 in 27/32 slot-rounds) at x*→truth median 0.27–0.31 — below the
+  per-class PCA fidelity 0.40 and below the random-anchor control's 0.40–0.73 — so locality anchored on the recovery does
+  buy fidelity for the truths it points at; it does not improve after round 1 and it does not reach the other 6 truths.
+  ALIAS is not the verdict (alias-in-chart 0 in the recovery-anchored rows); no round is void.
+* Two observations for the write-up: (i) the projection is not the chart's argmin (round 0: x*_chart objective 10–80×
+  below the projection's on every image); (ii) the oracle-anchored arm returns the identical numbers in rounds 1–4 — the
+  warm start from the previous candidate is the best start every round, so the chain converges in one round.
+
+### CIFAR — job 355988 (running)
+_(to be filled in when it finishes)_
 
 ## Verdict
-_(one of IMPROVES / REFIT-ONLY / STALLS / ALIAS / VOID, per release and variant, with the row that decides it)_
+MNIST: variant A STALLS, variant B STALLS per truth (per-slot fidelity gain 0.27–0.31 vs 0.40 class PCA, coverage 2/8).
+CIFAR: pending.
 
 ## Deviations from the plan
 * Variant B on the CNN uses 2 random starts + 1 warm start per slot per round (not 200) because a CNN LM start costs ≈ 25 s
