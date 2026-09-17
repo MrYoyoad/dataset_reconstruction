@@ -134,7 +134,7 @@ does depth stop being free — i.e. where does the nesting begin to bind between
 `k`-sweep, the same axis as the chart-window question. **Provenance:** attested, `script_sha dd81201f5399`; 354535
 ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the convergence point above.
 
-### 5c. The k-sweep — where depth stops being free, and it is far past buildable width (2026-09-17)
+### 5c. The k-sweep — where depth stops being free, and what depth buys below it (2026-09-17)
 
 `real_encoder_ranklaw.py --ks 16..784` (job **355531**, attested `script_sha 01043d6a5fec`), `r=108`, `N=8`, real
 15-layer MNIST encoder. The question M6 opened: at what chart width `k` does depth stop being free?
@@ -148,10 +148,15 @@ ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the con
 `k=512, first=3` it is False for `L<=4` (`Σq<=400`) and flips at `L=5` (`Σq=500`). A shallow adapted stack never
 reaches the ceiling and the laws coincide regardless of `k`.
 
-**k\* ~ 417 is ~6x the k<=66 identifiability cap** — depth stops being free only far past buildable width; at every
-buildable `k`, depth is free (one layer's certificate already saturates the chart). **k\* is derived from the rank
-PREDICTIONS** (`d_j`,`q_l`, clean 1e-10 encoder ranks), so it is robust while the measured stacked-rank VALUES at
-`k>=512` stay provisional (`ladder_converged: False`, pending A100 355537).
+**What depth does below the ceiling: it BUYS chart-constraint width, additively** (correcting an earlier "depth is
+free at buildable width" recorded here and withdrawn 2026-09-17 — that confused the two laws COINCIDING with depth
+adding nothing). The stacked certificate rank is `min(k, Σq_l, ceiling)` and `Σq_l` grows with `L`, so a wider
+chart becomes fully constrained as layers are added: measured (first=1, `q_l≈100` at `r=108`) `k=128` is reached at
+**L=2**, `k=256` at **L=3**, `k=384` at **L=4**, saturating only at the rank-dependent architectural nesting
+ceiling (417 at this `r`). So depth raises the chart width the certificate can pin; `k*` is where that ceiling
+binds and the two laws diverge. **The rise and `k*` are from the rank PREDICTIONS** (`d_j`,`q_l` measured as clean
+1e-10 ranks), so they are robust; the stacked-rank VALUES at `k>=512` stay provisional (`ladder_converged: False`,
+pending A100 355537).
 
 **Arms:** the two `k=692` rows are the two `first_adapted` arms (1 and 3), not a duplicate — corrected **616**
 (first=1) vs **416** (first=3); different encoder profiles.
@@ -162,15 +167,29 @@ intrinsic dimension):** 0.421 (k=16) · 0.332 · 0.236 (k=66) · 0.188 · 0.170 
 exactly; the CIFAR releases' gate (0.0124) and PCA error (0.109 at k=384) were measured on a different release and
 must never be quoted against these.
 
-**The ordering, and it is the sharp form of the result (PREDICTION — 6e's law extrapolated to r=108, NOT
-measured there).** 6e's release-route cap is `m+r-N-1`, which at this sweep's `r=108` is **110**. So at `r=108`:
-`k<=110` identifiable (nullity 0); `110<k<417` release nullity `8(k-110)` rising to 2456, depth still adds nothing;
-`k>=417` depth starts to help, but the release is already unidentifiable by ~2456 dimensions (5392 by k=784).
-**The window where depth helps and the window where recovery is well posed do not intersect** — depth's extra
-information arrives only where there is no unique answer to find. This is directly what Gal's question 1 wants,
-but it is the law evaluated one axis beyond where it is checked (measured at r=12 synthetic 12/12, r=12 nonlinear
-+ linear control 7/7 job 355535, and being measured at r=16 on this checkpoint job 355541; the r=108 Jacobian is
-~34 GB and cannot be measured). **Present as extrapolation, not measurement.**
+**The capacity RISES with depth: `cap(L) = min(L·(r−N) + (m−1), nesting ceiling)`.** (This REPLACES an earlier
+"the depth-helps and well-posed windows do not intersect" claim, WITHDRAWN 2026-09-17 — it mistook a ratio for a
+gap; the cap is not fixed, it rises with `L`.) At `L=1` this is the capacity line `k < m+r−N`, which is SETTLED,
+sharp to one unit of `k` (jobs 467914/469120) — so 6e's `110` at `r=108` is that line's `L=1` value, not a
+separate extrapolation. The split is not a fit: `STATUS.md` records `B_T` on the rank-`N`, zero-column-sum variety
+of dimension `N(m−1+r−N)`, so depth adds more `(r−N)` rank parts but only ONE `(m−1)` head part — only the head
+carries the simplex constraint. **Positive headline:** depth buys usable chart width, from the single-layer cap
+toward the architectural ceiling as layers are added. The exact deployed-`r` (8–64) gain is NOT quoted here,
+because the ceiling itself scales with `r` through `q_l`, so it must be measured at deployed `r`, not extrapolated
+from this `r=108` run.
+
+**The window question is OPEN, blocked on one measurement.** Identifiability reaches `k ≈ ceiling` with enough
+depth; whether that suffices depends on FIDELITY at that `k` **in this setting**. The MNIST chart-error ladder
+above gives 0.038 at k=384 and 0.003 at k=512, but the only landing gate measured is CIFAR, and applying it to an
+MNIST ladder is the cross-construction error struck from §5b/§5c. **A landing gate measured ON MNIST — the chart
+error at which recovery actually stops on this net and these images — is what closes the window, and it is the run
+queued after `idxverify`.**
+
+**Per-layer budget check, pre-registered for the next run.** `q_l` here is MEASURED as `rank(Ctil_l M_l)`; the
+formula value T5.2 assumes is `min(r_l−N', d_j)`. They can differ where the encoder contracts (measured `q_l =
+84, 72` at the deep layers, against `r−N=100`). The next run emits BOTH per layer: agree → `cap(L)` grounded;
+disagree → the per-layer budget and every cap-ladder number move. Both outcomes pre-registered; disagreement is a
+finding, not a failure.
 
 **Join note (6e):** the genuinely shared column is `chart_error` (depends only on checkpoint/image/k, not r). The
 two nullity columns (`cert_route` r=108 zero-drift; `release_route` r=16 trained-release, carries drift) share the
