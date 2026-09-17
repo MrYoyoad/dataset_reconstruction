@@ -92,6 +92,36 @@ modest.
 First clean three-way separation on one release: identifiability (nullity), reachability in principle
 (conditioning), reachability from a given start (alignment).
 
+## NO SPECTRAL GAP on a real encoder: what survives the cut and what does not (2026-09-18; job 355531 ladder, gap check 355778 pending)
+
+**The caveat.** On a real 15-layer `φ` the release Jacobian shows **no spectral gap** — smooth decay, rank moving
+108 across ten decades of threshold (`6e`). So **"rank" and "nullity" are a choice of cut, not a property**, and the
+stacked-certificate numbers are at risk of the same. **This is `theory/T5.4`'s own caveat — *the honest object is
+effective rank at a stated tolerance, not rank* — arriving for the real encoder rather than only under drift.**
+
+**Our own ladder, 355531:** `325 (1e-6) · 371 · 402 · 418 (1e-12) · 421 · 428 (1e-14)`. **Unconverged, and the soft
+near-plateau at 1e-12/13 sits on the plain GPU's FP64 noise floor**, so it may be noise rather than a gap.
+
+**WHAT SURVIVES THE CUT — the T5.2 refutation, and the argument is internal, needing no comparison to another
+object.** The ladder climbs at **12.9 directions per decade** averaged over its whole range, and the rate is
+**decelerating** — 23, 15.5, 8, 3, 7 per decade across successive steps. **Reaching T5.2's prediction of 756 from
+428 needs 328 more directions: 25 decades at the average rate, far more at the terminal rate. FP64 carries ~16
+decades in total.** **The prediction is not reachable within double precision, so the refutation is robust to the
+choice of cut.**
+
+**WHAT DOES NOT SURVIVE — the values.** `k* = 417`, the exact 418, and the 1.8× discrimination ratio are
+**effective-rank-at-a-tolerance statements** and must be restated as such. **A quantity still moving at the finest
+rung is not an integer rank.**
+
+**Method note.** The robustness argument must be made from **our own ladder**, not by comparing our climb rate to
+`6e`'s 108-across-ten — theirs is the **release** Jacobian, ours the **stacked** Jacobian, and that is a
+cross-construction comparison of exactly the kind struck from two documents in the past day. **The rates happening
+to be close (10.8 against 12.9 per decade) is a coincidence of similar spectra, not a justification.**
+
+**Sequencing:** the gap check (`gap_at_corrected = sv[c−1]/sv[c]`; `≫1` a real rank, `~1` a threshold choice) takes
+precedence over the MNIST landing gate, **because it decides whether the numbers the gate would compare against are
+well-defined at all.**
+
 ## WITHDRAWN and REPLACED: depth DOES raise the identifiability cap — `cap(L) = min(L·(r−N)+m, nesting ceiling)` (2026-09-17; job 355531)
 
 **Withdrawn:** *"the depth-helps and well-posed windows do not intersect"*, and *"depth's extra information arrives
