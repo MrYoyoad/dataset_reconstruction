@@ -4064,3 +4064,26 @@ right instrument on a deep network is an effective rank at a stated tolerance or
 refuting it — and the actual outcome was neither: the question degenerated. The harness happily printed "MISS".
 **Pre-registering two outcomes does not make them exhaustive**, and the diagnostic that caught it (`gap_at_cut`)
 was one I had computed but not surfaced in the table.
+
+
+## A value the curve passes through is not a value it converges to (2026-09-18)
+
+Two deep-network rows produced a nullity that fell monotonically as the rank threshold tightened, landing on the
+law's prediction **exactly** at the tightest tolerance:
+
+    k=16 (law says 0)     tau 1e-6..1e-16:  114  99  76  45  22    6
+    k=32 (law says 112)   tau 1e-6..1e-16:  239 224 200 160 139  112
+
+It reads as convergence and I was about to report it as "consistent with the law, the excess being conditioning".
+**It is not.** As `tau -> 0` the rank tends to the ambient maximum `min(unknowns, equations)`, so the k=32 nullity
+tends to `16256 - 16176 = 80`. The law's 112 is a value the curve **passes through** on the way to 80. No
+tolerance singles itself out, so the exact agreement is a crossing and carries no evidential weight at all.
+
+**The one-line check: compute the limit.** Before reading agreement at the end of a sweep, ask what the quantity
+tends to as the swept parameter goes to its extreme. If the limit differs from the value you are matching, you are
+looking at a crossing. If the limit *equals* it, the agreement is still only as good as the last decade.
+
+**The companion trap, same family:** below the fp64 noise floor a rank count rises to the ambient dimension by
+construction. One of these rows reached 16122 against an ambient 16128 — within six of counting every direction.
+So "the count climbs toward the predicted value at very small tolerance" is what a **noise floor** looks like, and
+a prediction can only be tested against the saturation curve, never against the predicted number in isolation.
