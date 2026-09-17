@@ -151,10 +151,15 @@ ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the con
 > **6e's depth sweep (C10, jobs 355792/355795) measured the mechanism:** with the training budget controlled, the
 > law is EXACT wherever evaluable (nullity = predicted at depths 2/4/8, gaps 1e7–1e9), and the gap COLLAPSES ~7
 > orders between depth 8 and 12 (depth 12/16: gap 1.48/1.26, no measurable rank). Depth destroys the
-> *measurability*, not the law. **This net is depth 15 — past that boundary — so an absent gap at k\*=417 is the
-> EXPECTED outcome, not an inadequacy of the measurement**; the effective-rank framing is the correct one, and
-> 355778 additionally tests whether the frozen zero-drift certificate keeps a gap at depth 15 where 6e's
-> trained-release Jacobian loses it.
+> *measurability*, not the law. **But C10 measures the RELEASE-route Jacobian (trained, head-only) — a different
+> object from this stacked zero-drift CERTIFICATE Jacobian, so it does NOT predict mine** (recording it as
+> "expected" would be the same cross-object inference struck elsewhere, in reverse). What it supplies is a
+> candidate MECHANISM: through enough layers φ's own Jacobian spectrum spreads, and both routes differentiate
+> through the same φ (the certificate is linear in the features, ≈ `C · J_φ · V`, inheriting J_φ's spectrum). So an
+> absent gap here would be *consistent with* C10 with a named mechanism — but not *expected*. **355778 tests
+> whether the mechanism reaches the certificate route; both outcomes are informative and neither is predicted:** an
+> absent gap confirms k\*=417 is a crossing / effective-rank statement; a PRESENT gap at depth 15 (where the
+> trained-release Jacobian loses it) is a real frozen-vs-trained asymmetry, with 6e's depth sweep as control.
 >
 > **What survives, and its exact scope (6e's exact-vs-effective distinction).** T5.2 and the corrected law are
 > **exact-arithmetic** rank claims. On the SYNTHETIC net their exact ranks are well-defined (F11: real gap, 0/12
