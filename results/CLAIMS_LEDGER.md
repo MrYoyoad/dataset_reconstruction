@@ -132,6 +132,37 @@ It must never be cited about nonlinear charts in **either** direction.
 
 ---
 
+## M. Multilayer certificate — Gal's own main question (7 Sept runs, **UNAUDITED**)
+
+> **STATUS FOR EVERY LINE BELOW: UNAUDITED, ZERO PASSES.** `experiments/multilayer_cert/RESULTS.md` is dated
+> 7 Sept 17:01 and contains **no occurrence of the string AUDIT** — not a missing second PASS, no audit log at
+> all. It has stood complete and uncertified for ten days, and it is the document answering the extension
+> question Gal named as his main one. **Nothing here may reach him or the co-authors until two independent
+> PASSes exist**, and by this project's standing rule an audit that exists only in messages does not exist.
+> Rows: `survival_692603.jsonl` (216 rows, 54 configs × 4 layers), `theory_checks_{674726,683234,686846,688036}`.
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| M1 | **The certificate is exact at depth, at any drift** — not perturbative. Residual at machine precision across four decades of drift (0.2% to 923%). | 110 rows where `rank B_T = N'`; 13 deep rows above 100% drift | **`rank B_T = N'`**; FP64; random MLP | that it survives *without* the rank hypothesis — see M3 | 692603, 688036 | read-prose (GM) | **UNAUDITED** |
+| M2 | **What depth costs is rank, with a hard lifetime.** The training span inflates maximally, `N' = N·T`, so `rank C = min(r, n_l) − N·T` and the certificate is **empty** once `T ≥ min(r,n_l)/N`. The death is discontinuous. | `N' = N·T` in 116/129 deep rows, `≤` in all; 12 rows at `rank C = 0` | same | that small drift is the governing condition — **it is small training span**: few steps, few examples, or drift in few directions | 692603, 688036 | read-prose (GM) | **UNAUDITED** |
+| M3 | **Where the rank hypothesis fails the certificate is contaminated, not weakened** — median residual 2.3e-4, max 0.27, no small parameter. | 62 rows, last layer, width below `N'` | same | **and this is the sting: `rank B_T = N` is NOT an attacker-side certificate of exactness at depth**, because the attacker cannot observe `N'` | 692603 | read-prose (GM) | **UNAUDITED** |
+| M4 | **Depth adds information additively** up to two ceilings: stacked Jacobian rank 9, 18, 20, 20 for one to four layers, matching `min(k₁, Σ q_l)` exactly. **Two layers close a k=20 chart that one layer cannot.** | `k = 20`, four layers, `r − N = 9` per layer | same | — **but this is the direct answer to the "~200 equations" concern**, and it is a *rank*, not a raw count | 692603 | read-prose (GM) | **UNAUDITED** |
+| M5 | **A prediction of ours was refuted.** Tying adapter initialisations across layers does **not** collapse additivity — shared-seed and independent both give 9, 18, 20, 20 — so a shared `A₀` is **not a defence**. T5's defence claim is downgraded to a conjecture about tying the whole adapter. | same | same | — | 692603 | read-prose (GM) | **UNAUDITED** |
+
+**Two things the write-up itself flags, and they belong in any relay.** Everything is a **random FP64 MLP**; the
+span-inflation law `N' = N·T` is the claim most likely to change on a trained network with structured features,
+and the lifetime bound in M2 rests on it. And where `N' > N` the certificate constrains the **span**, not the
+individual images, so per-image norms are not the legitimate metric — sections reporting residuals and ranks are
+unaffected, but any reconstruction work must adopt principal angles from the start.
+
+**Audit hazards to carry, from CLAUDE.md's own ground rules for this track.** The load-bearing check is the
+exactness one (T2) and its tolerance must **not** be loosened on a FAIL. Report **three** outcomes, not two — a
+cell that tested nothing is distinct from a pass and a fail, and a **vacuous** deep test is exactly what an eager
+reader turns into a positive. Rank thresholds need an **absolute** floor: a relative-only test calls a numerically
+zero matrix full rank, which reports a closed channel as open.
+
+---
+
 ## F. Withdrawn, kept in place with the reason
 
 | # | text | why withdrawn | replaced by | date |
