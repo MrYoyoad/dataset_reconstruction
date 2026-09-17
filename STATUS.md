@@ -1,5 +1,27 @@
 # Project Status
 
+## What is missing is an INITIALISER: identifiability, conditioning and basin separated on one release (2026-09-17; job 351007)
+
+The seed-known arm has nullity 0 — the truth is unique — and neither Adam (0 of 120 starts) nor Levenberg-Marquardt
+finds it from random starts. Two explanations remained, with two different remedies, and they are now separated
+without using random starts at all:
+
+| setup | nullity | condition number | converges from a relative perturbation of |
+|---|---|---|---|
+| free `H`, seed known | 0 | **1.201e+02** | every size tested, up to **1.0** |
+| chart `k=12`, seed known | 0 | **1.789e+01** | every size tested, up to **1.0** |
+
+A condition number of ~10² is well conditioned, and LM started at the truth plus a **100% relative** perturbation
+returns to machine precision (per-image error ~1e-15). So the truth is unique, well conditioned and reachable —
+and random starts still miss it. **The missing ingredient is an initialiser, not a better chart and not a better
+solver.** The chart improves conditioning about 7× (18 against 120), so its second job is real but modest and is
+not what stands between a random start and the truth.
+
+This is the first clean three-way separation on one release: identifiability (nullity), reachability in principle
+(conditioning), and reachability from random starts (basin). **Caveat:** every perturbation tested converged, so
+1.0 is a *lower bound* on the basin radius, not a measurement of it; a job is locating the edge against the
+distance at which random starts actually sit.
+
 ## Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing (2026-09-17; jobs 350996, 218345/218346, theory_checks 688036)
 
 **T5.2 is refuted.** `theory/T5_cross_layer_rank.md` states `rank J_F = min(k_1, sum_l q_l)` and is marked PROVED.
