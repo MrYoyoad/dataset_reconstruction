@@ -42,6 +42,14 @@ a plan audit; everything below is read from rows, the rest is still running (WP1
   certificate objective at the recovery is 0.003–0.57× its value at the projection on 8/8 letters, and an oracle
   start converges to a chart point 10–80× below the projection's objective. Every bootstrap round therefore uses
   the oracle-start chart optimum as its reference (recovery-to-optimum = solver, optimum-to-truth = chart).
+- **Class composition does not move the certificate; it moves the linearised route** (WP2 interim, jobs 355926–355983
+  + matched 308862/308863, pooled PCA k=16, 200 starts): 8/8 in every composition — eight a's, eight t's, four a + four t
+  on two head rows, four a + four t on one row — landing 157–191 of 200 starts, flat over T = 1…400; at k=48 all
+  compositions collapse alike (the large-k basin effect, not composition). At T = 1 the certificate is provably
+  label-independent (`row(B_1) = col(A_0 H D^T) = col(A_0 H)` when rank D = N), and the two-row and one-row mixed
+  cells land the identical 157/200. The NTK free-coefficient arm is non-monotone in T and composition-dependent
+  (a: 0,0,1,8,1 of 8 at T = 1,5,20,100,400; t: 8,8,2 at 1,5,20), every miss a search failure above a 1e-15 floor,
+  never an alias. Pending: per-class vs pooled charts, AE, k = 32/48 for t and same-row, all CNN cells.
 - **Bootstrapping the chart from the recovery STALLS on MNIST letters, in both variants** (WP4, job 355987, 200 starts,
   raw privates, generic EMNIST PCA-32 round 0). Class recognition works (7/8 top-1, calibrated 87 % on projections) and
   the recognised class's chart is more faithful than the generic one (chart optimum to truth 0.40 vs 0.43; wrong-class
