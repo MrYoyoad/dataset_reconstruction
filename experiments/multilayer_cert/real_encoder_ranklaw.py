@@ -206,6 +206,8 @@ def main():
                           in_dim=in_dim, first_adapted=first, seed=a.seed, r=a.r, N=a.N, depth=D),
                           n_layers=L, layers_in_objective=[l + 1 for l in layers],
                           d_j=dl, q_l=ql, cert_rank=[dof[l] for l in layers], k1=k1, sum_q=Sq,
+                          q_l_formula=[min(dof[l], d_layer[l]) for l in layers],   # T5.2's min(r-N', rank M_l)
+                          q_l_measured_matches_formula=bool(ql == [min(dof[l], d_layer[l]) for l in layers]),
                           t52_pred=int(t52), corrected_pred=int(corrected),
                           measured_rank_by_tol=meas, measured_at_1e10=meas["1e-10"], measured_at_finest=meas[fine],
                           ladder_spread=int(max(ladder_vals) - min(ladder_vals)),
