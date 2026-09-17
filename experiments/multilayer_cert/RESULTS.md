@@ -172,6 +172,15 @@ ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the con
 > not write "T5.2 refuted at real scale" as an exact-rank claim. The clean-FP64 A100 run (355778:
 > full spectrum + gap_at_corrected + ambient) settles approached-vs-crossed; the k\*/discrimination text below is
 > restated per its verdict.
+>
+> **VERDICT IN (plain-GPU look 355781): NO GAP.** `gap_at_corrected ≈ 1.08–1.15` at every discriminating cell
+> (k=512/692/784), `real_rank=False`, the spectrum decaying smoothly through index 417 (5e-11 → 1e-12, no jump)
+> above the noise floor and the count climbing toward the ambient dimension below it (rank@1e-16 = 446/464/482). So
+> **k\*=417 and the 1.8× ratio are CONFIRMED crossings / effective-rank statements, not integer ranks**, and there
+> is **NO frozen-vs-trained asymmetry** — the frozen zero-drift certificate loses the gap just as 6e's trained
+> release does, so C10's mechanism reaches the certificate route (the degradation is a property of φ's depth, not
+> the route — a negative but real finding). A100 355778 confirms the deep profile below the plain-GPU floor; the
+> gap verdict does not depend on it.
 
 `real_encoder_ranklaw.py --ks 16..784` (job **355531**, attested `script_sha 01043d6a5fec`), `r=108`, `N=8`, real
 15-layer MNIST encoder. The question M6 opened: at what chart width `k` does depth stop being free?
