@@ -4129,3 +4129,28 @@ route and supplies a *candidate mechanism* — `phi`'s Jacobian spectrum spreadi
 reaches any route differentiating through the same `phi`. "Consistent with, mechanism named" is a real and useful
 status, and it is not "expected". The cost of conflating them is asymmetric and easy to miss: an expected outcome
 gets under-reported when it occurs, and over-interpreted when it does not.
+
+
+## A dead network reports as a perfect one (2026-09-18)
+
+A depth sweep at width 1000 printed this row:
+
+    depth 12   train acc 10.1%   rank 0   nullity 576   gap inf   verdict: rank EXISTS
+
+The network had collapsed — 10.1% is chance on ten classes. Every activation saturated, `phi` became constant, and
+the Jacobian was **exactly zero**. A zero matrix has no singular value above `1e-10 * sv[0]`, so the rank came back
+0; with rank 0 there is no cut, so the gap came back `inf`; and `inf > 1e3`, so the verdict printed **"rank
+EXISTS"**. **The most degenerate possible input produced the most confident possible output.**
+
+This is the hazard a sibling lane had already warned about and that I had written into the shared module as a
+convention — *use an absolute floor wherever the matrix can legitimately vanish* — and I then failed to apply it in
+a script of my own, four hours later. **Writing the rule down is not the same as installing it**, and the place it
+bites is the one where a vanishing matrix was not anticipated because the experiment was not "about" vanishing.
+
+**Two gates now, both explicit:** `DEAD` when training accuracy is at chance, and `ZERO JAC` when the largest
+singular value is zero or the rank is zero. Invalid cells are excluded from the conclusion rather than counted as
+agreement — because agreement is exactly what they would have been counted as.
+
+**The general form: check what the harness does at its degenerate inputs, not only at its intended ones.** A
+pipeline that returns a confident answer for a network that computes nothing will also return one for a subtler
+failure you have not thought of.

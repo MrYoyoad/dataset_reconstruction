@@ -318,6 +318,21 @@ look surprising.
 **C10's boundary is one configuration**: width 256, head width 32, r=12, k=24, N=8, one dataset, one seed. "Between
 8 and 12" is not a universal depth and no functional form is fitted to seven points.
 
+**A width-1000 replication was attempted and is INCOMPLETE — the boundary is not located there** (jobs 355831,
+355844). At width 1000 the law holds exactly wherever the cell is valid: nullity **80** against a predicted 80 at
+depths 2, 4, 8 and 10, with gaps of 1.7e+09, 5.2e+08 and 4.3e+06, at accuracies up to 71%. But **depth 12 and
+beyond will not train at that width** with this plain GELU stack — accuracy collapses to 10.1%, which is chance —
+so the interesting side of the boundary is unreachable and no width comparison can be made. Reported as incomplete
+rather than as agreement.
+
+> **The dead cell also caught a bug in this harness that had already printed a false row.** A collapsed network
+> saturates, `phi` becomes constant, and the Jacobian is **exactly zero** — whereupon rank is 0, the nullity is
+> every unknown, and `gap_at_cut` returns `inf`, so the verdict column read **"rank EXISTS"** for a network that
+> computes nothing. That is convention 4 of the shared module — a relative threshold on a matrix that can vanish —
+> biting in its most embarrassing form, in a script written by the person who wrote the convention. Both
+> conditions are now gated explicitly (`DEAD` on accuracy at chance, `ZERO JAC` on a vanishing Jacobian) and such
+> cells are excluded from the boundary rather than counted as agreement.
+
 **Scope of any landing here** (carried in every row as a `scope` field): `Z_feature` and `Z_image` coincide on this
 release, so a landing certifies that the dynamics invert from a free `H` and certifies **nothing** about free
 feature replay landing on representations no image produces — this cell cannot exhibit that failure.

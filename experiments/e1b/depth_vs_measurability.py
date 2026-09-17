@@ -124,17 +124,35 @@ def main():
         # THE GAP is the criterion: a cut sitting in a gap of many orders IS a rank cut. The ladder spread is
         # secondary information -- it can be moderate even with a large gap, because directions far above the cut
         # also thin out with the threshold. An earlier version required spread <= 4 and mislabelled every row.
-        measurable = r_.gap_at_cut > 1e3
-        verdict = "rank EXISTS" if measurable else "NO RANK"
+        #
+        # TWO WAYS A CELL IS INVALID RATHER THAN INFORMATIVE, both of which this harness produced before they were
+        # gated. A DEAD NETWORK: training collapses (accuracy at chance), every activation saturates, phi becomes
+        # constant, and the Jacobian is EXACTLY ZERO -- whereupon rank = 0, nullity = every unknown, and the gap
+        # comes back as `inf`, so the row reads "rank EXISTS" for a network that computes nothing. That is
+        # convention 4 of the shared module (a relative threshold on a matrix that can vanish) biting in its most
+        # embarrassing form. A cell like that must be reported as DEAD, never as a measurement.
+        dead_net = acc < 0.15                                  # 10-class CIFAR: chance is 0.10
+        zero_jac = (not r_.singular_values) or r_.singular_values[0] <= 0 or r_.rank == 0
+        if dead_net or zero_jac:
+            measurable = False
+            verdict = "DEAD" if dead_net else "ZERO JAC"
+        else:
+            measurable = r_.gap_at_cut > 1e3
+            verdict = "rank EXISTS" if measurable else "NO RANK"
         log(f"{depth:>6} {ep:>4} {acc*100:>9.1f}% {r_.rank:>7} {r_.nullity:>8} {pred:>6} {r_.gap_at_cut:>11.3e} "
             f"{r_.condition_number:>11.3e} {spread:>7} {verdict:>13}")
         rows.append(dict(depth=depth, epochs=ep, train_acc=acc, nullity=r_.nullity, predicted=pred,
                          gap_at_cut=r_.gap_at_cut, condition_number=r_.condition_number,
                          rank_ladder=lad, ladder_spread=spread, rank_exists=bool(measurable),
+                         invalid_dead_net=bool(dead_net), invalid_zero_jacobian=bool(zero_jac),
                          hit=bool(r_.nullity == pred and measurable), n_unknowns=r_.n_unknowns,
                          n_equations=r_.n_equations, rank=r_.rank))
+    invalid = [x["depth"] for x in rows if x["invalid_dead_net"] or x["invalid_zero_jacobian"]]
     ok = [x["depth"] for x in rows if x["rank_exists"]]
-    bad = [x["depth"] for x in rows if not x["rank_exists"]]
+    bad = [x["depth"] for x in rows if not x["rank_exists"] and x["depth"] not in invalid]
+    if invalid:
+        log(f"# INVALID CELLS (training collapsed or Jacobian identically zero), excluded from the boundary: "
+            f"{invalid}. These say nothing about depth -- the network computes nothing.")
     log(f"\n# rank well defined at depths {ok or 'none'};  NOT well defined at {bad or 'none'}")
     accs = {x['depth']: x['train_acc'] for x in rows}
     if ok and bad:
