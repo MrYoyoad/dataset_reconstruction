@@ -15,6 +15,27 @@ never placed in one expression with a number from another configuration; a contr
 the same job and row format; residual-zero-wrong-image (alias) is reported separately from residual-not-zero
 (solver); consistency with the release is not evidence of correctness, only distance to ground truth is.
 
+## WP0 — Base models must be fully trained (gate on every cell)
+
+Yoad (2026-09-18): "make sure base fully trained". Every cell in WP1–WP5 reports, in its row, the frozen base's
+train accuracy, test accuracy and final train loss, read from the checkpoint at load time (not copied from a note).
+A base is FULLY TRAINED for this purpose when its train loss has collapsed (train accuracy ≥ 99.5%, train loss ≤ 1e-2)
+— the Haim et al. regime the repo already implements as `--overtrain` in `experiments/cifar/cifar_newclass.py`
+(no augmentation, no weight decay, train past zero error; `cifar10_mlp_overtrained_newclass.pth` is 100.00% train).
+Before any package submits its full job, the builder checks its checkpoint(s) against this gate:
+
+| checkpoint | used by | known state | action |
+|---|---|---|---|
+| `mnist_mlp_strong.pth` | WP2 mnist, WP4, WP5 | 98.24% test; train acc / loss NOT recorded | measure train acc + loss; if below the gate, train `mnist_mlp_strong_full.pth` to the gate with `train_strong_backbone.py` (add `--target-train-acc 0.995`, no augmentation) and use it, with test acc recorded |
+| `mnist_conv_deep.pth` | WP1 | 98.63% test; train state NOT recorded | same: measure; over-train a `_full` twin if needed (`conv_certificate.train_backbone`, more epochs) |
+| `cifar10_cnn_newclass.pth` | WP2 cifar (CNN arm), WP5 keyboard gate | 99.8% train / 92.7% test | passes |
+| `cifar10_mlp_overtrained_newclass.pth` | WP2 cifar (MLP arm) | 100.00% train / 57.3% test, loss 6.8e-4 | passes; the plain `cifar10_mlp.pth` (58% / weak) is NOT used in any new cell |
+| `cifar10_mlp.pth` | WP3 image selection only (same 8 images as the ladder) | weak | images only, no release read from it |
+
+WP2's CIFAR cells therefore run on the CNN backbone AND the over-trained MLP, as two arms, both recorded. If a new
+`_full` twin is trained, the letters cells that already exist on the 98% model are NOT overwritten: the twin gets a
+new checkpoint name and the row records which one it ran on, so the earlier 8/8 letters result stays comparable.
+
 ## WP1 — Multilayer rank law on a CNN, plus the T arm
 
 **Question.** Does the corrected depth law `stacked rank = min_j(d_j + Σ_{l<j} q_l)` (refuting T5.2's `min(k_1, Σ q_l)`)
@@ -126,37 +147,54 @@ decoder can pass and the result is about the decoder, not the chart. The ceiling
 **Resources.** `short-gpu`, one job, FP32 (fidelity numbers, no rank read). Outputs `results/decoder_chart/fidelity_<jobid>.jsonl`,
 grid `figures/decoder_chart/`, write-up `experiments/decoder_chart/RESULT.md`.
 
-## WP4 — Bootstrap / iterative chart (round2 TEST 8), first run
+## WP4 — Bootstrap / iterative chart (round2 TEST 8), first run — two variants
 
 **Question.** Can the chart be improved from what the attack recovers, without private data touching the chart fit?
 
-**Why a linear global refit cannot work, and what "refit" therefore means.** In a global PCA chart the recovery is
-exactly the projection of the truth onto the chart, so refitting a global PCA on recovery + public data cannot leave
-the original span. The bootstrap that can move is the LOCAL chart: neighbours of the recovery in the public pool
-define a new anchor and new directions (the "local families" schematic, `figures/gal_2026-09/08_local_families.png`,
-proposal only until now).
+**Variant A — class-recognition bootstrap (Yoad, 2026-09-18: "refit C1 on the general class we saw; like a bike
+generally recognised; change C1 to be the chart of bike").** Round 0 uses a GENERIC public chart the attacker can
+build without knowing the added class: PCA-`k` of a broad public pool (CIFAR: all CIFAR-100 train images; MNIST:
+all EMNIST letters). Recover. Then RECOGNISE the class of the recovery with a public classifier that never saw the
+private images (CIFAR: an ImageNet-pretrained ResNet-50 from `~/.cache/torch/hub`, top-1 mapped to the CIFAR-100
+class vocabulary by name, or a CIFAR-100 classifier trained on the public pool; MNIST: a 26-way EMNIST-letters
+classifier trained on the public pool). Round 1 chart = PCA-`k` of THAT class's public pool (the stand-in for
+"fetch bike images online": the public class pool plays the role of the web search; recorded as such). Recover
+again. Round 2 (optional): re-recognise on the round-1 recovery; stop when the class is stable.
+Controls in the same job: (i) round 1 with the chart of the SECOND-ranked class (wrong-class refit) — if it improves
+as much, the gain is chart narrowing, not recognition; (ii) round 1 with the TRUE class chart handed over (oracle
+class label, not attacker-available) — the ceiling of this variant; (iii) recognition accuracy on the round-0
+recoveries, per image, so a wrong class is a recorded event rather than a silent one.
 
-**Setting.** Below the certificate line, where aliases are excluded by the residual guard: MNIST strong MLP,
-EMNIST `a`, `N = 8`, `r = 64`, `T = 400`, `k = 32`, privates RAW (not on-chart), so there is chart error to remove.
-Round 0: global public PCA-32 of EMNIST-a train; certificate LM attack from 200 random starts (the `new_class.py`
-cell family or the certificate arm of `ntk_vs_certificate.py`; reuse, do not rewrite). Round `t+1`, per image:
-anchor = mean of the `K = 200` nearest public images to `x̂_i^{(t)}`, directions = top-32 PCA of those neighbours;
-attack again from `x̂_i^{(t)}` and from fresh random starts. Four rounds.
+**Variant B — local-neighbour bootstrap.** In a global PCA chart the recovery is exactly the projection of the truth,
+so a global refit on recovery + public data cannot leave the original span; what can move is the LOCAL chart
+(the "local families" schematic, `figures/gal_2026-09/08_local_families.png`, proposal only until now). Round `t+1`,
+per image: anchor = mean of the `K = 200` nearest public images (of the recognised class) to `x̂_i^{(t)}`,
+directions = top-`k` PCA of those neighbours; attack again from `x̂_i^{(t)}` and from fresh random starts. Four rounds.
+Control: neighbours of a RANDOM public image instead of the recovery (the decisive control); oracle: neighbours of
+the truth.
+
+**Setting.** Below the certificate line, where aliases are excluded by the residual guard. Two releases: MNIST strong
+MLP (or its `_full` twin per WP0), EMNIST `a`, `N = 8`, `r = 64`, `T = 400`, `k = 32`, privates RAW (not on-chart);
+and CIFAR CNN, motorcycle (the ladder's eight photographs), same adapter. Certificate LM attack from 200 random
+starts at every round (reuse the `new_class.py` / `ntk_vs_certificate.py` certificate arm; do not rewrite the solver).
 
 **Metrics per round and per image.** Chart error of the TRUE image in that round's chart (fidelity); recovery error
-vs the truth; certificate residual at the recovery; landed (`err < 1e-2`). **Controls in the same job:** (i) neighbours
-of a RANDOM public image instead of the recovery (the decisive control); (ii) neighbours of the truth (oracle bound,
-not attacker-available); (iii) round 0 re-run with the same starts (no-refit baseline).
+vs the truth; certificate residual at the recovery; landed (`err < 1e-2`); recognised class and its rank.
+Round-0 baseline re-run with the same starts (no-refit control).
 
-**Void condition.** Round-0 median recovery error above 0.5 → nothing to bootstrap from; report VOID, not null.
+**Void condition.** Round-0 median recovery error above 0.5, or recognition at chance on the round-0 recoveries →
+nothing to bootstrap from; report VOID, not null.
 
-**Pre-registered.** IMPROVES: fidelity and recovery error fall monotonically over rounds and beat control (i).
-REFIT-ONLY: control (i) improves as much → the gain is from locality, not from what was recovered. STALLS: no change
-after round 1. ALIAS: any recovery whose residual sits above the floor while its image error is small is flagged,
-never counted as a landing.
+**Pre-registered.** IMPROVES: fidelity and recovery error fall over rounds and beat the wrong-class / random-anchor
+control. REFIT-ONLY: the control improves as much → the gain is narrowing/locality, not what was recovered.
+STALLS: no change after round 1. ALIAS: any recovery whose residual sits above the floor while its image error is
+small is flagged, never counted as a landing. Note that variant A's round-1 chart for a correctly recognised class
+IS the per-class public PCA that C7 measured (fidelity 0.18 at k=66 on CIFAR): variant A can therefore at best reach
+the known per-class PCA fidelity; its value is showing the attacker gets there WITHOUT knowing the class. Variant B
+is the one that can go below per-class PCA.
 
-**Resources.** `long-gpu`, one job, FP64, ~6 h. Outputs `results/bootstrap_chart/rounds_<jobid>.jsonl`, per-round
-tensors `.pth`, grid per round (truth / recovery / control), `experiments/bootstrap_chart/RESULT.md`.
+**Resources.** `long-gpu`, one job per release, FP64, ~6 h. Outputs `results/bootstrap_chart/rounds_<jobid>.jsonl`,
+per-round tensors `.pth`, grid per round (truth / recovery / controls), `experiments/bootstrap_chart/RESULT.md`.
 
 ## WP5 — The MNIST landing gate
 
@@ -188,3 +226,66 @@ as a difference in backbone and data, not as a property of "the gate".
 - Base models are the trained ones (MNIST strong 98%, CIFAR CNN 93% test, MNIST conv deep 98.6%); the CIFAR MLP is a
   weak 58% encoder and any cell on it says so in its row.
 - Numbers from these runs are provisional until the row is read by a second session.
+
+## Audit 2026-09-18 (sibling auditor) — fixes applied before submission
+
+The audit is the authority over the sections above wherever they conflict; builders received these as instructions.
+
+**WP0.** `mnist_mlp_d15w1000.pth` added to the gate table (it is the encoder the depth window lives on). Every
+checkpoint reports loss as well as accuracy. **No package substitutes a `_full` twin this round**: all cells run on
+the original checkpoints so no two packages sit on different releases; twins, if trained, are a separate later arm.
+The conv-deep checkpoint's recorded accuracy is 98.77% (`step93_convdeep_205887.jsonl`), not 98.6%.
+
+**WP1 — the deep spec is vacuous by arithmetic; replaced.** Layer widths along the deep spec are
+784 → 12544 → 6272 → 4096 → 1024 → 10; every chart `k ≤ 784` is below every intermediate width, so `d_j = min(k, 784)`
+at all layers, both laws coincide provably (rank-preserving case, T5 §137–142), and no `first`/`maxL` discriminates.
+At `r = 64` conv layers 1–3 are certificate-vacuous (job 205887: patch-span ranks 9/232/117/32, `rank C = 0/0/0/32/56`),
+so the T arm would be head-only. Replacement: a **bottlenecked conv spec** with a mid-stack contraction below `k`
+followed by at least two adapted layers, and `r = 256` so conv certificates are non-empty:
+`1→64 (s2, 14×14) → 128 (s2, 7×7) → 8 (s2, 4×4; width 128 < k) → 256 (s2, 2×2) → dense 1024→1000 → head 10`,
+trained to the WP0 gate by `conv_certificate.train_backbone` (new `SPECS["bottleneck"]`, checkpoint
+`mnist_conv_bottleneck.pth`). Pre-submission arithmetic at `r = 256`, `first = 1`: `q_1 = 0` (d=9), `q_2 ≈ 256−232 = 24`,
+`q_3 ≈ 256−128 = 128`, `q_4 ≈ 72−32 = 40`, `q_dense = 248`, `q_head ≤ 9`; corrected at `j = conv4` is
+`128 + 0 + 24 + 128 = 280` against T5.2 `min(784, 449) = 449` for `k ≥ 280` — discriminating; the shallow-first
+control (`first = 5`, dense+head only) coincides. The measured patch-span ranks replace these estimates in the row.
+Corrections to the definitions: conv vacuity is `patch_span_rank ≥ min(r, d_l)` (not `N·P_l ≥ d_l`); certificate rank
+is `min(r, d_l) − N'_l`; the "`N' = N` at the first adapted layer" invariant holds only for DENSE layers (a conv first
+layer records its patch span, 9 or 64, never 8) and is asserted for the dense layers only; `d_l` in the row means
+`rank M_l` (T5's symbol) and the patch dimension is written `p_l = C_in·9`. `sigma0` is set per layer as
+`1/sqrt(p_l)`, and the run is labelled as such. Hypothesis (b) of the T arm is restated: at conv layers `B_{l,1}`
+already sums `N·P_l` rank-one terms at `T = 1`, so the `N·T` growth law is a dense-layer statement and the conv rows
+test only whether `N'_l(T)` moves at all with `T`. Resources: rows `Σ r·P_l ≈ 68k × k = 784` in FP64 is ~0.4 GB, so a
+plain `long-gpu` GPU with 32 GB is enough; A100 is not required.
+
+**WP2.** The harness's existing `pca` chart POOLS both classes' public images (`ntk_vs_certificate.py:179`); per-class
+PCA is the addition, named `pca_perclass`. Because privates are on-chart, per-class and pooled charts define
+different private images and hence different releases: recovery is compared only within a chart, and charts are
+compared only on the RAW-image projection error measured before projection (a table in the same job). Cells
+already run with this exact configuration — `mnist_a` and `mnist_mixed` at `T ∈ {1, 400}`, jobs 302279 / 302280 /
+304349 — are reused, and only `T ∈ {5, 20, 100}` is added for them. `build_cifar` hard-codes the MLP; the CNN arm
+exists only once a backbone flag is in and its smoke log shows the CNN loaded. Pre-registration has three outcomes
+per cell: 8/8, partial (count reported, R5), below the single-class cells.
+
+**WP3.** Gates are brackets, never points: MLP-motorcycle 0.0124–0.0186, CNN-keyboard 0.0045–0.0090 (ledger §0.1, A22).
+The Adam-fitted local-chart fidelity is solver-bounded while pixel PCA is closed-form: the oracle anchor with `w = 0`
+must reproduce the autoencoding ceiling exactly, else the row is a solver failure and says so. `diffusers` is NOT
+installed into the shared `rec` env (other lanes run on it): it goes to a separate `--target` directory added to
+`PYTHONPATH` by the job script only.
+
+**WP4.** On CIFAR the raw privates sit at chart error ≥ 0.32 at `k = 32`, so "landed vs truth" is dead by construction;
+the per-round floor is the certificate residual at the TRUTH'S PROJECTION into that round's chart, and two errors
+are reported per round: recovery-to-projection (did the solver reach the chart's best) and recovery-to-truth (did the
+chart improve). Void: round-0 recovery-to-projection above 1e-2 (solver did not reach the chart). Recognition is by an
+in-job classifier trained on the public pool only (no ImageNet name map: CIFAR-100 "motorcycle" has no ImageNet
+counterpart), calibrated on PCA-`k` projections of held-out public images of the class; VOID unless at least 5 of 8
+round-0 recoveries are top-1 correct AND the calibration accuracy is above that.
+
+**WP5 — the plan's own cross-construction error.** The 0.0385-at-`k = 384` fidelity ladder is MNIST DIGITS on the
+15-LAYER encoder; the letters gate is EMNIST on the 3-layer strong MLP, a different question. Two arms, both run,
+neither quoted against the other: (a) `mlp_letter_a` as written (the gate for the letters cells and WP4's void
+condition); (b) `d15_digits`: head adapter (`r = 64`, `T = 400`) on `mnist_mlp_d15w1000.pth`, privates = the eight
+test digits at the k-sweep's join-key indices (seed+7), chart pool = the k-sweep's 50 000 train digits, same ε ladder.
+Arm (b) shares encoder, images and chart pool with the depth window; it differs in adapter placement (head only,
+since no multi-layer attack harness exists) and in being a confident batch (known classes), and the row reports
+`rank B_T` and the recording strength so a weak recording is visible. It is the closest attainable gate for the
+window, and the write-up says exactly that.
