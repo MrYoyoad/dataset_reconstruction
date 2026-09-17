@@ -92,6 +92,42 @@ modest.
 First clean three-way separation on one release: identifiability (nullity), reachability in principle
 (conditioning), reachability from a given start (alignment).
 
+## WITHDRAWN and REPLACED: depth DOES raise the identifiability cap — `cap(L) = min(L·(r−N)+m, nesting ceiling)` (2026-09-17; job 355531)
+
+**Withdrawn:** *"the depth-helps and well-posed windows do not intersect"*, and *"depth's extra information arrives
+only where there is no unique answer left to find."* **Both were relayed by this seat on a chain with a missing
+step**, caught by the approver asking for the derivation. **The error: a ceiling of 417 sitting above a cap of 110
+is one quantity exceeding another, not two disjoint regions — and the capacity line `k < m + r − N` is a SINGLE-LAYER
+count.** With `L` adapted layers the supply grows, so the cap grows.
+
+**Refuted at our own rows** (355531, `first_adapted=1`, `q_l = 100`): stacked rank is `min(k, Σ_l q_l, ceiling)`, and
+a chart is identifiable when that equals `k`.
+
+| k | L=1 | L=2 | L=3 | L=4 | identifiable at |
+|---|---|---|---|---|---|
+| 128 | 100 | **128** | 128 | 128 | **L = 2** |
+| 256 | 100 | 200 | **256** | 256 | **L = 3** |
+| 384 | 100 | 200 | 300 | **384** | **L = 4** |
+
+> **`cap(L) = min( L·(r−N) + m , nesting ceiling )`** — reduces to the capacity line at `L = 1` (`r=108, N=8, m=10`
+> → **110**, matching the independent derivation), saturating at the architecture's **nesting ceiling, 417 here.**
+
+**The headline inverts.** At deployed `r = 64` (`q_l = 56`), eight adapted layers give `min(448, 417) = 417` against
+a single-layer cap of **66** — **a 6× gain in usable chart width from depth alone.** The rank table previously
+recorded here presented the ceiling-to-single-layer-cap ratio **as if it were a gap between two windows; it is the
+size of what depth buys.** Struck.
+
+**The window question is OPEN, not closed, and blocked on one missing measurement.** Identifiability reaches
+`k ≈ 417` with enough depth. Whether that suffices depends on **fidelity at `k ≈ 417` in the SAME setting**. The
+sweep's ladder is **MNIST** (0.0385 at `k=384`, 0.003 at `k=512`); the only landing gate we hold is **CIFAR**.
+**Quoting that gate against this ladder is the cross-construction error struck from RESULTS 5c in the same hour.**
+**What closes it: a landing gate measured on MNIST — the chart error at which recovery actually stops on this net
+and these images.**
+
+**What survives untouched:** `k*` = the nesting ceiling exactly, as a threshold in `k` **and** `L`; T5.2's refutation
+at real scale; and the defender-facing reversal — **but its message changes from "depth cannot help" to "depth helps
+up to a ceiling the defender can compute from their own rank profile."**
+
 ## M6: T5.2 refuted on a REAL encoder — and at every chart width an attacker can build, the two laws agree (2026-09-17; job 354535, attested `59cbe42-dirty` / `script_sha dd81201f5399`)
 
 **First result in this track with identifiable provenance.** PASS #1 `83` (read-rows), PASS #2 `1d` (32 rows).
