@@ -102,6 +102,9 @@ answer is expected: a chart that does not contain the truth cannot take the null
 
 ## What this licenses saying to the supervisor, in two parts
 
+*Derivation moved to its own citable note: `notes/perturbed_inputs_what_they_supply_2026-09-17.md`, which proves
+the no-rank claim rather than asserting it. Summary retained here.*
+
 His 15 September suggestion was to look for additional equations from perturbed inputs. The workplan that
 question lacked is now written down, and it has a negative half that must travel with it.
 
