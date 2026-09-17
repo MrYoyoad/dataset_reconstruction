@@ -29,7 +29,7 @@ orientation map, still the best entry point to code and releases) · `results/CL
 | `scripts/figpack_2026_09_15/` (9 `.tex`, `style.tex`, `build.py`, `fill_results_template.py`, `validate.py`, `assets/` ×11, `compositors/` ×6) | `figure_pack_editable/source/`, `LoRA_visual_figures/source/`, `meeting_handoff/audit/` | The editable sources for every figure, the results-page filler, the synthetic algebra check, and the six compositor scripts that record how each published panel was cut (crop boxes, strides, polarity). |
 | `notes/figure_provenance_2026-09-15.md` | `LoRA_visual_figures/SOURCES.md` + `ground_truth_provenance.md` + `meeting_handoff/audit/figure_roles.md` | One deduplicated provenance record, with the three corrections found when panels were traced to rows (see §4). |
 | `notes/results_bundle_2026-09-06_index.md` | `results_2026-09-06/…/INDEX.md` + `READ_ME_FIRST_deck_v6_update.md` | The only copy of the experiment index and the slide rules, including four claims withdrawn the same night. |
-| `experiments/cifar/cifar_certificate_supplied_replica.py` | `results_2026-09-06/…/scripts/cifar_certificate.py` | The supplied, unmodified CIFAR replica — the only copy of the code behind "the replica does not recover its images". Imported verbatim; do not edit it, write a new file instead. |
+| ~~`experiments/cifar/cifar_certificate_supplied_replica.py`~~ | `results_2026-09-06/…/scripts/cifar_certificate.py` | **NOT imported — it was already here, and I got this wrong first time.** The supplied replica is byte-identical (`52ae16f5…`) to **`cifar_certificate.py` at the repository root**, which is tracked. I imported a second copy and described it as "the only copy of the code behind *the replica does not recover its images*"; both halves were false. The duplicate has been removed. **Cite the root file.** |
 
 **Build caveat recorded at import:** `scripts/figpack_2026_09_15/build.py` needs pdflatex and
 `fill_results_template.py` shells out to `kpsewhich`; neither exists on WEXAC (CLAUDE.md, "Markdown → PDF on
@@ -48,6 +48,13 @@ hard-coded `/workspace/scratch/...` paths and need repathing before they run.
   **But see §4.3:** that file is the *oldest* content of the five revisions, not the newest.
 - `Thesis_meeting_summary_2026-09-15.md` is byte-identical to `notes/meeting_summary_2026-09-15.md`, which a
   sibling lane committed on 2026-09-17 (8b42fc3). The archive copy was **not** re-imported.
+- `results_2026-09-06/…/scripts/cifar_certificate.py` is byte-identical to **`cifar_certificate.py` at the
+  repository root**, which is tracked. **This one was missed on the first pass and is worth the confession:** the
+  duplicate scan behind §2 walked `notes figures results scripts docs theory experiments papers` and **never looked
+  at loose files in the repository root**, so a tracked file sitting there was invisible to it and I imported a
+  second copy. Found only because a filesystem-wide search launched at the very start of the session finished hours
+  later and listed the root. **Any "is this already here?" scan must include the root directory** — which is
+  precisely where an un-filed script ends up.
 
 ## 3. Deliberately not imported, with the reason
 

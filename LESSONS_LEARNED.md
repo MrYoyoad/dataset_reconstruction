@@ -4,6 +4,27 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## 2026-09-17 — a de-duplication scan that skips the repository root will import a file that is already tracked
+
+While integrating an external archive I imported a script as "the only copy of the code behind this result", and
+committed it. It was neither. The identical file, same sha256, was **already tracked at the repository root**.
+
+**The mechanism is dull and general.** The scan that decides "is this already here?" walked the obvious
+directories — `notes figures results scripts docs theory experiments papers` — and never looked at loose files in
+the root itself. A tracked file sitting in the root is therefore invisible to it, and the root is **exactly where
+an un-filed script ends up**. Every other archive-versus-repo comparison in that session was correct; this one
+category was structurally unreachable.
+
+**How it was caught, which is the uncomfortable part.** Not by review, and not by any of the careful checking that
+caught several other errors the same night. A `find /` launched in the session's first minute had timed out into
+the background; it completed hours later, and its listing of the home directory showed the file. **Had that command
+not been launched, or had I not read a stale result I no longer needed, the duplicate would have shipped** with a
+false "only copy" claim attached to it.
+
+**What follows.** A de-duplication scan enumerates the repository root as a location, not just its subdirectories.
+And before writing "this is the only copy of X" — a claim that reads as verification — hash X against the whole
+tree, because that sentence is doing work no one will re-check.
+
 ## 2026-09-17 — a one-line derivation is where a slip has nothing to collide with
 
 In one short exchange, two lanes each got something wrong inside the *same* three-line piece of arithmetic, and
