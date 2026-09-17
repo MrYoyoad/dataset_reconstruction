@@ -1,5 +1,26 @@
 # Project Status
 
+## Depth destroys the MEASUREMENT, not the law: identifiability stops being evaluable between depth 8 and 12 (2026-09-18; jobs 355792, 355795)
+
+Sweeping **depth alone**, with the training budget scaled by depth so deeper nets are not simply less trained:
+
+| depth | train acc | nullity | predicted | gap at cut | verdict |
+|---|---|---|---|---|---|
+| 2–8 | 36.8% → **53.5%** | **80** every depth | 80 | 1e7 – 3e9 | rank exists |
+| 12 | **52.9%** | 83 | 80 | **1.48** | **no rank** |
+| 16 | 40.0% | 144 | 80 | **1.26** | **no rank** |
+
+**The law is exact at every depth where it can be evaluated** — nullity 80 against a predicted 80 from depth 2 to
+8, with no drift. **What depth destroys is the measurement**: the gap at the cut falls from 4.4e+07 to 1.48
+between depth 8 and 12, and the nullity stops being a property of the Jacobian at all. The trainedness confound is
+controlled at the boundary (53.5% against 52.9%).
+
+Through enough layers, chart directions reach the adapted layer with such disparate gain that identifiability
+becomes a continuum rather than a dichotomy. The framework stays correct and stops being *applicable* — more
+useful to know than either "it holds" or "it fails", and directly on the meeting's agreed step #1. **Caveat:** this
+is measurability in fp64, not exact-arithmetic rank; in exact arithmetic the deep rank may be unchanged. One
+configuration, seven points, no fitted form.
+
 ## The 2026-09-17 archive is reconciled with the repository, and three of its numbers do not survive contact with the rows (2026-09-17; no compute)
 
 Ninety-two archived files plus seven nested bundles (526 files) were read and mapped into the repo. The

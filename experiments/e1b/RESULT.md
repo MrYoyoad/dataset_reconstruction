@@ -192,6 +192,35 @@ ratio of about 1.35.
 **The chart improves conditioning by about 7×** (18 against 120), so the chart's second job is real but modest,
 and it is not what stands between a random start and the truth.
 
+**C10 — Identifiability is exact wherever it can be evaluated, and stops being *evaluable* between depth 8 and
+12 (jobs 355792, 355795).** The 3-layer cell (C9) had sharp ranks; the 15-layer cell had none. Those differ in
+depth *and* width, rank, dataset and budget, so this sweeps **depth alone**, with training budget scaled by depth
+so the deeper nets are not simply less trained:
+
+| depth | epochs | train acc | nullity | predicted | **gap at cut** | verdict |
+|---|---|---|---|---|---|---|
+| 2 | 3 | 36.8% | **80** | 80 | 1.9e+08 | rank exists |
+| 3 | 4 | 45.1% | **80** | 80 | 3.4e+09 | rank exists |
+| 4 | 5 | 48.7% | **80** | 80 | 9.4e+08 | rank exists |
+| 6 | 7 | 50.0% | **80** | 80 | 1.1e+08 | rank exists |
+| 8 | 9 | **53.5%** | **80** | 80 | 4.4e+07 | rank exists |
+| 12 | 13 | **52.9%** | 83 | 80 | **1.48** | **no rank** |
+| 16 | 17 | 40.0% | 144 | 80 | **1.26** | **no rank** |
+
+**Two things, and the second is the one that matters.**
+
+*The law is exact at every depth where it can be evaluated* — nullity 80 against a predicted 80 at depths 2
+through 8, with no drift as depth rises. Depth does not bend the law.
+
+*What depth destroys is the measurement, not the law.* Between depth 8 and 12 the gap at the cut falls from
+4.4e+07 to **1.48** — from seven orders to nothing — and the nullity stops being a property of the Jacobian.
+**The trainedness confound is controlled at the boundary**: 53.5% at depth 8 against 52.9% at depth 12, so the
+collapse is not the deeper net simply being worse trained.
+
+**The reading**: through enough layers, chart directions reach the adapted layer with such disparate gain that
+identifiability stops being a dichotomy and becomes a continuum. The framework remains correct and stops being
+*applicable* — which is a different and more useful thing to know than either "it holds" or "it fails".
+
 ## What is NOT claimed
 
 **The plane is measured at four norm ratios and five cosines, on the seed-known arm, at `T = 400`.** The tilt is
@@ -253,6 +282,16 @@ worrying about is a statement about the **certificate's** zero set (every blend 
 sweep measures the **replay** residual's Jacobian, whose zero set is strictly smaller and does not contain the
 blends. Neither argument is asserted here: one cell on a real backbone settles it. The fidelity column is measured directly on the CIFAR privates and needs no such caveat —
 which is why C7 is stated so that the fidelity wall alone carries it.
+
+**C10 is about MEASURABILITY IN FP64, not about the exact-arithmetic rank.** In exact arithmetic the rank at
+depth 16 may well still be 496 and the nullity exactly 80; what is measured is that the singular values carrying
+those directions fall to where fp64 cannot resolve them. By the same rule this file applies elsewhere — a
+tolerance-dependent quantity can only settle a tolerance-dependent claim — C10 must not be read as "the law fails
+at depth". It is: *the law's prediction stops being checkable, and the information those directions carry stops
+being usable.* Those are the same statement for an attacker and different statements for a theorem.
+
+**C10's boundary is one configuration**: width 256, head width 32, r=12, k=24, N=8, one dataset, one seed. "Between
+8 and 12" is not a universal depth and no functional form is fitted to seven points.
 
 **Scope of any landing here** (carried in every row as a `scope` field): `Z_feature` and `Z_image` coincide on this
 release, so a landing certifies that the dynamics invert from a free `H` and certifies **nothing** about free
