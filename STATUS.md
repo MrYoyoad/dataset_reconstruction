@@ -62,8 +62,10 @@ a plan audit; everything below is read from rows, the rest is still running (WP1
 - **The two-walls fidelity numbers were measured on a different eight motorcycles than the gate** (found by WP3):
   `experiments/e1b/two_walls.py:58` draws with `np.random.RandomState(seed)`, the ladder with a torch generator at
   `seed+7`. On the ladder's own images pixel PCA at k=16 is 0.341, not C7's 0.2456. The C7 conclusion (no width
-  works) is unchanged in direction, but its shortfall ratios must be recomputed on the gate's images before they
-  travel. Not yet corrected in `experiments/e1b/RESULT.md` (lane 6e's file).
+  works) is unchanged in direction. **Recomputed on the gate's images (job 356106):** motorcycle k=66 mean 0.2702,
+  21.8× / 14.5× the bracket's low / high end (C7 said 14.9×), k=384 0.1596 (12.9× / 8.6×); keyboard k=66 0.2107,
+  46.8× / 23.4× (C7's 45.7×), k=384 0.1222 (27.2× / 13.6×). `experiments/e1b/RESULT.md` C7 still quotes the other
+  index set (lane 6e's file).
 
 ## Depth destroys the MEASUREMENT, not the law: identifiability stops being evaluable between depth 8 and 12 (2026-09-18; jobs 355792, 355795)
 

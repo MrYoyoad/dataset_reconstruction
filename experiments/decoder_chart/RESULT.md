@@ -82,8 +82,10 @@ Their fragments held only the closed-form rows (identical in every job) and were
 resubmitted with `gmem=20G` as 356090 (motorcycle truth_nn K256), 356091 (motorcycle truth_latent K256), 356092
 (keyboard proxy_nn K64), 356093 (keyboard truth_nn K64), 356094 (keyboard truth_nn K256), 356095 (keyboard
 truth_latent K64), 356096 (letters proxy_nn K256), 356097 (letters truth_latent K64), 356098 (letters truth_latent
-K256). The nine survivors of the first submission (356034, 356035, 356036, 356038, 356041, 356045, 356046, 356048,
-356049) are running.
+K256). Of the nine first-submission survivors, three more OOM'd at ~1650 s mid-fit with the process itself at 18 GB
+(356034, 356035 = motorcycle proxy_nn K64/K256, the attacker arm; 356045 = keyboard truth_latent K256) and were
+resubmitted with `--chunk 4` as 356101, 356102, 356103. Running from the first batch: 356036, 356038, 356041, 356046,
+356048, 356049.
 
 #### 1. Autoencoding ceiling (reported first) — `‖D(E(x)) − x‖/‖x‖`, native space, median (range over 8)
 
@@ -135,6 +137,33 @@ No solver-failure or solver-limited row so far (every fit ends at its trajectory
 attacker-available local chart on letters (0.2555 / 0.1699 at k = 16 / 32) is BETTER than pixel PCA at the same k
 (0.3155 / 0.2346) — the first chart to beat PCA in this repo — but still 12× the bracket's high end at k = 32.
 On motorcycle (smoke 355910, K = 64, k = 16) it was worse than pixel PCA (0.3585 vs 0.3413). Keyboard local rows: none yet.
+
+#### C7 recomputed on the gate's images (ledger Q7) — job 356106, `experiments/decoder_chart/c7_index_sets.py`, FP64, CPU
+
+C7 (job 350993, `two_walls.py`) drew its eight privates with `np.random.RandomState(1)`; the oracle ladder, which
+measured the gate brackets, drew them with `torch.Generator().manual_seed(seed+7)` + `randperm`. Different images.
+Same chart (public PCA of the added class, train split), same convention (`‖(x−μ) − VVᵀ(x−μ)‖/‖x‖`), both index sets
+in one job; rows in `results/decoder_chart/c7_index_sets_356106.jsonl`. two_walls' stored means are reproduced to 4
+decimals, so the difference below is the images, not the computation.
+
+| release | k | ladder images (gate's) mean / median (range) | two_walls images mean / median (range) | ladder mean vs bracket low / high |
+|---|---|---|---|---|
+| motorcycle / MLP (0.0124–0.0186) | 16 | 0.3531 / 0.3413 (0.234–0.493) | 0.2456 / 0.2233 (0.190–0.362) | 28.5× / 19.0× |
+| | 32 | 0.3176 / 0.2983 (0.224–0.432) | 0.2151 / 0.1930 (0.154–0.326) | 25.6× / 17.1× |
+| | **66** | **0.2702** / 0.2549 (0.190–0.382) | 0.1845 / 0.1698 (0.128–0.300) | **21.8× / 14.5×** |
+| | 128 | 0.2282 / 0.2180 (0.166–0.306) | 0.1566 / 0.1416 (0.100–0.261) | 18.4× / 12.3× |
+| | **384** | **0.1596** / 0.1502 (0.112–0.216) | 0.1094 / 0.0994 (0.072–0.185) | **12.9× / 8.6×** |
+| keyboard / CNN (0.0045–0.0090) | 16 | 0.2676 / 0.2858 (0.096–0.409) | 0.2840 / 0.1945 (0.092–0.652) | 59.5× / 29.7× |
+| | 32 | 0.2432 / 0.2539 (0.088–0.379) | 0.2573 / 0.1794 (0.083–0.576) | 54.0× / 27.0× |
+| | **66** | **0.2107** / 0.2009 (0.080–0.328) | 0.2058 / 0.1573 (0.072–0.394) | **46.8× / 23.4×** |
+| | 128 | 0.1767 / 0.1681 (0.067–0.274) | 0.1704 / 0.1328 (0.061–0.283) | 39.3× / 19.6× |
+| | **384** | **0.1222** / 0.1132 (0.050–0.179) | 0.1191 / 0.0944 (0.045–0.201) | **27.2× / 13.6×** |
+
+Shortfall on the gate's own images (mean, as C7 quoted): motorcycle **21.8× the low end / 14.5× the high end at
+k = 66** and 12.9× / 8.6× at k = 384 (C7 said 14.9× at 66 and ~9× at 384 against the point gate 0.0124, on the other
+images); keyboard **46.8× / 23.4× at k = 66** and 27.2× / 13.6× at k = 384 (C7: 45.7× and ~26×). C7's conclusion
+(no public-PCA width satisfies both walls) holds on the gate's images at both ends of both brackets; on motorcycle the
+ladder's images are harder for PCA than C7's by ~1.45× at every k, on keyboard the two sets agree within 3%.
 
 #### Verdict per image set (INTERIM)
 
