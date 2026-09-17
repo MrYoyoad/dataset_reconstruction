@@ -181,18 +181,35 @@ ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the con
 > release does, so C10's mechanism reaches the certificate route (the degradation is a property of φ's depth, not
 > the route — a negative but real finding). A100 355778 confirms the deep profile below the plain-GPU floor; the
 > gap verdict does not depend on it.
->
-> **SAME-NET control (355835), read as SHAPES not scalars** (the `gap_at_corrected` ratios are taken at different
-> indices per arm — 400 vs 48 — and are not comparable; the full spectra are). One depth-15 net, L=4, k=784,
-> `first_adapted` swept 1→12 (frozen layers below = 0/3/7/11), everything else fixed. The spectra differ
-> QUALITATIVELY at each arm's own scale: `first_adapted=1` (0 frozen below, d_j≈[784,784,784,687]) delivers all
-> ~400 supplied conditions within ~4 orders of the top then a **cliff to machine zero** (a clean rank);
-> `first_adapted=4/8/12` (3/7/11 frozen below, d_j contracting to [48,30,24,19]) give **smooth spectra spanning
-> 11+ orders with no cliff**. So on ONE network the certificate's gap survives when its input is shallow and
-> collapses as the frozen path below it deepens and its rank profile contracts — nothing else varying. **This is
-> NOT the null** (the shallow arm has a genuine gap), so the collapse is **frozen-path-driven, not route- or
-> training-driven**, and the separately-trained shallow net (355825) is not needed as a control. The variable is
-> the frozen path's rank profile; depth is how you move it.
+
+**SAME-NET control (355835): the gap collapse is frozen-path-driven, and the clean-rank arm is the one nobody
+deploys.** Read as spectral SHAPES, not scalars — `gap_at_corrected` is taken at each arm's own corrected index
+(400 for first_adapted=1, 48 for first_adapted=12), and a ratio high up a short spectrum is not comparable to one
+deep in a long one, so the scalar is abandoned for the comparison and must not be reintroduced as a convenient
+summary; the full spectra are the comparable object. One depth-15 net, L=4, k=784, everything fixed but where
+adaptation starts:
+
+| first_adapted | frozen layers below | d_j | spectrum shape | clean rank? | **deployed?** |
+|---|---|---|---|---|---|
+| 1 | 0 | [784,784,784,687] | ~400 conditions within ~4 orders, then a cliff to machine zero | **yes (~400)** | **NO — raw-input adaptation; §19: real LoRA adapts attention/MLP blocks, never the input layer** |
+| 4 | 3 | [687,217,167,139] | smooth over 11+ orders, no cliff | no | yes |
+| 8 | 7 | [104,84,73,61] | smooth, machine zero by ~104 | no | yes |
+| 12 | 11 | [48,30,24,19] | smooth over 11+ orders, no cliff | no | yes |
+
+The shallow arm having a genuine gap means the comparison had a live alternative and rejected it — this is not one
+of the checks that could not fail. So on ONE network the gap survives shallow input and collapses as the frozen
+path below it deepens and its rank profile contracts, nothing else varying: **frozen-path-driven, not route- or
+training-driven** (the confounded shallow-trained net 355825 was not needed). The variable is the frozen path's
+rank profile; depth is how you move it.
+
+> **DEPLOYMENT HEADLINE: the configuration in which the certificate has a clean rank is the one nobody deploys.**
+> The only arm with a genuine gap is adaptation on the raw input layer; everywhere adapters actually go
+> (attention/MLP blocks, first_adapted ≥ 4) `d_j` contracts to a few dozen directions (19–48) with a spectrum
+> smooth over 11+ orders — **no rank, only an effective rank at a stated tolerance**. It compounds with deployment
+> precision: at fp16/bf16 roundoff the usable count is read far up that 11-order spectrum, a small fraction of an
+> already tiny `d_j` (355778 puts the number on it). **Two independent routes reach this same deployment story,
+> neither built to test the other:** §19b by pixel count (~7% of the image at deployed rank) and this by the
+> spectrum (no clean rank at deployed depth) — the convergence is the result.
 
 `real_encoder_ranklaw.py --ks 16..784` (job **355531**, attested `script_sha 01043d6a5fec`), `r=108`, `N=8`, real
 15-layer MNIST encoder. The question M6 opened: at what chart width `k` does depth stop being free?
