@@ -134,6 +134,51 @@ does depth stop being free — i.e. where does the nesting begin to bind between
 `k`-sweep, the same axis as the chart-window question. **Provenance:** attested, `script_sha dd81201f5399`; 354535
 ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the convergence point above.
 
+### 5c. The k-sweep — where depth stops being free, and it is far past buildable width (2026-09-17)
+
+`real_encoder_ranklaw.py --ks 16..784` (job **355531**, attested `script_sha 01043d6a5fec`), `r=108`, `N=8`, real
+15-layer MNIST encoder. The question M6 opened: at what chart width `k` does depth stop being free?
+
+**k\* = 417, and it is the nesting ceiling EXACTLY, not approximately.** Below it the corrected law's `j=1` term
+(`= k`) is the minimum, so both laws return `k` and coincide; above it the `j=3` term (`d_3 + q_1 + q_2 = 217 + 200
+= 417`) binds and T5.2 does not see it. Measured transition brackets 417: `k=384` `discriminates: False`, `k=512`
+`discriminates: True`.
+
+**k\* is a threshold in `k` AND `L`, not `k` alone.** Discrimination needs `Σq_l > 417` as well as `k > 417`. At
+`k=512, first=3` it is False for `L<=4` (`Σq<=400`) and flips at `L=5` (`Σq=500`). A shallow adapted stack never
+reaches the ceiling and the laws coincide regardless of `k`.
+
+**k\* ~ 417 is ~6x the k<=66 identifiability cap** — depth stops being free only far past buildable width; at every
+buildable `k`, depth is free (one layer's certificate already saturates the chart). **k\* is derived from the rank
+PREDICTIONS** (`d_j`,`q_l`, clean 1e-10 encoder ranks), so it is robust while the measured stacked-rank VALUES at
+`k>=512` stay provisional (`ladder_converged: False`, pending A100 355537).
+
+**Arms:** the two `k=692` rows are the two `first_adapted` arms (1 and 3), not a duplicate — corrected **616**
+(first=1) vs **416** (first=3); different encoder profiles.
+
+**MNIST chart-error ladder, STANDALONE — do NOT compare to the CIFAR two-walls gate (different dataset, different
+intrinsic dimension):** 0.421 (k=16) · 0.332 · 0.236 (k=66) · 0.188 · 0.170 · 0.133 · 0.090 · 0.038 (k=384) ·
+**0.0030 (k=512)** · 1.6e-5 (k=692). MNIST's small intrinsic dimension lets a wide PCA chart capture it almost
+exactly; the CIFAR releases' gate (0.0124) and PCA error (0.109 at k=384) were measured on a different release and
+must never be quoted against these.
+
+**The ordering, and it is the sharp form of the result (PREDICTION — 6e's law extrapolated to r=108, NOT
+measured there).** 6e's release-route cap is `m+r-N-1`, which at this sweep's `r=108` is **110**. So at `r=108`:
+`k<=110` identifiable (nullity 0); `110<k<417` release nullity `8(k-110)` rising to 2456, depth still adds nothing;
+`k>=417` depth starts to help, but the release is already unidentifiable by ~2456 dimensions (5392 by k=784).
+**The window where depth helps and the window where recovery is well posed do not intersect** — depth's extra
+information arrives only where there is no unique answer to find. This is directly what Gal's question 1 wants,
+but it is the law evaluated one axis beyond where it is checked (measured at r=12 synthetic 12/12, r=12 nonlinear
++ linear control 7/7 job 355535, and being measured at r=16 on this checkpoint job 355541; the r=108 Jacobian is
+~34 GB and cannot be measured). **Present as extrapolation, not measurement.**
+
+**Join note (6e):** the genuinely shared column is `chart_error` (depends only on checkpoint/image/k, not r). The
+two nullity columns (`cert_route` r=108 zero-drift; `release_route` r=16 trained-release, carries drift) share the
+`k` axis but describe DIFFERENT adapters at DIFFERENT `r` — a reader taking them as two views of one system is
+wrong. The r-split is by necessity both ways: `release_route` is infeasible at r=108 (~34 GB), and the depth
+discrimination is vacuous at r=16 (margins of 8, `Σq` never reaches the cliff). Never differenced, never compared
+across `r`. Structural-emptiness cross-check when 355541 joins: does `stacked_rank / N` per `k` track the cap?
+
 ## 6. What did NOT replicate — my own prediction, refuted
 
 I predicted in T5 that **tying the adapter initialisations across layers (R2) would collapse additivity**, and
