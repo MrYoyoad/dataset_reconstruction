@@ -386,3 +386,46 @@ requirement, not below it.** Anyone meeting that line out of context will read i
 verifiable rule again**, third instance: naming the quantity on each side of an equality and asking whether the
 attacker holds both. The consequence is a scope, not a caveat: the certificate-lifetime result is a statement a
 **defender** can act on and an attacker cannot.
+
+---
+
+## A21 — Two corrections to me, and they are the same failure three times tonight
+
+**1. The retrodiction is ONE measurement, thirteen days old — not two, not months apart.** Verified at source:
+`STATUS.md:323` (2026-09-04, jobs 218345/218346) and `notes/assumption_relaxation_program.md` §19a carry the
+identical setup — four adapted layers, `r = 256`, everything below frozen — and the identical table, 747 / 717 /
+445 / 138. **Same jobs written up twice.** My phrasing, *"a different experiment, months apart in intent"*,
+overstated it in exactly the way an expert reader tests first.
+
+**What survives is still the strongest confirmation of the corrected law**, and it should be said in this form: the
+measurement **predates the theory work**, was **not built to test T5.2**, was written up as a **bare empirical
+ceiling with no theory behind it**, and the corrected law predicts it while T5.2 predicts no such ceiling.
+**One unforced retrodiction is worth more than twelve purpose-built seeds. It is not worth two.**
+
+**2. I quoted one number where the table has four.** The chart shortfall is **14.9× and 45.7× at the
+identifiability cap**, and **9× and 26× at k = 384** — a spread of **9× to 46%** depending on release and on
+whether the cap is respected. I gave a single "≈9×". Give the table, never a midpoint and never one corner.
+
+### The pattern, and it is mine
+
+Three corrections tonight, all the same shape: **a true finding amplified one notch past its evidence.** "Removes
+precisely the directions" (it removed those and 184 others). "The identifiability negative is dead" (dead in the
+oracle configuration). "A different experiment months apart" (the same jobs, thirteen days). None was a wrong
+number; each was a true result stated tighter or wider than the rows support.
+
+That is the same family as the phrase this lane corrected in its own file earlier — *a claim stated tighter than
+the data supports does not read as more confident, it reads as unchecked.* **Applied to the approver seat: the
+amplification usually happens in the sentence that frames a result, not in the result.** Check the framing sentence
+against the rows with the same care as the number it frames.
+
+### And the squeeze is no longer a hypothesis
+
+The one-setting sweep I specified had already been run and sits at `STATUS.md` 14–27: same axis, same space, same
+eight photographs, **attacker-buildable public PCA chart**, zero widths satisfying both walls on either release,
+and the fidelity wall alone carrying it at k = 384. **It is measured, not a cross-construction hypothesis.** The
+carried caveat — the cap applied to CIFAR by formula with a trained `φ` in the path — is correctly not
+load-bearing.
+
+**The right "open or closed" statement is neither:** public PCA **plateaus**, so it cannot be made to work by
+choosing `k`; what remains open is the chart **family**, not its width. That turns agreed step 2 from a preference
+into a requirement, with a measurement saying why.
