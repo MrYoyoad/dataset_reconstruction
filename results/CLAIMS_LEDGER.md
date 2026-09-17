@@ -163,6 +163,33 @@ zero matrix full rank, which reports a closed channel as open.
 
 ---
 
+## N. The chart restores identifiability — measured as a nullity, not argued (E1B, 2026-09-17)
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| N1 | **Constraining the features to a k=12 chart takes the seed-free nullity from 232 to 0.** The chart restores identifiability by removing exactly the feature directions that trade against the unknown seed. | affine two-routes release; nullity of the residual Jacobian **at the truth** | fp64; that release and chart | that a solver *finds* it — this is identifiability, not recovery | 350928, 350940 | read-rows | HELD, one PASS |
+| N2 | **The decision line is PARTIAL, not yes/no.** Invertible with a known seed (nullity 0 at 512 unknowns); **not** invertible with a free seed (nullity 232); a chart restores it. | same | same | a bare "the dynamics determine the features" — the seed is what breaks it | 350928, 350940 | read-rows | HELD, one PASS |
+| N3 | **The entire ambiguity is a seed-against-features trade.** Of the 232-dimensional family, all 232 directions move the features and **none** moves them with the seed held fixed. | same | same | that the family is a property of the features alone | 350928, 350940 | read-rows | HELD, one PASS |
+| N4 | **Reducing out the seed changes nothing.** Nullity 232 both ways — the reduction removed 1023 unknowns and exactly 1023 of the rank. | same | same | that the reduced parametrisation is weaker or stronger; it is neither | 350928, 350940 | read-rows | HELD, one PASS |
+
+**N5 — the methodological rule, and it is the strongest thing here.** An approver lane derived **by counting** that
+the seed-free arm had a **32**-dimensional solution family. The measured nullity is **232**. Counting was wrong by
+a factor of seven, and the correction cost one small job.
+
+> **An equation count is a hypothesis about identifiability, never a measurement of it.** Where the map is
+> differentiable, the nullity of its Jacobian at the truth is cheap, exact, and owes nothing to a solver. Compute
+> it instead of arguing.
+
+This is ledger line **C3** — "a raw equation count is never evidence of identifiability" — now demonstrated rather
+than asserted, and it is the answer to the "~200 equations" concern in the form Gal can check.
+
+**Consequence for sequencing, and it should be settled before either is pursued.** Two threads are currently
+supplying *more equations*: the multilayer additivity of M4, and Gal's own perturbed-inputs suggestion. **If a
+chart already takes the seed-free nullity to zero in the configuration the attack actually runs in, both answer a
+question that no longer binds.** Sequence them against N1 rather than running them in parallel.
+
+---
+
 ## F. Withdrawn, kept in place with the reason
 
 | # | text | why withdrawn | replaced by | date |
