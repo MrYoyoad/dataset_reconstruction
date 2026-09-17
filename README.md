@@ -3,150 +3,224 @@
 **MSc Thesis, Weizmann Institute of Science**
 Advisor: [Gal Vardi](https://scholar.google.co.il/citations?user=LVk3xE4AAAAJ&hl=en)
 
-> Extending Haim et al. (NeurIPS 2022) — *"Reconstructing Training Data from Trained Neural Networks"* — to the era of Foundation Models and Parameter-Efficient Fine-Tuning (PEFT).
+> Extending Haim et al. (NeurIPS 2022) — *"Reconstructing Training Data From Trained Neural Networks"* — to Foundation Models and Parameter-Efficient Fine-Tuning.
 
-**Status:** Active research. Current front: the dataset-sensitivity program + the full-FT-vs-LoRA "valley" comparison; supervisor meeting deck built for 2026-08-31.
+**Status — 2026-09-18.** The direction was agreed at the 2026-09-15 supervision meeting. The object of study is
+no longer a reconstruction pipeline but a **certificate**: an exact, recipe-free, label-free linear functional of
+the released adapter that annihilates every recorded representation. Four fronts are open, in the order agreed:
 
-> **Posture — observe, don't conclude.** Every leakage number in this work is a **lower bound on the weakest attacker** (prior-free, adapter-only, per-image). It bounds what such an attacker gets; it never bounds what a stronger attacker could recover.
+| # | Front | Where it stands |
+|---|-------|-----------------|
+| 1 | **Multilayer** — does the certificate survive when a layer's inputs drift? (the advisor's own main question) | runs exist, **§M is UNAUDITED** — see [Methodology](#methodology--how-a-claim-gets-out-of-this-repository) |
+| 2 | **Other chart families** — public PCA is answered and it is a *no* | §G, §H, §0.1 |
+| 3 | **Improved reconstruction** — from identifiability to pixels | §N2 is the live split |
+| 4 | **First text attempt** | not started |
 
----
-
-## Abstract
-
-LoRA adapters are widely published on platforms like HuggingFace and CivitAI, yet they are a gate-weighted recording of the per-image gradients of their private fine-tuning data. This thesis asks two complementary questions and builds an instrument for each:
-
-1. **What does the adapter *record*?** We treat fine-tuning as a deterministic map `(A_T, B_T) = F(z)` from private latents to the released adapter, and build an **attack-independent identifiability ruler** — the whitened end-to-end Jacobian `J = ∂(adapter)/∂(data)`. From it we read the hard rank `r_J` (how many private directions are recorded at all), the whitened sensitivity `d²` (= 2·KL = optimal-detector SNR², the best any attacker can do), and `q_eff(ε)` (how many directions clear the training-noise floor). This measures leakage *before* any reconstruction, and every number is calibrated against the training-randomness null.
-
-2. **Can it be turned back into pixels?** Reconstruction has two regimes: the **full-gradient ceiling** (known-recipe upper bound) already returns recognizable images across MNIST / Fashion / CIFAR-10 / Flowers and structure on ViT-B/16 faces; **robust adapter-only pixel inversion is the open milestone** — the information is present (q_eff is high), so this is an *extraction* gap, not a missing-information one.
-
-Every negative reconstruction is placed in one of **three worlds** — (A) identifiability wall, (B) extraction-limited, (C) prior hallucination — so each experiment states which reality it rules in or out.
-
----
-
-## Research Questions
-
-- **What decides whether private images survive fine-tuning into the adapter?** The rank and conditioning of the gate-weighted update `Ω = G·Xᵀ`, `G = D_v·M·D_c` — the activation enters *only* through the gate `M_ki = σ′(⟨w_k, x_i⟩)`.
-- **Which images leak, and can an attacker predict it in advance?** Per-image leakage is predicted from the public base model alone by the base-gradient-norm `g₀` (ρ = +0.857 at n=12; +0.777 at n=24, graded indeterminate).
-- **Does the dataset *around* an image change its leakage?** Largely no — dilution is flat in N, duplication sub-linear, context rarity ≈ nothing; what matters is the image itself (class identity, base gradient).
-- **Does full fine-tuning remember more sharply than LoRA?** It records ~5× more signal per image but at about the same resolution (target-dependent, an approximate wash).
-- **Does the adapter betray *what* it was trained on?** Which digit-subset was present is recoverable from ΔW above a recipe-aware baseline (cross-fitted); which specific exemplar is the open instance-level question.
+> **Posture — observe, don't conclude.** Every leakage number here bounds **the channel it was measured on**, not
+> what a stronger attacker could recover. Every claim in this file carries a `§` pointer into
+> [results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md); a sentence with no ledger line does not go out, here or
+> anywhere else.
 
 ---
 
-## The instrument and the seven experiments
+## The object
 
-One object — the gate-weighted update — generates every experiment; each is read through the same whitened ruler.
+Fine-tuning is a deterministic map from private data to a released pair of factors. For a single adapted layer
+trained from `B_0 = 0` by an SGD-class rule, the trajectory **closes** on two batch-sized coefficient matrices:
 
-| # | Experiment | What it probes | Status |
-|---|------------|----------------|--------|
-| E1 | Controlled secret | per-direction recovery crosses 1 exactly at `ε·ν_i ≈ 1` | toy confirmed, scale-up open |
-| E2 | (N, r, L) phase diagram | leakage boundary is spectral, not a rank count; multi-class "leaks fewer" is a low-rank effect (gap 23→13→0 at r=8/16/32) | rank slice done |
-| E3 | Activation crux (advisor's top ask) | activation enters only via σ′; kinked leaks ~5× smooth, yet smooth linearizes best — a clean dissociation | MNIST done |
-| E4 | Who leaks — the g₀ predictor | per-image leakage predictable from the public model | strong at n=12, indeterminate at n=24 |
-| E5 | Full-FT vs LoRA — the valley | more signal, ~same resolution (geomean ratio 1.02, target-dependent) | n=6, exploratory |
-| E6 | Composition atlas | which digit-subset is recoverable from ΔW above the recipe baseline (content-level) | positive (scoped); instance-level open |
-| E7 | Robust adapter-only inversion | turn presence into pixels | the open milestone (World B) |
+```
+B_t = P_t (A_0 H)^T ,        A_t = A_0 (I + H M_t H^T)
+```
+
+where `H = [h_1 … h_N]` are the private representations at the adapted layer and `P_t, M_t` are `N`-by-`N`. Two
+consequences, and they are the whole frame:
+
+- The release is a function of the data and of the seed **only through** `X = A_0 U`, `U` an orthonormal basis of
+  `row(H)`. The unknown seed contribution is `rank × span-dimension`, not `rank × feature-dimension`. **§A1, §A2**
+- What the release determines is `q = rank H` — the dimension of the private span — **never** the number of
+  photographs `N`. **§B2**
+
+### The certificate
+
+```
+C = Π⊥_{row(B_T)} · A_T       ⟹      C h_i = 0   for every recorded h_i
+```
+
+No recipe, no labels, no seed, no shadow models. **§A3.** Exactness is conditional: at `q = N` the residual sits
+near `1e-16`; under partial recording the worst representation climbs toward order one while the median stays
+small — the loss concentrates in a handful, it is not uniform. **§A4**
+
+What a representation contributes scales with that example's accumulated error, so *what leaks is what the model
+had to learn* — a model that already fits its data records nothing. **§B1**
+
+### Three objects, and they are nested
+
+```
+{truth}  ⊆  {replay residual = 0}  ⊆  {certificate = 0}
+```
+
+The inclusion is **proved**; the content of the measurement is that it is **strict**. On one release the
+certificate recovers **0 of 60** starts while **19 of 60** replay starts recover every image at the `1e-2` landing
+criterion (18 at a `2.2e-15` worst-image bar, 16 at `2.0e-15`). **§D1, §D2.** The airtight statement is the
+negative:
+
+> **Identifiability is not determined by the release and the chart alone.** The route matters. Any claim of the
+> form *"cannot identify by **either** route"* is false. **§D3**
+
+### The chart, and why it is the load-bearing component
+
+A chart is the low-dimensional parametrisation the attacker solves in. Constraining the features to a `k = 12`
+chart takes the nullity of the residual Jacobian **at the truth** from **232 to 0**: the chart restores
+identifiability by removing exactly the directions that trade against the unknown seed. **§N1, §N3.** The decision
+line is *partial*, not yes/no — invertible with a known seed, not invertible with a free seed, restored by a
+chart. **§N2**
+
+But identifiability is measured with the release's own **oracle** chart. For a *buildable* public chart the
+fidelity wall stands: chart error over the landing gate never approaches 1 at any width, under any convention —
+**5.9×** at the single most generous reading available anywhere in the grid. **§G, §0.1.** A foundation-model
+embedding does not dissolve it; the shared-concept chart is *worse*. **§H**
+
+### Counting, and its one-sidedness
+
+```
+margin = min(r, d) − min(q·p, d)          p = adapted positions per image
+```
+
+evaluable from architecture and batch size before any release exists. It is **ONE-SIDED**: sound when it says the
+channel is closed, **silent when it says open**. **§C1.** It is necessary and **not** sufficient — where the
+chart-to-input map is affine, every blend of the private representations is an exact solution at any chart
+dimension, so a larger `k` cannot help. **§C2.** The capacity line for the reduced channel is measured **sharp to
+one unit of `k`**; for the full factor pair it is a candidate, not a result. **§C4.** The single-layer tangent rank
+is proved; the **stacked** rank across layers is open, and it is the quantity the count actually needs. **§C5**
+
+> **The standing prohibition most likely to slip:** *a raw equation count is never evidence of identifiability.*
+> Only the rank of the stacked Jacobian on the chart answers it. **§C3** — and §N5 is that rule demonstrated
+> rather than asserted: an approver lane derived a **32**-dimensional solution family by counting where the
+> measured nullity is **232**. Counting was wrong by a factor of seven; one small job corrected it.
+
+---
+
+## Methodology — how a claim gets out of this repository
+
+This is the part of the project that is deliberate, and it is worth stating on the front page.
+
+**1. The ledger is the gate.** [results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md) holds one row per claim, with
+columns `text` · `measured on` (the cell, with `q` and `N` side by side) · `holds under` (conditions, precision
+included) · **`NOT shown`** (what a reader would wrongly infer) · `job ids` · `register` · `status`. If the
+`NOT shown` column covers what a sentence implies, **the sentence is wrong even when its number is right.**
+
+**2. Registers — where a number came from.**
+
+| register | meaning |
+|---|---|
+| `read-rows` | read from the result rows |
+| `read-function` | read from the code that computed it |
+| `derived` | follows from a stated derivation |
+| `read-prose` | read from our own write-up — **never counts as a PASS** |
+
+A number sourced only to our own prose is not a measurement. Several corrections in this project's history were
+exactly that failure, including one where a claim was quoted from an artifact's own text rather than from the job.
+
+**3. Two independent PASSes before a claim ships.** `SETTLED` = two · `HELD` = awaiting the second · `UNAUDITED` =
+none. An audit that exists only in chat messages **does not exist**; it has to be on disk. The multilayer group
+§M is listed as UNAUDITED for precisely this reason — the write-up has stood complete and uncertified, and it is
+the document answering the question the advisor named as his main one.
+
+**4. Three outcomes, never two.** A cell that tested nothing is distinct from a pass and a fail. Reconstruction
+verdicts separate `optimisation failure (residual not zero)` — a **basin/solver** problem — from
+`alias (residual zero, wrong image)` — an **information** problem. Merging them into "it didn't work" destroys the
+only diagnostic that matters.
+
+**5. Withdrawn claims stay in place with their reason.** §F is a standing list, never deleted — including a claim
+that was real mathematics but **vacuous as a defence**, because the remedy belonged to the attacker, who picks the
+chart.
+
+**6. Standing rules, enforced in the ledger.**
+- A count is never identifiability.
+- A landed count without its start budget is not a quantity — yield rises with the budget. **§E6**
+- A comparison carries the construction of **both** sides; a target-conditioned figure may not be set against a
+  universal one.
+- Consistency with the release is **not** evidence of correctness — compare to ground truth only.
+- For a published object, the source is the **live** object, not a local copy.
+
+---
+
+## What is measured, and what is not
+
+| | | ledger |
+|---|---|---|
+| The trajectory closes; the seed enters only through the private span | ✅ settled | §A1, §A2 |
+| The certificate annihilates recorded representations, recipe-free | ✅ settled | §A3, §A4 |
+| The release gives `q`, never `N` | ✅ settled | §B2 |
+| The counting rule, as a one-sided closure test | ✅ settled | §C1–§C5 |
+| Route-dependence of identifiability (`certificate 0/60` vs `replay 19/60`) | ✅ settled | §D1–§D3 |
+| Residual as a sound witness below the line; `precision 1.000` vs a `0.000` disjoint-release null | ⏳ one PASS | §E1–§E3 |
+| Breadth frontier — the 8th image only where precision falls to `0.648` | ⏳ one PASS | §E4 |
+| A chart takes the seed-free nullity `232 → 0` | ⏳ one PASS | §N1–§N4 |
+| Public-chart fidelity shortfall never approaches 1 | ✅ settled | §G, §0.1 |
+| Multilayer survival under drift (the advisor's main question) | ❗ **UNAUDITED — zero PASSes** | §M1–§M3 |
+| Depth additivity; the corrected rank law on a real encoder | ⏳ one PASS | §M4–§M6 |
+| **Whether a recovered representation is recognisable as an image** | ❗ **unmeasured — the load-bearing gap** | §Open |
+
+---
+
+## Repository
+
+```
+yoado/
+├── README.md                       <- this file
+├── results/CLAIMS_LEDGER.md        <- THE GATE. Every outgoing sentence traces to a row here
+├── STATUS.md                       <- landed results, pending tasks, known issues
+├── LESSONS_LEARNED.md              <- insights and pitfalls (how the corrections happened)
+├── STYLE_GUIDE.md  style_guide/    <- doc/slide/LaTeX/plot rules + visual guardrails
+│
+├── theory/                         <- one proposed theorem per file: T1..T6
+│                                      Statement | Assumptions | Proof | Where each assumption
+│                                      is used | Counterexample search | Status | Sanity check.
+│                                      A numerical check agreeing NEVER promotes a status to PROVED.
+│
+├── experiments/
+│   ├── exact_inversion/            <- the certificate + replay testbed (FP64, synthetic + MNIST)
+│   │   ├── lora_exact_inversion.py <-   solve for ({w_i}, X) by simulating the recipe
+│   │   └── train_precision.py      <-   landing gate; at_floor indexes the LANDED image's floor
+│   ├── multilayer_cert/            <- does CH = 0 survive at depth (front 1)  [UNAUDITED]
+│   ├── oracle_ladder/              <- chart fidelity vs the landing gate (front 2)
+│   ├── dataset_sensitivity/        <- the earlier whitened-Jacobian identifiability ruler
+│   ├── gradient_bridge/            <- LoRA -> full-gradient decoder (supplies an INITIALISER)
+│   └── tests/                      <- pytest suite
+│
+├── scripts/                        <- WEXAC (LSF bsub) job submission; scripts/deck/ = pptx generator
+├── notes/                          <- framework + audits (see Documentation below)
+├── results/ figures/ papers/       <- rows (.jsonl/.csv tracked; .pth git-ignored), plots, PDFs
+└── dataset_reconstruction/         <- original Haim et al. codebase (separate git)
+```
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone and set up environment
-git clone https://github.com/MrYoyoad/dataset_reconstruction.git yoado
-cd yoado
-conda env create -f dataset_reconstruction/environment_macos.yaml
-conda activate rec
+conda env create -f dataset_reconstruction/environment_macos.yaml && conda activate rec
 
-# The identifiability ruler (whitened secret-swap sensitivity)
-python -m experiments.dataset_sensitivity.whitened_metric --help
+# the certificate / replay testbed  (FP64 throughout -- never silently downcast)
+python experiments/exact_inversion/lora_exact_inversion.py --help
+python experiments/exact_inversion/analyze_exact_inversion.py
 
-# The reconstruction attack (free-coefficient NTK, targets ΔW)
-python -m experiments.run_experiment_b \
-  --rank 8 --n_steps 1 --free_coefficients \
-  --consistency_weight 1.0 --optimizer sgd
+# multilayer survival + the per-theorem sanity checks with PRE-STATED tolerances
+bash scripts/run_multilayer_cert_wexac.sh checks
 ```
 
-All serious compute runs on the WEXAC GPU cluster — see [scripts/README.md](scripts/README.md). Results save to `results/` as CSV + `.pth` tensors (the bulk tensors are git-ignored; commit the code, docs, and curated figures).
-
----
-
-## Key Results (honest, current)
-
-| Finding | Value | Job |
-|---------|-------|-----|
-| **Full-gradient ceiling** (known-recipe upper bound) | SSIM up to ~0.99 (MNIST/Fashion/CIFAR/Flowers); ViT faces return structure | 956994 et al. |
-| **Direct weight inversion** | recognizable at N=4 (SSIM ~0.57), superposes by N=10 (~0.27) | 500913 / 887704 |
-| **Activation crux** | kinked ≈ 5× smooth (control-margin 0.47 vs 0.09); Spearman(feature-stability, leakage) ≈ 0 | 392821 / 390026 |
-| **g₀ predictor** | ρ(sensitivity, g₀) = +0.857 (n=12) / +0.777 (n=24, CI [0.53, 0.91]) | 260171 / 272504 |
-| **Full-FT vs LoRA valley** | ~5× more signal per image, valley-width ratio geomean 1.02 / median 0.86 (target-dependent) | 695782 |
-| **Composition atlas** | ΔW clusters by composition (ARI +1.00); cross-fit recovery +0.989 above recipe baseline (which digit-subset) | 838868 |
-| **Rank-sweep reversal** | multi-class "leaks fewer" gap 23→13→0 at r=8/16/32 — a low-rank effect | 581629 |
-
-**Method note (retraction, kept honest):** an earlier framing reported adapter-only reconstruction at "SSIM ~0.557 proving leakage." That used a mean/std-matched SSIM (`ssim_norm`) that inflates the absolute and never beat the trivial mean-image baseline — it is **retracted**. The defensible reconstruction claims are the full-gradient *ceiling* (which works) and the identifiability ruler (which shows the information is present); robust *adapter-only* pixel inversion remains open. See the deck appendix "what we retracted" and [notes/thesis_note_v2.md](notes/thesis_note_v2.md).
-
----
-
-## Directory Structure
-
-```
-yoado/
-├── README.md                      <- This file
-├── STATUS.md                      <- Progress, landed results, pending tasks (start here for "what's the state")
-├── LESSONS_LEARNED.md             <- Running log of insights and pitfalls
-├── STYLE_GUIDE.md  style_guide/   <- Formatting rules for docs, slides (pptx.md), LaTeX, plots + visual guardrails
-│
-├── experiments/                   <- Thesis experiment code
-│   ├── run_experiment_b.py        <- Free-coefficient NTK reconstruction (targets ΔW)
-│   ├── ntk_extraction.py          <- Core reconstruction algorithm
-│   ├── direct_inversion.py        <- Direct weight inversion (autograd through unrolled SGD)
-│   ├── ntk_verification.py        <- Feature-stability / function-space linearization checks
-│   ├── phase0_vit_inversion.py    <- ViT-B/16 gradient inversion + face-structure prior
-│   ├── gradient_bridge/           <- LoRA -> full-gradient decoder (GB-Phase 1)
-│   ├── dataset_sensitivity/       <- The identifiability ruler + the sensitivity program:
-│   │   ├── whitened_metric.py     <-   3-way cross-fit whitened secret-swap sensitivity d²
-│   │   ├── jacobian_spectrum.py   <-   J = ∂(adapter)/∂(data); r_J, q_eff on col(J)
-│   │   ├── arm_b_dilution.py …    <-   arms B (dilution) / C (class imbalance) / D (context) / E (duplication)
-│   │   ├── margin_vs_sensitivity.py<-  the g₀ who-leaks predictor
-│   │   ├── fullft_valley.py       <-   full-FT vs LoRA valley-width comparison
-│   │   ├── atlas_zoo.py / atlas_analyze.py <- composition atlas (which-digit; --same_digits = instance-level)
-│   │   └── atlas_ecosystem.py / eco_*.py   <- ecosystem common-mode-subtraction prototype
-│   └── tests/                     <- pytest suite
-│
-├── scripts/                       <- WEXAC (LSF bsub) job submission scripts
-│   └── deck/                      <- Modular python-pptx generator for the supervisor deck
-├── notes/                         <- Plans + theoretical analyses (thesis_note_v2.md, thesis_scientific_summary.md, …)
-├── docs/                          <- Guides, session handovers, audit reports
-├── results/                       <- CSV metrics (tracked) + .pth tensors (git-ignored, large)
-├── figures/                       <- Plots and visualizations
-├── papers/                        <- Reference PDFs
-│
-└── dataset_reconstruction/        <- Original Haim et al. codebase (separate git)
-    ├── Main.py                    <- Base code entry point (train / reconstruct)
-    ├── extraction.py              <- KKT loss optimization
-    └── CreateModel.py             <- MLP with ModifiedReLU
-```
-
----
-
-## Installation
-
-### Local Development (Mac)
-
-```bash
-cd dataset_reconstruction
-conda env create -f environment_macos.yaml   # Apple Silicon (MPS backend)
-conda activate rec
-```
-
-### WEXAC GPU Cluster
-
-All serious experiments run on WEXAC (NVIDIA L40S/A100, CUDA 12.x); the `rec` env there runs PyTorch 2.4.1+cu121, timm 0.9.12, peft 0.7.1.
+**All serious compute runs on WEXAC** (NVIDIA L40S / A100, CUDA 12.x; `rec` env = PyTorch 2.4.1+cu121). Nothing is
+run locally, not even a smoke test.
 
 ```bash
 cd dataset_reconstruction && ./wexac_connect.sh shell   # interactive GPU shell
-bsub < scripts/run_exp_b_gpu.sh                          # or submit a batch job
+bsub -q long-gpu -gpu "num=1" ... bash scripts/run_exact_inversion_wexac.sh step1
 ```
+
+Ground rules for the inversion tracks: **FP64 everywhere** · **never change the recipe silently** (simulator and
+release change identically, and the run is relabelled) · **read `fwd_check` first** — until the simulator
+reproduces the release at the ground truth to machine precision, no downstream number means anything.
 
 ---
 
@@ -154,12 +228,15 @@ bsub < scripts/run_exp_b_gpu.sh                          # or submit a batch job
 
 | Document | Purpose |
 |----------|---------|
-| [STATUS.md](STATUS.md) | Current state: landed results, pending tasks, known issues |
-| [LESSONS_LEARNED.md](LESSONS_LEARNED.md) | Running log of insights and pitfalls |
-| [notes/thesis_note_v2.md](notes/thesis_note_v2.md) | The mechanism, the ruler, and where each experiment stands |
-| [notes/thesis_scientific_summary.md](notes/thesis_scientific_summary.md) | Consolidated science summary |
-| [notes/next_experiment_plan.md](notes/next_experiment_plan.md) | Single source of actionable to-do |
-| [STYLE_GUIDE.md](STYLE_GUIDE.md) / [style_guide/](style_guide/) | Formatting rules + visual guardrails for docs, slides, plots |
+| [results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md) | **Start here.** Every claim, its conditions, and what it does *not* show |
+| [STATUS.md](STATUS.md) | Landed results, pending tasks, known issues |
+| [LESSONS_LEARNED.md](LESSONS_LEARNED.md) | Insights and pitfalls — the record of how corrections happened |
+| [notes/exact_lora_inversion_framework.md](notes/exact_lora_inversion_framework.md) | The framework: the quotient certificate, the capacity line, inversion by simulating the recipe |
+| [notes/audit_inverting_a_finetune_2026-09-05.md](notes/audit_inverting_a_finetune_2026-09-05.md) | Full audit of our own claims, and the comparison to SimuDy and the advisor's papers |
+| [notes/meeting_summary_2026-09-15.md](notes/meeting_summary_2026-09-15.md) | The supervision meeting that set the current four fronts |
+| [theory/README.md](theory/README.md) | Theorem index + notation table |
+| [notes/next_experiment_plan.md](notes/next_experiment_plan.md) | Actionable to-do |
+| [STYLE_GUIDE.md](STYLE_GUIDE.md) / [style_guide/](style_guide/) | Formatting rules and visual guardrails |
 
 ---
 
