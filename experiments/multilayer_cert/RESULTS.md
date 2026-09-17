@@ -305,3 +305,146 @@ defence on its own. T5's defence claim is downgraded to a conjecture about tying
    individual images, so a per-image norm is not the legitimate metric there — principal angles are. This has not
    yet been applied to any number above; sections 1-5 report residuals and ranks, not per-image recovery, so none
    of them is affected, but M4 must adopt it from the start.
+
+## 6-CNN. CNN: conv rank law and T arm (job 355907) — 2026-09-18
+
+*(The plan's "§6, CNN"; numbered 6-CNN here because §6 above already exists and is not edited.)*
+
+`experiments/multilayer_cert/conv_encoder_ranklaw.py` (port of `real_encoder_ranklaw.py`, same row format / ladder / gap
+diagnostic) on the **bottleneck CNN** `models/exact_inversion/mnist_conv_bottleneck.pth`: conv 1→64→128→**8**→256
+(k=3, s=2, p=1, GELU; 28→14→7→4→2) → dense 1024→1000 (GELU) → head 10. Six adaptable modules, `r=256`, `N=8`,
+`first ∈ {1,3,5}`, charts PCA `k ∈ {16,32,66,128,256,384,512}` + pixel 784, T arm `T ∈ {1,5,20,100,400}` (lr 0.01,
+full batch, `B_0=0`, FP64). Job **355907** (long-gpu, hgn55 A40, 61 min, 654 rows; attested `git 377d841-dirty`,
+`script_sha e4792c7e2149`); rows `results/multilayer_cert/conv_ranklaw_355907.jsonl`; smoke 355881. Truths = test
+indices `[723, 923, 2619, 3739, 5981, 4186, 6644, 913]` (seed+7, the k-sweep's join key). **WP0 gate on the row:**
+train 99.742% / CE 9.10e-3, test 98.63% (checkpoint values and re-measured at load agree; `fully_trained_gate: true`).
+**THEORY test at the truth; no solve, no attack.** Numbers provisional until a second session reads the rows.
+
+**Symbols (audit 2026-09-18).** `p_l` = patch dimension `C_in·9` (dense: input width); `P_l` = positions; `N'_l` =
+`patch_span_rank`, the rank of the `N·P_l` base patch vectors at the truths; certificate rank `min(r,p_l) − N'_l`;
+`d_j = rank M_j` (Jacobian of `vec(P_j)` w.r.t. the chart); `q_l = rank((C_l ⊗ I_{P_l}) J_l)`. The certificate is
+applied at **every** position, so T5.2's per-layer budget under weight sharing is `q_l^{(i)} = min(rank C_l · P_l, d_l)`;
+the audit's dense-style estimate was `q_l^{(ii)} = min(rank C_l, d_l)`. Both were pre-registered in the header
+because they disagree on whether this spec discriminates: under (i) conv 2 alone (`24·49 = 1176 ≥ k`) pins any chart
+and the laws coincide everywhere; under (ii) `first=1` gives corrected ≈ 291 vs T5.2 ≈ 459 at k=784.
+
+**Pre-registered outcomes** (harness docstring, before any row): DISCRIMINATION / FALSIFIED / CONTROL (`first=5`,
+dense+head, must saturate at the common value) / VACUOUS (no config has `corrected < t52`) / CONV-VACUOUS per module
+(`N'_l ≥ min(r, p_l)`); T arm: conv modules — does `N'_l(T)` move at all; dense modules — `N·T` growth vs plateau;
+dense-first `N' = N` invariant; no gap → ladder and spectrum, never an integer.
+
+### Measured patch spans and zero-drift certificates (r = 256)
+
+| module | kind | `p_l` | `P_l` | `N·P_l` | width bound on `d_j` | `N'_l` | rank `C_l` = `min(r,p_l)−N'` (measured = formula) | conditions/image `rank C·P_l` | residual at truth |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | conv | 9 | 196 | 1568 | 784 | 9 | **0** (conv-vacuous: `N' = p_l`) | 0 | 0 |
+| 2 | conv | 576 | 49 | 392 | 784 | 232 | 24 | 1176 | 1.5e-15 |
+| 3 | conv | 1152 | 16 | 128 | 784 | 117 | 139 | 2224 | 1.5e-15 |
+| 4 | conv | 72 | 4 | 32 | **128** | 32 | 40 | 160 | 6.4e-16 |
+| 5 | dense | 1024 | 1 | 8 | 128 | 8 | 248 | 248 | 5.9e-16 |
+| 6 | head | 1000 | 1 | 8 | 128 | 8 | 248 | 248 | 7.3e-16 |
+
+Only conv 1 is conv-vacuous; every other module carries a certificate that annihilates the base patches to ~1e-15.
+The dense invariant `N' = N` holds at both dense modules at zero drift.
+
+### `q_l` against both formulas — the fork is settled by the rows
+
+`d_j` measured = `[k, k, k, 128, 128, 128]` for every `k ≥ 128` (per-image 126–128 at modules 4–6): the 8-channel
+bottleneck contracts exactly to its width, upstream modules are rank-preserving. `q_l` measured at `first=1`, `L=6`:
+
+| k | `q_l` measured | `q_l^{(i)}` weight-sharing | `q_l^{(ii)}` dense-style | matches |
+|---|---|---|---|---|
+| 128 | `[0,128,128,96,128,128]` | `[0,128,128,128,128,128]` | `[0,24,128,40,128,128]` | (i) except conv 4 |
+| 256 | `[0,256,256,96,128,128]` | `[0,256,256,128,128,128]` | `[0,24,139,40,128,128]` | (i) except conv 4 |
+| 384 | `[0,384,384,96,128,128]` | `[0,384,384,128,128,128]` | same | (i) except conv 4 |
+| 512 | `[0,512,512,96,128,128]` | `[0,512,512,128,128,128]` | same | (i) except conv 4 |
+| 784 | `[0,784,784,96,128,128]` | `[0,784,784,128,128,128]` | same | (i) except conv 4 |
+
+**The weight-sharing count (i) is the real one**: conv 2's 24 certificate rows × 49 positions give `q_2 = k` up to the
+pixel space, conv 3 likewise. The dense-style count (ii) is refuted at convs 2 and 3 by a factor `P_l`. **Exception:
+conv 4 measures `q_4 = 96` at every `k ≥ 128`**, below formula (i)'s `min(40·4, 128) = 128` (and above (ii)'s 40);
+`q_l_measured_matches_formula: false` on those rows. Not explained here (see NOT shown).
+
+### The two laws: `corrected` vs T5.2 vs measured (zero drift)
+
+| config | k | `k_1` | `Σq` | T5.2 `min(k_1,Σq)` | corrected `min_j(d_j+Σ_{l<j}q_l)` | measured ladder bf16/fp16/1e-4/…/1e-16 | rows | outcome |
+|---|---|---|---|---|---|---|---|---|
+| first=1, L=6 | 128 | 128 | 608 | 128 | 128 | 128 at all 12 rungs | 18176 | coincide |
+| first=1, L=6 | 256 | 256 | 864 | 256 | 256 | 256 at all rungs | 18176 | coincide |
+| first=1, L=6 | 384 | 384 | 1120 | 384 | 384 | 384 at all rungs | 18176 | coincide |
+| first=1, L=6 | 512 | 512 | 1376 | 512 | 512 | 512 at all rungs | 18176 | coincide |
+| first=1, L=6 | 784 | 784 | 1920 | 784 | 784 | 767 (bf16) / 784 at fp16 and below | 18176 | coincide |
+| first=3, L=4 | 128 | 128 | 480 | 128 | 128 | 128 at all rungs | 5632 | coincide |
+| first=3, L=4 | 256 | 256 | 608 | 256 | 256 | 256 at all rungs | 5632 | coincide |
+| first=3, L=4 | 384 | 384 | 736 | 384 | 384 | 384 at all rungs | 5632 | coincide |
+| first=3, L=4 | 512 | 512 | 864 | 512 | 512 | 508 (bf16) / 512 below | 5632 | coincide |
+| first=3, L=4 | 784 | 784 | 1136 | 784 | 784 | 739 (bf16) / 784 below | 5632 | coincide |
+| **first=5, L=2 (control)** | 128 | 128 | 256 | 128 | 128 | 83/106/115/123/126/127/128×6 | 512 | at common value |
+| first=5, L=2 (control) | 256 | 128 | 256 | 128 | 128 | 94/117/123/126/127/128×6/**199** | 512 | at common value, gap **5.7e7** |
+| first=5, L=2 (control) | 384 | 128 | 256 | 128 | 128 | 100/121/125/127/127/128×6/228 | 512 | gap 6.9e7 |
+| first=5, L=2 (control) | 512 | 128 | 256 | 128 | 128 | 104/124/126/127/127/128×6/273 | 512 | gap 7.5e7 |
+| first=5, L=2 (control) | 784 | 128 | 256 | 128 | 128 | 114/125/126/127/127/128×6/321 | 512 | gap 7.1e7 |
+
+Per-depth at `first=1`, k=784: `L=1` → 0 (conv 1 vacuous, 0 rows), `L=2` → **784** (conv 2 alone), `L=3..6` → 784.
+Small charts `k ∈ {16,32,66}`: every config saturates at `k` at every rung (`q_l = k` at each non-vacuous module).
+Chart errors (MNIST, standalone): 0.421 / 0.332 / 0.236 / 0.170 / 0.090 / 0.038 / 0.0030 / 0 for k = 16…784.
+
+**Verdict: VACUOUS — the pre-registered outcome that arithmetic (i) predicted.** `discriminates: false` on every one
+of the 3 configs × 8 charts × 6 depths; `corrected == t52` because the first non-vacuous conv module already
+delivers `q = k`. The **control behaves**: `first=5` sits at `k_1 = 128` from 1e-8 through 1e-15 with
+`gap_at_corrected` 5.7e7–7.5e7 (`real_rank_at_corrected: true`) — a *real* rank, the 1e-16 rung crossing toward the
+ambient (`ladder_converged: false` is that crossing, not an unconverged elbow). The conv stacks have `gap: null`
+because `corrected = k` = the full column count (nothing to gap against) and `ladder_converged: true`.
+
+### T arm — drifted certificates `C_l = P_{row(B_{l,T})^⊥} A_{l,T}` on the BASE patches
+
+Loss 9.8e-2 → 1.7e-5…3.6e-5 (first=1/3) and → 4.3e-4 (first=5) at T=400, batch accuracy 1.0, no divergence.
+`N'_l(T) = rank B_{l,T}` (1e-12 rel.), rank `C_l`, median residual `‖C_l h‖/‖A_{l,T} h‖` on base patches:
+
+| config | module | zero-drift `N'` | T=1 | T=5 | T=20 | T=100 | T=400 | note |
+|---|---|---|---|---|---|---|---|---|
+| first=1 | 1 conv | 9 | 9 / C=0 / 0 | 9 / 0 / 0 | 9 / 0 / 0 | 9 / 0 / 0 | 9 / 0 / 0 | first adapted: invariant (`|C_T−C_zd|/|A_0|` 6e-14) |
+| first=1 | 2 conv | 232 | **128** / 128 / 1.9e-5 | 128 / 128 / 1.5e-3 | 128 / 128 / 1.6e-3 | 128 / 128 / 1.6e-3 | 128 / 128 / 2.8e-3 | `rank B_T` = `C_out` = 128 **width-capped**; not a certificate |
+| first=1 | 3 conv | 117 | **8** / 248 / 0.87 | 8 / 248 / 0.87 | 8 / 248 / 0.86 | 8 / 248 / 0.87 | 8 / 248 / 0.86 | `C_out = 8` width cap; residual O(1) — dead |
+| first=1 | 4 conv | 32 | 28 / 52 / 3.2e-9 | 53 / 45 / 3.2e-7 | 59 / 45 / 6.3e-7 | 69 / 44 / 4.4e-7 | **72** / 43 / 3.4e-10 | `N'` moves with T, saturates at `p_4 = 72` |
+| first=1 | 5 dense | 8 | **7** / 249 / 6.1e-10 | 15 / 241 / 1.5e-8 | 18 / 238 / 1.9e-8 | 21 / 235 / 1.6e-8 | 26 / 230 / 2.5e-8 | grows, ≪ `N·T` (plateau-like) |
+| first=1 | 6 head | 8 | 7 / 249 / 2.8e-11 | 9 / 247 / 5.7e-2 | 9 / 247 / 5.5e-2 | 9 / 247 / 4.1e-2 | 9 / 247 / 4.1e-2 | capped at `m−1 = 9`; drift cost 4–6e-2 |
+| first=3 | 3 conv | 117 | 8 / 248 / 0.87 | 8 / 248 / 0.87 | 8 / 248 / 0.87 | 8 / 248 / 0.86 | 8 / 248 / 0.84 | first adapted AND width-capped: invariant in T, residual O(1) |
+| first=3 | 4 conv | 32 | 28 / 53 / 3.6e-9 | 51 / 45 / 1.1e-7 | 53 / 45 / 3.4e-7 | 62 / 44 / 1.2e-6 | 68 / 44 / 1.6e-6 | |
+| first=3 | 5 dense | 8 | 7 / 249 / 6.6e-10 | 15 / 241 / 1.2e-8 | 18 / 238 / 3.4e-7 | 20 / 236 / 4.5e-8 | 26 / 230 / 5.5e-9 | |
+| first=3 | 6 head | 8 | 7 / 249 / 2.7e-11 | 9 / 247 / 2.4e-2 | 9 / 247 / 2.9e-2 | 9 / 247 / 2.6e-2 | 9 / 247 / 4.2e-2 | |
+| first=5 | 5 dense | 8 | **7** / 249 / 6.8e-10 | 7 / 249 / 7.8e-10 | 7 / 249 / 1.0e-9 | **8** / 248 / 1.9e-13 | 8 / 248 / 4.1e-13 | first adapted (frozen input): see imprint below |
+| first=5 | 6 head | 8 | 7 / 249 / 3.1e-11 | 8 / 248 / 1.0e-4 | 8 / 248 / 2.8e-4 | 9 / 247 / 5.0e-4 | 9 / 247 / 7.1e-4 | |
+
+Stacked ladder with the drifted certificates (k=784): `first=1, L=6` → 784 at every T and every rung (`q_l =
+[0,784,784,110→126,128,128]`); `first=5, L=2` → 128 at 1e-10 with gap 7–8e7 at every T. Same shape as zero drift.
+
+**Imprint diagnostic (why the dense-first `N'` is 7, not 8, at T ≤ 20).** `B_1 = −lr Σ_i δ_i (A_0 h_i)^T` with `δ_i ∝`
+the softmax residual `p_i − y_i` of the frozen base. Per-image base residual relative to the max:
+`[1.2e-4, 1.4e-13, 4.6e-7, 3.2e-6, 1.0, 2.4e-8, 4.5e-4, 1.6e-5]` (base batch loss 9.8e-2, 7/8 correct) — image 2
+(test index 923) imprints at 1.4e-13, below the certificate's 1e-12 cut, so **7 images are recorded**
+(`n_images_imprinting_above_1e12: 7`, `dense_n_prime_matches_imprint_count: true` at T=1). At T=100 the eighth
+imprint has grown past the cut: `N' = 8`, residual 1.9e-13, `|C_T − C_zd|/|A_0| = 3.8e-7`, `first_layer_invariant_ok:
+true`. The dense-first invariant therefore holds in the form *N' = number of images whose imprint clears the tolerance*,
+which equals `N` once every image imprints — a weakly-recorded image, not drift and not a harness fault (a conv first
+layer's invariant value is `min(N'_zd, r, C_out)`: 9 at conv 1, 8 at conv 3, both held at every T).
+
+**NOT shown.** No attack, no solve, no start — algebraic rows at the truth. The law rows are ZERO DRIFT (the T arm
+reads drifted certificates on base patches; it does not test T5.4). Single seed (1), single batch (8 images, 3 classes
+repeated), single trained net; `r=256` only; `N'` counted at one tolerance (1e-12; the 1e-10 count is on the row and
+is lower at the drifting modules, e.g. dense 21 vs 26 at T=400). Conv 4's `q_4 = 96 < 128` is **unexplained** (the
+padded 2×2 patch geometry is a candidate, not checked). The corrected law is not *tested* here in the sense of §5b —
+no config separates it from T5.2 — so this section neither confirms nor refutes it; it locates why a CNN offers no
+discriminating regime at this r. Residuals for width-capped modules are reported but those modules have no
+certificate in the ledger's sense. The T-arm residuals at deeper modules are medians over `N·P_l` patch columns; the
+weakly-imprinted image's own residual is in `cert_residual_max`, not quoted here.
+
+**Plain reading.** On a CNN the certificate of an adapted conv layer is applied at every spatial position, so a
+24-row certificate at conv 2 becomes 1176 conditions per image and by itself pins the entire chart up to the pixel
+space (`q_2 = k` for all `k ≤ 784`); at zero drift the stacked rank is `k` from the first non-vacuous conv on, depth
+adds nothing, and the two depth laws coincide in every configuration (the dense-only control saturates at the
+bottleneck width 128 with a real gap, so the harness would have shown a difference had there been one). Under
+training the picture inverts: `rank B_{l,T}` is capped by the layer's output width, so the 128-channel conv records
+128 of its 232 patch directions and the 8-channel bottleneck records 8 of 117 — its drifted "certificate" has
+residual ~0.87 at the truth and is dead — while the dense modules record 7→26 images-worth of directions over
+T = 1→400 (far below `N·T`) and the first adapted layer's count never moves.
