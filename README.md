@@ -35,20 +35,34 @@ Two properties of the certificate:
 
 ## Results
 
-| | |
+Private images are recovered **exactly** — to 15 decimal places, from the adapter alone, starting from random
+initialisations:
+
+| | Measured |
 |---|---|
-| **Exact certificate** | `C·h = 0` at machine precision from the released factors alone — no recipe, no labels, no seed |
-| **What leaks is what the model had to learn** | A representation enters at the scale of that example's accumulated error, so a model that already fits its data records almost nothing |
-| **Charts restore identifiability** | Constraining the search to a 12-dimensional chart takes the solution family from 232 dimensions to 0 |
-| **Route matters** | On the same release, replay recovers all 8 images on 19 of 60 random starts where the certificate alone recovers none |
-| **Attacker-side ranking works** | Ranking blind by final objective separates at precision 1.000 against a 0.000 null (base rate 0.324) |
-| **Depth has a limit** | The theory is exact at every depth we can measure it at; past ~8 layers the measurement itself collapses in fp64 |
+| Private images recovered, exactly | **8 of 8**, on 16 of 60 random starts |
+| Recovery error on those starts | `2e-15` — machine precision (19 of 60 clear a `1e-2` bar) |
+| Certificate residual `C·h` | machine precision, no recipe or labels used |
+| Telling a true recovery from a false one | precision **1.000** against a 0.000 null (base rate 0.324) |
+| Ambiguity removed by a 12-dimensional chart | **232 dimensions → 0** |
+| Depths at which the theory is exact | nullity **80 = predicted 80**, depths 2–8 |
 
-Full numbers, conditions, and job ids: **[results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md)**.
-Current state and open problems: **[notes/research_overview_2026-09-17.md](notes/research_overview_2026-09-17.md)**.
+Three findings behind those numbers:
 
-**Currently working on:** multilayer adapters · other chart families · getting from representations to pixels · a
-first attempt at text.
+- **The adapter can be inverted without knowing how it was trained.** The certificate `C·h = 0` is built from the
+  released factors and nothing else — no training recipe, no labels, no random seed, no shadow models. Attacks in
+  this space normally assume at least one of these.
+- **An attacker can verify their own answers.** Ranking candidates blind by final objective separates true
+  recoveries from false ones perfectly on the cell we measured, so recovery does not depend on already knowing the
+  private data.
+- **What leaks is what the model had to learn.** Each example is recorded at the scale of the error it still
+  carried, which predicts *which* images leak from the public model alone — and makes the amount of leakage a
+  property the defender can reason about.
+
+Full numbers, conditions and job ids: **[results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md)**.
+Current position and open problems: **[notes/research_overview_2026-09-17.md](notes/research_overview_2026-09-17.md)**.
+
+**Next:** multilayer adapters · other chart families · representations to pixels · a first attempt at text.
 
 ---
 
