@@ -29,41 +29,74 @@ torch.set_default_dtype(torch.float64)
 def log(s): print(s, flush=True)
 
 
-def measure(net, X, y, T, lr, V, mean, zstar, k, tol=1e-10):
+def _safe_beta(net, Al, Bl):
+    """s||B A||_op, robust to a finite-but-overflowing product (svdvals raises on non-finite input)."""
+    try:
+        M = Bl @ Al
+        if not torch.isfinite(M).all():
+            return float("inf")
+        return float(net.s * torch.linalg.matrix_norm(M, 2))
+    except Exception:
+        return float("inf")
+
+
+def measure(net, X, y, T, lr, V, mean, zstar, k, tol=1e-10, drift_max=1e3, beta_max=1e6):
     A, B, reps = net.train(X, y, T=T, lr=lr)
     Hb = net.base_reps(X)
-    finite = (all(torch.isfinite(h).all() for rt in reps for h in rt)
+    # H_{l,T}: the representations AFTER the final update. The harness never computed these -- reps holds only
+    # t = 0..T-1 (pre-update), while the certificate is built from the post-update A,B. Record and gate on them.
+    reps_final = net.forward_reps(X, A, B)
+    all_reps = reps + [reps_final]
+    H0_norm = [float(Hb[l].norm()) for l in range(net.L)]
+    # UNDERFLOW test specifically (not mere smallness): a base norm at 0 makes any relative drift inf/nan and is
+    # the leading candidate for the one inf-drift row that no finite ||H0|| can explain.
+    H0_underflow = [bool(H0_norm[l] == 0.0 or H0_norm[l] < 1e-290) for l in range(net.L)]
+    finite = (all(torch.isfinite(h).all() for rt in all_reps for h in rt)
               and all(torch.isfinite(t).all() for t in A + B))
-    # ENTRYWISE finiteness is not enough: at entries ~1e150 the Frobenius norm itself overflows to inf, so a
-    # run can pass isfinite and still produce inf drift and a rank-1 SVD. Gate on magnitude too.
-    huge = any(float(h.abs().max()) > 1e100 for rt in reps for h in rt)
-    if not finite or huge:
-        # A diverged trajectory is a real datum -- it marks the edge of the regime -- but every SVD below
-        # would be meaningless (and svdvals raises on non-finite input), so record it and move on.
-        return [dict(layer=l, diverged=True) for l in range(net.L)], A, B
+    beta = [_safe_beta(net, A[l], B[l]) for l in range(net.L)]
+
+    def rel_drift_max_l(l):
+        if H0_norm[l] == 0.0:
+            return float("inf")
+        return max(float((rt[l] - Hb[l]).norm() / H0_norm[l]) for rt in all_reps)
+    rel = [rel_drift_max_l(l) if finite else float("inf") for l in range(net.L)]
+    max_rel = max(rel) if rel else float("inf")
+    max_beta = max(beta) if beta else float("inf")
+    # GATE on the RELATIVE drift the row reports and on the adapter norm beta -- NOT on entry magnitude (fix,
+    # 2026-09-17, GM/c4). The old abs gate max|entry|>1e100 has two blind spots: (a) entries can stay below 1e100
+    # while ||H0|| is tiny and relative drift reaches ~1e103 (six of eight exploded rows passed it legitimately);
+    # (b) a layer-0 explosion lives entirely in beta (delta=0 because its input is the frozen data) where no
+    # representation can see it. Thresholds scoped to the physical scale: the intended band tops at ~9 (923%
+    # drift) / beta ~573; the exploded population starts at ~1.2e20 / beta ~1.27e21, an 18-order gap, so 1e3 and
+    # 1e6 separate cleanly and exclude no legitimate large-drift cell.
+    diverged = (not finite) or (not math.isfinite(max_rel)) or (max_rel > drift_max) or (max_beta > beta_max)
+    if diverged:
+        return [dict(layer=l, diverged=True, H0_norm=H0_norm[l], H0_underflow=H0_underflow[l],
+                     rel_drift_max=(rel[l] if math.isfinite(rel[l]) else None),
+                     beta=(beta[l] if math.isfinite(beta[l]) else None)) for l in range(net.L)], A, B
     G = lambda z: mean + V @ z.reshape(k, -1)
     rows, blocks = [], []
     for l in range(net.L):
-        _ = l
         H0 = Hb[l]
         P0 = torch.linalg.qr(H0)[0][:, :H0.shape[1]]                       # basis of col(H_l^0)
-        D = [rt[l] - H0 for rt in reps]
+        D = [rt[l] - H0 for rt in reps]                                    # t < T: the theory training-span drift
         delta = max(float(d.norm() / H0.norm()) for d in D)
         dperp = max(float((d - P0 @ (P0.T @ d)).norm() / H0.norm()) for d in D)
+        delta_final = float((reps_final[l] - H0).norm() / H0.norm())       # the post-final-update drift, recorded
         drank = span_of(D)[0] if delta > 0 else 0
-        Nprime, _ = span_of([rt[l] for rt in reps])
+        Nprime, _ = span_of([rt[l] for rt in reps])                        # training span is over t < T only
         Cf, q, sB = certificate(A[l], B[l], tol=tol)
         Ct, _, _ = certificate(A[l], B[l], keep=net.N, tol=tol)
         gap = float(sB[net.N - 1] / sB[net.N]) if len(sB) > net.N and float(sB[net.N]) > 0 else float("inf")
-        beta = float(net.s * torch.linalg.matrix_norm(B[l] @ A[l], 2))
         rkC, _ = numrank(Cf, ref=float(A[l].norm()))
         Fl = lambda z, l=l, C=Ct: (C @ net.base_reps(G(z))[l][:, :1]).reshape(-1)
         J = torch.autograd.functional.jacobian(Fl, zstar.reshape(-1))
         blocks.append(J)
         ql, _ = numrank(J, rtol=1e-9)
         stacked, _ = numrank(torch.cat(blocks, 0), rtol=1e-9)
-        rows.append(dict(layer=l, diverged=False, delta=delta, delta_perp=dperp, drift_rank=drank, N_prime=Nprime, rank_B=q,
-                         B3_holds=bool(q == Nprime), gap=gap, beta=beta, rank_C_full=rkC,
+        rows.append(dict(layer=l, diverged=False, delta=delta, delta_perp=dperp, delta_final=delta_final,
+                         drift_rank=drank, N_prime=Nprime, rank_B=q, B3_holds=bool(q == Nprime), gap=gap,
+                         beta=beta[l], H0_norm=H0_norm[l], H0_underflow=H0_underflow[l], rank_C_full=rkC,
                          expect_rank_C=max(0, min(net.r - Nprime, H0.shape[0] - Nprime)),
                          rho_full=rel_annihilation(Cf, H0), rho_trunc=rel_annihilation(Ct, H0),
                          q_l=ql, rank_stacked=stacked))
