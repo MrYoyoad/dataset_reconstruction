@@ -78,10 +78,42 @@ Stacked chart-Jacobian rank, `k = 20`, four layers, `r - N = 9` per layer:
 | `rank J_F` | 9 | 18 | 20 | 20 |
 | `min(k_1, sum q_l)` | 9 | 18 | 20 | 20 |
 
-Exact agreement. Depth is additive at `q_l = r - N` per layer until it saturates at the nesting ceiling
-`k_1 = rank(J_{Phi_1} J_G) = 20 = k`. **This is the direct answer to the "~200 equations" concern**: the useful
-count per layer is `q_l = min(r - N, rank M_l)`, and two layers already close a `k=20` chart that one layer
-(9 equations) cannot.
+Exact agreement — **but only in the rank-preserving regime, and this cell does NOT discriminate the two candidate
+laws** (updated 2026-09-17). This is a random FP64 MLP with widths >= k, so `d_j = rank M_j = k_1` at every layer,
+and there T5.2's `min(k_1, sum q_l)` and F11's corrected `min_j(d_j + sum_{l<j} q_l)` coincide exactly. The M4
+cell confirms additivity **in its valid regime**; it is evidence for neither law over the other. **T5.2 is FALSE
+as stated** (audit F11): the equality assumes the per-layer row spaces spread independently inside `row(M_1)`,
+which nesting (T5.1) forbids. See `notes/m4_additivity_verification_2026-09-17.md`.
+
+### 5b. Real-encoder discrimination — the corrected law confirmed, T5.2 refuted (2026-09-17)
+
+`experiments/multilayer_cert/real_encoder_ranklaw.py` runs the two-law test on a **real** frozen 15-layer MNIST MLP
+(`mnist_mlp_d15w1000.pth`), zero-drift certificates, `d_j`/`q_l`/stacked-rank on one row with a config key, across
+a tolerance ladder. **THEORY test, not an attack config** (the pixel arm's `k_1` is ~10x the k<=66 identifiability
+cap). Job **354535** (attested: `git 59cbe42-dirty`, `script_sha dd81201f5399`), `r=108` (margin 100), `N=8`.
+
+Adapting from layer 3 through the encoder's rank cliff (`d_j = 784, 687, 217, 167, 139, 104, 84, 73`):
+
+| layers stacked L | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|
+| T5.2 `min(k_1, sum q_l)` | 500 | 600 | 684 | 756 |
+| corrected `min_j(d_j + sum_{l<j} q_l)` | **417** | **417** | **417** | **417** |
+| measured rank (1e-12 rung) | 418 | 418 | 418 | 418 |
+
+**The measured rank saturates at 418 = the corrected law's 417 (to +/-1), and stays 1.8x below T5.2's 756.** The
+binding term is `d_3 + q_1 + q_2 = 217 + 200`: everything from the fourth adapted layer on is trapped inside the
+217-dim row space of that layer's encoder, so layers 5-8 add nothing — the nesting ceiling, measured on a real
+network. The rank-preserving control (first adapted layer at the pixel input, few layers, `d_j = 784`) saturates
+at both laws' common value, confirming the harness can produce the non-discriminating outcome.
+
+**At attack scale (`chart66` arm, k<=66) the two laws COINCIDE** (`d_j = 66 = k_1` everywhere, both give 66): the
+rank-law distinction is invisible at a buildable chart width. So "a deep adapted stack is trapped at ~418, not the
+naive 756" is a statement about the rank LAW; the attack-side re-costing at `k<=66` is a separate claim.
+
+**PROVISIONAL rung (per the ladder discipline):** the exact elbow (418) resolves only at the 1e-12 rung; 1e-10
+undercounts to 402/403. 354535 ran on a shared GPU, so every rung below ~1e-10 is provisional until re-run on the
+exclusive A100 (job 354537). The **qualitative** result — corrected confirmed, T5.2 refuted by 1.8x — is robust
+across every rung (even 1e-6 reads ~326, far below 756).
 
 ## 6. What did NOT replicate — my own prediction, refuted
 
