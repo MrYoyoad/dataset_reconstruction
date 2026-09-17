@@ -22,5 +22,6 @@ cd /home/projects/galvardi/yoado
 
 python -u -m experiments.multilayer_cert.real_encoder_ranklaw \
     --model models/exact_inversion/mnist_mlp_d15w1000.pth \
-    --N 8 --r 108 --first 1 3 --charts pixel chart66 --maxL 8 --seed 1 \
+    --N 8 --r 108 --first 1 3 --maxL 8 --seed 1 \
+    --ks 16 32 66 96 128 192 256 384 512 692 784 \
     --out "results/multilayer_cert/real_encoder_ranklaw_${LSB_JOBID:-manual}.jsonl"

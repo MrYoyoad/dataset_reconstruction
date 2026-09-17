@@ -42,6 +42,22 @@ PRE-REGISTERED, before any row:
   Every row records ||H0|| per layer with an UNDERFLOW test (not merely smallness): the field that decides two
     still-unexplained survival.py rows, and here it is measured rather than inferred from the architecture.
 
+THE k-SWEEP (added 2026-09-17, the question M6 opened). M6 showed the two laws differ 1.8x at k=784 (pixel) and
+coincide at k=66 (depth free, one layer saturates). This sweeps `k` to find `k*` — where depth STOPS being free,
+i.e. the smallest chart width at which the full stack has `discriminates: True` and the measured rank sits strictly
+below `k_1`. Same axis as the chart-window question, so each row also carries the chart error (filled) and slots
+for the identifiability nullity + condition number (present, EMPTY — folded in from `experiments/utils/
+identifiability.py`, 6e's tool, which owns the conventions). PRE-REGISTERED before submission:
+  * The tolerance ladder is 1e-6 … 1e-14 (finer than M6's 1e-12, which reproduced an unconverged elbow). The
+    RESULT is the elbow's STABILITY across the ladder (`ladder_converged`), never the value at the finest rung.
+  * `k* = min k` with the full-stack `discriminates: True`; below it depth is free (both laws agree), above it the
+    nesting binds. Report `k*` against the k<=66 identifiability cap: if `k* > cap`, the depth re-costing is a
+    theory statement the attacker never reaches.
+  * 6e's caveat, which is MINE to test: their `N·max(0, k-(m+r-N-1))` nullity law is validated on a SYNTHETIC
+    AFFINE release; this harness has a real nonlinear 15-layer phi. A nullity that violates their law is a FINDING
+    about depth and nonlinearity, to be reported as one, not reconciled. Sweep k at FIXED T (nullity is T-free but
+    the condition number is not).
+
   python -u -m experiments.multilayer_cert.real_encoder_ranklaw --model models/exact_inversion/mnist_mlp_d15w1000.pth
 """
 import argparse, json, math, socket, sys, time
@@ -52,8 +68,8 @@ from experiments.exact_inversion.deep_stack import inputs_of, load_deep
 from experiments.multilayer_cert.common import provenance
 
 torch.set_default_dtype(torch.float64)
-LADDER = ("1e-6", "1e-8", "1e-10", "1e-12")
-TOL = {"1e-6": 1e-6, "1e-8": 1e-8, "1e-10": 1e-10, "1e-12": 1e-12}
+LADDER = ("1e-6", "1e-8", "1e-10", "1e-12", "1e-13", "1e-14")   # finer rungs: the 1e-12 stop reproduced ambiguity
+TOL = {"1e-6": 1e-6, "1e-8": 1e-8, "1e-10": 1e-10, "1e-12": 1e-12, "1e-13": 1e-13, "1e-14": 1e-14}
 
 
 def med(v):
@@ -75,9 +91,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="models/exact_inversion/mnist_mlp_d15w1000.pth")
     ap.add_argument("--N", type=int, default=8); ap.add_argument("--r", type=int, default=108)
-    ap.add_argument("--k66", type=int, default=66, help="attack-scale chart dimension for the chart66 arm")
+    ap.add_argument("--ks", nargs="*", type=int,
+                    default=[16, 32, 66, 96, 128, 192, 256, 384, 512, 692, 784],
+                    help="chart dimensions to sweep (the k-sweep: at what k does depth stop being free); "
+                         "k >= pixel count uses the identity/pixel chart. FIXED T is implicit (no training here).")
     ap.add_argument("--first", nargs="*", type=int, default=[1, 3], help="1-indexed first adapted layer per config")
-    ap.add_argument("--charts", nargs="*", default=["pixel", "chart66"])
     ap.add_argument("--maxL", type=int, default=8, help="max adapted layers stacked from the first")
     ap.add_argument("--sigma0", type=float, default=None); ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--n-fit", type=int, default=50000)
@@ -107,16 +125,20 @@ def main():
           f"dev={dev}", flush=True)
     print(f"# THEORY TEST of the rank law, NOT an attack config (pixel arm k_1~692 is ~10x the k<=66 cap)", flush=True)
 
-    for chart_mode in a.charts:
-        if chart_mode == "pixel":
-            in_dim = npix
-            X_domain = X_real                                # differentiate w.r.t. the 784 pixels at the truth
-            to_pixels = (lambda v: v.reshape(npix, -1))      # domain point -> pixels
+    for k in a.ks:
+        if k >= npix:                                        # identity/pixel chart: differentiate w.r.t. pixels
+            k_eff, chart_label, in_dim = npix, "pixel", npix
+            X_domain = X_real
+            to_pixels = (lambda v: v.reshape(npix, -1))
+            chart_err = 0.0                                  # pixels contain the image exactly
         else:
-            chart = PCAChart(Xtr_t, a.k66, dev)
-            in_dim = a.k66
-            X_domain = chart.coords_of(X_real)               # (k66, N) chart coords at the truth
-            to_pixels = (lambda w: chart.psi(w.reshape(a.k66, -1)))
+            chart = PCAChart(Xtr_t, k, dev)
+            k_eff, chart_label, in_dim = k, f"pca{k}", k
+            X_domain = chart.coords_of(X_real)               # (k, N) chart coords at the truth
+            to_pixels = (lambda w, _k=k: chart.psi(w.reshape(_k, -1)))
+            X_rec = chart.psi(X_domain)                      # chart error: what the k-chart fails to contain
+            chart_err = float((torch.linalg.norm(X_rec - X_real, dim=0)
+                               / torch.linalg.norm(X_real, dim=0)).median())
 
         # frozen base features as a function of the domain point (pixels, or chart coords via psi)
         def feats(v):                                        # -> list [h^0 .. h^{D-1}] for a single column v
@@ -179,31 +201,36 @@ def main():
                 corrected = min([dl[j] + cum[j] for j in range(L)] + [Sq])
                 # elbow stability across the ladder: spread of the measured rank over the tolerance cuts
                 ladder_vals = [meas[lab] for lab in LADDER]
-                emit(dict(part="RANKLAW", config=dict(model=a.model.split("/")[-1], chart=chart_mode,
+                fine = LADDER[-1]                            # finest rung, for the explicit-rung match flags
+                emit(dict(part="RANKLAW", config=dict(model=a.model.split("/")[-1], chart=chart_label, k=k_eff,
                           in_dim=in_dim, first_adapted=first, seed=a.seed, r=a.r, N=a.N, depth=D),
                           n_layers=L, layers_in_objective=[l + 1 for l in layers],
                           d_j=dl, q_l=ql, cert_rank=[dof[l] for l in layers], k1=k1, sum_q=Sq,
                           t52_pred=int(t52), corrected_pred=int(corrected),
-                          measured_rank_by_tol=meas,
-                          measured_at_1e10=meas["1e-10"],
+                          measured_rank_by_tol=meas, measured_at_1e10=meas["1e-10"], measured_at_finest=meas[fine],
                           ladder_spread=int(max(ladder_vals) - min(ladder_vals)),
+                          ladder_converged=bool(meas[LADDER[-1]] - meas[LADDER[-2]] == 0),
                           discriminates=bool(corrected < t52),
-                          saturated_below_k1=bool(meas["1e-10"] < k1),
-                          saturated_at_k1=bool(meas["1e-10"] >= k1 - 1),
-                          matches_corrected=bool(abs(meas["1e-10"] - corrected) <= 2),
-                          matches_t52=bool(abs(meas["1e-10"] - t52) <= 2),
+                          saturated_below_k1=bool(meas[fine] < k1),
+                          saturated_at_k1=bool(meas[fine] >= k1 - 1),
+                          matches_corrected_at_finest=bool(abs(meas[fine] - corrected) <= 1),
+                          matches_t52_at_finest=bool(abs(meas[fine] - t52) <= 1),
+                          chart_error=chart_err,
+                          cert_route_nullity_finest=in_dim - meas[fine],   # unconstrained chart directions (tol-dep)
+                          identifiability_nullity=None,      # PRESENT-BUT-EMPTY: 6e's release-route tool, folded in later
+                          condition_number=None,             # PRESENT-BUT-EMPTY: rides along 6e's identifiability()
                           H0_norm_per_layer=[H0_norm[l] for l in layers], H0_underflow=[underflow[l] for l in layers],
                           sigma_max_median=med([o["sigma_max"] for o in rows]),
                           claim_class="theory rank-law test at the truth (no solve, no attack)",
-                          note=("pixel arm: k_1 is the transmitted pixel rank, ~10x the k<=66 identifiability cap; "
-                                "chart66 arm: attacker-buildable scale" if chart_mode == "pixel"
-                                else "attacker-buildable chart scale k<=66"),
+                          note=("k-sweep for where depth stops being free; the pixel/full-k end is a THEORY test "
+                                "(k_1 >> the k<=66 identifiability cap), the small-k end is attacker-buildable scale"),
                           git=PROV["git"], script_sha=PROV["script_sha"],
                           host=socket.gethostname(), cmd=" ".join(sys.argv)))
-                print(f"  [{chart_mode} first={first} L={L}] d_j={dl} q_l={ql} k1={k1} Sq={Sq} "
-                      f"| T5.2={t52} corrected={corrected} discriminates={corrected < t52} "
-                      f"| MEASURED {meas['1e-6']}/{meas['1e-8']}/{meas['1e-10']}/{meas['1e-12']} "
-                      f"{'<k1 BELOW' if meas['1e-10'] < k1 else 'AT k1'}", flush=True)
+                print(f"  [{chart_label} k={k_eff} first={first} L={L}] k1={k1} Sq={Sq} "
+                      f"| T5.2={t52} corr={corrected} discr={corrected < t52} "
+                      f"| MEASURED {'/'.join(str(meas[t]) for t in LADDER)} "
+                      f"{'BELOW k1' if meas[fine] < k1 else 'AT k1'} "
+                      f"conv={meas[LADDER[-1]] - meas[LADDER[-2]] == 0} chart_err={chart_err:.2e}", flush=True)
 
 
 if __name__ == "__main__":
