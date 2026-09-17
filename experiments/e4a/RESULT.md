@@ -44,13 +44,23 @@ Shared-concept structure, both axes at the **same 95% variance threshold** (so t
 
 ## Claims
 
-**C1 — The premise is refuted: a public chart of features is WORSE than a public chart of pixels, at matched width
-and matched hold-out.** At k=32, with the chart fitted on public images not of the private class, the private data
-sits **0.5991** off the chart for DINO and **0.4078** for CLIP, against **0.2432–0.3176** in pixel space on the two
-oracle-ladder releases (`experiments/oracle_ladder/RESULT.md`, public PCA rows, same k, same measured quantity).
-Moving to a frozen foundation-model embedding does not dissolve the chart problem; on DINO it roughly doubles it.
-Conditioning the chart on the private *category* (subjects still disjoint) helps substantially at every k, and CLIP
-beats DINO everywhere, but the best cell measured anywhere is CLIP/target/k=128 at 0.1963.
+**C1 — CORRECTED (see audit log): at MATCHED construction, CLIP features are comparable to pixels and DINO
+features are worse; the blanket claim "features are worse than pixels" does NOT survive.** The first version of
+this claim compared a pixel chart against a feature chart built differently. The oracle ladder's public PCA chart
+is fitted on public train images **of the added (private) class** — a *target*-regime chart. Matched against E4a's
+own target rows at k=32:
+
+| chart at k=32, fitted on public images OF the private class | private projection residual |
+|---|---|
+| pixels (ladder public PCA, keyboard / motorcycle releases) | 0.2432 – 0.3176 |
+| CLIP ViT-L/14 features | **0.2634** — *inside* the pixel range |
+| DINO ViT-B/16 features | 0.4091 — worse than pixels |
+
+What survives, and it is the part that answers the realism objection: **no public chart of features comes close to
+being good enough.** The best cell measured anywhere is CLIP/target/k=128 at 0.1963, and conditioning on the
+private category helps at every k without closing the gap. Moving to a frozen foundation-model embedding does not
+dissolve the chart problem. What must NOT be said is that it *worsens* it — that reading came from comparing a
+category-conditioned pixel chart against a random-public feature chart, and it dies under matched construction.
 
 **C2 — Lemma 15's signature reproduces in feature space, at every cell of both backbones and both regimes.** Blends
 of the privates sit roughly twice as close to the public chart as the privates themselves (DINO target k=32: 0.4091
@@ -111,6 +121,12 @@ construction.
 - yoado-8b required the conditional on the gate ratio; C1 was rewritten to carry the weight like-for-like instead.
   The arithmetic in their version of C3 (1655 against 1024) compares at unmatched fidelity and is not used; the
   fidelity-matched form is above.
+- **C1 was rewritten after a second audit.** Its first form said features are *worse* than pixels, comparing the
+  ladder's pixel chart against E4a's *universal* rows. But the ladder's public PCA is fitted on train images of the
+  added class (`load_cifar100_class(...)["train"]`, verified at source in `ladder_cell.py`), so it is a *target*
+  chart and the matched counterpart is E4a's target rows — where CLIP sits inside the pixel range. The comparison
+  was unmatched in the direction that flattered the conclusion. Raised by yoado-c8; verified here at the source
+  rather than accepted.
 - The pixel-space comparison figure was taken from this repo's own measured ladder rows (0.2432 / 0.3176), not from
   the 0.25 quoted in the script docstring, which this session refused as circular (it is sourced only to prose I
   wrote, with no job row behind it).

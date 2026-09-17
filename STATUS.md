@@ -1,5 +1,31 @@
 # Project Status
 
+## The capacity line is the identifiability boundary, and on real releases the two chart walls do not overlap (2026-09-17; jobs 350967, 350993)
+
+**The capacity line has a meaning.** `k < m + r − N` was a counting heuristic; it is now the width at which the
+private data stops being identifiable. The solution family has dimension `N · max(0, k − (m + r − N − 1))` — two
+lanes derived it independently, and a sweep over chart width confirms it **12 of 12**, including a one-unit
+discontinuity from nullity 0 at `k = 35` to exactly 8 at `k = 36`, plus a self-check at `k = d` returning exactly
+the 232 measured independently for free features. Above the line the ambiguity grows by exactly `N` dimensions per
+unit of `k`. The mechanism: `B_T` lies on the rank-`N`, zero-column-sum variety of dimension `N(m−1+r−N)`, so 200
+of the 2016 equations are dependent and the attainable rank is 1816.
+
+**The consequence, measured on the real releases: there is no good chart width.** Identifiability caps `k` from
+above; fidelity (the chart must contain the data) pushes it from below. Measured on the same axis, same space,
+same eight photographs, with the attacker-buildable public PCA chart the ladder actually uses:
+
+| release | identifiability cap | best fidelity at the cap | landing gate | shortfall |
+|---|---|---|---|---|
+| motorcycle / MLP | k ≤ 66 | 0.1845 | 0.0124 | **14.9×** |
+| keyboard / CNN | k ≤ 66 | 0.2058 | 0.0045 | **45.7×** |
+
+**Zero widths satisfy both walls on either release.** The fidelity wall alone carries it: even ignoring the cap and
+pushing to k = 384, the error is still 0.109 and 0.119, about 9× and 26× the gates. A public PCA chart of this
+family cannot be made to work on these releases by choosing k — which turns agreed step #2 ("charts beyond a
+single fixed PCA") from a preference into a requirement. **Caveat carried:** the cap is derived on the synthetic
+affine release and applied to CIFAR by formula; a trained `phi` sits in that path on the real releases and whether
+the rank argument survives it is not yet established. The fidelity column is measured directly and needs no caveat.
+
 ## E1B: the CHART restores identifiability — measured, not argued (2026-09-17; jobs 350928/350940, arms 670990/670993/675031)
 
 Free-feature replay (no chart, `H` free in `R^{64x8}`) was run on the affine two-routes release to ask whether the
@@ -11,13 +37,16 @@ residual Jacobian at the truth — a measurement that owes nothing to any solver
 | free `H` | known | 512 | 512 | **0** |
 | free `H` | free | 2048 | 1816 | **232** |
 | reduced seed | free | 1025 | 793 | **232** |
-| chart `k=12` | known | 96 | 96 | **0** |
-| chart `k=12` | free | 1632 | 1632 | **0** |
+| chart `k=12` **(oracle)** | known | 96 | 96 | **0** |
+| chart `k=12` **(oracle)** | free | 1632 | 1632 | **0** |
 
 **The headline.** Constraining `H` to the `k=12` chart takes the seed-free nullity from **232 to 0**. So job
 331384's recovery of all eight from 19 of 60 starts is *not* evidence that replay is strong on free features — it
-is evidence that **the chart restores identifiability**, by removing exactly the `H` directions that trade against
-the unknown seed. Of the 232-dimensional family, all 232 directions move `H` and **none** moves `H` with the seed
+is evidence that **a chart containing the private representations restores identifiability**, by removing exactly
+the `H` directions that trade against the unknown seed. **The chart measured is the release's own generating
+chart — an ORACLE chart, not attacker-available** — so this establishes the mechanism, not that a public chart
+achieves it; the oracle ladder measures public charts at a projection error of 0.24–0.32 against a landing gate of
+0.0124, i.e. they do not contain the truth. Of the 232-dimensional family, all 232 directions move `H` and **none** moves `H` with the seed
 held fixed: the entire ambiguity is a seed-against-`H` trade. The decision line is therefore PARTIAL — invertible
 with a known seed, not invertible with a free one, and a chart restores it.
 
@@ -80,12 +109,13 @@ trained backbone, since the lifetime bound rests on it and it is the claim most 
 ## E4a: a public chart of FEATURES is worse than a public chart of pixels — the premise is refuted (2026-09-07; jobs 674521 DINO, 674524 CLIP)
 
 The realism objection said: private images sit far off a public pixel chart, but surely a foundation-model
-*embedding* needs far fewer dimensions. **Measured, and it goes the other way.** At k=32, with the chart fitted on
-public images not of the private class, the private data sits **0.5991** off the chart for DINO ViT-B/16 and
-**0.4078** for CLIP ViT-L/14, against **0.2432–0.3176** measured in pixel space on the two oracle-ladder releases
-at the same k. The best cell measured anywhere is CLIP/target/k=128 at **0.1963**. Conditioning the chart on the
-private category (subjects still disjoint) helps a lot; it does not close the gap. **Moving to a frozen
-foundation-model embedding does not dissolve the chart problem; on DINO it roughly doubles it.**
+*embedding* needs far fewer dimensions. **Measured, and it goes the other way.** **CORRECTED 2026-09-17:** the matched comparison is category-conditioned against category-conditioned,
+because the ladder's public PCA is fitted on train images *of the added class*. At k=32: pixels 0.2432–0.3176,
+CLIP **0.2634** (inside the pixel range), DINO **0.4091** (worse). So CLIP features are comparable to pixels and
+only DINO is worse — the blanket "features are worse than pixels" reading does **not** survive matched
+construction. What survives is the part that answers the realism objection: the best cell measured anywhere is
+CLIP/target/k=128 at **0.1963**, nowhere near the ladder's landing gate of 0.0124. **Moving to a frozen
+foundation-model embedding does not dissolve the chart problem** — but it must not be said to worsen it.
 
 **Lemma 15's signature reproduces in feature space** at every cell of both backbones and both regimes: blends of
 the privates sit about twice as close to the public chart as the privates themselves (DINO target k=32: 0.4091

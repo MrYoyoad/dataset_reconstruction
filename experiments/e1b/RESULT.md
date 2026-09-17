@@ -65,8 +65,8 @@ reproducing the release, as the nullity of the residual Jacobian at the truth. T
 | free `H` | known | full `A_T` + `B_T` | 512 | 512 | **0** |
 | free `H` | free | full `A_T` + `B_T` | 2048 | 1816 | **232** |
 | reduced seed | free | full `A_T` + `B_T` | 1025 | 793 | **232** |
-| chart `k=12` | known | full `A_T` + `B_T` | 96 | 96 | **0** |
-| chart `k=12` | free | full `A_T` + `B_T` | 1632 | 1632 | **0** |
+| chart `k=12` **(ORACLE)** | known | full `A_T` + `B_T` | 96 | 96 | **0** |
+| chart `k=12` **(ORACLE)** | free | full `A_T` + `B_T` | 1632 | 1632 | **0** |
 | free `H` | free | the v1 objective | 2048 | 344 | **1704** |
 | chart `k=12` | free | the v1 objective | 1632 | 288 | **1344** |
 
@@ -79,8 +79,15 @@ free `H`:* **yes with a known seed** (nullity 0 — `H` is locally determined), 
 232-dimensional family reproduces the release exactly, so no solver can pick the truth out of it). The entire
 ambiguity is a **seed-against-`H` trade**: every direction of the family moves `H`, and none moves `H` alone.
 
-**C2 — The chart is what makes the seed-free problem well posed, and that is why job 331384 recovers.** Constrain
-`H` to the `k=12` chart and the seed-free nullity falls from **232 to 0**. 331384's 19-of-60 recovery is therefore
+**C2 — A chart that CONTAINS the private representations makes the seed-free problem well posed, and that is why
+job 331384 recovers.** Constrain `H` to the `k=12` chart and the seed-free nullity falls from **232 to 0**.
+**SCOPE, and it is load-bearing: the chart measured is the release's OWN generating chart** (`H = LW + b` with the
+`L`, `b` that produced the data), so the truth lies in it exactly by construction. **It is an ORACLE chart and is
+not attacker-available.** What is established is the mechanism — a chart containing the truth restores
+identifiability by removing the trade directions — and NOT that any attacker-buildable chart does so. Whether a
+public chart does depends on whether the private data lies in it, and the oracle ladder measures that as badly
+violated: public PCA charts sit at a projection error of 0.2432–0.3176 against a landing gate of 0.0124 or lower.
+The two results compose: this one says what a chart must do, the ladder says public charts do not do it. 331384's 19-of-60 recovery is therefore
 not evidence that replay is strong on free features; it is evidence that the chart removes exactly the `H`
 directions that trade against the seed. **This is the sharpest statement in the file**: the chart's role is not
 merely to shrink a search space, it is to restore identifiability.
@@ -100,6 +107,40 @@ unknown being solved for. The corrected residual uses only released quantities a
 **C5 — The registered ker-`C` prediction held.** On this linear chart, ker-`C` starts did **not** beat random
 ones — median objective 5.34e-02 against 4.48e-02 in the seed-known arm, i.e. slightly worse, in every arm.
 
+**C6 — The capacity line `k < m + r − N` IS the identifiability boundary, confirmed to the unit (job 350967).**
+Two lanes independently derived that the family has dimension `N · max(0, k_i − (m + r − N − 1))`, where `k_i` is
+the number of unknowns **per image**. The mechanism is that `B_T` is not `m·r` free numbers: it lies on the
+rank-`N`, zero-column-sum variety of dimension `N(m−1+r−N) = 280` here, so the attainable Jacobian rank is
+`r·d + 280 = 1816` rather than 2016 — which is exactly the rank measured, and the 200 "missing" equations are
+exactly that difference. Swept over chart width with the truth held inside the chart at every `k`:
+
+| k | 8 | 12 | 20 | 30 | 34 | **35** | **36** | 37 | 40 | 48 | 56 | 64 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| nullity | 0 | 0 | 0 | 0 | 0 | **0** | **8** | 16 | 40 | 104 | 168 | 232 |
+| predicted | 0 | 0 | 0 | 0 | 0 | **0** | **8** | 16 | 40 | 104 | 168 | 232 |
+
+**12 of 12**, including a **one-unit discontinuity** from 0 to exactly 8 between `k = 35` and `k = 36`, which no
+smooth artefact can produce — and a self-check at `k = d = 64` returning exactly the 232 measured independently
+for free features, without the formula being told that. So the capacity line is not a counting heuristic: it is
+the width at which the private data stops being identifiable, and above it the ambiguity grows by exactly `N`
+dimensions per unit of `k`.
+
+**C7 — On the real CIFAR releases the two walls DO NOT OVERLAP: no public-chart width satisfies both (job
+350993).** The chart is squeezed from both sides — identifiability caps `k` from above, fidelity pushes it from
+below — and this is the first measurement of both **on the same axis, in the same space, for the same eight
+photographs**. Chart: the top-`k` PCA of public train images of the added class, which is what the ladder actually
+uses and is attacker-buildable. Gate: the ladder's own measured landing threshold on these releases.
+
+| release | identifiability cap | best fidelity available **at** the cap | landing gate | shortfall | widths satisfying both |
+|---|---|---|---|---|---|
+| motorcycle / MLP | `k ≤ 66` | 0.1845 at `k = 66` | 0.0124 | **14.9×** | **0** |
+| keyboard / CNN | `k ≤ 66` | 0.2058 at `k = 66` | 0.0045 | **45.7×** | **0** |
+
+**And the fidelity wall alone is sufficient for the conclusion**, which is what makes it robust: even ignoring the
+identifiability cap entirely and pushing to `k = 384`, the projection error is still 0.1094 and 0.1191 — about 9×
+and 26× the respective gates. **A public PCA chart of this family cannot be made to work on these releases by
+choosing `k`.**
+
 ## What is NOT claimed
 
 **The Adam arms do not show that recovery is impossible.** In the seed-known arm the nullity is 0, so recovery is
@@ -115,6 +156,13 @@ these are stalled iterates, not solutions, and the prediction applies to solutio
 **A5, the direct manifold test, is VACUOUS on this release and is reported as vacuous rather than as a zero.**
 `phi = identity` here, so `range(Phi_0) = R^d` and `min_x ‖Phi_0(x) − ĥ‖` is identically zero for every candidate
 by construction. The real-backbone cell is a separate addition, not this one.
+
+**C7's identifiability cap is a FORMULA APPLIED, not a measurement on these releases.** The `N·(k − (m+r−N−1))`
+law is derived and confirmed on the *synthetic affine* release, where the map from chart coordinates to the adapted
+layer's input is affine. The CIFAR releases put a trained network `phi` in that path, and whether the same rank
+argument survives a nonlinear `phi` is **not established here**. The cap is therefore reported as an extrapolation
+and labelled as one. The fidelity column is measured directly on the CIFAR privates and needs no such caveat —
+which is why C7 is stated so that the fidelity wall alone carries it.
 
 **Scope of any landing here** (carried in every row as a `scope` field): `Z_feature` and `Z_image` coincide on this
 release, so a landing certifies that the dynamics invert from a free `H` and certifies **nothing** about free
