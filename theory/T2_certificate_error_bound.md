@@ -185,8 +185,10 @@ so `max_t||Delta_t||` may be replaced by `eps^perp ||H_l^0||` in the leading ter
 > only at `688036` (`de8b0ae`) once the expectation became the `min` form (`expect_rank_C` = 13, 5 there vs 21, 23
 > before). The disagreement survives in a **sane, non-diverged** row: `688036` layer 0 has `n_l = 16 < r = 24`,
 > `N' = 3`, B3 holding at zero drift, and measures `rank C = 13 = min(21, 13)`, against the as-written `r - N' =
-> 21` — an eight-equation overcount. A fresh run comparing against the as-written law reproduces this **known**
-> failure under an honest name; it is a record being made honest, not a new result.
+> 21` — an eight-equation overcount. The de-rigged check (`T2_rank_C_matches_AS_WRITTEN_r_minus_Nprime`, job
+> **351745**, 2026-09-17) now records both laws side by side and **fails** the as-written one — layer 0 `rank C =
+> 13` vs as-written `21`, layers 1–2 `rank C = 5` vs as-written `9` — while passing the corrected `min` law. This
+> reproduces a **known** failure under an honest name; it is a record being made honest, not a new result.
 
 **A measured law the theory did not predict, and which the whole picture now rests on:** the training span
 inflates at the *maximal* rate, `N' = N*T` (116/129 deep rows; `N' <= N*T` in all of them). Every SGD step adds
