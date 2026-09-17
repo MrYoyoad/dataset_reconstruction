@@ -32,6 +32,18 @@ figures/
     └── seed_{0,1,2,3,42}.png
 ```
 
+## Supervision figures
+
+- `gal_2026-09/` — the figure pack shown at the 2026-09-15 supervision meeting: eight pages as PNG
+  (`01_one_layer` … `08_local_families`), `figure_pack_2026-09-15.pdf`, the vector versions under `vector/`, the
+  architecture diagram, the motorcycle results template, and `figures_for_gal_2026-09-09.pdf` (the raster set
+  several panels were cut from). Editable sources: `scripts/figpack_2026_09_15/`. Provenance and the corrections
+  found when the panels were traced to rows: `notes/figure_provenance_2026-09-15.md`.
+
+*(This file predates the certificate era and does not yet map `exact_inversion/`, `cifar_charts/`,
+`cifar_newclass/`, `oracle_ladder/`, `record_strength/`, `ntk_vs_cert/` or `rev10/`; `results/00_map.md` is the
+current orientation map.)*
+
 ## Where new figures land
 
 | Generator | Output directory |

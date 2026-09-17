@@ -86,3 +86,24 @@ Running log of every remark / request the user gives about slides (mandated by C
     provisional pending the bias-corrected re-run (quote the differences 23 -> 13 -> 0). The "3 of 4" direct-inversion claim is
     now traceable: `results/direct_inversion/n4_slot_correlations.json`.
     STILL OPEN FOR THE USER: (a) slide 1 title "More Work" + byline without Gal; (b) the ViT-faces figure's column titles.
+
+## 2026-09-15 — supervision meeting on the figure pack (`figures/gal_2026-09/`)
+
+13. **Reaction to the figure pack (2026-09-15 meeting; source `notes/meeting_summary_2026-09-15.md`).**
+    The participants were impressed by the figures, the certificate equation and the chart idea. The first two — broadly
+    the first three or four — already carried substantial material and most of the discussion was spent understanding
+    them, with detailed questions about how `C H = 0` is derived and what its geometric intuition is. PCA matched their
+    own intuition for restricting the search; they understood and liked nonlinear/richer charts, and explicitly
+    distinguished the approach from their earlier unsuccessful deep-image-prior attempt. They said extensions to text or
+    to new image domains could be groundbreaking and lead to a very good paper (conditional on success, not a result).
+    IMPLICATION FOR FUTURE DECKS: the mechanism slides carry the meeting — keep `01_one_layer`,
+    `02_certificate_subspaces` and `03_reconstruction_results` first and unhurried; the reconstruction grid must keep
+    its four labelled rows (original / PCA training target / NTK output / certificate output) because the row that
+    separates chart approximation from inversion error is what makes the result legible.
+    SCOPE TO PRESERVE ON THE NTK SLIDE: the accepted conclusion is that *the NTK reconstruction formulation discussed*
+    does not work for *the LoRA setting considered* — not that NTK methods cannot identify. The repo's own algebra
+    (`notes/ntk_vs_certificate_comparison.md`) says the LoRA-aware linearised fit and the certificate share a zero set,
+    so a slide claiming one route beats the other is wrong.
+    ALSO REQUESTED IN DISCUSSION (future slides, not yet built): what happens when a layer's inputs change during
+    training; charts for KKT and other objectives; memory cost of KKT reconstruction on larger images.
+    Full record and backlog: `notes/meeting_2026-09-15_record.md`.

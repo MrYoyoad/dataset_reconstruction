@@ -1,0 +1,19 @@
+\documentclass[tikz,border=0pt]{standalone}
+\input{style.tex}
+\begin{document}
+\begin{tikzpicture}[figure]
+\canvas{Reconstructions};
+\node[heading] at (227,490) {Letters};
+\node[smalllabel,text=muted] at (227,459) {8/8 PCA targets; four shown};
+\node[anchor=center,inner sep=0pt] at (224,276) {\includegraphics[width=386pt]{letters_four_rows.pdf}};
+\node[heading] at (681,497) {CIFAR-100 motorcycles};
+\node[smalllabel,text=muted] at (681,465) {8/8 PCA targets};
+\node[smalllabel,text=muted] at (681,437) {Original / reconstruction};
+\node[anchor=center,inner sep=0pt] at (681,359) {\includegraphics[width=478pt]{motorcycles_gt_reconstruction.pdf}};
+\node[heading] at (681,254) {Fashion-MNIST bags};
+\node[smalllabel,text=muted] at (681,224) {4/8 PCA targets + 2 approximations shown};
+\node[smalllabel,text=muted] at (681,196) {Original / reconstruction};
+\node[anchor=center,inner sep=0pt] at (681,102) {\includegraphics[width=375pt]{fashion_mnist_overview.pdf}};
+\node[smalllabel,text=muted] at (225,44) {Training: public PCA projections};
+\end{tikzpicture}
+\end{document}

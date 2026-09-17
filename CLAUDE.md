@@ -12,6 +12,17 @@ The `dataset_reconstruction/` subdirectory contains the original PyTorch impleme
 
 ### Thesis Research Direction
 
+> **CURRENT STATE (2026-09-17) — read this before the historical directions below.** The thesis now runs on the
+> **LoRA certificate + chart** line: `C = P_row(B_T)^perp A_T` annihilates every recorded representation, computed
+> from the released factors alone, and candidates are searched inside a low-dimensional public image family.
+> Start at [notes/research_overview_2026-09-17.md](notes/research_overview_2026-09-17.md); definitions and
+> assumptions in [notes/technical_record_2026-09-17.md](notes/technical_record_2026-09-17.md); audited claims in
+> [results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md); direction and backlog in
+> [notes/meeting_summary_2026-09-15.md](notes/meeting_summary_2026-09-15.md) +
+> [notes/meeting_2026-09-15_decisions_and_backlog.md](notes/meeting_2026-09-15_decisions_and_backlog.md).
+> The Direct-Weight-Inversion and Gradient-Bridge material below is the **historical record** of how the project
+> got here, kept because the earlier axes still supply the initialiser/decoder role.
+
 The thesis focuses on the **image domain**, extending the Haim et al. reconstruction paradigm to Foundation Models and PEFT:
 
 > **Primary axis (added 2026-05-14, after the first supervision meeting): Direct Weight Inversion.**
@@ -26,7 +37,7 @@ The thesis focuses on the **image domain**, extending the Haim et al. reconstruc
 
 The three PEFT-reconstruction directions (the Gradient Bridge axis + its theoretical underpinnings):
 
-1. **LoRA Reconstruction via the "Gradient Bridge"**: LoRA adapters (A, B matrices) are structured, compressed recordings of cumulative training gradients. The LoRA update ΔW = BA is a low-rank projection of the full gradient that can be inverted. A learned **Gradient Decoder** (trained on proxy data) approximates the inverse projection, recovering full-dimensional gradients from low-rank adapters, which are then fed into gradient inversion pipelines (GradInversion for vision).
+1. **LoRA Reconstruction via the "Gradient Bridge"** *(historical; one sentence here was retracted — see below)*: LoRA adapters (A, B matrices) are structured, compressed recordings of cumulative training gradients. **RETRACTED 2026-08-23, recorded here 2026-09-17:** "the released adapter is a compressed `ΔW`" is marked **false** in `identifiability_rank_bound(2)/(4)` and the direction is retired in `lora_plan_rev11`; the release is a deterministic function of the data *and of the seed's reading of the private span*, not a compressed gradient. See [notes/artifact_index_2026-09-17.md](notes/artifact_index_2026-09-17.md) §4. The LoRA update ΔW = BA is a low-rank projection of the full gradient that can be inverted. A learned **Gradient Decoder** (trained on proxy data) approximates the inverse projection, recovering full-dimensional gradients from low-rank adapters, which are then fed into gradient inversion pipelines (GradInversion for vision).
 
 2. **LoRA in the NTK Regime**: When LoRA rank r is sufficiently large (**Jang et al. 2024's own stated condition is r(r+1)/2 > K·N**, i.e. r ≳ √(K·N), with K=1 for binary and K=k for k-class by their §2 definition — verified against arXiv:2402.11867v3, abstract + Sard-theorem proof; earlier notes here wrongly called the K-dependence "our extrapolation". Only the *informational/leakage* reading of that landscape threshold is ours. Counterweight: arXiv:2605.03724 (2026) argues the Sard-form count is conservative and drops to r=1 for binary classification), LoRA optimization in the NTK regime converges to the same global minimum as full fine-tuning (Jang et al., 2024). This means LoRA weights BA encode the same support vector geometry as full weights — the KKT stationarity condition adapts to a coupled system where B^T(Σ λ_i y_i ∇_W Φ(θ; x_i)) = 0 and the analogous condition for A.
 
@@ -221,9 +232,13 @@ candidate data and backprops through the unrolled training loop to solve for `({
 2. **Never change the recipe silently.** The simulator and the release must change *identically*, and the run must
    be relabelled. Do not edit the script or module under a running multi-cell job — the runner re-launches `python`
    per cell (see LESSONS_LEARNED 2026-09-02); freeze the tree or kill and resubmit.
-3. **Provisional numbers carry a dagger (†).** Every number from the external bundle (`framework_rev10.pdf`,
-   `results_rev9.pdf`, `audit_rev9.pdf`) is †provisional until reproduced by the committed script with a recorded
-   seed. Nothing in this track has been measured in this repo yet.
+3. **Provisional numbers carry a dagger (†).** Every number from an external bundle (`framework_rev10.pdf`,
+   `results_rev9.pdf`, `audit_rev9.pdf`, and the 2026-09-17 archive's PDFs) is †provisional until reproduced by a
+   committed script with a recorded seed. **Updated 2026-09-17:** this track has since been measured extensively
+   in this repo (Steps 1–126, `experiments/exact_inversion/RESULTS.md`); the runner's `step1…step4` stages below
+   are the original scaffolding, not the current set. Before quoting any number that came from a PDF, check
+   [notes/archive_evidence_map_2026-09-17.md](notes/archive_evidence_map_2026-09-17.md), which marks each one
+   TRACED / SUPERSEDED / ARCHIVE-ONLY / UNTRACED.
 4. **Verdict semantics.** Report failures as failures, and read the `verdict` field literally:
    `recovered` (median image error < 1e-2) · `optimisation failure (residual not zero)` — a **basin/solver**
    problem · `alias (residual zero, wrong image → non-identifiability)` — an **information** problem. Never merge
@@ -309,7 +324,15 @@ rsync -avz papers/ wexac:~/papers/
 
 - [STATUS.md](STATUS.md) — current project status: what's done, what's not started, known issues, pending tasks
 - [LESSONS_LEARNED.md](LESSONS_LEARNED.md) — running log of insights, pitfalls, and things to remember
-- [notes/next_experiment_plan.md](notes/next_experiment_plan.md) — **single source of actionable to-do (CURRENT).** Start here for "what to do next." (The former [notes/experiment_plan.md](notes/experiment_plan.md) is SUPERSEDED — background only, kept for the DI/GB phase history; do not use its checkboxes as live state.) For the active dataset-sensitivity front see [notes/dataset_sensitivity_program_plan.md](notes/dataset_sensitivity_program_plan.md); the consolidated science-state is [notes/thesis_scientific_summary.md](notes/thesis_scientific_summary.md).
+- [notes/research_overview_2026-09-17.md](notes/research_overview_2026-09-17.md) — **START HERE: the current research position** (certificate + chart), with the lead cells and the three things that would change the picture
+- [notes/technical_record_2026-09-17.md](notes/technical_record_2026-09-17.md) — definitions, proved statements with their exact assumptions, measured results, and the open problems
+- [results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md) — the claims record: every claim with its cell, conditions, "NOT shown", job ids and audit status. **A new scientific claim goes here and in the track's RESULT(S).md, nowhere else.**
+- [notes/meeting_summary_2026-09-15.md](notes/meeting_summary_2026-09-15.md) — verbatim record of the 2026-09-15 supervision meeting; **the current directional authority**. Decisions, scope and the prioritised backlog: [notes/meeting_2026-09-15_decisions_and_backlog.md](notes/meeting_2026-09-15_decisions_and_backlog.md)
+- [notes/APPROVER_HANDOVER.md](notes/APPROVER_HANDOVER.md) — the live baton and the standing rules; rulings in [notes/math_rulings_2026-09-06.md](notes/math_rulings_2026-09-06.md) (R1–R20) and [notes/plan_audit_2026-09-07.md](notes/plan_audit_2026-09-07.md) (A1–A17+)
+- [notes/artifact_index_2026-09-17.md](notes/artifact_index_2026-09-17.md) — what the 2026-09-17 archive contained, what was imported where, and the coverage record; proofs and figures live in `notes/gal_2026-09/`, `figures/gal_2026-09/`, `scripts/figpack_2026_09_15/`
+- [notes/archive_evidence_map_2026-09-17.md](notes/archive_evidence_map_2026-09-17.md) — every empirical claim in the archive traced to a job id, or marked SUPERSEDED / ARCHIVE-ONLY / UNTRACED
+- [notes/corrections_from_archive_2026-09-17.md](notes/corrections_from_archive_2026-09-17.md) — corrections, supersession chains, and the open conflicts between archive documents and repo files
+- [notes/next_experiment_plan.md](notes/next_experiment_plan.md) — ⚠ **STALE (2026-08-11), do not use as live state.** Pre-certificate priorities; superseded by the meeting record + APPROVER_HANDOVER + plan_audit. (The former [notes/experiment_plan.md](notes/experiment_plan.md) is SUPERSEDED — background only, kept for the DI/GB phase history; do not use its checkboxes as live state.) For the active dataset-sensitivity front see [notes/dataset_sensitivity_program_plan.md](notes/dataset_sensitivity_program_plan.md); the consolidated science-state is [notes/thesis_scientific_summary.md](notes/thesis_scientific_summary.md).
 - [notes/thesis_update_briefing.md](notes/thesis_update_briefing.md) — canonical post-meeting briefing (2026-05-14): direct weight inversion, the three additions, honesty conventions
 - [notes/unified_direction_analysis.md](notes/unified_direction_analysis.md) — direction reconciliation + "Direct Weight Inversion — New Primary Axis" section
 - [notes/reconstruction_approaches.tex](notes/reconstruction_approaches.tex) — catalog of reconstruction approaches and next steps (March 2026); Approach G is the precursor to direct weight inversion

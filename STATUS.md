@@ -1,5 +1,45 @@
 # Project Status
 
+## The 2026-09-17 archive is reconciled with the repository, and three of its numbers do not survive contact with the rows (2026-09-17; no compute)
+
+Ninety-two archived files plus seven nested bundles (526 files) were read and mapped into the repo. The
+substantive imports are the three proof notes and the text plan (`notes/gal_2026-09/`), the meeting figure pack in
+raster and vector form with its editable TikZ sources and the six compositor scripts that record how each panel
+was cut (`figures/gal_2026-09/`, `scripts/figpack_2026_09_15/`), the two archive-only records from the 2026-09-06
+results bundle (`notes/results_bundle_2026-09-06_index.md`), and the supplied CIFAR replica
+(`experiments/cifar/cifar_certificate_supplied_replica.py`). 149 of the 526 files were already here byte-identical
+and were not re-imported. Index and coverage record: `notes/artifact_index_2026-09-17.md`.
+
+**Three findings that change what may be quoted** (full table in `notes/archive_evidence_map_2026-09-17.md`):
+
+1. **The Fashion-MNIST "4 of 8" is superseded.** It is the 150-start cell, job 473802 (`landed 9/150`,
+   `landings_per_image [0,1,2,0,0,2,4,0]` — the landed columns are exactly the four the panel shows). The repo's
+   400-start re-run of the same cell reports **23/400 landed, 6 of 8** (job 556643). Quote 6/8 with its start count.
+2. **The MNIST "private-built reference" strip pairs each digit with a byte-identical copy of itself** (three
+   filenames, one sha256), and the panel carries no cue that the chart is oracle-built and **not
+   attacker-available**. The repo's later figure says so on its face; use `chart_dependence_k17.png`.
+3. **"Glyph correlations ~0.95-0.97" is UNTRACED** — no script, row or log anywhere in the archive or the repo.
+
+**Two provenance corrections.** The identifiability-note numbering is not chronological: by PDF metadata the
+content order is (5) -> base -> (1) -> (2)=(3) -> (4), so `(4)` is the latest and **the build this repo ships
+(`notes/identifiability_rank_bound.pdf`) is the oldest**, still containing five claims that `(1)` retracted and
+one that `(2)` declares false. And `CLAUDE.md`'s Gradient-Bridge sentence inherited that retracted claim
+("the released adapter is a compressed `ΔW`"); it is annotated in place rather than deleted, because the section
+is a record of a historical direction.
+
+**Meeting record.** The 2026-09-15 meeting is recorded verbatim at `notes/meeting_summary_2026-09-15.md`
+(committed by a sibling lane). Its decisions, technical scope and a prioritised backlog with question / baseline /
+measurements / success criteria for each item are now at `notes/meeting_2026-09-15_decisions_and_backlog.md`.
+The NTK conclusion the participants accepted is **scoped** to the formulation and setting discussed and must not
+be quoted as an impossibility result for NTK methods.
+
+**Four open conflicts, routed to the approver rather than settled** (`notes/corrections_from_archive_2026-09-17.md`
+§3): `theory/T4`-C5's "no quadratic cancellation found" against the archive's structural mechanism;
+`experiments/multilayer_cert/RESULTS.md` §3 attributing the `rank B_T < N'` rows to the last layer when a
+re-aggregation puts 36 of 64 at hidden layers; `theory/T5`'s stale R2 row; and three hand-computed coefficients in
+the archive marked PROVED that have never been checked numerically here.
+
+
 ## What is missing is an INITIALISER: identifiability, conditioning and basin separated on one release (2026-09-17; job 351007)
 
 The seed-known arm has nullity 0 — the truth is unique — and neither Adam (0 of 120 starts) nor Levenberg-Marquardt

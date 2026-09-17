@@ -4,6 +4,39 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## 2026-09-17 — five ways a document outlives the number it quotes (from the archive reconciliation)
+
+Reconciling 92 archived documents against the rows turned up five failure modes that have nothing to do with the
+mathematics and everything to do with how a number travels. All five are cheap to check and were all present.
+
+1. **A figure's caption freezes the run it was cut from.** The Fashion-MNIST panel says 4 of 8, which was exactly
+   right for the 150-start cell it came from (job 473802, `landings_per_image [0,1,2,0,0,2,4,0]` — the landed
+   columns are the four shown). The same cell re-run at 400 starts gives 6 of 8 (job 556643). Neither number is
+   wrong; the caption is, because it carries no start count. **Every landing fraction travels with its denominator.**
+2. **A duplicated asset can look like a perfect result.** The MNIST "private-built reference" strip pairs each
+   digit with a *byte-identical copy of itself* (three filenames, one sha256). That is consistent with the oracle
+   chart's 5.7e-14 error, so nothing is fabricated — but on the page it reads as a flawless reconstruction, with
+   no cue that the chart was built from the private digits and is not attacker-available. **Sha the panels in a
+   figure; identical bytes in a ground-truth/reconstruction pair is a label, not a result.**
+3. **A number can exist only in prose that describes a measurement.** "Glyph correlations ~0.95-0.97" appears in a
+   provenance document and in nothing else — no script, no row, no log, in the archive or the repo. This is the
+   same family as the 0.25 that was traced to a docstring. **A number sourced only to our own prose is not a
+   measurement**, and a provenance file is prose too.
+4. **File numbering is not chronology, and neither is a modification date.** Five revisions named
+   `identifiability_rank_bound(1..5)` are in content order (5) -> base -> (1) -> (2)=(3) -> (4) by PDF creation
+   metadata. The repo ships `(5)` — the *oldest* — as its copy, so the tracked PDF still contains five claims a
+   later revision retracted and one it declares false. **Order revisions by internal evidence (retraction tables,
+   producer metadata, cross-references), never by the filename or the mtime.**
+5. **A retraction propagates only as far as someone carries it.** "The released adapter is a compressed `ΔW`" was
+   marked false in August and the direction retired in `lora_plan_rev11` — and the sentence was still sitting in
+   `CLAUDE.md`, which every session reads first. **When a claim is retracted, grep the instruction files, not just
+   the notes.**
+
+A sixth, procedural: unpacking an archive into a `/tmp` scratch directory preserved the files' 2026-09-07
+timestamps, and an age-based cleaner deleted them mid-review. Re-extract with `unzip -DD` (or `touch` the tree)
+when working from an archive whose contents are older than the tmp reaper's window.
+
+
 ## A check that CANNOT FAIL is not weak evidence — it is no evidence. Three shapes in one night (2026-09-17)
 
 All three passed. None could have failed. Each was found by derivation, not by looking at the rows.

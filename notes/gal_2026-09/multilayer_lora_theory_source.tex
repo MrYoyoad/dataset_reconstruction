@@ -1,0 +1,1743 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=25mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype,amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,longtable,array,enumitem,xcolor,fancyhdr,needspace,etoolbox}
+\usepackage[colorlinks=true,linkcolor=blue!40!black,urlcolor=blue!55!black]{hyperref}
+\usepackage{setspace}\setstretch{1.09}
+\setlength{\parindent}{0pt}\setlength{\parskip}{6pt}
+\setlist{itemsep=4pt,topsep=5pt,leftmargin=*}
+\allowdisplaybreaks[1]
+\newtheoremstyle{readable}{8pt}{8pt}{\normalfont}{}{\bfseries}{.}{0.5em}{}
+\theoremstyle{readable}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}\newtheorem{example}[theorem]{Example}
+\AtBeginEnvironment{theorem}{\Needspace{7\baselineskip}}
+\AtBeginEnvironment{lemma}{\Needspace{6\baselineskip}}
+\AtBeginEnvironment{proposition}{\Needspace{6\baselineskip}}
+\AtBeginEnvironment{corollary}{\Needspace{6\baselineskip}}
+\newcommand{\R}{\mathbb R}\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\col}{\operatorname{col}}\newcommand{\row}{\operatorname{row}}
+\newcommand{\Span}{\operatorname{span}}\newcommand{\diag}{\operatorname{diag}}
+\newcommand{\norm}[1]{\left\|#1\right\|}
+\newcommand{\PP}{\mathsf{PROVED}}\newcommand{\FF}{\mathsf{FALSE}}
+\newcommand{\OO}{\mathsf{OPEN}}\newcommand{\CC}{\mathsf{CONJECTURE}}
+\newcommand{\idea}[1]{\par\textbf{The idea.} #1\par}
+\newcommand{\takeaway}[1]{\par\textbf{What to remember.} #1\par}
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{\small Understanding multilayer LoRA certificates}
+\fancyhead[R]{\small Readable edition}\fancyfoot[C]{\thepage}
+\setlength{\headheight}{15pt}
+\begin{document}
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\vspace*{12mm}
+{\Huge\bfseries Understanding multilayer\par LoRA certificates\par}
+\vspace{8mm}
+{\Large From exact certificates to trained two-layer MLPs,\par multilayer perturbations, and local identification}\par
+\vspace{10mm}
+{\large A proof-oriented guide for master's students}\par
+7 September 2026\par
+\vspace{12mm}
+\textbf{The central question}
+
+A released adapter gives equations that vanish on a private training representation. Do these equations still work when earlier adapters have moved that representation? And can several layers identify the original input?
+
+\textbf{The short answer}
+
+Yes, locally and for sufficiently short training. A standard two-layer MLP with biases provides a concrete example: with enough hidden, output, and adapter width, we prove the required excitation and tangent rank for softplus initialization, and with high probability for ReLU. The resulting certificate error is generally first order. A separate, aligned residual-network family has special cancellation and a quadratic error bound.
+
+\textbf{What has changed in this edition}
+
+This edition integrates the exact and multilayer proofs with the architecture proofs in one argument. The ordinary MLP is the main architectural anchor; ordinary weight training and two-layer LoRA are treated side by side. The residual family explains when a stronger order is possible. Every stage distinguishes rank from conditioning, and a positive local training window from a useful uniform or long-time guarantee.
+\vfill
+All numbered positive results are \(\PP\) under their stated assumptions and have complete proofs. Stronger failed claims are marked \(\FF\). Remaining questions are marked \(\OO\) or \(\CC\). This is a mathematical research note, not a literature-novelty determination.
+\end{titlepage}
+\hypersetup{pageanchor=true}\pagenumbering{roman}
+\begingroup\small\setstretch{1.0}\setlength{\parskip}{0pt}\tableofcontents\endgroup\newpage
+\pagenumbering{arabic}
+
+\section{Read this first: the argument in ordinary language}
+\label{sec:story}
+
+\subsection{What a certificate is actually saying}
+A LoRA module replaces a fixed matrix \(W^0\) by
+\[
+W^0+BA,\qquad A\in\R^{r\times d},\quad B\in\R^{m\times r}.
+\]
+The input has \(d\) coordinates. The intermediate adapter space has \(r\) coordinates. Think of \(A\) as reading the input into that smaller space, and \(B\) as writing those readings into the output.
+
+Training starts with \(B_0=0\) and a nonzero seed \(A_0\). With fixed training features, all the directions recorded in the rows of \(B\) come from the seeded training-feature span. Under sufficient recording---called \emph{excitation}---the rows of the final \(B\) span exactly that space.
+
+Now remove those recorded directions from the final \(A\). What remains is
+\[
+C=P_{\row(B_T)^\perp}A_T.
+\]
+Here \(P_{V^\perp}\) means orthogonal projection away from the subspace \(V\). The result obeys \(Ch=0\) for every training feature \(h\). That equation is the certificate. It does not give \(h\) directly: usually many inputs satisfy it.
+
+\subsection{Three different questions, not one condition}
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{31mm}p{56mm}p{60mm}@{}}
+\toprule Question & Mathematical quantity & What can go wrong?\\\midrule
+Excitation & The smallest relevant singular value of \(B_T\) & Training never records a data direction, or later updates cancel it.\\
+Certificate accuracy & Drift outside the seeded training span & The inferred subspace rotates, so a base-model feature no longer satisfies the equation exactly.\\
+Identification stability & The smallest singular value of the stacked chart Jacobian & Different inputs move almost identically under all certificate equations.\\\bottomrule
+\end{tabular}
+\end{center}
+These are genuinely different. A large singular value of \(B_T\) does not prove that the chart can be reconstructed. A full-rank chart Jacobian does not prove that the equations are accurate at the true point.
+
+\begin{minipage}{\linewidth}
+The two inequalities to keep in mind are
+\[
+\text{certificate error}\ \lesssim\
+\text{closure error}+\frac{\text{subspace leakage}}{\text{recorded signal}},
+\]
+and, locally,
+\[
+\text{location error}\ \lesssim\
+\frac{\text{certificate error}+\text{candidate residual}}
+{\text{tangent sensitivity}}.
+\]
+\end{minipage}
+The rest of this report proves these statements and then checks their ingredients in actual trained network families.
+
+\subsection{The main anchor is an ordinary two-layer MLP}
+Take \(N\) distinct inputs and any fixed labels. Let the input lie locally on an abstract smooth \(k\)-dimensional chart. Our main example is
+\[
+f(x)=V\sigma(Wx+b).
+\]
+The hidden weights, biases, and output weights start from independent Gaussian distributions. We then train either the ordinary weights or LoRA factors at both weight matrices. This is a randomly initialized base network, not a theorem about arbitrary pretrained weights.
+
+Here is what sufficient width buys:
+\begin{enumerate}
+\item \textbf{Hidden width separates data from local motion.} With softplus and hidden width \(n\ge N+k\), the training features and the \(k\) tangent directions at each example are jointly independent almost surely. A ReLU version holds with high probability under a data-dependent width bound.
+\item \textbf{Output width permits excitation.} With at least \(N\) outputs, the initial output error has full column rank almost surely, even for arbitrary fixed labels. Its first gradient records every training-feature direction.
+\item \textbf{LoRA width leaves equations unused by the data.} At the second layer, \(r\ge N+k\) lets the seed preserve both the data and its transverse tangents. Under the usual convention \(r\le\min(n,p)\), this also requires output width \(p\ge r\).
+\item \textbf{Short training preserves these strict margins.} A finite-time estimate controls the actual joint trajectory. The certificate has \(O(\tau)\) error, where \(\tau\) is the sum of the gradient-descent step sizes. Its tangent Jacobian remains injective for a positive, possibly initialization-dependent interval.
+\end{enumerate}
+The theorem does not assume that training leaves the hidden features fixed. Their movement is precisely the perturbation being controlled. It also does not say that these dimension inequalities alone give a numerically large stability margin.
+
+\subsection{Why retain the residual family?}
+It answers a different question: \emph{can first-order error cancel for structural reasons?} An identity-initialized residual trunk, a separating polynomial stem, and aligned squared-loss targets provide such a mechanism. We prove \(O(\tau^2)\) certificate error there, with explicit constants and a conservative high-probability training window. Its independently seeded layers can also share the tangent-equation budget.
+
+Thus the MLP is the familiar first-order anchor; the residual family is the stronger, more specialized quadratic anchor. Neither theorem supersedes the general multilayer bound. The chart \(G\) remains abstract in both: a polynomial \emph{network feature stem} is not a proposed generative chart.
+
+\subsection{How to read the proofs}
+Sections~\ref{sec:single}--\ref{sec:drift} establish the exact certificate and its multilayer replacement. Section~\ref{sec:time} supplies one common training estimate. Section~\ref{sec:mlp} verifies all three conditions for two-layer MLPs, including ordinary training, LoRA, ReLU, and a sharp smooth counterexample. Sections~\ref{sec:poly}--\ref{sec:openfamily} develop the special quadratic residual family. Sections~\ref{sec:rank}--\ref{sec:shared} prove cross-layer rank, local stability, and shared-concept identification. The ledger states the final scope; Appendix~\ref{app:orders} records the longer first- and second-order formulas.
+
+Only three kinds of subspace occur repeatedly: the training-feature span in input coordinates, its image under the seed in adapter coordinates, and the row space inferred from the release. Keeping these distinct is most of the notation battle.
+
+\section{The exact single-layer theorem}
+\label{sec:single}
+
+\subsection{Notation and assumptions}
+All spaces are real and finite dimensional. Unless a subscript \(F\) is shown, matrix norms are operator norms and vector norms are Euclidean. A Frobenius norm is the Euclidean norm of all matrix entries. For a gap comparison, singular values beyond the smaller matrix dimension are interpreted as zero. Symbols introduced inside one proof or constant table are local to that argument.
+
+Let \(H\in\R^{d\times N}\) collect fixed training features. Write
+\[
+\mathcal U=\col H,\qquad q=\rank H,
+\]
+and let \(U\in\R^{d\times q}\) have orthonormal columns spanning \(\mathcal U\).
+\textbf{The number \(q\) is a rank, not a number of examples.} For instance, \([e_1,2e_1]\) has two columns but rank one. At a convolutional or tokenwise module, columns may be patches or tokens rather than whole examples.
+
+At step \(t\), let \(H_t=UR_t\) be the inputs used in that update and let \(D_t\) be the derivative of the loss with respect to the module output. We assume an untied module in a differentiable feedforward network, and simultaneous updates
+\begin{align}
+B_{t+1}&=\beta_t B_t-\eta_t^B D_tH_t^TA_t^T,\label{eq:Bg}\\
+A_{t+1}&=\alpha_t A_t-\eta_t^A B_t^TD_tH_t^T.\label{eq:Ag}
+\end{align}
+All factors on the right are the old iterates. The scalars \(\alpha_t,\beta_t\) allow scalar decay. Plain gradient descent has both equal to one. No convergence assumption is made.
+
+These gradients follow from
+\(d[(W^0+BA)H]=(dB)AH+B(dA)H\) and the trace definition of a matrix gradient. Dependence of \(H_t\) on upstream parameters is handled by those parameters' updates; it does not change this module's partial gradient.
+
+\subsection{Why training cannot create arbitrary adapter directions}
+Define
+\[
+X=A_0U,\qquad S=\col X,\qquad c_0=1,\quad c_{t+1}=\alpha_tc_t.
+\]
+Thus \(\mathcal U\subseteq\R^d\), while \(S\subseteq\R^r\).
+
+\begin{theorem}[Exact closure and certificate; \(\PP\)]\label{thm:exact}
+Assume \(B_0=0\), all update inputs lie in \(\mathcal U\), and updates obey \eqref{eq:Bg}--\eqref{eq:Ag}. Then there are matrices \(Q_t,M_t\) such that
+\[
+B_t=Q_tX^T,\qquad A_t=c_tA_0+XM_tU^T.
+\]
+Let \(p=\rank X\). If \(\rank B_T=p\), then
+\[
+C=P_{\row(B_T)^\perp}A_T=c_TP_{S^\perp}A_0,
+\qquad C\mathcal U=0.
+\]
+If also \(c_T\ne0\), \(\rank A_0=r\), and \(p=q\), then
+\[
+\rank C=r-q,\qquad \ker C=\mathcal U\oplus\ker A_0.
+\]
+The direct sum need not be orthogonal.
+\end{theorem}
+\idea{Prove that both updates stay in a closed algebraic family. Excitation then identifies the family from the released \(B_T\).}
+\begin{proof}
+\textbf{Step 1: check the form at initialization.} Take \(Q_0=M_0=0\).
+
+\textbf{Step 2: show one update preserves the form.} If the claimed forms hold at time \(t\), then
+\[
+A_tH_t=X(c_tI+M_t)R_t.
+\]
+Substitution into the two updates gives
+\begin{align*}
+Q_{t+1}&=\beta_tQ_t-\eta_t^BD_tR_t^T(c_tI+M_t)^T,\\
+M_{t+1}&=\alpha_tM_t-\eta_t^AQ_t^TD_tR_t^T.
+\end{align*}
+Induction proves the closure formulas.
+
+\textbf{Step 3: use excitation.} Closure implies \(\row B_T\subseteq S\). Both spaces have dimension \(p\), so they are equal. Projecting \(A_T\) perpendicular to \(S\) removes the entire update term \(XM_TU^T\). This proves the formula for \(C\). In particular \(CU=0\), since \(A_0U=X\).
+
+\textbf{Step 4: count the remaining equations.} When \(c_T\ne0\),
+\[
+Cv=0\iff A_0v\in A_0\mathcal U
+\iff v\in\mathcal U+\ker A_0.
+\]
+The equality \(p=q\) says that \(A_0\) is injective on \(\mathcal U\), making this sum direct. Its dimension is \(q+d-r\), so rank--nullity gives \(\rank C=r-q\).
+\end{proof}
+\takeaway{The annihilation theorem needs excitation of the \emph{seeded} span. The advertised \(r-q\) equation budget additionally needs seed injectivity and full row rank. It does not need an invertible within-span training deformation.}
+
+At the first adapted module, deterministic preprocessing and frozen upstream base weights keep its inputs fixed, so this theorem applies exactly. Training later layers changes its error matrices \(D_t\), but the proof already allows arbitrary such errors. The difficulty at later adapted modules is the movement of their \emph{inputs}, not downstream training by itself.
+
+\subsection{Minimal failures that explain the assumptions}
+\textbf{\(\FF\): rank-one LoRA gives one useful equation.} If \(r=1\) and \(B_T\ne0\), then \(\row B_T=\R\), so \(C=0\). A nontrivial one-direction certificate needs \(r\ge2\).
+
+\textbf{\(\FF\): some recorded signal implies full excitation.} Let \(A_0=I_3\), \(H=[e_1,e_2]\), and use one squared-loss step at a zero scalar-output base module with targets \([1,0]\). With unit step size,
+\[
+B_1=(1,0,0),\qquad A_1=I_3,\qquad Ce_2=e_2.
+\]
+One direction is recorded; the other is not. Here \(q=2\), although \(\sigma_1(B_1)=1\).
+
+\textbf{\(\PP\): output structure can cap excitation.} If \(\mathbf1^TD_t=0\) at every step, multiplying \eqref{eq:Bg} on the left by \(\mathbf1^T\) proves inductively that \(\mathbf1^TB_t=0\). Therefore \(\rank B_T\le m-1\). Softmax cross-entropy has this property at its logits because predicted and target probabilities both sum to one. This is a cap on \(q\), not on the number of images.
+
+\textbf{\(\FF\): any optimizer preserves the theorem.} With \(A_0=I_2\) and input \((1,2)^T\), a coordinatewise sign update records direction \((1,1)\), not \((1,2)\). Its projected certificate fails to annihilate the input. Scalar combinations of gradients preserve the closure by linearity; coordinatewise transformations need not.
+
+\textbf{Release boundary.} Always \(BC=0\), because \(B\) kills its row-space complement. If a released update is refactorized as \(B'A'\) with \(B'\) full column rank, its corresponding certificate is zero. This theorem concerns the raw trained factors, not every factorization of the same function.
+
+\section{What changes at later layers?}
+\label{sec:drift}
+
+\subsection{An exact theorem still exists, but its span can grow}
+At a later layer let \(H^0\) contain base-network features and let \(H_t\) contain actual training-time features. Put every column of \(H^0,H_0,\ldots,H_{T-1}\) into one span \(\mathcal U_{\rm tr}\).
+
+\begin{corollary}[Exact trajectory certificate; \(\PP\)]\label{cor:trajectory}
+Under the local update assumptions of Theorem~\ref{thm:exact}, if
+\(\rank B_T=\dim(A_0\mathcal U_{\rm tr})=p\), then
+\[
+C=c_TP_{(A_0\mathcal U_{\rm tr})^\perp}A_0,
+\qquad CH^0=CH_t=0.
+\]
+If \(A_0\) has full row rank and \(c_T\ne0\), its rank is \(r-p\).
+\end{corollary}
+\begin{proof}
+Apply Theorem~\ref{thm:exact} to \(\mathcal U_{\rm tr}\). The projection of a surjective map \(A_0\) onto a space of dimension \(r-p\) remains surjective onto that space, proving the rank statement.
+\end{proof}
+Arbitrarily small new directions can enlarge this span. Therefore exactness can become uninformative even when an approximate, truncated certificate remains informative.
+
+\subsection{Measure only the drift that can damage the certificate}
+Fix the \emph{base} span \(\mathcal U=\col H^0\), assume \(1\le q=\dim\mathcal U=\rank(A_0U)<r\), and write
+\[
+P=P_{A_0\mathcal U},\qquad P^\perp=I-P.
+\]
+The three quantities we need are
+\begin{align*}
+Z_t&=B_tP^\perp &&\text{recording outside the intended seeded span},\\
+E_t&=P^\perp(A_t-c_tA_0)&&\text{failure of the projected \(A\)-closure},\\
+W_t&=c_tP^\perp A_0H_t&&\text{seed-visible representation drift}.
+\end{align*}
+The last expression is zero on all base features. Drift inside \(\mathcal U\), or inside \(\mathcal U+\ker A_0\), does not directly force an error.
+
+\begin{lemma}[The two leakage equations; \(\PP\)]\label{lem:leak}
+For arbitrary training-time inputs under \eqref{eq:Bg}--\eqref{eq:Ag},
+\begin{align}
+Z_{t+1}&=\beta_tZ_t-\eta_t^BD_t(E_tH_t+W_t)^T,\label{eq:leakZ}\\
+E_{t+1}&=\alpha_tE_t-\eta_t^AZ_t^TD_tH_t^T,\label{eq:leakE}
+\end{align}
+and \(Z_0=E_0=0\).
+\end{lemma}
+\begin{proof}
+First note \(P^\perp A_tH_t=E_tH_t+W_t\). Right-project the \(B\)-update to obtain \eqref{eq:leakZ}. Subtract \(c_{t+1}A_0=\alpha_tc_tA_0\) from the \(A\)-update and left-project; use \(P^\perp B_t^T=Z_t^T\) to obtain \eqref{eq:leakE}. Both quantities vanish initially.
+\end{proof}
+\idea{Drift first forces \(Z\); leakage in \(B\) then feeds back into \(A\). The equations distinguish these mechanisms instead of hiding them in one error symbol.}
+
+For plain gradient descent with the same nonnegative step \(\eta_t\) for both factors, let
+\(d_t=\norm{D_t}\), \(h_t=\norm{H_t}\), and \(w_t\ge\norm{W_t}\). Then
+\begin{equation}\label{eq:major}
+\norm{Z_T}+\norm{E_T}
+\le e^{\sum_t\eta_td_th_t}\sum_t\eta_td_tw_t.
+\end{equation}
+Indeed, taking norms in the two leakage equations and adding gives the scalar recurrence
+\(u_{t+1}\le(1+\eta_td_th_t)u_t+\eta_td_tw_t\), initially zero. Iteration and \(1+x\le e^x\) prove \eqref{eq:major}.
+
+For unequal steps or scalar decay, a fully explicit alternative is the two-component recurrence
+\[
+\binom{z_{t+1}}{a_{t+1}}=
+\begin{pmatrix}|\beta_t|&|\eta_t^B|d_th_t\\|\eta_t^A|d_th_t&|\alpha_t|\end{pmatrix}
+\binom{z_t}{a_t}+\binom{|\eta_t^B|d_tw_t}{0},
+\]
+with \(z_0=a_0=0\). The same norm inequalities and induction prove \(\norm{Z_t}\le z_t\), \(\norm{E_t}\le a_t\).
+
+\subsection{Turning leakage into a subspace-angle bound}
+\begin{lemma}[A directly verifiable singular-space estimate; \(\PP\)]\label{lem:angle}
+Let \(P\) be an orthogonal rank-\(q\) projector, let \(b=\sigma_q(B)>0\), and let \(\widetilde P\) project onto the top \(q\) right singular vectors of \(B\). Then
+\[
+\norm{P-\widetilde P}\le\frac{\norm{BP^\perp}}b,
+\qquad \sigma_{q+1}(B)\le\norm{BP^\perp}.
+\]
+If \(\norm{BP^\perp}<b\), this top singular subspace is separated and unique.
+\end{lemma}
+\begin{proof}
+Write the top singular-vector relation as \(B^T\widetilde U=\widetilde V\Sigma\). Project and solve:
+\[
+P^\perp\widetilde V=P^\perp B^T\widetilde U\Sigma^{-1}.
+\]
+Its norm is at most \(\norm{BP^\perp}/b\). For two subspaces of the same dimension, this norm equals the norm of the difference of their projectors. To see why, choose principal-angle coordinates: on each two-dimensional principal plane the projector difference has eigenvalues \(\pm\sin\theta\), and the cross-projection has singular value \(\sin\theta\). Common or perpendicular directions give the same identity at the endpoints.
+
+Finally \(BP\) has rank at most \(q\) and approximates \(B\) with error \(\norm{BP^\perp}\). Equivalently, choose \(\col P\) in the variational formula for \(\sigma_{q+1}\). This proves the second inequality and the claimed separation.
+\end{proof}
+This is the part of singular-subspace perturbation theory needed here; its hypotheses have just been checked directly. An observed gap \emph{without} a leakage estimate would not identify the desired private subspace.
+
+\begin{theorem}[The general multilayer certificate bound; \(\PP\)]\label{thm:perturb}
+At any layer, use the definitions and update assumptions above. Suppose
+\(\norm{Z_T}\le z\), \(\norm{E_T}\le a\), and \(b=\sigma_q(B_T)>z\).
+Define the released truncated and ideal certificates by
+\[
+\widetilde C=(I-\widetilde P_T)A_T,
+\qquad C^\circ=c_TP^\perp A_0.
+\]
+Then
+\begin{align}
+\norm{\widetilde C H^0}
+&\le a\norm{H^0}+\frac zb\norm{PA_TH^0},\label{eq:resbound}\\
+\norm{\widetilde C-C^\circ}
+&\le a+\frac zb\norm{A_T}.\label{eq:opbound}
+\end{align}
+The singular subspace is uniquely defined. These statements hold at every layer satisfying its local hypotheses, even when all layers train jointly.
+\end{theorem}
+\begin{proof}
+Because \(C^\circ H^0=0\), we have \(P^\perp A_TH^0=E_TH^0\). Split \(A_TH^0\) into its \(P\) and \(P^\perp\) parts, project by \(I-\widetilde P_T\), and apply Lemma~\ref{lem:angle}. This gives \eqref{eq:resbound}. For the operator bound, use the exact identity
+\[
+\widetilde C-C^\circ=E_T+(P-\widetilde P_T)A_T.
+\]
+The triangle inequality proves \eqref{eq:opbound}. The proof used the actual local errors \(D_t\), with no independence assumption on their origin, so it applies to coupled layers.
+\end{proof}
+The operator bound is important: a small residual on the training points alone does not control the derivative on a chart.
+
+\subsection{First order is the general answer, not a defect in the proof}
+For a fixed finite horizon with uniformly bounded factors, errors and steps, seed-visible drift \(O(\varepsilon)\) gives \(z,a=O(\varepsilon)\). If also \(b\ge b_0>0\), the theorem gives \(O(\varepsilon)\) error. Drift \(O(\varepsilon^2)\) gives a quadratic bound under the same uniform gap assumption. Zero forcing gives zero leakage by induction.
+
+\begin{example}[A genuine first-order residual; universal quadratic cancellation is \(\FF\)]\label{ex:first}
+Use one input \(x=1\), target \(1\), and loss \((f-1)^2/2\), where
+\[
+h=e_1+ba,\qquad f=(e_2^T+vA)h.
+\]
+The upstream adapter has rank one: initially \(b=0,a=1\). The observed adapter has rank two: initially \(v=0,A=I_2\). Train both layers simultaneously for two steps, with upstream step \(\varepsilon\) and observed-layer step \(\eta\).
+
+The first update gives
+\(b_1=\varepsilon e_2,\ a_1=1,\ v_1=\eta e_1^T,\ A_1=I\).
+The next error is \(d_1=\eta+\varepsilon-1\), so the second observed update is exactly
+\begin{align*}
+v_2&=\eta(2-\eta-\varepsilon)e_1^T
++\eta\varepsilon(1-\eta-\varepsilon)e_2^T,\\
+A_2&=I+\eta^2(1-\eta-\varepsilon)e_1(e_1+\varepsilon e_2)^T.
+\end{align*}
+These formulas follow directly from \(\nabla_vL=d(Ah)^T\) and \(\nabla_AL=v^Tdh^T\); the upstream drift is produced by the same loss, not imposed externally.
+
+Set \(\eta=1/2\), write \(v_2=(u,w)\), and put
+\[
+u=\tfrac34-\tfrac12\varepsilon,\quad
+w=\tfrac14\varepsilon-\tfrac12\varepsilon^2,\quad
+a_*=\tfrac98-\tfrac14\varepsilon.
+\]
+Projection away from this row gives
+\[
+Ce_1=\frac{a_*}{u^2+w^2}\binom{w^2}{-uw}
+=-\tfrac38\varepsilon e_2
++\varepsilon^2\left(\tfrac18e_1+\tfrac7{12}e_2\right)+O(\varepsilon^3).
+\]
+For the expansion, divide by \(u^2\) and use
+\(w/u=\varepsilon/3-4\varepsilon^2/9+O(\varepsilon^3)\).
+The limiting signal is \(3/4\), and \(P_{e_1^\perp}(A_2-A_0)=0\). Thus rotation alone creates the first-order error. Its squared norm is second order; the residual vector is not.
+\end{example}
+
+\textbf{Why the gap cannot be omitted.} In the same formulas, take \(\eta=2\). Then
+\[
+v_2=-2\varepsilon(1,1+\varepsilon),\qquad
+A_2e_1=(-3-4\varepsilon)e_1.
+\]
+The drift tends to zero, but \(Ce_1\to(-3/2,3/2)^T\). The two recorded contributions cancel at \(\varepsilon=0\); the remaining signal is only \(O(\varepsilon)\).
+
+\textbf{Why truncation matters.} For \(B_\varepsilon=\diag(1,\varepsilon)\) and \(A=I\), projection away from the entire row space gives zero whenever \(\varepsilon\ne0\). The top-one construction instead keeps \(\diag(0,1)\). Tiny extra singular directions should not automatically be counted as fully excited directions.
+
+\textbf{Why time and depth cannot disappear.} Even with a fixed gap, inputs \(h_t=e_1+\varepsilon d_te_2\), frozen \(A=I\), errors \(d_t\in\{-1,1\}\), unit steps, and \(\sum_td_t=1\) give \(B_T=-e_1^T-T\varepsilon e_2^T\). The residual on \(e_1\) is \(T\varepsilon/\sqrt{1+T^2\varepsilon^2}\), not uniformly small when \(T\varepsilon=1\). These errors are gradients of smooth step-dependent linear losses; this example refutes an unrestricted pathwise, horizon-free assertion, not a claim about one fixed squared loss. Likewise a drift followed by \(j\) scalar maps of slope \(a>1\) is multiplied by \(a^j\).
+
+\section{One training estimate for all the architecture proofs}
+\label{sec:time}
+
+The general perturbation theorem takes a trajectory as input. To obtain a theorem about an actual trained network, we must produce that control. For short training, the initial gradient does most of the work. The following estimate concerns \emph{total step size}, not a continuous-time limit and not just one update.
+
+\begin{lemma}[Finite total-time Taylor estimate; \(\PP\)]\label{lem:time}
+Let a \(C^2\) loss have gradient norm at most \(g>0\) and Hessian norm at most \(M>0\) throughout the closed parameter ball of radius \(\rho>0\) centered at \(\theta_0\), with the loss defined on a neighborhood of that ball. For simultaneous gradient descent with nonnegative steps, put
+\[
+\tau_t=\sum_{u<t}\eta_u,\qquad \tau=\tau_T.
+\]
+If \(\tau\le\rho/(2g)\), all iterates stay in the ball and
+\begin{equation}\label{eq:time}
+\norm{\theta_t-\theta_0+\tau_t\nabla\mathcal L(\theta_0)}
+\le K\tau_t^2,\qquad K=Mg/2.
+\end{equation}
+The parameter norm is the Euclidean norm of all entries, equivalently the joint Frobenius norm of the trained matrix blocks.
+\end{lemma}
+\begin{proof}
+\textbf{Step 1: keep the iterates inside the controlled region.} Starting at the center, sum the lengths of the updates. Inductively the next iterate is at distance at most \(g\tau_{t+1}\le\rho/2\), so the gradient bound remains applicable.
+
+\textbf{Step 2: subtract motion in the initial gradient direction.} The Hessian bound on the convex ball gives
+\(\norm{\nabla\mathcal L(\theta_t)-\nabla\mathcal L(\theta_0)}\le Mg\tau_t\).
+Summing the update equations after subtracting the constant initial gradient bounds the remainder by
+\[
+Mg\sum_{u<t}\eta_u\tau_u
+=\frac{Mg}{2}\left(\tau_t^2-\sum_{u<t}\eta_u^2\right)
+\le K\tau_t^2.
+\]
+This proves the claim for every number of steps.
+\end{proof}
+Positive upper bounds \(g,M\) can always be enlarged, even when a derivative happens to vanish. For a smooth finite-dimensional network they are finite on every compact parameter ball. This alone proves existence of a local window; obtaining a useful \emph{uniform} window requires quantitative control of them and of the rank margins.
+
+\begin{proposition}[General short-time LoRA certificate; \(\PP\)]\label{prop:generalshort}
+Consider a fixed smooth feedforward network with untied LoRA modules, fixed base weights, \(B_{\ell,0}=0\), and a fixed full-batch loss. Train all factors with common simultaneous nonnegative steps, without decay, under Lemma~\ref{lem:time}'s bounds. At a selected layer, assume the base features have rank \(q_\ell<r_\ell\), the seed is injective on their span, and the initial gradient
+\[
+G_\ell=D_{\ell,0}(H_\ell^0)^TA_{\ell,0}^T
+\]
+has rank \(q_\ell\), with \(\sigma_{q_\ell}(G_\ell)\ge\gamma>0\). Let \(a_0\) bound the selected seed norms. If
+\[
+0<\tau\le\min\{\rho/(2g),\gamma/(4K)\},
+\]
+then the top-\(q_\ell\) right singular subspace of \(B_{\ell,T}\) is separated, and its certificate satisfies
+\begin{equation}\label{eq:generalshort}
+\norm{\widetilde C_\ell-C_\ell^\circ}
+\le e(\tau):=K\tau^2+\frac{2a_0K}{\gamma}\tau,
+\qquad
+C_\ell^\circ=P_{(A_{\ell,0}\col H_\ell^0)^\perp}A_{\ell,0}.
+\end{equation}
+For a fixed chart, put \(K_\ell=D(\Phi_\ell^0\circ G)(z^\star)\). If the ideal stacked Jacobian has least singular value \(\mu>0\), the actual stacked Jacobian has least singular value at least
+\[
+\mu-e(\tau)\left(\sum_\ell\norm{K_\ell}^2\right)^{1/2}.
+\]
+When this is positive, the local conclusions of Theorem~\ref{thm:local} apply under its regularity assumptions.
+\end{proposition}
+\begin{proof}
+Every initial \(A\)-gradient is zero because its own \(B\) is zero. Lemma~\ref{lem:time} gives
+\[
+A_{\ell,T}=A_{\ell,0}+R_A,\qquad
+B_{\ell,T}=-\tau G_\ell+R_B,\qquad
+\norm{R_A},\norm{R_B}\le K\tau^2.
+\]
+The row space of \(G_\ell\) is contained in the seeded base span, and equality follows from the rank assumption. Hence the signal is at least \(\gamma\tau-K\tau^2\), while off-subspace leakage is at most \(K\tau^2\). On the stated interval the former is larger. Lemma~\ref{lem:angle} bounds the projector error by \(2K\tau/\gamma\).
+
+Writing \(P_\ell\) for the ideal projector and \(\widetilde P_\ell\) for the inferred one,
+\[
+\widetilde C_\ell-C_\ell^\circ
+=(I-\widetilde P_\ell)(A_{\ell,T}-A_{\ell,0})
++(P_\ell-\widetilde P_\ell)A_{\ell,0}.
+\]
+This proves \eqref{eq:generalshort}. Each Jacobian block changes by norm at most \(e(\tau)\norm{K_\ell}\); squaring and summing bounds the stacked operator change by the displayed amount. The reverse triangle inequality on every unit tangent vector proves the singular-value bound.
+\end{proof}
+\takeaway{The first recorded signal is of size \(\tau\), but its leakage can be of size \(\tau^2\). Dividing leakage by signal gives an \(O(\tau)\) angle, not an \(O(\tau^2)\) angle. This division is why a second-order parameter remainder usually yields only a first-order certificate.}
+
+\section{The main architectural anchor: a two-layer MLP}
+\label{sec:mlp}
+
+\subsection{The model, the widths, and the claim in plain language}
+We now verify the conditions instead of assuming a successful terminal certificate. The activation will first be softplus,
+\[
+\sigma(s)=\log(1+e^s),
+\]
+applied coordinatewise. It is smooth, nonlinear, and approaches ReLU under a scaling used in the proof. A separate argument below handles ReLU itself.
+
+Fix \(N\ge1\) distinct inputs \(x_i\in\R^d\), arbitrary labels \(Y\in\R^{p\times N}\), and a \(C^2\) chart \(G\) with
+\[
+G(z_i^\star)=x_i,\qquad T_i=DG(z_i^\star)\in\R^{d\times k},
+\qquad \rank T_i=k,\quad 1\le k\le d.
+\]
+All these objects are fixed independently of the initialization. Separate local charts of the same dimension are equally allowed. The hidden width is \(n\); the output dimension is \(p\). Draw the entries of \(W_0\in\R^{n\times d}\), \(b_0\in\R^n\), and \(V_0\in\R^{p\times n}\) independently from standard Gaussian distributions. The two training protocols are:
+\begin{align}
+\text{ordinary training:}\quad
+f_t(x)&=V_t\sigma(W_tx+b_t),\label{eq:fullmlp}\\
+\text{two-layer LoRA:}\quad
+f_t(x)&=(V_0+B_{2,t}A_{2,t})
+\sigma\bigl((W_0+B_{1,t}A_{1,t})x+b_0\bigr).
+\label{eq:loramlp}
+\end{align}
+In \eqref{eq:fullmlp}, train \(W,b,V\). In \eqref{eq:loramlp}, keep \(W_0,b_0,V_0\) fixed and train all four adapter factors. The first adapter may have any conventional rank \(1\le r_1\le\min(n,d)\), with any finite seed \(A_{1,0}\). Both \(B\)'s start at zero. The second seed \(A_{2,0}\in\R^{r\times n}\) has independent standard Gaussian entries, independently of the base network. A fixed first seed, or an additional independent random first seed, is sufficient.
+
+Both protocols use the same fixed squared loss
+\[
+\mathcal L(\theta)=\tfrac12\sum_{i=1}^N\norm{f_\theta(x_i)-y_i}^2
+\]
+and simultaneous full-batch gradient descent with common nonnegative steps, no decay, and total step size \(\tau>0\). The base feature map and its local derivatives are
+\[
+h^0(x)=\sigma(W_0x+b_0),\quad
+H=[h^0(x_1),\ldots,h^0(x_N)],\quad
+K_i=D(h^0\circ G)(z_i^\star).
+\]
+The matrices have sizes \(H:n\times N\) and \(K_i:n\times k\).
+
+\begin{center}
+\begin{tabular}{@{}p{37mm}p{102mm}@{}}
+\toprule Protocol & Sufficient dimension assumptions\\\midrule
+Ordinary training & \(n\ge N+k\), \(p\ge N\).\\
+Conventional LoRA & \(n\ge r\ge N+k\), \(p\ge r\). Here ``conventional'' means \(r\le\min(n,p)\).\\\bottomrule
+\end{tabular}
+\end{center}
+These are sufficient, not necessary, conditions for identification from the \emph{second layer alone}. For one example on a one-dimensional chart, conventional LoRA allows \(n=r=p=2\); for two examples on such a chart, \(n=r=p=3\) suffices. The first-layer adapter can still have rank one. The case \(r=1\) at the \emph{observed second layer} is different: its excited certificate is zero.
+
+The proof has three parts: hidden neurons separate the data from its tangents; the output gradient records the data; short training preserves the resulting equations. Only the last part involves a small training time.
+
+\subsection{Hidden width separates the data from tangent motion}
+\begin{theorem}[Softplus feature and tangent rank; \(\PP\)]\label{thm:mlpfeatures}
+Under the fixed-data, chart, and Gaussian hidden-initialization assumptions above, if \(n\ge N+k\), then almost surely, simultaneously for all \(i\),
+\[
+\rank[H\ K_i]=N+k.
+\]
+Consequently \(q:=\rank H=N\), and, with \(\mathcal U=\col H\),
+\[
+\rank(P_{\mathcal U^\perp}K_i)=k.
+\]
+\end{theorem}
+\idea{A hidden neuron supplies one row of values and derivatives. We first prove that possible rows span all \(N+k\) coordinates. Analyticity then turns existence of a nonzero determinant into an almost-sure statement.}
+\begin{proof}
+\textbf{Step 1: write down one neuron's row.} At example \(i\), a neuron with parameters \((w,b)\) contributes
+\[
+u_i(w,b)=\bigl(\sigma(w^Tx_1+b),\ldots,\sigma(w^Tx_N+b),
+\ \sigma'(w^Tx_i+b)w^TT_i\bigr).
+\]
+Thus \([H\ K_i]\) consists of \(n\) independent rows of this form.
+
+\textbf{Step 2: the corresponding ReLU rows span the whole space.} Suppose a vector \((a_1,\ldots,a_N,v)\), with \(v\in\R^k\), annihilates every possible ReLU row away from zero preactivations. Then
+\begin{equation}\label{eq:relurelation}
+\sum_{j=1}^N a_j(w^Tx_j+b)_+
++\mathbf1_{\{w^Tx_i+b>0\}}w^TT_iv=0.
+\end{equation}
+Choose \(w\) so that the numbers \(w^Tx_j\) are distinct; the excluded set is a finite union of proper hyperplanes, because the inputs are distinct. As \(b\) varies between successive thresholds \(-w^Tx_j\), the left side is affine in \(b\) and identically zero. Its slope is the sum of the active \(a_j\)'s. Each threshold switches just one coefficient, so successive zero slopes imply every \(a_j=0\). Taking \(b\) large now gives \(w^TT_iv=0\). This holds for every \(w\) outside the excluded hyperplanes, a dense set. Continuity implies \(T_iv=0\), and immersion implies \(v=0\). There is no nonzero annihilator, which proves spanning.
+
+\textbf{Step 3: softplus rows also span the whole space.} For every \(s\ne0\),
+\[
+\frac{\sigma(ts)}t\longrightarrow s_+,
+\qquad \sigma'(ts)\longrightarrow\mathbf1_{\{s>0\}}
+\quad (t\to\infty).
+\]
+It follows that \(u_i(tw,tb)/t\) tends to the ReLU row whenever none of the training preactivations is zero. A universal linear relation among softplus rows would therefore give \eqref{eq:relurelation}. Step 2 rules it out.
+
+\textbf{Step 4: turn spanning into probability one.} Spanning supplies \(N+k\) choices of neuron parameters whose square row matrix has nonzero determinant. That determinant is a real-analytic function of those parameters and is not identically zero. A nonzero real-analytic function on \(\R^m\) has a Lebesgue-null zero set. For completeness, this follows by induction on \(m\): in one variable its zeros are isolated unless it vanishes identically. In higher dimension choose a constant last coordinate for which the remaining-variable slice is not identically zero. The induction hypothesis makes that slice's zero set null. Outside it, the one-variable fibers are not identically zero and have null zero sets; Fubini's theorem finishes the argument on bounded boxes and then on \(\R^m\).
+
+The Gaussian law has a density. Hence the first \(N+k\) random rows have a nonzero determinant almost surely. Extra rows cannot lower rank. Intersecting these probability-one events over the finite set of examples proves the simultaneous statement.
+
+\textbf{Step 5: interpret the rank.} The augmented rank forces \(H\) to have \(N\) independent columns. Removing the components of \(K_i\) already in \(\col H\) gives
+\[
+\rank[H\ K_i]=\rank H+\rank(P_{\mathcal U^\perp}K_i),
+\]
+because the two remaining column spaces are perpendicular. This proves the conclusions.
+\end{proof}
+\takeaway{Here, and only after this proof, we may replace feature rank \(q\) by example count \(N\). The theorem is stronger than feature independence: it also says that no chart tangent can be imitated by a combination of training features.}
+
+\subsection{Output width gives excitation; LoRA width preserves the tangents}
+Set
+\[
+D_0=V_0H-Y.
+\]
+This is the initial output error. To keep the two protocols visibly parallel, define
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{25mm}>{\raggedright\arraybackslash}p{54mm}>{\raggedright\arraybackslash}p{62mm}@{}}
+\toprule & Ordinary training & Two-layer LoRA\\\midrule
+Recorded matrix & \(R_T=V_T-V_0\) & \(B_{2,T}\)\\
+First gradient \(M_0\) & \(D_0H^T\) & \(D_0(A_{2,0}H)^T\)\\
+Ideal span \(S\) & \(\col H\subseteq\R^n\) & \(\col(A_{2,0}H)\subseteq\R^r\)\\
+Ideal certificate \(C^\circ\) & \(P_{S^\perp}\) & \(P_{S^\perp}A_{2,0}\)\\\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{proposition}[The two positive initialization margins; \(\PP\)]\label{prop:mlpmargins}
+Under the softplus setup and the sufficient widths stated above, almost surely
+\[
+\gamma:=\sigma_N(M_0)>0,\qquad
+\mu:=\min_i\sigma_{\min}(C^\circ K_i)>0.
+\]
+In both protocols \(M_0\) has rank \(N\), its row space is exactly \(S\), and \(C^\circ H=0\). The result allows every fixed label matrix \(Y\) independent of initialization.
+\end{proposition}
+\begin{proof}
+\textbf{Step 1: the initial error has full column rank.} Condition on a hidden initialization for which \(H\) has rank \(N\). Each row of \(V_0H\) is a Gaussian vector in \(\R^N\) with positive-definite covariance \(H^TH\). The rows are independent. Subtracting the fixed labels preserves a joint density on \(\R^{p\times N}\). For \(p\ge N\), rank-deficient matrices form a null set: the determinant of their first \(N\) rows is a nonzero polynomial and its zero set is null by the analytic argument above. Thus \(\rank D_0=N\) almost surely.
+
+\textbf{Step 2: prove excitation.} In ordinary training, both \(D_0\) and \(H\) have full column rank, so \(D_0H^T\) has rank \(N\). For LoRA, an independent Gaussian \(A_{2,0}\) is injective on any fixed subspace of dimension at most \(r\), almost surely. Indeed, in an orthonormal basis of a subspace of dimension \(s\le r\), its restriction is an \(r\times s\) Gaussian matrix; a square \(s\)-minor is nonsingular almost surely. Apply this to \(\col H\), conditional on the hidden network. Then \(A_{2,0}H\) has full column rank and \(D_0(A_{2,0}H)^T\) has rank \(N\). The row space is contained in \(S\), and matching dimensions give equality. Finite-rank matrices have positive smallest nonzero singular value, proving \(\gamma>0\).
+
+\textbf{Step 3: prove tangent sensitivity.} In ordinary training, Theorem~\ref{thm:mlpfeatures} already makes \(C^\circ K_i\) injective. In LoRA, apply the same Gaussian restriction argument to each space \(\col[H\ K_i]\), of dimension \(N+k\le r\). On the resulting probability-one event, if
+\(P_{S^\perp}A_{2,0}K_iv=0\), some \(c\in\R^N\) satisfies
+\[
+A_{2,0}(K_iv-Hc)=0.
+\]
+Injectivity on \(\col[H\ K_i]\) gives \(K_iv=Hc\). Augmented column independence implies \(v=0\) and \(c=0\). Each tangent matrix therefore has a positive least singular value, and the minimum over finitely many examples is positive. Finally, \(C^\circ H=0\) follows directly from its definition.
+\end{proof}
+\textbf{Why ``fixed labels'' matters.} Labels chosen after observing the random initialization could be \(Y=V_0H\). Then \(D_0=0\) and the entire network stays at initialization under this loss. Width would not create excitation. This is a counterexample to removing the independence requirement without replacing it by another nondegeneracy assumption.
+
+\subsection{The trained-network theorem: all three conditions together}
+In ordinary training let \(\widetilde P_T\) be the top-\(N\) right singular projector of \(V_T-V_0\), and set \(\widetilde C=I-\widetilde P_T\). In LoRA use the top-\(N\) right singular projector of \(B_{2,T}\) and set \(\widetilde C=(I-\widetilde P_T)A_{2,T}\). These are the actual released-weight constructions; the ideal certificate is used only in their analysis.
+
+\begin{theorem}[Two-layer MLP: excitation, accuracy, and local stability; \(\PP\)]\label{thm:mlp}
+Use the softplus models, initialization, fixed data and chart, loss, simultaneous training protocols, and sufficient widths of this section. Almost surely there are positive finite margins \(\gamma,\mu\) as in Proposition~\ref{prop:mlpmargins}. Fix any parameter-ball radius \(\rho>0\), choose finite positive gradient and Hessian bounds \(g,M\) there, and put
+\[
+K=Mg/2,\qquad \kappa=\max_i\norm{K_i},\qquad
+a=\norm{A_{2,0}}\quad\hbox{in LoRA}.
+\]
+Define the explicit error bounds
+\begin{align*}
+e_{\rm full}(\tau)&=\frac{2K}{\gamma}\tau,\\
+e_{\rm LoRA}(\tau)&=K\tau^2+\frac{2aK}{\gamma}\tau.
+\end{align*}
+Use the bound \(e\) appropriate to the protocol. If
+\begin{equation}\label{eq:mlpwindow}
+0<\tau\le\min\{\rho/(2g),\gamma/(4K)\},
+\qquad e(\tau)\kappa\le\mu/2,
+\end{equation}
+then all of the following hold:
+\begin{enumerate}
+\item \textbf{Excitation survives training.} The recorded matrix has
+\(\sigma_N\ge\gamma\tau-K\tau^2>0\), with a uniquely separated top-\(N\) right singular subspace.
+\item \textbf{The frozen-base certificate is accurate.}
+\[
+\norm{\widetilde C-C^\circ}\le e(\tau),\qquad
+\norm{\widetilde C h^0(x_i)}\le e(\tau)\norm{h^0(x_i)}.
+\]
+\item \textbf{Its local identification margin survives.} For
+\(F_i(z)=\widetilde C h^0(G(z))\),
+\[
+\sigma_{\min}(DF_i(z_i^\star))\ge\mu/2.
+\]
+Choose a closed chart ball of radius \(R_i\) around \(z_i^\star\) on which \(DF_i\) is Lipschitz with constant \(M_i\). Every candidate in that ball with
+\[
+\norm{\widehat z-z_i^\star}\le\frac{\mu}{2M_i},
+\qquad \norm{F_i(\widehat z)}\le\zeta
+\]
+satisfies
+\begin{equation}\label{eq:mlpreconstruction}
+\norm{\widehat z-z_i^\star}
+\le\frac{4}{\mu}\left(e(\tau)\norm{h^0(x_i)}+\zeta\right).
+\end{equation}
+Omit the division by \(M_i\) when \(M_i=0\).
+\end{enumerate}
+For almost every initialization, a positive interval of total step sizes satisfies \eqref{eq:mlpwindow}; its length may depend on the data, labels, chart, and initialization. No fixed number of updates is required.
+\end{theorem}
+\begin{proof}
+\textbf{Step 1: obtain finite derivative bounds.} Softplus is smooth, and the network has finitely many parameters and examples. The squared loss is \(C^2\) on all parameter space, so its gradient and Hessian are bounded on the chosen compact ball. Lemma~\ref{lem:time} applies to the \emph{joint} parameter vector, including the upstream layer.
+
+\textbf{Step 2: identify the first output movement.} Ordinary training gives
+\[
+V_T-V_0=-\tau D_0H^T+R_V,\qquad \norm{R_V}\le K\tau^2.
+\]
+LoRA gives
+\[
+B_{2,T}=-\tau D_0(A_{2,0}H)^T+R_B,\qquad
+A_{2,T}=A_{2,0}+R_A,
+\]
+with both remainders bounded by \(K\tau^2\); the second formula uses \(\nabla_{A_2}\mathcal L(\theta_0)=0\). These are joint-training formulas, not frozen-hidden-layer approximations.
+
+\textbf{Step 3: turn recording error into an angle.} The leading matrix in either protocol has row space \(S\), rank \(N\), and least nonzero singular value \(\gamma\tau\). Its perturbation has norm at most \(K\tau^2\). Thus the recorded matrix's \(N\)-th singular value is at least \(\gamma\tau-K\tau^2\), and its leakage perpendicular to \(S\) is at most \(K\tau^2\). Lemma~\ref{lem:angle} gives a separated projector and
+\[
+\norm{\widetilde P_T-P_S}\le\frac{2K}{\gamma}\tau
+\]
+on \eqref{eq:mlpwindow}. Ordinary training now has certificate error exactly equal to projector error. For LoRA use
+\[
+\widetilde C-C^\circ
+=(I-\widetilde P_T)R_A+(P_S-\widetilde P_T)A_{2,0}.
+\]
+This proves the two stated operator bounds. Multiplying by \(h^0(x_i)\), which the ideal certificate annihilates, proves the residual bound.
+
+\textbf{Step 4: transfer the tangent margin and apply the inverse estimate.} The derivative at the truth is \(\widetilde C K_i\), so for every unit vector \(v\),
+\[
+\norm{\widetilde C K_iv}
+\ge\norm{C^\circ K_iv}-\norm{\widetilde C-C^\circ}\norm{K_i}
+\ge\mu-e(\tau)\kappa\ge\mu/2.
+\]
+The base feature map composed with the \(C^2\) chart is \(C^2\). It has a bounded second derivative on a sufficiently small closed chart ball, supplying \(M_i\). The integral Taylor estimate proved in Theorem~\ref{thm:local}, with \(\sigma\ge\mu/2\) and truth residual \(e(\tau)\norm{h^0(x_i)}\), gives \eqref{eq:mlpreconstruction}.
+
+\textbf{Step 5: the interval is nonempty.} All constants in \eqref{eq:mlpwindow} are finite, \(\rho,g,K,\gamma,\mu\) are positive, and \(e(\tau)\to0\) as \(\tau\downarrow0\). Hence some positive interval satisfies both restrictions.
+\end{proof}
+\takeaway{The MLP theorem proves positive excitation and tangent margins from an explicit initialization law, rather than assuming them at the release. Its limitation is quantitative: almost-sure positivity does not make the allowed training time or inverse constant uniformly useful.}
+
+\subsection{ReLU: high probability and a local gate condition}
+\textbf{\(\FF\): the softplus almost-sure statement transfers unchanged to ReLU.} At any one fixed input, all \(n\) Gaussian affine preactivations are negative with probability \(2^{-n}\). On that event the hidden feature and its derivative are both zero locally. No second-layer feature certificate identifies that input on a positive-dimensional chart. This failure has positive probability at every finite width.
+
+We can nevertheless prove success with high probability. Use the ReLU row \(u_i(w,b)\) from the proof of Theorem~\ref{thm:mlpfeatures}, with its last coordinates interpreted away from zero preactivations. For one Gaussian neuron define
+\[
+\Sigma_i=\mathbb E[u_i^Tu_i],\qquad
+\lambda=\min_i\lambda_{\min}(\Sigma_i),\qquad
+M_4=\max_i\mathbb E\norm{u_i}^4.
+\]
+These are determined by the fixed data and chart tangents, not by the number of sampled hidden neurons.
+
+\begin{theorem}[A sufficient ReLU width bound; \(\PP\)]\label{thm:relu}
+For the distinct data and immersive chart above, \(\lambda>0\) and \(M_4<\infty\). If \(0<\delta<1\) and
+\begin{equation}\label{eq:reluwidth}
+n\ge\max\left\{N+k,\frac{4NM_4}{\delta\lambda^2}\right\},
+\end{equation}
+then with probability at least \(1-\delta\), simultaneously for every example,
+\[
+\sigma_{\min}([H\ K_i])\ge\sqrt{n\lambda/2}.
+\]
+On this event, the ordinary or LoRA output-width and seed assumptions of this section give positive \(\gamma,\mu\) almost surely conditional on the hidden network. A sufficiently small positive, possibly realization-dependent training interval then satisfies all conclusions of Theorem~\ref{thm:mlp}, with the same formulas and a parameter ball on which the training activation signs stay fixed. Overall success probability is at least \(1-\delta\).
+\end{theorem}
+\begin{proof}
+\textbf{Step 1: the population row covariance is positive definite.} If a nonzero vector \(v\) had \(v^T\Sigma_iv=0\), the nonnegative random variable \(|u_iv|^2\) would vanish almost surely. Gaussian density is positive everywhere. The row is continuous on each open activation region, so the relation would hold throughout every such region: a nonzero value would persist on an open set of positive probability. Thus it would hold for all parameters away from activation boundaries, contradicting the ReLU spanning proof. Hence each \(\Sigma_i\) is positive definite; their finite minimum \(\lambda\) is positive. ReLU values and these directional derivatives grow at most linearly in \(\norm{(w,b)}\) for fixed data and tangents. Gaussian fourth moments are finite, so \(M_4<\infty\).
+
+\textbf{Step 2: concentrate the finite sample covariance.} With \(Q_i=[H\ K_i]\), independence of the \(n\) rows gives
+\[
+\mathbb E\norm{n^{-1}Q_i^TQ_i-\Sigma_i}_F^2
+=\frac1n\mathbb E\norm{u_i^Tu_i-\Sigma_i}_F^2
+\le\frac{M_4}{n}.
+\]
+The equality follows by expanding the squared Frobenius norm: the centered cross terms have zero expectation. Since operator norm is at most Frobenius norm, Markov's inequality gives
+\[
+\mathbb P\!\left(\norm{n^{-1}Q_i^TQ_i-\Sigma_i}>\lambda/2\right)
+\le\frac{4M_4}{n\lambda^2}.
+\]
+The union bound over examples and \eqref{eq:reluwidth} give simultaneous success probability at least \(1-\delta\). On that event the least eigenvalue of every sample covariance is at least \(\lambda/2\), proving the singular-value claim. Notice also that
+\[
+\norm{P_{\mathcal U^\perp}K_iv}
+=\min_c\norm{K_iv-Hc}
+\ge\sqrt{n\lambda/2}\,\norm v.
+\]
+Thus the same bound controls the unseeded transverse tangents, not just feature rank.
+
+\textbf{Step 3: apply the independent output and seed arguments.} Condition on any hidden network in this event. Proposition~\ref{prop:mlpmargins}'s proofs use augmented feature rank, Gaussian output weights, and an independent Gaussian seed, not analyticity of the activation. They therefore prove \(\gamma,\mu>0\) here as well.
+
+\textbf{Step 4: obtain a genuinely smooth local training region.} Almost surely all finitely many initial training preactivations are nonzero. Let
+\[
+m_{\rm act}=\min_{i,j}|w_{j,0}^Tx_i+b_{j,0}|>0.
+\]
+In ordinary training a joint radius \(\rho\) changes each preactivation by at most
+\(\rho\max_i\norm{(x_i,1)}\). Choose this less than \(m_{\rm act}/2\). In LoRA, with the first bias fixed, the change is at most
+\[
+\rho(\norm{A_{1,0}}+\rho)\max_i\norm{x_i},
+\]
+because \(\norm{B_1}\le\rho\) and \(\norm{A_1}\le\norm{A_{1,0}}+\rho\). This too is less than \(m_{\rm act}/2\) for a sufficiently small positive radius. Throughout the resulting closed ball all training gates are unchanged, so the finite-data loss agrees with a smooth polynomial in the parameters. It has finite gradient and Hessian bounds. The short-time proof applies without evaluating a derivative at a kink.
+
+The base features also have fixed signs in a sufficiently small input neighborhood of each example. Composing with the \(C^2\) chart gives the local regularity needed for reconstruction. This proves every asserted conclusion.
+\end{proof}
+This is a conservative, data-dependent sufficient width bound. It is not a universal polynomial bound in \(N,k\) alone: \(\lambda\) can be small when the data or tangents are nearly degenerate. The output-gradient and seed margins, and the ReLU activation margin, still enter the permitted training window. Increasing width does not by itself bound those quantities away from zero uniformly.
+
+\subsection{A two-step softplus counterexample: the linear error really occurs}
+The MLP theorem might appear to hide a quadratic cancellation. The following one-example, two-hidden-neuron model rules that out while retaining excitation and tangent sensitivity.
+
+\begin{example}[Smooth MLP with a nonzero first-order certificate error; \(\PP\)]\label{ex:softplus}
+Take the one-dimensional identity chart at \(x^\star=1\). Let \(s=\log2\), \(h=s(1,1)^T\), and use
+\[
+h_{u,a}(x)=\sigma\left(\left[\binom10+ua\right]x+\binom{-1}0\right),
+\qquad f(x)=(I_2+BA)h_{u,a}(x).
+\]
+The upstream adapter has rank one; the observed adapter has rank two. Initialize
+\[
+u_0=0,\quad a_0=1,\quad B_0=0,\quad A_0=I_2,
+\qquad y=h-e_1.
+\]
+Train all factors by two simultaneous steps of size \(\eta>0\) on \(\norm{f(1)-y}^2/2\). The second-layer certificate after the two steps satisfies
+\[
+C_2h=\frac{\eta}{16}\binom1{-1}+O(\eta^2).
+\]
+The ideal tangent matrix has least singular value \(1/(2\sqrt2)\), and the leading recorded signal is nonzero. In particular, a universal \(O(\tau^2)\) claim for these ordinary smooth MLPs is \(\FF\), since \(\tau=2\eta\).
+\end{example}
+\begin{proof}
+\textbf{Step 1: compute the first update.} Both base preactivations at the example are zero, so \(\sigma'(0)=1/2\), and the initial output error is \(e_1\). Direct differentiation gives
+\[
+u_1=-\tfrac\eta2e_1,\qquad a_1=1,\qquad
+B_1=-\eta e_1h^T,\qquad A_1=I_2.
+\]
+Writing \(h_1=h_{u_1,a_1}(1)\), the softplus Taylor expansion gives the first two orders of representation drift:
+\[
+h_1=h-\frac\eta4e_1+\frac{\eta^2}{32}e_1+O(\eta^3).
+\]
+Only the first output coordinate differs from its base value. Thus the next error is exactly \(d_1=c_\eta e_1\), where, putting \(a_*=1/4+2s^2\),
+\[
+c_\eta=1-a_*\eta+\left(\frac1{32}+\frac s4\right)\eta^2+O(\eta^3).
+\]
+Indeed \(d_1=h_1-\eta e_1h^Th_1-h+e_1\), which gives this scalar expansion.
+
+\textbf{Step 2: keep all second-layer product terms.} Its second update is exactly
+\[
+B_2=-\eta e_1(h+c_\eta h_1)^T,
+\qquad A_2=I_2+\eta^2c_\eta h h_1^T.
+\]
+In particular,
+\begin{align*}
+B_2&=-2\eta e_1h^T+
+\eta^2e_1(a_*h+e_1/4)^T+O(\eta^3),\\
+A_2&=I_2+\eta^2hh^T+O(\eta^3).
+\end{align*}
+Here the \(A\)-change starts at second order and its columns lie exactly in \(\Span(h)\). It cannot remove the leading rotation error.
+
+\textbf{Step 3: project onto the actual row complement.} For small positive \(\eta\), \(B_2\) has rank one. Rescale its row vector by the nonzero scalar \(1+c_\eta\), obtaining
+\[
+v_\eta=\frac{h+c_\eta h_1}{1+c_\eta}
+=h-\frac\eta8 e_1+O(\eta^2).
+\]
+Moreover \(A_2h\) is \((1+O(\eta^2))h\). The first variation of projection away from \(h+t\) applied to \(h\) is \(-P_{h^\perp}t\). This follows directly by expanding
+\(h-(h+t)(h+t)^Th/\norm{h+t}^2\).
+Therefore
+\[
+C_2h=\frac\eta8P_{h^\perp}e_1+O(\eta^2)
+=\frac\eta{16}(1,-1)^T+O(\eta^2).
+\]
+Finally \(K=D h^0(1)=(1/2,0)^T\), so \([h\ K]\) has rank two and \(\norm{P_{h^\perp}K}=1/(2\sqrt2)\). Also \(\sigma_1(B_2)/\eta\to2\norm h>0\). This verifies the claimed good geometry and the nonvanishing normalized signal.
+\end{proof}
+For the \emph{top-one truncated certificate} used in Theorem~\ref{thm:mlp}, the leading residual coefficient is continuous in a neighborhood of this initialization: after dividing \(B_2\) by \(\eta\), its leading rank-one singular subspace has a positive gap. The Taylor expansion and its projector derivative therefore vary continuously there. Consequently first-order failure persists on an open neighborhood, not just at one specially written matrix. The full row rank can instead jump under perturbation, making its untruncated complement vanish; no continuity claim is made for that construction. The earlier linear-network example in Section~\ref{sec:drift} separately shows first-order error when the limiting \emph{unscaled} signal remains positive.
+
+\subsection{Exactly what the MLP result does and does not establish}
+\textbf{Output dimension is a real bottleneck.} If \(p<N\), both \(B_{2,T}\) and \(V_T-V_0\) have rank at most \(p\), so they cannot record all \(N\) independent hidden-feature directions. No increase in hidden width fixes this output-layer obstruction. Conventional scalar-output LoRA has \(r\le1\); once its \(B\) is nonzero, its factor-complement certificate is identically zero. This is not an impossibility result for the whole trained network, the first layer, or other extraction methods.
+
+\textbf{The conventional rank cap is not an algebraic necessity.} If a redundant LoRA factor width \(r>p\) is allowed, the LoRA proofs above still work with \(n\ge r\ge N+k\) and merely \(p\ge N\). The stronger \(p\ge r\) in the main table comes from the stated conventional rank constraint, not from an extra step in the proof. Keeping this distinction explicit avoids ruling out valid redundant factorizations.
+
+\textbf{Both layers are actually trained.} The first-layer inputs remain the fixed \(x_i\), so the original exact certificate theorem also applies there under its own excitation assumption and with \(q_1=\rank[x_1,\ldots,x_N]\), which need not equal \(N\). At the second layer, the hidden representation moves. The MLP theorem controls this movement through the joint trajectory; it does not assume an exact later-layer certificate.
+
+\textbf{This is a local theorem about a specified random family.} Biases, nonlinear features, independent Gaussian initialization, fixed labels, squared loss, and the training protocol are part of the verified sufficient family. They are not claimed individually necessary for every successful network. Arbitrary pretrained weights can have duplicate or dead neurons and violate the geometry at any width. ReLU requires a gate-preserving local argument; smoothness alone does not give excitation. Almost-sure rank is not a lower bound independent of the particular data or draw.
+
+\textbf{How this fits the rest of the report.} One sufficiently wide second-layer certificate already has \(k\) independent tangent constraints here. If it is narrower, the exact first-layer equations or other layers may help, but a row-count sum is not a proof: Section~\ref{sec:rank}'s allowed-covector rank theorem must be checked. The residual construction next is valuable precisely because it verifies a multi-layer allocation of those constraints and a special quadratic error bound. Ordinary-training extraction additionally requires the known initial \(V_0\) to form \(V_T-V_0\); LoRA extraction uses the raw released factors.
+
+\section{Preparing the quadratic family: separating polynomial features}
+\label{sec:poly}
+
+\subsection{Why a nonlinear feature stem helps}
+With linear features, every certificate that annihilates all training inputs also annihilates their span. Two examples therefore create a whole plane of aliases in ambient input space. More depth does not fix this algebraic blindness.
+
+We want a feature map for which an infinitesimal movement away from one training example leaves the span of \emph{all} training features. The following elementary polynomial construction does exactly that.
+
+Let \(x_1,\ldots,x_N\in\R^d\) be distinct, \(\norm{x_i}\le R\), and, for \(N\ge2\), let \(\norm{x_i-x_j}\ge\Delta>0\). Define
+\[
+\psi_N(x)=(1,x,x^{\otimes2},\ldots,x^{\otimes N})\in\R^{D_0},
+\qquad D_0=\sum_{p=0}^N d^p.
+\]
+Repeated symmetric tensor coordinates are harmless. The constant coordinate is intentional: it prevents a homogeneous scaling ambiguity. Fixed zero padding to any \(D\ge D_0\) is permitted.
+
+For \(N=1\), use \(\psi_1(x)=(1,x)\), and interpret all products over other examples as empty products equal to one. Define
+\[
+L_0=\left(\frac{1+R}{\Delta}\right)^{N-1},\qquad
+L_1=(1+R)L_0,
+\]
+with \(L_0=1\) when \(N=1\).
+
+\begin{theorem}[Polynomial separation, with numerical margins; \(\PP\)]\label{thm:poly}
+Let \(H=[\psi_N(x_1),\ldots,\psi_N(x_N)]\), and \(\mathcal U=\col H\). Then
+\[
+\rank H=N,\qquad \sigma_N(H)\ge\frac1{\sqrt N L_0}.
+\]
+At every training point and for every \(v\in\R^d\),
+\begin{equation}\label{eq:polytrans}
+\norm{P_{\mathcal U^\perp}D\psi_N(x_i)v}\ge\frac{\norm v}{L_1}.
+\end{equation}
+Thus no nonzero input tangent is hidden in the training-feature span.
+\end{theorem}
+\idea{Build polynomials that vanish on the dataset but have any desired directional derivative at the selected point. Their coefficient vectors are explicit separating certificate directions.}
+\begin{proof}
+\textbf{Step 1: interpolate the values.} For \(j\ne i\), put
+\[
+a_{ij}=\frac{x_i-x_j}{\norm{x_i-x_j}^2},\qquad
+q_i(x)=\prod_{j\ne i}a_{ij}^T(x-x_j).
+\]
+Then \(q_i(x_i)=1\) and \(q_i(x_j)=0\) for every other example.
+
+Any product of affine linear factors is represented by a coefficient vector in the tensor feature coordinates. If a factor is \(b^Tx+c\), the sum of the norms of its homogeneous coefficient blocks is at most \(\norm b+|c|\). Multiplying polynomials convolves these blocks using tensor products. The triangle inequality and \(\norm{u\otimes v}=\norm u\norm v\) show that these block-norm sums multiply at most. Their sum bounds the Euclidean norm of the full coefficient vector.
+
+Each factor in \(q_i\) has coefficient bound
+\(\norm{a_{ij}}+|a_{ij}^Tx_j|\le(1+R)/\Delta\).
+Hence \(q_i(x)=b_i^T\psi_N(x)\) for a vector \(b_i\) with \(\norm{b_i}\le L_0\). Stack these rows in \(Q\). We have \(QH=I_N\) and \(\norm Q\le\norm Q_F\le\sqrt N L_0\). Therefore
+\(\norm c\le\sqrt N L_0\norm{Hc}\), proving both the rank and singular-value bound.
+
+\textbf{Step 2: interpolate a derivative.} For a unit vector \(u\), use
+\[
+p_{i,u}(x)=u^T(x-x_i)q_i(x).
+\]
+It vanishes at every training example, has degree at most \(N\), and satisfies
+\(Dp_{i,u}(x_i)v=u^Tv\). Its coefficient vector \(b\) has norm at most \(L_1\) by the same product bound and obeys \(b^TH=0\).
+
+For \(v\ne0\), choose \(u=v/\norm v\). Then
+\[
+\norm v=b^TD\psi_N(x_i)v
+=b^TP_{\mathcal U^\perp}D\psi_N(x_i)v
+\le L_1\norm{P_{\mathcal U^\perp}D\psi_N(x_i)v}.
+\]
+The case \(v=0\) is immediate. This proves \eqref{eq:polytrans}.
+\end{proof}
+\takeaway{For two distinct examples, degree two is enough; no genericity of the data is required beyond distinctness. Poor separation still hurts conditioning through \(\Delta\). For many examples the degree and coefficient bounds grow, so this is a clean small-dataset anchor, not an efficient universal representation claim.}
+
+\subsection{Two examples with numbers: why the quadratic lift works}
+Take scalar examples \(x_1=-1\), \(x_2=1\). Ordinary linear features span all of \(\R\), so a linear annihilator would have to vanish everywhere. With the quadratic lift instead,
+\[
+\psi_2(x)=\begin{pmatrix}1\\x\\x^2\end{pmatrix},\qquad
+H=\begin{pmatrix}1&1\\-1&1\\1&1\end{pmatrix}.
+\]
+The columns span a plane in three-dimensional feature space. A row perpendicular to that plane is \(c=(-1,0,1)\), giving the equation
+\[
+c\psi_2(x)=x^2-1=0.
+\]
+It vanishes at the two training examples, but not on the interval between them. Its derivative is \(-2\) at the first example and \(2\) at the second, so each example is locally isolated and has a nonzero stability margin. There are two legitimate zeros globally; a local theorem does not select which private example one intends to recover.
+
+This row is not an unrelated hand-designed constraint: with seed \(A_0=I_3\), it is the single nonzero certificate direction after excitation of the two-dimensional feature span. The associated orthogonal projector is \(c^Tc/\norm c^2\), which imposes the same zero equation. The general polynomial proof above repeats this idea for arbitrary distinct examples and directions.
+
+\subsection{This is genuinely a family of smooth networks}
+A polynomial feature stem can be computed by a finite feedforward network with square activations and fixed linear maps, since
+\[
+uv=\frac{(u+v)^2-(u-v)^2}{4}.
+\]
+Repeated use builds all tensor monomials, and biases supply the constant. This proves realizability by a smooth network; it does not assert that this is the most economical implementation. The subsequent LoRA trunk is jointly trained. A smooth nonlinear trunk extension is proved in Section~\ref{sec:openfamily}.
+
+For any fixed \(C^2\) chart \(G\) with \(G(z_i^\star)=x_i\) and injective derivative, let
+\[
+K_i=D(\psi_N\circ G)(z_i^\star),\qquad
+\nu=\min_i\sigma_{\min}(DG(z_i^\star))>0.
+\]
+The chain rule and \eqref{eq:polytrans} give
+\(\sigma_{\min}(P_{\mathcal U^\perp}K_i)\ge\nu/L_1\).
+This retains an abstract chart and proves its needed feature transversality. The factor \(\nu\) cannot be removed without fixing the scale of chart coordinates.
+
+\section{Why independent layers can give a well-conditioned stack}
+\label{sec:gaussian}
+
+The polynomial stem provides directions that \emph{could} distinguish the examples. Random seeds let a limited number of certificate rows sample those directions. This section proves both the sampling law and a conservative numerical bound.
+
+\begin{lemma}[Unused Gaussian seed directions; \(\PP\)]\label{lem:gauss}
+Fix a \(q\)-dimensional space \(\mathcal U\subset\R^D\), independently of a matrix \(A_0\in\R^{r\times D}\) with iid \(N(0,1)\) entries, where \(q<r\le D\). Let \(U,U_\perp\) be orthonormal bases of the space and its complement. Let \(V\) be an orthonormal basis of \((A_0\mathcal U)^\perp\), chosen as a function of \(A_0U\) only. Almost surely \(A_0U\) has rank \(q\), and
+\[
+V^TA_0U_\perp
+\]
+is an \((r-q)\)-by-\((D-q)\) iid standard Gaussian matrix, independent of \(A_0U\). Independent seeds give independent such matrices.
+\end{lemma}
+\begin{proof}
+Orthogonal invariance of a standard Gaussian row makes the two blocks \(A_0U\) and \(A_0U_\perp\) independent standard Gaussian matrices. The first has column rank \(q\) almost surely: at least one maximal minor is a nonzero polynomial, whose zero set has Lebesgue measure zero. For completeness, this null-set fact follows by induction on the number of variables: expand in the last variable, discard the null set where all nonzero coefficient polynomials vanish, and then use finitely many roots and Fubini.
+
+Conditional on \(A_0U\), the matrix \(V\) is fixed. Multiplication of each independent standard Gaussian column of \(A_0U_\perp\) by \(V^T\) preserves standard Gaussian coordinates. This conditional law does not depend on \(A_0U\), proving independence. Across layers each construction uses only its own seed, which proves the last statement.
+\end{proof}
+The ideal operator \(C^\circ=P_{(A_0\mathcal U)^\perp}A_0\) has output in \(\col V\). Multiplying by \(V^T\) only removes zero output coordinates; it preserves all lengths of these outputs. Thus Gaussian compression can be used to analyze the actual ideal certificate, not a different random object.
+
+\begin{lemma}[An elementary Gaussian conditioning bound; \(\PP\)]\label{lem:net}
+Let \(\Gamma\) have \(s\) rows of iid standard Gaussian entries. For any fixed matrix \(Q\) with \(k\) orthonormal columns,
+\[
+\Pr\left\{\sigma_{\min}(\Gamma Q)<\sqrt{s/2}\right\}
+\le 2\,9^k e^{-s/128}.
+\]
+For \(M\) fixed \(k\)-dimensional subspaces, the same lower bound holds on all of them with failure probability at most \(2M9^ke^{-s/128}\). Independence between these \(M\) events is unnecessary.
+\end{lemma}
+\begin{proof}
+\textbf{Step 1: control one vector.} If \(g\) is a standard Gaussian vector in \(\R^s\), its squared norm has moment generating function
+\(\mathbb E e^{\lambda\norm g^2}=(1-2\lambda)^{-s/2}\) for \(\lambda<1/2\). This follows by completing the square in each Gaussian integral. For \(|\lambda|\le1/4\), the power series of the logarithm gives
+\[
+\log\mathbb E e^{\lambda(\norm g^2-s)}\le2s\lambda^2.
+\]
+Markov's inequality with \(\lambda=\pm t/4\), for \(0<t\le1\), gives
+\[
+\Pr\{|\norm g^2/s-1|>t\}\le2e^{-st^2/8}.
+\]
+
+\textbf{Step 2: control a finite set of vectors.} The unit sphere in \(\R^k\) has a \(1/4\)-net of size at most \(9^k\). Indeed, a maximal \(1/4\)-separated subset is a net; disjoint balls of radius \(1/8\) around its points lie inside the radius-\(9/8\) ball, giving the volume bound. Apply Step 1 with \(t=1/4\) to each net point for \(\Gamma Q\), and take a union bound.
+
+\textbf{Step 3: fill the gaps between net points.} Let
+\(M=(\Gamma Q)^T\Gamma Q/s-I\). For a unit vector \(v\), choose a net point \(u\) with \(\norm{v-u}\le1/4\). Then
+\[
+|v^TMv-u^TMu|\le\tfrac12\norm M.
+\]
+Taking a supremum gives \(\norm M\le2\max_u|u^TMu|\le1/2\) on the good event. Hence every squared singular value of \(\Gamma Q\) is at least \(s/2\). Another union bound proves the simultaneous statement.
+\end{proof}
+The constants are intentionally elementary, not optimal. Full column rank almost surely needs only \(s\ge k\); a uniform numerical margin is a stronger claim.
+
+\begin{corollary}[Quantitative ideal stacking for the polynomial stem; \(\PP\)]\label{cor:stackpoly}
+Use Theorem~\ref{thm:poly}, a fixed \(k\)-dimensional immersive chart, and \(L\) independent Gaussian seeds of common rank parameter \(r>N\), with \(r\le D\). Set
+\[
+s=r-N,\qquad S=Ls,\qquad
+C_\ell^\circ=P_{(A_{\ell,0}\mathcal U)^\perp}A_{\ell,0}.
+\]
+At every private point, the ideal stack \(J_i^\circ=[C_\ell^\circ K_i]_{\ell=1}^L\) has rank \(\min(S,k)\) almost surely. If
+\[
+S\ge128\bigl(k\log9+\log(2N/p)\bigr),
+\]
+then, with probability at least \(1-p\), simultaneously for all \(i\),
+\begin{equation}\label{eq:mu0}
+\sigma_{\min}(J_i^\circ)\ge
+\mu_0:=\sqrt{S/2}\,\frac{\nu}{L_1}.
+\end{equation}
+\end{corollary}
+\begin{proof}
+Compress each output as in Lemma~\ref{lem:gauss}. The stacked matrix becomes
+\(\Gamma U_\perp^TK_i\), where \(\Gamma\) has \(S\) iid Gaussian rows. Theorem~\ref{thm:poly} gives a rank-\(k\) matrix \(U_\perp^TK_i\) with least singular value at least \(\nu/L_1\). Factor it as \(Q_iR_i\), where \(Q_i\) has orthonormal columns. Lemma~\ref{lem:net} bounds \(\sigma_{\min}(\Gamma Q_i)\), and multiplication by \(R_i\) gives \eqref{eq:mu0}. The probability statement is a union bound over the \(N\) fixed subspaces. For the almost-sure rank statement, a Gaussian map on a fixed rank-\(k\) space has rank \(\min(S,k)\) by the nonzero-minor argument used in Lemma~\ref{lem:gauss}.
+\end{proof}
+
+\section{The special quadratic residual family}
+\label{sec:anchor}
+
+\subsection{Specify the network and training, not just a desired property}
+Use the fixed polynomial stem \(h_0(x)=\psi_N(x)\in\R^D\). The \(L\) trainable residual blocks are
+\begin{equation}\label{eq:anchor-net}
+h_\ell(x)=(I_D+B_\ell A_\ell)h_{\ell-1}(x),
+\qquad \ell=1,\ldots,L.
+\end{equation}
+Here \(B_\ell\in\R^{D\times r}\), \(A_\ell\in\R^{r\times D}\), \(B_{\ell,0}=0\), and \(N<r\le D\). Train all factors simultaneously by full-batch gradient descent on the fixed loss
+\begin{equation}\label{eq:anchor-loss}
+\mathcal L=\tfrac12\sum_{i=1}^N
+\norm{h_L(x_i)-\beta\psi_N(x_i)}^2,
+\qquad 0\le\beta<1.
+\end{equation}
+The choice \(\beta=0\) uses the same zero target for every example. No target needs to encode the private input. There is no weight decay here. Every block uses the same nonnegative step \(\eta_t\), and
+\[
+\tau_t=\sum_{u<t}\eta_u,\qquad \tau=\tau_T>0
+\]
+is the total step size. All base feature maps at the adapted modules equal \(\psi_N\).
+
+\subsection{Excitation is visible in the first gradient}
+At initialization, the network is the identity on its stem features. Consequently the output error is \((1-\beta)H\), and all suffix derivatives are identities. At every layer,
+\begin{equation}\label{eq:initialgradient}
+\nabla_{B_\ell}\mathcal L(\theta_0)
+=(1-\beta)HH^TA_{\ell,0}^T,
+\qquad \nabla_{A_\ell}\mathcal L(\theta_0)=0.
+\end{equation}
+This is the key advantage of the chosen family: the needed recording matrix is not an unexplained assumption about future dynamics.
+
+Let \(U\) span \(\col H\), and define
+\[
+\alpha=\min_\ell\sigma_N(A_{\ell,0}U)>0,
+\qquad
+\gamma=(1-\beta)\sigma_N(H)^2\alpha.
+\]
+Then each first \(B\)-gradient has rank \(N\) and smallest nonzero singular value at least \(\gamma\). To verify this, write \(H=UR\): the matrix becomes
+\((1-\beta)U(RR^T)(A_{\ell,0}U)^T\). Both square factors on the rank-\(N\) subspaces are invertible, and their least singular values multiply to at least the displayed bound.
+
+We will apply the common finite-time estimate of Lemma~\ref{lem:time}. The additional work here is to bound its constants and prove that the first-order \emph{transverse} movement cancels.
+
+\subsection{Explicit constants: no hidden bounded-trajectory assumption}
+Here are finite bounds for the specified network. Their purpose is to prove a positive training window, not to optimize its numerical size. Choose any
+\(a_0\ge\max_\ell\norm{A_{\ell,0}}\), and put
+\begin{align*}
+h&=\norm H_F,& \rho&=\frac1{L(1+a_0)},& a&=a_0+\rho,\\
+w&=1+\rho a,& c&=\sqrt{a^2+\rho^2},& E&=h(w^L+\beta),\\
+J&=h w^{L-1}c\sqrt L,&
+V&=h\{w^{L-1}+(L-1)c^2w^{L-2}\},\\
+g&=EJ,& M&=J^2+EV,& K&=Mg/2.
+\end{align*}
+The factor \((L-1)\) makes the second term in \(V\) zero when \(L=1\).
+
+\begin{lemma}[These are valid derivative bounds; \(\PP\)]\label{lem:constants}
+For \eqref{eq:anchor-net}--\eqref{eq:anchor-loss}, throughout the joint parameter ball of radius \(\rho\), the gradient norm is at most \(g\) and the Hessian norm at most \(M\). Moreover \(w^L\le e\).
+\end{lemma}
+\begin{proof}
+\textbf{Step 1: bound each block.} Inside the ball, \(\norm B_\ell\le\rho\), \(\norm A_\ell\le a\), so \(\norm{I+B_\ell A_\ell}\le w\). Since \(\rho a\le1/L\), we have \(w^L\le(1+1/L)^L\le e\). This prevents an exponential-in-depth forward bound.
+
+\textbf{Step 2: bound the first derivative of the full output.} For a parameter perturbation \(v\), write \(v_\ell=(v_{A_\ell},v_{B_\ell})\). The block perturbation is
+\(v_{B_\ell}A_\ell+B_\ell v_{A_\ell}\), whose norm is at most \(c\norm{v_\ell}\). Differentiate the product of \(L\) blocks, bound the other \(L-1\) blocks by \(w\), and use \(\sum_\ell\norm{v_\ell}\le\sqrt L\norm v\). The output derivative is bounded by \(J\norm v\), in Frobenius norm on the dataset.
+
+\textbf{Step 3: bound its second derivative.} Two derivatives at the same block give
+\(v_Bu_A+u_Bv_A\), with norm at most \(\norm{v_\ell}\norm{u_\ell}\), by Cauchy--Schwarz on the two factor components. Summing these terms gives \(hw^{L-1}\norm v\norm u\). Two different blocks give at most
+\(hc^2w^{L-2}\sum_{i\ne j}\norm{v_i}\norm{u_j}\).
+The matrix with zeros on its diagonal and ones off its diagonal has norm \(L-1\); thus this sum is at most \((L-1)\norm v\norm u\). The result is \(V\norm v\norm u\).
+
+\textbf{Step 4: pass from output to loss.} The output residual has Frobenius norm at most \(E\). The gradient of its half squared norm is bounded by \(EJ\); its Hessian is the sum of a first-derivative Gram term, bounded by \(J^2\), and a residual times second-derivative term, bounded by \(EV\). These are exactly \(g,M\).
+\end{proof}
+
+\subsection{The trained-family result}
+Define the following positive constants, in this order:
+\begin{align*}
+\tau_0&=\min\left(1,\frac{\rho}{2g},\frac{\gamma}{4K}\right),\\
+h_*&=h w^{L-1},\qquad d_*=Ew^{L-1},\\
+D_2&=LK a h w^{L-1},\\
+K_3&=\frac{d_*a_0D_2}{3}\exp(d_*h_*\tau_0),\\
+K_C&=K_3\left(\tau_0+\frac{2a}{\gamma}\right).
+\end{align*}
+All depend only on the specified data, initialization, depth and loss, not on the number of gradient steps.
+
+\begin{theorem}[A non-vacuous jointly trained multilayer family; \(\PP\)]\label{thm:anchor}
+Use the polynomial stem and residual network \eqref{eq:anchor-net}, loss \eqref{eq:anchor-loss}, distinct data, \(B_{\ell,0}=0\), and seeds with \(\alpha>0\). Train all factors by the common-step full-batch rule, with \(0<\tau\le\tau_0\).
+
+At every layer the top-\(N\) right singular subspace of \(B_{\ell,T}\) is separated. For its truncated certificate \(\widetilde C_\ell\),
+\begin{align}
+\sigma_N(B_{\ell,T})&\ge\tfrac12\gamma\tau,\label{eq:anchor-gap}\\
+\norm{P_{\mathcal U^\perp}H_{\ell,t}}_F&\le D_2\tau_t^2,\label{eq:anchor-drift}\\
+\norm{B_{\ell,T}P_{(A_{\ell,0}\mathcal U)^\perp}}&\le K_3\tau^3,\label{eq:anchor-leak}\\
+\norm{\widetilde C_\ell-C_\ell^\circ}&\le K_C\tau^2,\label{eq:anchor-error}\\
+\norm{\widetilde C_\ell\psi_N(x_i)}&\le K_C\tau^2\norm{\psi_N(x_i)}.
+\end{align}
+Here \(H_{\ell,t}\) denotes the dataset input to the \(\ell\)-th adapted module, and \(C_\ell^\circ=P_{(A_{\ell,0}\mathcal U)^\perp}A_{\ell,0}\).
+
+If the ideal stacked Jacobian at each private chart point has least singular value at least \(\mu_0>0\), put \(\kappa=\max_i\norm{K_i}\) and require also
+\begin{equation}\label{eq:anchor-window}
+\sqrt L K_C\tau^2\kappa\le\mu_0/2.
+\end{equation}
+Then the actual stacked chart Jacobian has least singular value at least \(\mu_0/2\). Its residual at every private point is at most
+\[
+\delta=\sqrt L K_C h\tau^2.
+\]
+Consequently every sufficiently nearby candidate with stacked residual at most \(\zeta\) satisfies
+\begin{equation}\label{eq:anchor-recon}
+\norm{\widehat z-z_i^\star}\le\frac{4(\delta+\zeta)}{\mu_0}.
+\end{equation}
+An explicit local radius is supplied by Theorem~\ref{thm:local} below. For independent Gaussian seeds, Corollary~\ref{cor:stackpoly} supplies \(\mu_0\) and its stated probability, while \(\alpha>0\) holds almost surely.
+\end{theorem}
+
+\idea{First use the initial gradient to prove excitation and quadratic transverse drift. Then feed that drift through the general leakage theorem. Only at the end use chart conditioning to obtain reconstruction.}
+\begin{proof}
+\textbf{Step 1: the leading recorded signal has rank \(N\).} Lemmas~\ref{lem:time} and \ref{lem:constants}, together with \eqref{eq:initialgradient}, give for each layer
+\[
+B_{\ell,t}=-\tau_t(1-\beta)HH^TA_{\ell,0}^T+R_{\ell,t},
+\qquad \norm{R_{\ell,t}}\le K\tau_t^2.
+\]
+The leading matrix has smallest nonzero singular value at least \(\gamma\tau_t\). The variational characterization of singular values and the triangle inequality therefore give
+\(\sigma_N(B_{\ell,T})\ge\gamma\tau-K\tau^2\ge3\gamma\tau/4\).
+The leading row space is \(A_{\ell,0}\mathcal U\), so leakage relative to that space is at most \(K\tau^2\le\gamma\tau/4\). Lemma~\ref{lem:angle} verifies strict separation. This proves \eqref{eq:anchor-gap} and justifies the truncation before any finer estimate is used.
+
+\textbf{Step 2: first-order forward drift stays inside \(\mathcal U\).} The leading term in every \(B_{\ell,t}\) has its \emph{columns} in \(\mathcal U\), not just its rows in the seeded span. Hence
+\[
+\norm{P_{\mathcal U^\perp}B_{\ell,t}}\le K\tau_t^2.
+\]
+Project the forward recurrence
+\(H_{j+1,t}=H_{j,t}+B_{j,t}A_{j,t}H_{j,t}\)
+onto \(\mathcal U^\perp\). The starting input is \(H\in\mathcal U\). Each of at most \(L\) added terms has Frobenius norm at most \(K\tau_t^2 a h w^{L-1}\). Summing proves \eqref{eq:anchor-drift}. Total representation movement may still be \(O(\tau_t)\); only its transverse part is quadratic.
+
+\textbf{Step 3: integrate quadratic forcing over training time.} In Lemma~\ref{lem:leak}, the forcing obeys
+\[
+\norm{W_{\ell,t}}\le a_0D_2\tau_t^2.
+\]
+The actual module input and error norms are bounded by \(h_*\) and \(d_*\): propagate the output residual through at most \(L-1\) transposed blocks for the latter. Equation~\eqref{eq:major} then gives
+\[
+\norm{Z_{\ell,T}}+\norm{E_{\ell,T}}
+\le e^{d_*h_*\tau_0}d_*a_0D_2\sum_t\eta_t\tau_t^2
+\le K_3\tau^3.
+\]
+For the last inequality, the increasing function \(s^2\) satisfies
+\(\eta_t\tau_t^2\le\int_{\tau_t}^{\tau_{t+1}}s^2ds\), and the integrals sum to \(\tau^3/3\). This proves \eqref{eq:anchor-leak} and the same bound for the closure defect.
+
+\textbf{Step 4: divide leakage by the correctly scaled signal.} The signal is \(O(\tau)\), not bounded below independently of \(\tau\). Applying \eqref{eq:opbound} with the bounds just proved gives
+\[
+\norm{\widetilde C_\ell-C_\ell^\circ}
+\le K_3\tau^3+\frac{K_3\tau^3}{\gamma\tau/2}a
+\le K_C\tau^2.
+\]
+Since \(C_\ell^\circ\psi_N(x_i)=0\), the individual residual bound follows.
+
+\textbf{Step 5: transfer tangent conditioning.} For a unit chart vector \(v\),
+\[
+\sum_\ell\norm{(\widetilde C_\ell-C_\ell^\circ)K_iv}^2
+\le L K_C^2\tau^4\kappa^2.
+\]
+Thus the Jacobian operator error is at most \(\sqrt L K_C\tau^2\kappa\). The triangle inequality and \eqref{eq:anchor-window} leave least singular value at least \(\mu_0/2\). Squaring and adding residual bounds gives \(\delta\). The local inverse estimate in Theorem~\ref{thm:local}, proved independently below, gives \eqref{eq:anchor-recon}.
+\end{proof}
+
+\subsection{A fully quantitative high-probability version}
+The previous statement permits an admissible training window computed from the realized seed margins. We can also make the window deterministic before drawing the seeds, at the cost of conservative width requirements.
+
+\begin{corollary}[Width and depth give explicit sufficient conditions; \(\PP\)]\label{cor:uniform}
+Fix the data and chart above, a failure tolerance \(0<p<1\), and integers \(r\le D\), \(L\ge1\) such that
+\begin{align*}
+r&\ge128\bigl(N\log9+\log(6L/p)\bigr),\\
+L(r-N)&\ge128\bigl(k\log9+\log(6N/p)\bigr).
+\end{align*}
+Draw the \(L\) seeds independently with iid \(N(0,1)\) entries. In the constants of Theorem~\ref{thm:anchor}, use the deterministic choices
+\[
+a_0=\sqrt{2rD+4\log(3L/p)},\qquad
+\gamma=\frac{(1-\beta)\sqrt{r/2}}{N L_0^2},\qquad
+\mu_0=\sqrt{L(r-N)/2}\,\frac{\nu}{L_1}.
+\]
+With probability at least \(1-p\), all conclusions of that theorem hold for every common-step schedule whose positive total step size satisfies \(\tau\le\tau_0\) and \eqref{eq:anchor-window}. This is a nonempty deterministic interval of admissible total step sizes.
+\end{corollary}
+\begin{proof}
+Apply Lemma~\ref{lem:net} to each \(r\)-by-\(N\) matrix \(A_{\ell,0}U\). The first width inequality makes the total failure probability at most \(p/3\), and gives \(\alpha\ge\sqrt{r/2}\). Theorem~\ref{thm:poly} then proves the stated lower bound on \(\gamma\).
+
+Each \(\norm{A_{\ell,0}}_F^2\) is the squared norm of \(rD\) independent Gaussians. Its moment generating function at \(1/4\) implies
+\[
+\Pr\{\norm{A_{\ell,0}}_F^2\ge2rD+4\log(3L/p)\}
+\le p/(3L),
+\]
+because \(2^{rD/2}e^{-rD/2}\le1\). Since spectral norm is no greater than Frobenius norm, a union bound controls all seed norms by the stated \(a_0\), with failure probability at most \(p/3\).
+
+Corollary~\ref{cor:stackpoly} and the second width inequality supply \(\mu_0\), with failure probability at most \(p/3\). Another union bound, without any independence assertion between these three events, gives total failure probability at most \(p\). All constants in the training window are finite and positive, so a positive sufficiently small \(\tau\) satisfies both restrictions. The deterministic proof of Theorem~\ref{thm:anchor} then applies to every such schedule on the same event.
+\end{proof}
+\takeaway{This is stronger than ``assume excitation and stability.'' They follow here from an explicit loss, a concrete feature map, quantitative data separation, widths, independent seeds, and a specified training window. The width constants are sufficient, not necessary or claimed sharp. Increasing depth adds rows but also tightens the allowed training window.}
+
+\subsection{Check the quadratic claim against a small counterexample}
+Quadratic error in this family is not exactness in disguise. Here is a three-step example within the identity-trunk, zero-target construction, using one normalized input \(e_1\) without the affine stem; only the quadratic dynamics claim is being tested.
+
+Take two width-two residual blocks. The first adapter has row seed \(a_0=e_1^T\) and column \(b_0=0\); the second has
+\[
+A_0=\begin{pmatrix}1&1\\0&1\end{pmatrix},\qquad B_0=0.
+\]
+Use loss \(\norm f^2/2\) and a common step \(\eta\). At step one,
+\[
+b_1=-\eta e_1,\quad a_1=e_1^T,\quad
+B_1=-\eta e_1e_1^T,\quad A_1=A_0.
+\]
+The input to the second block is \((1-\eta)e_1\), and the output is \((1-\eta)^2e_1\). Direct substitution in the next gradient gives
+\begin{align*}
+b_2&=-\eta\{1+(1-\eta)^3\}e_1+\eta^2(1-\eta)^2e_2,\\
+a_2&=\{1+\eta^2(1-\eta)^3\}e_1^T,\\
+B_2&=-\eta\{1+(1-\eta)^3\}e_1e_1^T,\\
+A_2&=A_0+\eta^2(1-\eta)^3e_1e_1^T.
+\end{align*}
+Thus at the third gradient evaluation the second-layer input has transverse component \(\eta^2e_2+O(\eta^3)\). Its output error is \(e_1+O(\eta)\), so
+\[
+B_3e_2=-\eta^3e_1+O(\eta^4),\qquad
+B_3e_1=-3\eta e_1+O(\eta^2),
+\qquad A_3e_1=(1+O(\eta^2))e_1.
+\]
+Here the last identity follows because \(B_2\) has only its first adapter-coordinate column nonzero. In the Gram matrix \(B_3^TB_3\), the off-diagonal entry is \(3\eta^4+O(\eta^5)\), the first diagonal entry is \(9\eta^2+O(\eta^3)\), and the second is \(O(\eta^6)\). The top eigenvector therefore has slope \(\eta^2/3+O(\eta^3)\), by its two scalar eigenvector equations. Consequently the top-one certificate satisfies
+\[
+\widetilde C_2e_1=-\tfrac13\eta^2e_2+O(\eta^3).
+\]
+This proves a nonzero quadratic term for the aligned residual dynamics. It also explains why two steps cannot reveal it: the inputs seen by the second layer during its first two updates still lie in the original span.
+
+\subsection{Exactly what is special, and what is robust}
+The cancellation comes from the initial-gradient range condition
+\[
+\col(\nabla_{B_\ell}\mathcal L(\theta_0))\subseteq\mathcal U.
+\]
+For the identity trunk and aligned targets, the explicit matrix \(HH^TA_{\ell,0}^T\) proves this condition. A general target or a nonidentity base need not satisfy it. The relevant hierarchy in this family is
+\[
+\begin{array}{c|c}
+\text{quantity}&\text{small-total-time order}\\\hline
+\text{total representation movement}&O(\tau)\\
+\text{movement outside the training-feature span}&O(\tau^2)\\
+\text{off-subspace recording in }B&O(\tau^3)\\
+\text{recorded signal singular value}&\Omega(\tau)\\
+\text{certificate operator error}&O(\tau^2)
+\end{array}
+\]
+This is fully consistent with the earlier first-order counterexample: the parameter \(\tau\) shrinks \emph{all} training, and the new family has a proved structural cancellation. One cannot import its quadratic conclusion into arbitrary networks with an independently small upstream perturbation.
+
+\section{An open extension to genuinely nonlinear trunks}
+\label{sec:openfamily}
+
+The quadratic residual family is not the only successful parameter choice. Its \emph{quadratic order} is special, but its excitation and identification margins are strict inequalities and therefore survive sufficiently small changes. The ordinary MLP already supplies a different first-order family; here we prove a local robustness result around the residual construction using Proposition~\ref{prop:generalshort}.
+
+\begin{corollary}[A robust nonlinear network family; \(\PP\)]\label{cor:open}
+Fix a dataset, abstract \(C^2\) immersive chart, and one realization of the anchor seeds for which all initial rank margins and the ideal full-column-rank chart margins are positive. Within the protocol \(B_{\ell,0}=0\), there is an open neighborhood of the anchor's fixed weights, feature-stem coefficients and labels for which all these margins remain positive. Any sufficiently small smooth finite-dimensional perturbation of the block maps, with loss derivatives continuous through order two, is also allowed.
+
+Every network in a sufficiently small such neighborhood has, for a common positive sufficiently short total-training-time interval, excited truncated certificates with \(O(\tau)\) operator error and stable local chart identification. In particular the trunk may be made genuinely nonlinear by replacing each block output \(v\) with
+\[
+v+\epsilon\tanh(v)
+\]
+coordinatewise, for all sufficiently small \(\epsilon\), including nonzero values.
+\end{corollary}
+\begin{proof}
+\textbf{Step 1: preserve feature rank.} At the anchor every base feature matrix has \(N\) independent columns. A nonzero \(N\)-minor stays nonzero in a neighborhood, and no matrix with \(N\) columns can have larger rank. Thus each base feature rank remains exactly \(N\). The same argument applies to the seeded feature matrices.
+
+\textbf{Step 2: preserve excitation and ideal geometry.} Initial gradients depend continuously on the fixed network parameters and labels. Their \(N\)-th singular values are positive at the anchor, so stay bounded below after shrinking the neighborhood. The projector onto the columns of a full-column-rank matrix \(X\) is
+\(X(X^TX)^{-1}X^T\), hence is continuous there. Therefore the ideal certificate operators and their chart Jacobians also vary continuously, and their smallest tangent singular values stay bounded below.
+
+\textbf{Step 3: control training uniformly.} Take a smaller closed parameter neighborhood and a small closed ball of trainable factors. Their product is compact. Continuity of the loss derivatives gives finite common gradient and Hessian bounds there. Proposition~\ref{prop:generalshort} and the preserved positive margins give a common positive training interval and the \(O(\tau)\) certificate bound. The stacked operator comparison gives full tangent rank. The base feature maps composed with the fixed \(C^2\) chart have bounded second derivatives on smaller closed chart balls, so Theorem~\ref{thm:local} supplies local stability.
+
+The displayed activation perturbation is smooth jointly in \(v,\epsilon\) and tends to the identity through every required derivative on bounded sets as \(\epsilon\to0\). It is therefore one of the allowed finite-dimensional perturbations. For nonzero \(\epsilon\) it is nonlinear, proving the last assertion.
+\end{proof}
+This is an open family \emph{relative to the zero-\(B\) initialization and specified architecture protocol}. It is not an open set of arbitrary initializations. Its neighborhood may depend on the seed realization. No uniform probability over all possible architecture perturbations is inferred from continuity.
+
+\textbf{Scope.} We now have the ordinary MLP family, the special quadratic residual family, and this open nonlinear extension. None establishes useful margins for arbitrary pretrained CNNs, transformers, or long practical training runs; those questions remain \(\OO\).
+
+\section{Cross-layer rank: when do equations really add?}
+\label{sec:rank}
+
+For an arbitrary fixed base network and chart, define
+\[
+h_\ell(z)=\Phi_\ell^0(G(z)),\qquad
+F(z)=\begin{bmatrix}C_1h_1(z)\\ \vdots\\ C_Lh_L(z)\end{bmatrix}.
+\]
+At a private point \(z^\star\), write
+\(K_\ell=Dh_\ell(z^\star)\) and \(J_\ell=C_\ell K_\ell\).
+The matrix \(J_\ell\) describes how that layer's equations change under a small movement in chart coordinates.
+
+\subsection{A deterministic answer requiring no genericity}
+\begin{proposition}[Exactly how much one layer adds; \(\PP\)]\label{prop:increment}
+For matrices with \(k\) columns,
+\[
+\rank\begin{bmatrix}J_{\rm old}\\J_{\rm new}\end{bmatrix}
+=\rank J_{\rm old}
++\rank(J_{\rm new}|_{\ker J_{\rm old}}).
+\]
+Thus a new layer adds information precisely on directions invisible to the earlier stack. It adds nothing if and only if its row space lies inside the earlier row space.
+\end{proposition}
+\begin{proof}
+The stacked kernel is \(\ker J_{\rm old}\cap\ker J_{\rm new}\). Subtract its dimension from \(k\), then apply rank--nullity to the restriction of \(J_{\rm new}\) to \(\ker J_{\rm old}\). Zero increment is the kernel inclusion \(\ker J_{\rm old}\subseteq\ker J_{\rm new}\); taking orthogonal complements gives the row-space characterization.
+\end{proof}
+Identical features at two layers do not force redundancy: different seeded certificates can measure different directions in the same features. Identical equations do force redundancy. For example, if \(h_2=Th_1\) and \(C_2T=RC_1\), then \(C_2h_2=RC_1h_1\), so the second block is redundant even away from the tangent approximation.
+
+\subsection{The strongest generic count must respect shared blind directions}
+For ideal fixed-base certificates, the allowable chart covectors at layer \(\ell\) form
+\[
+\mathcal E_\ell=\row(P_{(\col H_\ell^0)^\perp}K_\ell)
+\subseteq(\R^k)^*.
+\]
+A layer cannot measure directions annihilated by this entire space, regardless of its width. Suppose it contributes \(s_\ell\) rows.
+
+\begin{theorem}[Generic rank with structural restrictions; \(\PP\)]\label{thm:rank}
+Fix spaces \(\mathcal E_1,\ldots,\mathcal E_L\) and nonnegative row counts \(s_\ell\). Suppose the joint distribution of all chosen rows has a density on \(\prod_\ell\mathcal E_\ell^{s_\ell}\). Then their stacked rank almost surely equals
+\begin{equation}\label{eq:minmax}
+R_*=\min_{I\subseteq\{1,\ldots,L\}}
+\left[\dim\left(\sum_{\ell\in I}\mathcal E_\ell\right)
++\sum_{\ell\notin I}s_\ell\right].
+\end{equation}
+This is also the maximum rank possible for any permitted choice of rows. In particular, if every \(\mathcal E_\ell=(\R^k)^*\), the answer is
+\(\min(k,\sum_\ell s_\ell)\).
+\end{theorem}
+\idea{A subset of layers can provide no more dimensions than its combined allowable space. Every remaining layer can provide no more dimensions than its row count. The theorem says these obvious obstructions are the only generic ones.}
+\begin{proof}
+\textbf{Step 1: an independent-choice lemma.} For spaces \(V_1,\ldots,V_n\), one can choose independent vectors \(v_i\in V_i\) exactly when
+\[
+\dim\sum_{i\in J}V_i\ge|J|\quad\text{for every }J\subseteq\{1,\ldots,n\}.
+\]
+Necessity follows by counting independent chosen vectors. Prove sufficiency by induction on \(n\). If a nonempty proper subset \(J\) has equality, use induction to choose its vectors as a basis of \(W=\sum_{i\in J}V_i\). For any remaining subset \(K\), the spaces modulo \(W\) have combined dimension at least
+\(|J|+|K|-\dim W=|K|\). Induction in the quotient chooses the other vectors; lifting them completes the construction. If no proper nonempty subset has equality, pick a nonzero \(v_n\in V_n\). Every nonempty subset of the other spaces has dimension at least its size plus one, so it still satisfies the required inequality after quotienting by \(\Span(v_n)\). Induction again finishes. The case \(n=1\) is immediate.
+
+\textbf{Step 2: allow some rows to be dependent.} Define
+\[
+d_* =\min_{J\subseteq[n]}\left(n-|J|+\dim\sum_{i\in J}V_i\right).
+\]
+Every selection has rank at most \(d_*\): the rows in \(J\) lie in its combined space and the others contribute at most one each. To achieve this bound, add the same auxiliary space \(W_0\) of dimension \(n-d_*\) to every \(V_i\). For every nonempty \(J\),
+\(\dim\sum_{i\in J}(V_i\oplus W_0)\ge|J|\).
+Step 1 gives \(n\) independent augmented choices. Projection back to the original space loses at most \(n-d_*\) dimensions, so the projected choices have rank at least \(d_*\). This proves attainability.
+
+\textbf{Step 3: group rows by layer.} Take \(s_\ell\) copies of each \(\mathcal E_\ell\) as the spaces \(V_i\). In a minimizing subset of row indices, once a layer is included, including all its copies does not enlarge the combined space and only decreases the number of excluded rows. The formula for \(d_*\) therefore becomes \eqref{eq:minmax}. Layers with zero rows can be omitted without changing the minimum.
+
+\textbf{Step 4: turn maximum rank into generic rank.} An attaining row choice has a nonzero \(R_*\)-minor. In coordinates on the product of allowed spaces this determinant is a nonzero polynomial. Its zero set has measure zero, as proved in Lemma~\ref{lem:gauss}. A distribution with a density avoids this set almost surely. The case of no rows has rank zero directly.
+\end{proof}
+This is a classical independent-representatives argument, not a new abstract transversality principle. Its application here is to identify the correct allowable covectors and not assume independence of trained matrices.
+
+Independent Gaussian seeds on fixed base subspaces satisfy the theorem's distribution hypothesis after compression by Lemma~\ref{lem:gauss}, with \(s_\ell=r_\ell-q_\ell\). Actual jointly trained deep certificates generally do \emph{not} have independent rows. They inherit the ideal rank margin only through an operator-error comparison.
+
+\begin{proposition}[Transfer from ideal to trained Jacobians; \(\PP\)]\label{prop:transfer}
+For fixed \(K_\ell\), suppose
+\(\norm{\widetilde C_\ell-C_\ell^\circ}\le e_\ell\). Put
+\[
+\Delta_J=\left(\sum_\ell e_\ell^2\norm{K_\ell}^2\right)^{1/2}.
+\]
+If \(J^\circ=[C_\ell^\circ K_\ell]_\ell\) has least singular value \(\mu>\Delta_J\), then
+\(\sigma_{\min}([\widetilde C_\ell K_\ell]_\ell)\ge\mu-\Delta_J>0\).
+\end{proposition}
+\begin{proof}
+For any unit vector, square and sum the errors of its layer outputs. The result is at most \(\Delta_J^2\), so the stacked operator error is at most \(\Delta_J\). The triangle inequality applied to every unit vector gives the singular-value bound.
+\end{proof}
+If an ideal blind direction acquires a singular value of order \(\Delta_J\) after perturbation, this proposition does not promote it to robust information. A tiny newly nonzero singular value can be only a perturbation artifact.
+
+\section{Local reconstruction: what rank does and does not imply}
+\label{sec:local}
+
+Full column rank means that every infinitesimal chart movement changes at least one equation. For a smooth map, this excludes a second zero sufficiently close to the truth and gives an error bound. It does not locate that neighborhood computationally or rule out distant aliases.
+
+\begin{theorem}[Local isolation and stability; \(\PP\)]\label{thm:local}
+Let \(F\) be \(C^1\) on a neighborhood of a convex ball of radius \(R\) centered at \(z^\star\in\R^k\). Suppose \(DF(z^\star)\) has least singular value \(\sigma>0\), and
+\[
+\norm{DF(z)-DF(w)}\le M\norm{z-w}
+\]
+on that ball. Then, whenever \(z^\star+v\) lies in the ball,
+\begin{equation}\label{eq:local-lower}
+\norm{F(z^\star+v)-F(z^\star)}
+\ge\sigma\norm v-\tfrac12M\norm v^2.
+\end{equation}
+If \(F(z^\star)=0\), this is the only zero within distance \(\min(R,2\sigma/M)\), with strict inequality at the radius when needed. If instead \(\norm{F(z^\star)}\le\delta\), every candidate with \(\norm{F(\widehat z)}\le\zeta\) and
+\(\norm{\widehat z-z^\star}\le\min(R,\sigma/M)\) obeys
+\[
+\norm{\widehat z-z^\star}\le\frac{2(\delta+\zeta)}{\sigma}.
+\]
+When \(M=0\), omit the restrictions involving division by \(M\).
+\end{theorem}
+\begin{proof}
+Integrate the derivative along the segment from \(z^\star\) to \(z^\star+v\):
+\[
+F(z^\star+v)-F(z^\star)
+=DF(z^\star)v+
+\int_0^1[DF(z^\star+tv)-DF(z^\star)]v\,dt.
+\]
+The first term has norm at least \(\sigma\norm v\). The second has norm at most \(M\norm v^2/2\). Their reverse triangle inequality gives \eqref{eq:local-lower}, which is positive for \(0<\norm v<2\sigma/M\). This proves isolation. On the smaller radius \(\sigma/M\), the lower bound is \(\sigma\norm v/2\). The same difference of function values is bounded above by \(\delta+\zeta\), proving stability.
+\end{proof}
+Only continuity of the derivative is needed for qualitative isolation: shrink the neighborhood until \(\norm{DF(z)-DF(z^\star)}<\sigma/2\) and repeat the integral proof. The Lipschitz constant makes the neighborhood quantitative.
+
+For our stacked certificate map, a usable curvature bound is
+\[
+M\le\left(\sum_\ell\norm{C_\ell}^2 M_\ell^2\right)^{1/2},
+\quad M_\ell\ge\sup\norm{D^2(\Phi_\ell^0\circ G)}
+\]
+on the chosen closed chart ball. This follows by bounding each block's derivative difference and then squaring and summing. Such finite constants exist for a \(C^2\) chart and smooth base maps on a compact local ball. The MLP theorem gives \(\sigma\ge\mu/2\); the quadratic residual theorem gives \(\sigma\ge\mu_0/2\). Accordingly radii \(\min(R,\mu/(2M))\) and \(\min(R,\mu_0/(2M))\) suffice in their respective cases. If \(G\) is \(L_G\)-Lipschitz there, multiply the chart error by \(L_G\) for an input-space error bound.
+
+\begin{corollary}[A local least-squares solution exists; \(\PP\)]\label{cor:exist}
+Under Theorem~\ref{thm:local}, choose a closed ball of radius \(0<\rho_z\le\min(R,\sigma/M)\), and suppose \(\delta<\sigma\rho_z/4\). The function \(\norm{F(z)}^2/2\) has an interior minimizer in this ball. Its residual is at most \(\delta\), and its distance from the truth is at most \(4\delta/\sigma\).
+\end{corollary}
+\begin{proof}
+Continuity and compactness give a minimizer. At the boundary,
+\(\norm{F(z)}\ge\sigma\rho_z/2-\delta>\delta\), whereas the center has residual at most \(\delta\). Thus a minimizer is interior and has no larger residual than the center. Apply Theorem~\ref{thm:local} with \(\zeta=\delta\).
+\end{proof}
+This proves existence near the truth, not convergence of an algorithm started elsewhere.
+
+\subsection{Four counterexamples that prevent overinterpretation}
+\textbf{\(\FF\): local full rank means global uniqueness.} The map \(F(z)=z^2-1\) has nonzero derivative at both zeros \(1\) and \(-1\).
+
+\textbf{\(\FF\): an approximate certificate must have an exact zero.} The map \(F(z)=(z,\delta)\), with \(\delta\ne0\), has a full-column-rank derivative but no zero. Least squares and a tolerance are the correct formulation.
+
+\textbf{\(\FF\): rank deficiency rules out isolated zeros.} The map \(F(z)=\norm z^2\) has an isolated zero at the origin with zero derivative. It has weaker, square-root inverse behavior, not a linear inverse bound.
+
+\textbf{\(\FF\): generic full rank gives uniform conditioning.} The rows \((1,0)\) and \((1,\epsilon)\) are independent for every \(\epsilon\ne0\), while the least singular value of their stack tends to zero. The factor \(1/\sigma\) cannot be removed: \(F(z)=\sigma z-\delta\) has its zero at \(\delta/\sigma\) when the designated truth is zero.
+
+In fact, a local bound \(\norm{z-z^\star}\le K\norm{F(z)-F(z^\star)}\) forces derivative injectivity. Substitute \(z=z^\star+tv\), divide by \(|t|\), and let \(t\to0\). One obtains \(\norm v\le K\norm{DF(z^\star)v}\).
+
+\section{Several examples sharing a concept}
+\label{sec:shared}
+
+Let the input model remain abstract:
+\[
+x_i=G(s,u_i),\qquad s\in\R^{k_s},\quad u_i\in\R^{k_i}.
+\]
+Here \(s\) is shared, while \(u_i\) is an example-specific nuisance coordinate. Stack the layer certificates for example \(i\) into \(f_i(s,u_i)\), and stack the examples into \(\mathcal F\).
+
+The crucial question is not simply how many equations we have. It is: \emph{can a change in the shared concept be imitated by changing each example's nuisance?}
+
+At the true parameters write
+\[
+S_i=\partial_sf_i,\qquad N_i=\partial_{u_i}f_i,\qquad
+P_i=P_{\col(N_i)^\perp},\qquad
+M_s=\begin{bmatrix}P_1S_1\\ \vdots\\ P_NS_N\end{bmatrix}.
+\]
+We deliberately use \(S_i,N_i\), not \(A_i,B_i\), to avoid confusing these derivatives with LoRA factors.
+
+\begin{theorem}[Shared-concept rank test; \(\PP\)]\label{thm:sharedrank}
+For arbitrary derivative blocks,
+\[
+\rank D\mathcal F=\sum_i\rank N_i+\rank M_s.
+\]
+There is no first-order null direction changing \(s\) exactly when \(\rank M_s=k_s\). The full parameter vector is infinitesimally identified exactly when, in addition, each \(N_i\) has full column rank. In that case \(C^1\) regularity and Theorem~\ref{thm:local} give local isolation of an exact solution.
+\end{theorem}
+\begin{proof}
+Let \(S=[S_i]_i\) and let \(N\) be block diagonal with blocks \(N_i\). Then \(D\mathcal F=[S\ N]\). Subtract from each column of \(S\) its projection onto \(\col N\); the removed part already lies in the span of the nuisance columns. The remaining columns are \(PS=M_s\), perpendicular to \(\col N\). Their dimensions therefore add, proving the rank identity.
+
+The equation \(S\dot s+N\dot u=0\) is solvable for \(\dot u\) exactly when \(PS\dot s=0\). Thus no nonzero shared null movement exists exactly when \(M_s\) has full column rank. Under that condition all joint null directions have \(\dot s=0\), and then \(N\dot u=0\); they vanish precisely when every nuisance block is injective.
+\end{proof}
+
+The effective linearized information about the concept is
+\[
+M_s^TM_s=\sum_i S_i^TP_iS_i.
+\]
+Each term is positive semidefinite. Thus adding a \emph{fixed new observation to fixed equations} cannot decrease information and may fill a missing shared direction. For example \(f_1(s)=s_1\), \(f_2(s)=s_2\) jointly identify two shared coordinates. Conversely \(f_i(s,u_i)=s+u_i\) gives \(P_i=0\) for every scalar example, so arbitrarily many examples do not identify the concept.
+
+There is a nonlinear subtlety. For \(f(s,u)=s-u^2\) at zero, the projected shared derivative equals one, but \((s,u)=(u^2,u)\) is a curve of zeros. The nuisance derivative changes rank near the truth. Pointwise projected shared rank alone is therefore insufficient.
+
+\begin{theorem}[Concept identification with regular but possibly unidentifiable nuisances; \(\PP\)]\label{thm:sharedregular}
+Suppose \(\mathcal F\) is \(C^2\) near \(\theta^\star=(s^\star,u^\star)\), its nuisance derivative \(\partial_u\mathcal F\) has constant rank \(b\) there, and
+\[
+\mu=\sigma_{\min}\bigl(P_{\col(\partial_u\mathcal F(\theta^\star))^\perp}
+\partial_s\mathcal F(\theta^\star)\bigr)>0.
+\]
+Then in a sufficiently small neighborhood,
+\[
+\norm{s-s^\star}\le\frac2\mu
+\norm{\mathcal F(\theta)-\mathcal F(\theta^\star)}.
+\]
+In particular equal outputs imply equal shared concepts. Truth and candidate residuals \(\delta,\zeta\) give concept error at most \(2(\delta+\zeta)/\mu\).
+\end{theorem}
+\idea{First replace the effective nuisance variables by nuisance-controlled output coordinates. Constant nuisance rank makes all remaining nuisance variables irrelevant locally. Then apply the ordinary local inverse argument to the shared variables and effective nuisances.}
+\begin{proof}
+\textbf{Step 1: choose effective nuisance coordinates.} If \(b>0\), choose \(b\) nuisance coordinates \(v\) and \(b\) output coordinates, selected by a matrix \(R\), so that \(\partial_v(R\mathcal F)\) is invertible at the truth. Write the other nuisance coordinates as \(w\). The inverse function theorem makes
+\[
+(s,v,w)\longmapsto(s,y=R\mathcal F(s,v,w),w)
+\]
+a local \(C^2\) coordinate change. Let the full output in these coordinates be \(\widehat f(s,y,w)\).
+
+\textbf{Step 2: remove inactive nuisances.} We have \(R\partial_y\widehat f=I_b\) and \(R\partial_w\widehat f=0\). At fixed \(s\), changing nuisance coordinates does not change nuisance derivative rank, which is constantly \(b\). The \(b\) independent \(y\)-columns therefore span that derivative's range. Every \(w\)-column is a linear combination of them; applying \(R\) forces every coefficient to be zero. Hence \(\partial_w\widehat f=0\) on a small product neighborhood. Integration along its \(w\)-segments yields \(\widehat f=f(s,y)\), independent of \(w\). If \(b=0\), the original nuisance derivative is identically zero locally, and the same conclusion holds with no \(y\) variables.
+
+\textbf{Step 3: identify the reduced variables.} At the truth, the \(y\)-columns span the original nuisance range. The \(s\)-columns differ from the original shared derivative only by vectors in that nuisance range, because changing \(s\) at fixed \(y\) adjusts \(v\). Their orthogonal projection is exactly the matrix in the theorem. Its full column rank proves that \(Df(s^\star,y^\star)\) is injective. Theorem~\ref{thm:local} therefore gives a finite local constant \(K_0\) with
+\(\norm{(s-s^\star,y-y^\star)}\le K_0 d\), where \(d=\norm{f(s,y)-f(s^\star,y^\star)}\).
+
+\textbf{Step 4: extract the shared-variable constant.} Project the second-order Taylor expansion of \(f\) perpendicular to the original nuisance range. The linear \(y\)-term vanishes and the linear shared term has least singular value \(\mu\). For a finite Taylor remainder constant \(K_1\),
+\[
+\mu\norm{s-s^\star}\le d+K_1\norm{(s-s^\star,y-y^\star)}^2
+\le d+K_1K_0^2d^2.
+\]
+Shrink the neighborhood so \(K_1K_0^2d\le1\). This gives the stated \(2d/\mu\) bound. The residual version follows by the triangle inequality.
+\end{proof}
+
+\textbf{What the architecture theorems add for shared concepts.} Apply the MLP theorem with \(k=d\) and the identity input chart, or the residual theorem with enough stacked rows for the same chart. Their certificate maps then have injective input derivatives at the examples and, by continuity, nearby. Composition with any fixed shared-concept chart preserves the rank of every joint or nuisance input derivative: multiplying by an injective block-diagonal derivative neither adds a kernel nor changes rank. The shared-concept rank and constant-rank tests above therefore reduce to those of the input chart itself. They can still fail through confounding such as \(s+u_i\). No architecture can identify a latent reparameterization that leaves all inputs unchanged.
+
+\textbf{A final counting warning.} Adding examples to a \emph{training dataset and retraining} is not the same as adding observations to fixed equations. It can increase \(q_\ell\), decrease \(r_\ell-q_\ell\), and change every certificate. The positive-semidefinite sum above is monotone only for fixed released equations. Nor are example Jacobian blocks independent Gaussian matrices merely because the adapter seeds were Gaussian; the same release is reused across examples.
+
+\section{Which architectural descriptions really help?}
+\label{sec:architectures}
+
+\subsection{The verified families, side by side}
+\begin{center}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{35mm}>{\raggedright\arraybackslash}p{54mm}>{\raggedright\arraybackslash}p{54mm}@{}}
+\toprule Family & What is established & Main limitation\\\midrule
+Softplus MLP & Gaussian initialization gives excitation and full tangent rank almost surely; ordinary training and LoRA have \(O(\tau)\) error. & Fixed labels, adequate output and adapter dimensions, short time; margins may be small.\\
+ReLU MLP & A data-dependent width bound gives high-probability feature rank; the same training and stability proof then applies. & Finite-width failures have positive probability; the proved trajectory stays in a fixed-gate region.\\
+Aligned residual trunk & Separating polynomial features and independent seeds give a well-conditioned stack and \(O(\tau^2)\) error on a bounded window. & Special identity base and aligned loss; feature degree grows with the dataset.\\
+Small nonlinear residual perturbations & Strict rank margins survive, giving a successful open family with \(O(\tau)\) error. & Neighborhood size may depend on the successful initialization; quadratic order need not survive.\\\bottomrule
+\end{tabular}
+\end{center}
+These entries summarize Theorems~\ref{thm:mlp}, \ref{thm:relu}, \ref{thm:anchor}, and Corollary~\ref{cor:open}; they are not additional architecture-wide claims. The next examples explain why more general labels such as ``homogeneous,'' ``wide,'' or ``convolutional'' cannot replace their hypotheses.
+
+\subsection{A homogeneous anchor works once scale is fixed}
+\begin{corollary}[One normalized example, no polynomial stem; \(\PP\)]\label{cor:sphere}
+Take one unit input \(x\in\R^d\), the identity stem, the \(L\)-block identity-initialized residual trunk, the squared loss \(\norm{h_L(x)-\beta x}^2/2\) with \(0\le\beta<1\), zero \(B\)-initialization, and independent Gaussian seeds with \(2\le r\le d\). Let \(G\) be any fixed \(C^2\) immersive chart into the unit sphere through \(x\).
+
+All deterministic dynamic bounds of Theorem~\ref{thm:anchor} hold with \(N=1\), \(H=x\), and \(\gamma=(1-\beta)\min_\ell\norm{A_{\ell,0}x}\). If \(L(r-1)\ge k\), ideal tangent rank is \(k\) almost surely. Its quantitative margin is at least \(\sqrt{L(r-1)/2}\,\sigma_{\min}(DG)\) with the probability in Lemma~\ref{lem:net}. A sufficiently small positive total step size gives stable local reconstruction on the chart.
+\end{corollary}
+\begin{proof}
+The proof of the anchor's dynamics used only full column rank of \(H\) and the aligned identity-trunk initial gradient. Both hold for one nonzero column \(x\); no polynomial identity was used in those steps. Differentiating \(\norm{G(z)}^2=1\) at the true point gives \(x^TDG=0\). Thus projection away from \(\Span(x)\) leaves the chart tangent unchanged. Lemmas~\ref{lem:gauss} and \ref{lem:net} give the stated ideal rank and margin directly. The same operator transfer and local theorem finish the proof.
+\end{proof}
+This is a particularly transparent homogeneous family: its input-output map is linear and therefore positively homogeneous. It is useful as the smallest anchor, not as evidence that homogeneity by itself solves identification.
+
+\subsection{Why homogeneity without normalization can be an obstruction}
+\textbf{\(\PP\): scaling paths are invisible.} If every base feature map is positively homogeneous of degree \(a_\ell>0\), then
+\[
+C_\ell\Phi_\ell^0(\lambda x_i)
+=\lambda^{a_\ell}C_\ell\Phi_\ell^0(x_i)=0
+\]
+for all positive \(\lambda\) whenever the exact certificate annihilates \(x_i\). Thus any nonconstant scaling path contained in the chart prevents isolation. This identity is a complete proof; extra width or extra homogeneous layers do not remove it. A fixed-norm chart removes this particular ambiguity.
+
+For linear base maps \(\Phi_\ell^0(x)=M_\ell x\), the larger obstruction is the full data span: \(C_\ell M_\ell X=0\) implies \(C_\ell M_\ell Xv=0\) for every coefficient vector \(v\). On a chart, all tangents whose input image lies in \(\col X\) are therefore invisible. With several independent training points, normalization alone need not remove these mixture directions. Both the polynomial stem and the proved nonlinear MLP feature geometry address this second obstruction. The MLP's affine biases also remove the automatic input-homogeneity identity; ReLU activation alone does not make an affine network homogeneous in its input.
+
+\subsection{What width does, and what it cannot do}
+There are three dimensions to keep separate: representation width \(D\) (called \(n\) in the MLP), LoRA factor width \(r\), and module output dimension. The potential LoRA certificate row budget is \(r-q\), not \(D-q\). A larger \(D\) permits larger \(r\), but does not create certificate rows when \(r\) is held fixed. The output dimension must also permit rank-\(q\) recording. Independent layers can increase the total budget \(\sum_\ell(r_\ell-q_\ell)\); the rank theorem says which of those rows can be independent. For ordinary output-weight training the corresponding ideal budget is \(n-N\), since there is no LoRA compression.
+
+Even arbitrarily wide networks fail if the initial loss gradient is zero: from \(B_0=0\), both factors can remain unchanged and excitation never occurs. Width also cannot fix a feature map that is constant on the chart, a scaling symmetry, or a nuisance reparameterization. The proved MLP and residual width results work because they resolve these other issues within their specified families, not because width is a universal cure.
+
+\subsection{Why ``CNN'' is not yet a sufficient theorem hypothesis}
+Convolution describes weight sharing and spatial structure. It does not supply any of the three margins on its own. A convolutional update can see many patch columns from one image, making its relevant feature rank much larger than the image count. Pooling can also erase directions.
+
+A concrete obstruction needs no detailed CNN calculation: if every selected base map factors through an invariant statistic \(T\), so that \(\Phi_\ell^0=\Psi_\ell\circ T\), then every chart path on which \(T\) is constant gives identical certificate outputs. The equality follows by direct substitution, and differentiation gives a common tangent kernel. Exact global averaging after a translation-equivariant spatial network provides such translation invariance whenever the chosen transformations and boundary convention make the equivariance exact. For a discrete translation group this proves aliases, not automatically a continuous tangent ambiguity; a continuous chart path of invariances is needed for the latter.
+
+Conversely, convolution is not an impossibility result. A convolutional family with provable initial-gradient rank, controlled training drift, and injective quotient tangent geometry could satisfy the general theorem. We have not proved these properties for standard CNN families here. Calling a dense one-site model a CNN would not supply the missing substantive argument.
+
+\Needspace{12\baselineskip}
+\section{Research ledger and assessment}
+\label{sec:ledger}
+
+\begin{longtable}{@{}p{31mm}p{114mm}@{}}
+\toprule Status & Claim and precise scope\\\midrule\endhead
+\(\PP\)& Exact finite-time certificate under seeded-span excitation; \(q\) is feature rank. The trajectory-span extension is exact but can lose all useful rows.\\
+\(\PP\)& Actual-trajectory leakage recurrences and the operator certificate bound, including subspace rotation and projected \(A\)-closure error.\\
+\(\FF\)& Universal quadratic cancellation under small upstream drift. The two-step jointly trained example has a nonzero linear term and a positive limiting signal gap.\\
+\(\FF\)& Small drift alone guarantees accuracy regardless of excitation, training accumulation, or depth amplification. Explicit cancellation and accumulation examples refute this.\\
+\(\PP\)& Softplus two-layer MLPs with independent Gaussian weights and biases, distinct fixed inputs, an independent immersive chart, and sufficient hidden/output/LoRA widths have positive initial excitation and tangent margins almost surely (Theorem~\ref{thm:mlpfeatures}, Proposition~\ref{prop:mlpmargins}).\\
+\(\PP\)& For that MLP family with arbitrary fixed labels and joint full-batch squared-loss training, a positive short-total-time interval gives an \(O(\tau)\) certificate and local reconstruction stability. Both ordinary weights and two-layer LoRA are covered (Theorem~\ref{thm:mlp}).\\
+\(\PP\)& ReLU MLPs satisfy the same conclusions with high probability under the data-dependent width bound and a sufficiently short fixed-gate training window (Theorem~\ref{thm:relu}).\\
+\(\FF\)& Hidden width alone supplies output excitation, conventional rank-one LoRA supplies a nonzero excited equation, or finite-width ReLU feature rank holds almost surely. Output rank caps, a zero row complement, and dead-neuron events refute these claims.\\
+\(\FF\)& A standard smooth two-layer MLP automatically improves the later certificate to quadratic error. Example~\ref{ex:softplus} has a nonzero first-order term despite positive tangent sensitivity and normalized signal.\\
+\(\PP\)& An explicit short-total-time residual family simultaneously satisfies excitation, quadratic certificate accuracy, and stable local identification. Polynomial degree \(N\) handles \(N\) distinct examples; degree two suffices for two.\\
+\(\PP\)& Conservative deterministic width and training-window conditions give a high-probability version for the aligned residual family (Corollary~\ref{cor:uniform}). The seed law is specified, not imposed on trained factors.\\
+\(\PP\)& A one-example homogeneous residual family works on fixed-norm immersive charts. Small smooth nonlinear changes around a successful anchor give an open first-order family.\\
+\(\PP\)& Generic cross-layer rank is the stated subspace min--max value. Additivity up to \(k\) requires adequate allowed covector spaces; full rank alone is not a conditioning bound.\\
+\(\PP\)& Full tangent rank gives local isolation and residual-to-location stability. Shared concepts require nuisance elimination and, for concept-only nonlinear identification, suitable nuisance regularity.\\
+\(\FF\)& Homogeneity, width, depth, or convolution alone implies the main reconstruction claim. Scaling, zero gradients, lost features, and redundant equations are counterexamples.\\
+\(\OO\)& Useful uniform MLP conditioning and training windows from simple data/width hypotheses alone; comparable margins for arbitrary pretrained CNNs or transformers; realistic optimizer transformations and long training without loss of excitation.\\
+\(\CC\)& In a specifically defined near-isometric pretrained family with sufficiently transverse features and a nondegenerate initial supervised gradient, the short-time constants can be substantially improved. This is a proposal about quantitative sharpness, not a proved practical regime.\\
+\(\OO\)& Global reconstruction under the small row budgets used here; efficient entry into the local reconstruction neighborhood; novelty relative to all existing work.\\\bottomrule
+\end{longtable}
+
+\subsection{Which assumptions are genuinely doing work?}
+\textbf{Compatible training and release.} Zero \(B\)-initialization and scalar gradient updates establish the closure mechanism. The raw factorization carries the certificate. These are not harmless presentation choices.
+
+\textbf{Excitation.} Recording the full intended seeded span is needed for the exact theorem; positive initial-gradient rank is one sufficient short-time mechanism. For the LoRA MLP it is proved from \((V_0H-Y)(A_{2,0}H)^T\), independent output weights, fixed labels, and seed rank. For the residual family it is proved from \((1-\beta)HH^TA_0^T\). Choosing labels after initialization to make the MLP error zero, or choosing \(\beta=1\) in the residual task, defeats these mechanisms.
+
+\textbf{Small total training time.} It makes the actual nonlinear trajectory close to its explicitly known initial movement, prevents cancellation of the recorded signal, and controls all intermediate factors. It is a limitation on the theorem, not a claim that late-time training must fail. Arbitrarily many small steps are allowed; arbitrarily large cumulative time is not.
+
+\textbf{Aligned targets and identity base.} These establish the residual family's special quadratic transverse drift. They are not required for first-order identification: the MLP theorem accepts arbitrary fixed labels and random nonlinear base features, and the open nonlinear extension supplies another example. Nor are they claimed necessary for every possible quadratic mechanism.
+
+\textbf{Data and chart geometry.} Distinctness and separation give feature-rank and tangent margins. Chart immersion prevents a coordinate direction from representing no first-order input change. For homogeneous features, a chart must remove scaling ambiguity if it contains a radial direction. No network theorem can make an arbitrary badly parameterized or confounded latent chart identifiable.
+
+\textbf{Independent initialization and width.} Hidden biases and nonlinear random features prove the MLP's augmented rank; Gaussian output weights prove its arbitrary-fixed-label excitation; independent adapter seeds preserve tangents or sample independent layer equations. These are sufficient mechanisms, not logically necessary ones. Output dimension, hidden width, and LoRA width serve different roles. Conditioning can deteriorate even when all stated dimension counts and exact ranks hold.
+
+\textbf{Local regularity.} Curvature bounds specify where the inverse estimate is valid. Approximate certificates may have no exact zero. The theorem concerns nearby low-residual candidates and gives nearby minimizer existence under a radius condition; it does not promise global algorithmic recovery.
+
+\subsection{Is this strong enough for a thesis?}
+The integrated theory is stronger than a package of conditional perturbation bounds. The two-layer MLP supplies a familiar family in which excitation and tangent rank are proved from initialization and width, without aligned labels or a hand-chosen feature stem. The residual family supplies a separate explicit mechanism for quadratic accuracy and cross-layer accumulation. Both connect actual joint training to certificate accuracy and then to stable local identification. The sharp first-order counterexamples prevent the positive result from being overstated.
+
+The limitations remain substantial. The MLP theorem uses random base initialization, suitable vector-valued output dimensions, and potentially small realization-dependent conditioning margins. ReLU has a high-probability, locally fixed-gate result, not a finite-width probability-one theorem. The special quadratic family still uses aligned regression and a prescribed stem. All the trained-family results are short-time and the reconstruction is local. None establishes practical recovery for arbitrary pretrained adapters or long fine-tuning.
+
+For a theory-oriented master's thesis, the exact closure mechanism, sharp multilayer counterexamples, actual-trajectory bounds, and verified MLP/residual families can form a credible central mathematical chapter. The thesis claim should be ``finite-time certificates and locally stable identification in verified network families,'' not general private-data reconstruction. The standard Gaussian, subspace min--max, and inverse-function ingredients are not new abstract results. Novelty must be evaluated in their adapter-specific connection and in the particular trained-family and cancellation results. A supervisor's independent proof check and a focused literature review remain necessary before a publication or priority claim.
+
+\appendix
+\section{First and second order, without hiding any product terms}
+\label{app:orders}
+
+This appendix records the longer formulas. They are not prerequisites for understanding the architecture theorems, whose main bounds use finite inequalities instead of a formal asymptotic series.
+
+\Needspace{10\baselineskip}
+\subsection{How a rotating projector changes the certificate}
+\begin{theorem}[The exact first-variation cancellation test; \(\PP\)]\label{thm:variation}
+Let \(A(\epsilon),B(\epsilon)\) be \(C^2\) near zero, and write
+\[
+A=\bar A+\epsilon A_1+\epsilon^2 A_2+o(\epsilon^2),\qquad
+B=\bar B+\epsilon B_1+\epsilon^2 B_2+o(\epsilon^2).
+\]
+Assume \(\rank\bar B=q\), \(\sigma_q(\bar B)>0\), and
+\(P^\perp\bar A H^0=0\), where \(P=P_{\row\bar B}\).
+Let \(\widetilde P(\epsilon)\) be the top-\(q\) right projector. Then
+\[
+(I-\widetilde P)AH^0=\epsilon R_1+\epsilon^2R_2+o(\epsilon^2),
+\]
+where
+\[
+R_1=P^\perp A_1H^0-L_1\bar A H^0,
+\quad L_1=P^\perp B_1^T(\bar B^\dagger)^T.
+\]
+Here \(\bar B^\dagger\) is the Moore--Penrose inverse, and \(L_1\) maps \(\row\bar B\) into its complement. The residual is \(O(\epsilon^2)\) if and only if \(R_1=0\); otherwise its norm is \(\Theta(|\epsilon|)\).
+
+For the second coefficient, use coordinates \(S\oplus S^\perp\), \(S=\row\bar B\), and define
+\begin{align*}
+N_0&=\bar B^T\bar B=\begin{pmatrix}D&0\\0&0\end{pmatrix},\quad D\succ0,\\
+N_1&=\bar B^TB_1+B_1^T\bar B,\\
+N_2&=\bar B^TB_2+B_2^T\bar B+B_1^TB_1,\\
+L_1&=(N_1)_{21}D^{-1},\qquad
+L_2=((N_2)_{21}-L_1(N_1)_{11})D^{-1},\\
+P_1&=\begin{pmatrix}0&L_1^T\\L_1&0\end{pmatrix},\qquad
+P_2=\begin{pmatrix}-L_1^TL_1&L_2^T\\L_2&L_1L_1^T\end{pmatrix}.
+\end{align*}
+Then \(R_2=P^\perp A_2H^0-P_1A_1H^0-P_2\bar A H^0\).
+\end{theorem}
+\begin{proof}
+\textbf{Step 1: describe a nearby subspace as a graph.} The positive eigenvalues of \(N_0\) are separated from zero. A nearby invariant subspace can be written as the graph of a map \(L:S\to S^\perp\). Invariance under \(N=B^TB\) is exactly
+\[
+N_{21}+N_{22}L=L(N_{11}+N_{12}L).
+\]
+At \((\epsilon,L)=(0,0)\), differentiation with respect to \(L\) gives the invertible map \(K\mapsto-KD\). The implicit function theorem gives a unique small \(C^2\) solution. Continuity and the spectral separation identify its graph with the top singular subspace.
+
+\textbf{Step 2: expand the graph equation.} Substituting \(L=\epsilon L_1+\epsilon^2L_2+o(\epsilon^2)\) gives
+\(L_1D=(N_1)_{21}\) at first order. At second order it gives
+\(L_2D=(N_2)_{21}-L_1(N_1)_{11}\), because \((N_1)_{22}=0\) and \(LN_{12}L\) starts at order three. A singular-value decomposition of \(\bar B\) turns the first formula into the stated pseudoinverse expression for \(L_1\).
+
+\textbf{Step 3: expand the projector, then the certificate.} The orthogonal projector onto the graph is
+\[
+\binom{I}{L}(I+L^TL)^{-1}(I\quad L^T).
+\]
+Since \((I+L^TL)^{-1}=I-\epsilon^2L_1^TL_1+o(\epsilon^2)\), multiplication gives
+\(\widetilde P=P+\epsilon P_1+\epsilon^2P_2+o(\epsilon^2)\).
+Multiply this expansion by that of \(A\), and use \(P^\perp\bar A H^0=0\). This gives both coefficients. The first is the displayed \(R_1\) because \(\bar A H^0\in S\). A zero first coefficient gives quadratic order; a nonzero coefficient gives
+\(\norm{(I-\widetilde P)AH^0}/|\epsilon|\to\norm{R_1}>0\), proving the converse and the sharp order statement.
+\end{proof}
+The identity \(PP_1P=0\) says that first-order rotation points \emph{out} of the old subspace. It does not say the rotation is zero. Also, this theorem has a nonzero limiting signal gap and does not apply directly to the unscaled \(B\) at \(\tau=0\), where the LoRA architecture theorems start with \(B=0\). Their proofs compare rates: generally \(\tau^2/\tau=\tau\), and in the special residual family \(\tau^3/\tau=\tau^2\). A smooth fixed-step expansion can instead use the normalized matrix \(B/\tau\) when its extension has a verified limiting gap, as in the two-step softplus example.
+
+\subsection{Deep representation movement and depth amplification}
+For a chain
+\[
+h_j=\sigma_j((W_j^0+\Delta W_j)h_{j-1}),
+\qquad h_j^0=\sigma_j(W_j^0h_{j-1}^0),
+\]
+assume \(\sigma_j\) is Lipschitz with constant \(L_j\) on the relevant preactivation segments. Set \(a_j=\norm{W_j^0}\), \(u_j=\norm{\Delta W_j}\), \(m_j\ge\norm{h_j^0}\), and \(d_j=\norm{h_j-h_j^0}\). Direct subtraction gives
+\[
+d_j\le L_j\{(a_j+u_j)d_{j-1}+u_jm_{j-1}\}.
+\]
+Starting with \(d_0=0\) and substituting this bound repeatedly proves
+\[
+d_j\le\sum_{i=1}^jL_i u_i m_{i-1}
+\prod_{v=i+1}^j L_v(a_v+u_v).
+\]
+These are \(\PP\) finite inequalities. Apply them at each training time, then insert the resulting drift bound in the leakage recurrence. For multiple examples, the square root of the sum of squared column bounds bounds the feature-matrix Frobenius norm. Fixed biases can be included in augmented coordinates; moving biases require their own additive differences.
+
+For explicit orders, suppose all activations are \(C^2\) locally and
+\[
+\Delta W_j=\epsilon U_j+\epsilon^2V_j+o(\epsilon^2),\quad
+h_j=h_j^0+\epsilon v_j+\epsilon^2w_j+o(\epsilon^2).
+\]
+Multiplying weight and input series gives preactivation coefficients
+\begin{align*}
+s_j^{(1)}&=W_j^0v_{j-1}+U_jh_{j-1}^0,\\
+s_j^{(2)}&=W_j^0w_{j-1}+U_jv_{j-1}+V_jh_{j-1}^0.
+\end{align*}
+Taylor's formula then proves
+\[
+v_j=D\sigma_j(s_j^0)s_j^{(1)},\qquad
+w_j=D\sigma_j(s_j^0)s_j^{(2)}
++\tfrac12D^2\sigma_j(s_j^0)[s_j^{(1)},s_j^{(1)}].
+\]
+The three second-order mechanisms are direct second-order parameter movement, interaction between upstream and local first-order movements, and activation curvature. Across a ReLU kink this \(C^2\) expansion is not justified; inside a fixed activation region it can be applied to the corresponding affine maps.
+
+For two linear layers, multiplication reduces to
+\begin{align*}
+(W_2^0+\epsilon U_2)(W_1^0+\epsilon U_1)x
+={}&W_2^0W_1^0x\\
+&+\epsilon(W_2^0U_1+U_2W_1^0)x
++\epsilon^2U_2U_1x.
+\end{align*}
+The second-layer input already changes at first order. The quadratic interaction in the final output does not eliminate that input movement. Similarly, when \(B=\epsilon b_1+\epsilon^2b_2+o(\epsilon^2)\) and \(A=A_0+\epsilon a_1+o(\epsilon)\),
+\[
+BA=\epsilon b_1A_0+\epsilon^2(b_2A_0+b_1a_1)+o(\epsilon^2).
+\]
+Zero \(B\)-initialization does not make the functional adapter quadratic.
+
+\subsection{Every first- and second-order factor-update term}
+Here is a readable way to list the terms once without duplicating two long calculations. For any three compatible matrix series
+\(X=\bar X+\epsilon X_1+\epsilon^2X_2+o(\epsilon^2)\), and likewise \(Y,Z\), ordinary multiplication gives
+\begin{align*}
+[XYZ]_1={}&X_1\bar Y\bar Z+\bar X Y_1\bar Z+\bar X\bar YZ_1,\\
+[XYZ]_2={}&X_2\bar Y\bar Z+\bar X Y_2\bar Z+\bar X\bar YZ_2\\
+&+X_1Y_1\bar Z+X_1\bar YZ_1+\bar X Y_1Z_1.
+\end{align*}
+These are all possibilities: at first order exactly one factor contributes order one; at second order either one factor contributes order two or two factors contribute order one. This proves completeness of the list.
+
+For the \(B\)-gradient substitute \((X,Y,Z)=(D,H^T,A^T)\). For the \(A\)-gradient substitute \((B^T,D,H^T)\). Multiply by the negative step size and add the corresponding order of the old iterate to obtain each update coefficient. If scalar steps or decay vary with \(\epsilon\), apply the same product rule to those scalar factors too.
+
+The error \(D\) is not frozen silently. If it is a \(C^2\) function \(\mathcal D\) of the entire training state \(\theta\), then its coefficients are
+\[
+D_1=D\mathcal D(\bar\theta)\theta_1,\qquad
+D_2=D\mathcal D(\bar\theta)\theta_2
++\tfrac12D^2\mathcal D(\bar\theta)[\theta_1,\theta_1].
+\]
+Sufficient smoothness for the gradient function \(\mathcal D\) must be assumed; differentiating a loss gradient twice typically requires one more loss derivative than the network-output expansion.
+
+\subsection{The more informative projected expansion}
+Keep the seed, reference projector and scalar schedule fixed. Suppose the zero-order inputs \(\bar H_t\) lie in \(\mathcal U\), so zero-order leakage is zero. Write the coefficients of \(Z_t,E_t,W_t\) with subscripts \(1,2\), and set
+\[
+T_{t,1}=E_{t,1}\bar H_t+W_{t,1},\qquad
+T_{t,2}=E_{t,2}\bar H_t+E_{t,1}H_{t,1}+W_{t,2}.
+\]
+Substitution in \eqref{eq:leakZ}--\eqref{eq:leakE} gives every projected term:
+\begin{align*}
+Z_{t+1,1}&=\beta_tZ_{t,1}-\eta_t^B\bar D_tT_{t,1}^T,\\
+E_{t+1,1}&=\alpha_tE_{t,1}-\eta_t^A Z_{t,1}^T\bar D_t\bar H_t^T,\\
+Z_{t+1,2}&=\beta_tZ_{t,2}-\eta_t^B\{\bar D_tT_{t,2}^T+D_{t,1}T_{t,1}^T\},\\
+E_{t+1,2}&=\alpha_tE_{t,2}-\eta_t^A\{Z_{t,2}^T\bar D_t\bar H_t^T
++Z_{t,1}^TD_{t,1}\bar H_t^T\\
+&\hspace{44mm}+Z_{t,1}^T\bar D_tH_{t,1}^T\}.
+\end{align*}
+These equations follow by the just-proved product rule. Notice that \(D_{t,1}\) cannot force first-order leakage by itself: its multiplier at order zero is zero. If \(W_{t,1}=0\) for every step, induction forces \(Z_{t,1}=E_{t,1}=0\). This is a structural sufficient cancellation condition, not an automatic consequence of orthogonal projection.
+
+\section{Additional scope checks}
+\label{app:scope}
+
+\subsection{Partial excitation does not identify each example}
+Under the closure theorem, suppose \(X=A_0U\) has rank \(q\) and \(\Omega=c_TI+M_T\) is invertible. If \(s=\rank B_T\), then
+\[
+\dim(\mathcal U\cap\ker C)=s,\qquad \rank(CU)=q-s.
+\]
+This is \(\PP\): the map \(X\Omega:\R^q\to S\) is an isomorphism, and projection away from the \(s\)-dimensional space \(\row B_T\subseteq S\) has a kernel of dimension \(s\) on \(S\). Composing and applying rank--nullity proves both identities. Without invertibility the exact surviving dimension is instead
+\(q-\rank(P_{\row B_T^\perp}X\Omega)\). These are statements about mixtures in a span, not annihilation of each training column.
+
+\subsection{Seed rank versus signal strength}
+Let \(X=A_0U\) have full column rank and \(P=P_{\col X}\). Write
+\[
+Q=B_TX(X^TX)^{-1},\qquad B_TP=QX^T.
+\]
+If \(Q\) has column rank \(q\), then
+\[
+\sigma_q(B_T)\ge\sigma_q(B_TP)
+\ge\sigma_{\min}(Q)\sigma_{\min}(X).
+\]
+For the first inequality, use
+\(B_TB_T^T=(B_TP)(B_TP)^T+(B_TP^\perp)(B_TP^\perp)^T\)
+and the eigenvalue variational principle. For the second, take a thin QR factorization of \(X\); the nonzero singular values are those of a product of a full-column-rank matrix with an invertible square matrix, whose least stretching factors multiply. This proves the inequalities and separates seed conditioning from dynamic excitation.
+
+If \(A_0\) has full row rank, then \(C^\circ=c_TP^\perp A_0\) has \(r-q\) nonzero singular values, the smallest at least \(|c_T|\sigma_r(A_0)\). Compress the output using an orthonormal basis of \(S^\perp\); its transpose applied to a unit vector has norm at least this bound, proving the claim. Thus an operator error smaller than this value preserves rank \(r-q\) of the truncated certificate: it is injective on the ideal right singular subspace, and its rank cannot exceed the dimension \(r-q\) of its output projection.
+
+\subsection{What is public and what remains an analysis quantity?}
+The released \(A_T,B_T\) and their singular values are observable. A chosen top-\(q\) truncated certificate is computable from them. The private feature span, its rank in a general model, and trajectory leakage are not ordinarily observable from the release alone. A visible spectral gap does not independently prove those hidden hypotheses.
+
+In the polynomial residual family, distinctness and the prescribed lift prove \(q=N\). In the MLP family, the augmented feature-rank theorem proves the same equality almost surely for softplus, or on the ReLU success event. These are results for those families, not a return to confusing rank with example count in general. Choosing the correct truncation also presumes \(N\) is known in these examples, or that the appropriate rank is otherwise supplied; this report does not prove data-count inference from an arbitrary release. The initialization-independent chart assumption is substantive: an adaptive chart aligned with a certificate kernel can invalidate the tangent argument.
+
+Finally, if the implemented updates differ from the scalar recurrences by additive defects \(\Xi_t^B,\Xi_t^A\), the leakage equations acquire the additional terms \(\Xi_t^BP^\perp\) and \(P^\perp\Xi_t^A\). This follows by projection of the modified updates. Their norms can be added to the forcing recurrence. This is a way to account for \emph{bounded} arithmetic or optimizer defects, not a proof that an arbitrary optimizer's defects are small.
+
+\section*{Sources and mathematical provenance}
+\addcontentsline{toc}{section}{Sources and mathematical provenance}
+This edition rewrites and extends the earlier report \emph{What survives representation drift? Exact and perturbative multilayer LoRA certificates}. The original project record supplied the single-layer certificate question and the proposed multilayer direction. Its four supplied PDFs were \emph{lora\_plan\_rev11(2)}, \emph{lora certificate replay brief 2026-09-07(1)}, \emph{lora thesis master record 2026-09-07(1)}, and \emph{LoRA\_meeting\_walkthrough\_FINAL(2)}. They are project sources, not independent validation of the new family theorem.
+
+The architecture proofs integrated here comprise the softplus value-and-tangent rank theorem, the Gaussian output/seed excitation argument for arbitrary fixed labels, ordinary-training and two-layer LoRA short-time certificates, a high-probability ReLU extension, and the explicit smooth first-order counterexample. The earlier polynomial separation bounds, quantitative residual-family training estimates, aligned second-order mechanism, and open nonlinear extension are retained and reconciled with them. These arguments are written out so their validity does not depend on accepting a citation or a numerical experiment. ``New in this edition'' is not a claim of priority in the mathematical literature.
+
+For classical context, singular-value and singular-subspace perturbation are surveyed in G. W. Stewart, \emph{Perturbation Theory for the Singular Value Decomposition}, UMIACS-TR-90-124, September 1990, available from the \href{https://drum.lib.umd.edu/bitstreams/a38cc6db-9bb7-4f3b-ae43-55b5827bb9d4/download}{University of Maryland repository}. The required projector estimate is proved directly here. The Gaussian net argument, independent-representatives rank argument, and local inverse estimates are standard mathematical ingredients and are also proved rather than invoked as unverified black boxes.
+
+\end{document}

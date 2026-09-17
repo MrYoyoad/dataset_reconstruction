@@ -1,0 +1,43 @@
+\documentclass[tikz,border=0pt]{standalone}
+\input{style.tex}
+\begin{document}
+\begin{tikzpicture}[figure]
+\canvas{What changes in the NTK argument?}
+\node[heading] at (245,492) {Universal-kernel guarantee};
+\node[heading] at (721,492) {LoRA head at initialization};
+\fill[frozen!6,rounded corners=9pt] (49,253) rectangle (443,456);
+\begin{scope}[shift={(238,302)}]
+ \draw[flow,frozen,line width=1.9pt] (0,0)--(-133,53);
+ \draw[flow,frozen,line width=1.9pt] (0,0)--(-72,98);
+ \draw[flow,frozen,line width=1.9pt] (0,0)--(34,120);
+ \draw[flow,frozen,line width=1.9pt] (0,0)--(113,83);
+ \node[smalllabel,text=frozen] at (-138,74) {$K(x_1,\cdot)$};
+ \node[smalllabel,text=frozen] at (-84,119) {$K(x_2,\cdot)$};
+ \node[smalllabel,text=frozen] at (30,141) {$K(x_3,\cdot)$};
+ \node[smalllabel,text=frozen] at (127,105) {$K(x_4,\cdot)$};
+\end{scope}
+\node[smalllabel,text=muted] at (244,269) {independent sections (schematic)};
+\node[labeltext] at (246,223) {$\sum_j a_jK(x_j,\cdot)=0\ \Longrightarrow\ a_j=0$};
+\node[smalllabel,text=muted] at (243,190) {distinct $x_j$};
+\node[labeltext] at (718,443) {$K^c(x,x')=\langle A_0\phi(x),A_0\phi(x')\rangle$};
+\node[smalllabel] at (716,410) {$\rank K^c\le r$};
+\begin{scope}[shift={(704,290)},x={(1pt,0pt)},y={(.5pt,.35pt)}]
+ \filldraw[fill=adapter!7,draw=adapter!45,line width=.8pt]
+  (-102,-33)--(105,-33)--(105,138)--(-102,138)--cycle;
+ \draw[flow,frozen,line width=1.9pt] (0,0)--(-72,36);
+ \draw[flow,frozen,line width=1.9pt] (0,0)--(77,95);
+ \draw[flow,adapter,line width=1.7pt] (0,0)--(-5,92);
+ \draw[flow,adapter,line width=1.7pt] (0,0)--(55,49);
+ \node[labeltext,text=frozen,anchor=east] at (-74,36) {$v_1$};
+ \node[labeltext,text=frozen,anchor=west] at (77,103) {$v_2$};
+ \node[labeltext,text=adapter,anchor=east] at (-7,106) {$v'_1$};
+ \node[labeltext,text=adapter,anchor=west] at (65,46) {$v'_2$};
+\end{scope}
+\node[labeltext] at (721,226) {$V=[A_0\phi(x_1)\ \cdots\ A_0\phi(x_N)]$};
+\node[smalllabel,text=muted] at (721,191) {alternative bases; same free-coefficient fit};
+\node[equation] at (480,145) {$\Lambda V^\top=(\Lambda M^{-\top})(VM)^\top$};
+\node[labeltext] at (480,99) {$T=1:\quad A_1=A_0,\qquad B_1=-\eta D_0(A_0H)^\top$};
+\node[smalllabel,text=muted] at (480,59) {free coefficients; invertible $M$; realizable candidate features required};
+\node[smalllabel,text=muted] at (480,25) {Loo et al., Thm. 1: infinite width, unit sphere, nonzero training coefficients};
+\end{tikzpicture}
+\end{document}

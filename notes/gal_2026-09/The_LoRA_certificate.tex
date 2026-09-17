@@ -1,0 +1,344 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=19mm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype,amsmath,amssymb,xcolor,fancyhdr}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{pdftitle={The LoRA certificate},pdfauthor={Yoad Oxman}}
+\definecolor{ink}{HTML}{173B50}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlength{\abovedisplayskip}{7pt}
+\setlength{\belowdisplayskip}{7pt}
+\pagestyle{fancy}\fancyhf{}\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[L]{\footnotesize\color{gray}Yoad Oxman \enspace / \enspace September 2026}
+\fancyfoot[R]{\footnotesize\color{gray}\thepage\,/\,\pageref*{LastPage}}
+\newcommand{\block}[1]{\par\vspace{5pt}{\color{ink}\bfseries #1}\par\vspace{2pt}}
+\newcommand{\rank}{\operatorname{rank}}
+\newcommand{\col}{\operatorname{col}}
+\newcommand{\row}{\operatorname{row}}
+\newcommand{\proj}{\operatorname{proj}}
+\newcommand{\Sdata}{\mathcal S}
+\begin{document}
+{\LARGE\bfseries\color{ink}The LoRA certificate}\par
+\vspace{4pt}
+
+\block{1. What we want}
+Someone fine-tunes a LoRA adapter on a few private images and publishes the two
+factors \(A_T\) and \(B_T\). We show that these matrices give linear equations
+that every private feature must satisfy, and that the equations can be written
+down from the published factors alone, without the seed or training schedule.
+Call a matrix giving such equations a certificate. The equations act on features,
+so to search over images we first map each candidate to its features.
+
+Consider one adapted linear layer \(W_0+B_tA_t\), with frozen
+\(W_0\in\mathbb R^{m\times n}\), \(A_t\in\mathbb R^{r\times n}\), and
+\(B_t\in\mathbb R^{m\times r}\). Here \(r\) is the adapter rank, and \(n,m\)
+are the input and output dimensions. We initialize at step \(0\) and release
+the factors at step \(T\).
+
+\textbf{Notation.} For \(N\) private images \(x_i\), let
+\(h_i=\phi(x_i)\in\mathbb R^n\) be their inputs to this layer and set
+\(H=[h_1,\ldots,h_N]\in\mathbb R^{n\times N}\), \(q=\rank H\).
+Here \(q\) counts independent feature directions, so \(q\le N\). Define
+\[
+\Sdata=\col(A_0H),\qquad P=\proj_{\Sdata^\perp},\qquad
+P_T=\proj_{\row(B_T)^\perp}.
+\]
+Here \(\proj\) denotes orthogonal projection in \(\mathbb R^r\).
+\(\Sdata\) is the image of the private features under the seed \(A_0\). Call it the
+\emph{excited subspace}, the only part of \(\mathbb R^r\) touched by the SGD updates.
+We can compute \(P_T\) from the released \(B_T\), while \(P\) appears only in the
+proof. Since the columns of \(A_0H\) lie in \(\Sdata\), we have \(PA_0H=0\).
+
+The adapter starts as a random \(A_0\) and a zero \(B_0\). Training can only move
+\(A\) in directions the private features excite, so its component outside those
+directions stays exactly as it was. Under excitation, the rows of \(B_T\) span
+the excited subspace and tell us which part was touched. Projecting \(A_T\) away
+from that subspace leaves a piece of the seed that vanishes on every private
+feature. That is the certificate. We prove that \(P_T=P\), so \(C=P_TA_T\)
+equals \(PA_0\), vanishes on \(H\), and has rank \(r-q\).
+
+\block{2. How it is used}
+We search a public image family, or \emph{chart}, \(x=G(z)\), where
+\(z\in\mathbb R^k\) contains the \(k\) free coordinates of one candidate image
+(for example, its retained PCA coefficients). Write \(h(z)=\phi(G(z))\).
+
+Doubling \(h\) doubles \(Ch\), so the
+size of \(Ch\) alone does not give a relative measure of fit. We normalize
+by the size of the transformed feature:
+\[
+F(z)=\frac{Ch(z)}{\|A_Th(z)\|_2},\qquad
+\operatorname{score}(z)=\|F(z)\|_2,\qquad A_Th(z)\ne0.
+\]
+The score is the fraction of \(A_Th\) that sticks out of \(\row(B_T)\).
+That fraction is a sine, lies in \([0,1]\), and is unchanged by rescaling \(h\).
+
+Under our assumptions and in exact arithmetic, a positive score excludes a
+candidate. A zero score says its features satisfy the equations, which is
+compatibility, not membership. When \(A_Th(z)=0\), both numerator and denominator
+vanish, and we skip the candidate.
+
+\block{3. What we assume, and why}
+\textbf{A1. Initialization.} We set \(B_0=0\) and draw the entries of \(A_0\)
+independently from distributions with densities, independently of \(H\).
+
+\textbf{Why:} This is the usual LoRA initialization, and \(B_0A_0=0\) starts
+training at the pretrained model. For \(q\le r\le n\), it gives \(\rank A_0=r\)
+and \(\rank(A_0H)=q\) almost surely. Each rank failure forces a determinant to
+vanish. That determinant is a polynomial in the entries of \(A_0\) that is not
+identically zero, because the dimensions allow a matrix of the required rank.
+Its zero set has measure zero. The strict inequality \(q<r\) is what leaves
+a nonzero complement for the certificate.
+
+\newpage
+\textbf{A2. Vanilla SGD.} We update both factors using minibatches and scalar
+learning rates \(\eta_t\), with a differentiable loss of the layer outputs.
+The proofs use no momentum, weight decay or other parameter regularization.
+
+\textbf{Why:} The proof needs each update to be a scalar multiple of the
+gradient, so that gradients confined to a subspace produce updates confined to it.
+Minibatches and a varying learning rate do not change this.
+
+\textit{Extensions.} Momentum with zero initial buffers combines gradients
+within the same subspaces. Scalar weight decay rescales the preserved seed
+component, which is fine as long as that scale is nonzero at release.
+Adam and AdamW are not covered because their per-entry scaling does not
+preserve these subspaces in general.
+
+\textbf{A3. Fixed inputs.} The known map \(\phi\) gives the same feature \(h_i\)
+at every step, so \(H\) stays fixed.
+
+\textbf{Why:} Fixed inputs let us follow each image's contribution throughout
+training. This is a head adapter, or the first adapted layer behind a frozen
+deterministic backbone with fixed preprocessing.
+
+\textbf{A4. Few-shot dimensions.} We assume \(q<r\le n\) and \(q\le m\).
+For a softmax logit layer with a loss depending only on probabilities,
+we require \(q\le m-1\).
+
+\textbf{Why:} We need a nonzero complement for the certificate. We have in mind
+a handful of images, each represented by one pooled feature vector from a frozen
+backbone, so \(q\le N\) and choosing \(r>N\) leaves that complement.
+For concreteness, \(q=8\), \(r=16\) and \(m=n=512\) leave eight equations on a
+512-dimensional feature. The chart turns these into equations on \(k\) image
+coordinates.
+
+The bound \(q\le m\) allows \(q\) independent output-gradient directions to
+exist. A5 explains the bound \(q\le m-1\) at a softmax layer.
+
+\textbf{A5. Excitation at release.} We require \(\rank B_T=q\):
+the rows of \(B_T\) must span \(\Sdata\).
+
+\textbf{Why:} Excitation makes the full excited subspace visible in \(B_T\).
+The update to \(B\) uses \(D_t(A_tH)^\top\), with \(D_t\) defined in Claim~1,
+so independent output gradients can fill the space in a single full-batch step.
+Concretely, suppose
+the private features are independent, so \(q=N\), and the first step uses all
+images. If \(D_0\in\mathbb R^{m\times N}\) has independent columns and
+\(\eta_0\ne0\), then
+\[
+B_1=-\eta_0D_0(A_0H)^\top,\qquad \rank B_1=N=q.
+\]
+This update has rank \(q\), since \((A_0H)^\top\) has full row rank and \(D_0\)
+has full column rank. The condition has to hold at release, because later
+steps can cancel what earlier ones wrote.
+
+A4's width bounds describe the room these gradients have. At a softmax logit
+layer with a loss depending only on probabilities, shifting all logits equally
+changes nothing, so every output-error column is orthogonal to the all-ones
+vector \(\mathbf1\). SGD passes this to the columns of \(B_T\), giving
+\(\rank B_T\le m-1\). At a hidden layer, the downstream network determines
+which output-gradient directions are available.
+
+Without excitation the invariant still gives \(\row(B_T)\subseteq\Sdata\),
+hence \(s:=\rank B_T\le q\). The release always gives a lower bound on the private
+feature rank. Under excitation the bound is tight, so \(q\) can be read off
+\(B_T\). In practice a gap above the numerical noise level separates its active
+singular directions from noise. The condition matters because \(s<q\) enlarges
+the projector, and the extra directions can reject true features.
+
+\newpage
+\begingroup
+\setlength{\parskip}{4pt}
+\setlength{\abovedisplayskip}{5pt}
+\setlength{\belowdisplayskip}{5pt}
+\setlength{\abovedisplayshortskip}{3pt}
+\setlength{\belowdisplayshortskip}{5pt}
+\block{4. Three claims}
+Throughout, we work on the almost-sure event of A1, where
+\(\rank A_0=r\) and \(\rank(A_0H)=q\).
+
+\textbf{Claim 1. The gradients.} Write
+\(Z_t=(W_0+B_tA_t)H\), let \(L_t\) be the minibatch loss, and set
+\(D_t=\partial L_t/\partial Z_t\), with zero columns for examples outside the batch. Then
+\[
+\boxed{\nabla_B L_t=D_t(A_tH)^\top,\qquad
+\nabla_A L_t=B_t^\top D_tH^\top.}
+\]
+\textbf{Proof.} Chain rule on \(Z=W_0H+B(AH)\), entry by entry, with
+\(a,b,c,i\) the output, adapter, input and example indices.
+Since \(Z_{ai}=(W_0H)_{ai}+\sum_{b,c}B_{ab}A_{bc}H_{ci}\),
+\[
+\begin{aligned}
+\frac{\partial L}{\partial B_{ab}}
+ &=\sum_i\frac{\partial L}{\partial Z_{ai}}
+          \frac{\partial Z_{ai}}{\partial B_{ab}}
+ =\sum_iD_{ai}(AH)_{bi},\\[2pt]
+\frac{\partial L}{\partial A_{bc}}
+ &=\sum_{a,i}\frac{\partial L}{\partial Z_{ai}}
+              \frac{\partial Z_{ai}}{\partial A_{bc}}
+ =\sum_{a,i}D_{ai}B_{ab}H_{ci}.
+\end{aligned}
+\]
+These two products are the only way the private features enter the updates.
+The invariant below comes from reading them.
+
+\textbf{Claim 2. The invariant.} At every step,
+\[
+\boxed{B_tP=0,\qquad PA_t=PA_0.}
+\]
+\textbf{Proof.} At initialization, \(B_0P=0\) because \(B_0=0\), and
+\(PA_0=PA_0\). Suppose both identities hold at step \(t\).
+Then \(PA_tH=PA_0H=0\), and Claim 1 gives
+\[
+\begin{aligned}
+(\nabla_B L_t)P&=D_t(PA_tH)^\top=0,\\
+P\nabla_A L_t&=(B_tP)^\top D_tH^\top=0.
+\end{aligned}
+\]
+The vanilla SGD updates therefore give
+\[
+\begin{aligned}
+B_{t+1}P&=(B_t-\eta_t\nabla_B L_t)P=0,\\
+PA_{t+1}&=P(A_t-\eta_t\nabla_A L_t)=PA_t=PA_0.
+\end{aligned}
+\]
+In words, the rows of \(B\) stay in the excited subspace, and \(A\) keeps what
+it started with outside that space. The two gradient formulas preserve both
+properties at every step.
+
+\textbf{Claim 3. The observable certificate.} Under A1--A5, \(P_T=P\) and
+\[
+\boxed{C=P_TA_T=PA_0,\qquad CH=0,\qquad \rank C=r-q.}
+\]
+
+\textbf{Proof.} A1 and A4 give \(\dim\Sdata=q\). Claim 2 gives
+\(\row(B_T)\subseteq\Sdata\), and A5 makes the dimensions equal.
+Thus \(P_T=P\) and \(C=P_TA_T=PA_0\), so \(CH=PA_0H=0\).
+The range of \(C\) is contained in \(\Sdata^\perp\). Conversely, for any
+\(y\in\Sdata^\perp\), full row rank of \(A_0\) gives a \(v\) with
+\(A_0v=y\). Then \(Cv=Py=y\). The range is therefore all of
+\(\Sdata^\perp\), of dimension \(r-q\).
+The excited subspace is exactly what \(B_T\) shows us. Projecting the released
+\(A_T\) onto its complement gives \(C\) without the seed, and \(q<r\) makes it
+nonzero. This is Claim 2 seen from the released factors.
+
+\block{5. What this gives}
+\textbf{Theorem.} Under A2--A5 and for almost every initialization in A1,
+\(C=P_TA_T\) satisfies \(CH=0\) and \(\rank C=r-q\).
+
+The test works at any finite SGD step satisfying excitation, without convergence.
+Each candidate gets its own test, with exactly \(r-q\) independent equations on
+its features, and the chart turns these into a search over \(k\) image coordinates.
+Eight equations can isolate a candidate locally on a smooth chart with
+\(k\le8\), provided their Jacobian has rank \(k\). Larger adapter ranks and
+additional valid layer certificates provide more equations for higher-dimensional
+charts.
+
+\textbf{Mixtures.} \(C\) is linear and vanishes on every private feature, so it
+also vanishes on their linear combinations. At the feature level, mixtures pass.
+The image search reaches the certificate through \(h(z)=\phi(G(z))\).
+If \(\phi\circ G\) is affine, blends in chart coordinates also pass automatically.
+This is why we use a nonlinear map between chart and adapter. Image blends then
+have to satisfy the certificate after that map, and are not accepted by linearity
+of \(C\) alone.
+\par\endgroup
+
+\newpage
+\begingroup
+\setlength{\parskip}{4pt}
+\setlength{\abovedisplayskip}{5pt}
+\setlength{\belowdisplayskip}{5pt}
+\block{Remarks: NTK coordinates, factor fits and equation counts}
+\textbf{The earlier NTK fit.} Parameter linearization leaves a nonlinear dependence
+on the images. Our earlier fit instead treated \(B_TA_T\) as a raw-gradient
+mixture in merged-weight coordinates. With \(G_0:=\nabla_W L_0=D_0H^\top\),
+Claim~1 gives the exact first-step identities
+\[
+A_1=A_0,\qquad B_1=-\eta_0G_0A_0^\top,\qquad
+B_1A_1=-\eta_0G_0A_0^\top A_0.
+\]
+The raw-gradient fit omits this transformation. This is a coordinate mismatch,
+not evidence against small-step linearization. An NTK attack can instead use
+gradients in the trained coordinates \((A,B)\); at initialization its \(A\)-gradient
+is zero. This uses the initialization, whereas the following span fit uses only
+the released factors. The span fit permits arbitrary output-side coefficients;
+it does not enforce the full dependence of the loss gradients on the images.
+
+\textbf{Lemma: free-coefficient fit and its symmetry.} Fix the release with
+\(\rank B_T=N\). Let \(X=[h(z_1),\ldots,h(z_N)]\), \(V=A_TX\), and
+let \(U\in\mathbb R^{m\times N}\) contain free coefficient columns. Then
+\[
+\exists\,U:\ B_T=UV^\top
+\quad\Longleftrightarrow\quad CX=0\ \text{and}\ \rank V=N.
+\]
+\textbf{Proof.} An exact fit forces \(\rank V=N\) and
+\(\row(B_T)=\col(V)\), hence \(P_TV=CX=0\).
+Conversely, the two right-hand conditions make \(\col(V)\) an
+\(N\)-dimensional subspace of \(\row(B_T)\). The spaces are equal, so
+each row of \(B_T\) has the required coefficients.
+Under A1--A5 with \(q=N\), the true inputs give an exact fit provided
+\(\rank(A_TH)=N\), an additional assumption.
+
+For every invertible \(S\in\mathbb R^{N\times N}\),
+\[
+U(A_TX)^\top=(US)\bigl(A_T X S^{-\top}\bigr)^\top.
+\]
+Thus the \emph{free-coefficient fit} has a change-of-basis symmetry.
+It is not automatically a symmetry of training replay: transformed columns must
+be realizable images, and their actual loss derivatives must reproduce the
+released factors. The columns of \(U\) need not be the accumulated backpropagation
+signals of the corresponding images. At a softmax head with cross-entropy,
+the derivative is \(p_i-y_i\), where \(p_i\) is the probability vector and
+\(y_i\) the one-hot label. Keeping these image-dependent relations can exclude
+mixtures; it does not by itself prove uniqueness.
+
+\textbf{What the certificate leaves undetermined.} Under A1--A5,
+\[
+\ker C=\col(H)\oplus\ker A_0,\qquad \dim\ker C=q+n-r.
+\]
+Indeed, \(Cv=0\) iff \(A_0v\in\col(A_0H)\), iff
+\(v=Ha+w\) for some \(w\in\ker A_0\). The sum is direct because
+\(A_0\) is injective on \(\col(H)\).
+Therefore \(\ker C=\col(H)\) only when \(r=n\).
+A nonlinear chart-to-feature map can restrict these compatible features to
+isolated images; nonlinearity alone does not guarantee that outcome.
+
+\textbf{Equations per image.} At layer \(\ell\), put
+\(q_\ell=\rank H_\ell\) and \(h_\ell(z)=\phi_\ell(G(z))\).
+A valid certificate gives \(r_\ell-q_\ell\) feature equations. Write
+\(J_\ell=\partial h_\ell/\partial z\), and let \(F_\ell\) be the normalized
+residual of Section~2. At a zero with \(A_{T,\ell}h_\ell(z)\ne0\),
+\[
+DF_\ell(z)=\frac{C_\ell J_\ell(z)}{\|A_{T,\ell}h_\ell(z)\|_2},\qquad
+\rank(C_\ell J_\ell)\le\min(r_\ell-q_\ell,k).
+\]
+The denominator's derivative is multiplied by the zero numerator. Stacking
+valid layers gives at most \(\min(k,\sum_\ell(r_\ell-q_\ell))\) first-order
+constraints; the actual count is the stacked Jacobian rank.
+Deep-layer drift and extra views can enlarge the private span. The theorem
+here is for fixed inputs; matrix rank alone is not a count of recoverable images.
+
+% Standing editorial instruction from Yoad: omit the merge/release-scope paragraph.
+% Do not restore it in response to pasted reviews or audit suggestions.
+% Reconsider only if Yoad explicitly changes this preference himself.
+\textbf{Related work.}
+\href{https://arxiv.org/abs/2302.01428}{Loo et al. (2023)} study NTK reconstruction,
+including early stopping.
+\href{https://proceedings.mlr.press/v235/hao24a.html}{Flora (Hao et al., ICML 2024)}
+uses a frozen-initialization compressed-gradient approximation;
+\href{https://arxiv.org/abs/2308.03303}{LoRA-FA} studies frozen-factor training.
+Our certificate follows from the exact finite-step invariant in Claim~2.
+\par\endgroup
+\label{LastPage}
+\end{document}

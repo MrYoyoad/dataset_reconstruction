@@ -1,0 +1,43 @@
+\documentclass[tikz,border=0pt]{standalone}
+\input{style.tex}
+\begin{document}
+\begin{tikzpicture}[figure]
+\canvas{The family can separate compatible features}
+\node[smalllabel,text=muted,anchor=east] at (922,520) {Feature-space schematic};
+\node[heading] at (245,477) {Certificate alone};
+\node[heading] at (723,477) {Certificate $+$ family};
+\foreach \xx in {239,716}{
+ \begin{scope}[shift={(\xx,299)},x={(1pt,0pt)},y={(.6pt,.35pt)},z={(0pt,1pt)}]
+  \filldraw[fill=frozen!8,draw=frozen!40,line width=1pt]
+   (-135,-110,0)--(135,-110,0)--(135,110,0)--(-135,110,0)--cycle;
+  \draw[dashed,black!35,line width=1pt] (-103,0,0)--(103,0,0);
+  \node[candidate] at (-54,0,0) {};
+  \node[candidate] at (0,0,0) {};
+  \node[candidate] at (45,0,0) {};
+  \node[candidate] at (50,58,0) {};
+  \node[candidate] at (-12,-65,0) {};
+  \node[target] at (-103,0,0) {};
+  \node[target] at (103,0,0) {};
+  \node[labeltext,anchor=north] at (-103,-5,-12) {$h_1$};
+  \node[labeltext,anchor=north] at (103,-5,-12) {$h_2$};
+  \node[labeltext,text=frozen] at (-65,-145,0) {$\ker C$};
+ \end{scope}
+}
+\begin{scope}[shift={(716,299)}]
+ \draw[draw=family,line width=2.2pt]
+  (-153,124) .. controls (-135,84) and (-114,20) .. (-103,0)
+  .. controls (-41,-104) and (43,-98) .. (103,0)
+  .. controls (117,31) and (140,91) .. (153,124);
+ \node[target] at (-103,0) {};
+ \node[target] at (103,0) {};
+ \node[labeltext,text=family,anchor=east] at (93,103) {$\psi(z)=\phi(g(z))$};
+\end{scope}
+\node[smalllabel,text=muted] at (239,194) {compatible features need not identify images};
+\node[smalllabel,text=muted] at (715,194) {separation is a property to establish};
+\node[labeltext] at (480,142) {$\underbrace{g(z)=\mu+Uz}_{\text{PCA: affine in image space}}\qquad
+ \underbrace{\psi(z)=\phi(\mu+Uz)}_{\text{can be curved in feature space}}$};
+\node[labeltext] at (480,72) {$k<r-q,\qquad
+ \{z:\psi(z)\in\col H\}=\{z_1,\ldots,z_N\}$};
+\node[smalllabel,text=muted] at (480,28) {fixed smooth family $+$ span separation $+$ exact-certificate conditions: generic identification};
+\end{tikzpicture}
+\end{document}

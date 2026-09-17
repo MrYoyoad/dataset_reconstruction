@@ -1,0 +1,16 @@
+\documentclass[tikz,border=0pt]{standalone}
+\input{style.tex}
+\begin{document}
+\begin{tikzpicture}[figure]
+\canvas{MNIST and the image family}
+\node[smalllabel,text=muted,anchor=east] at (922,557) {Replay diagnostic};
+\node[labeltext,text=muted] at (480,514) {Original / reconstruction};
+\node[heading,anchor=west] at (49,468) {Public PCA};
+\node[inner sep=0pt] at (480,410) {\includegraphics[width=866pt]{mnist_gt_2.pdf}};
+\node[heading,anchor=west] at (49,327) {Warped family};
+\node[inner sep=0pt] at (480,269) {\includegraphics[width=866pt]{mnist_gt_3.pdf}};
+\node[heading,anchor=west] at (49,186) {Private-built reference};
+\node[inner sep=0pt] at (480,128) {\includegraphics[width=866pt]{mnist_gt_4.pdf}};
+\node[smalllabel,text=muted] at (480,35) {Separate represented targets};
+\end{tikzpicture}
+\end{document}
