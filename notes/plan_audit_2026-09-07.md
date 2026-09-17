@@ -607,3 +607,34 @@ own status table.** State the metric, or report the numbers as parametrisation-r
 while five sessions independently re-derived its central object. **Fifth instance of the delivery bottleneck**,
 and the most expensive — not a measurement nobody read, but a *framework* nobody read, so the work was done
 without knowing it was the execution of an existing plan.
+
+---
+
+## A28 — THE HARNESS COMPUTES THE QUANTITY UNDER TEST. Six instances in one night; here is the rule
+
+Six times tonight a check returned agreement while testing nothing, each wearing a different disguise:
+
+1. A theorem check whose harness implemented the **corrected** rank law — 116/116 agreement with the code, not the theorem.
+2. A "searched, not found" cancellation claim refuted by a construction that exists.
+3. Three hand-computed coefficients marked PROVED, resting on the author's own arithmetic, never evaluated.
+4. A nullity-zero result computed against a **relative** rank cut that fails in the direction that manufactures zeros.
+5. A capacity cell that would have passed with a harness printing the predicted number regardless — saved only because a **linear control at identical shapes** was run beside it.
+6. `theory/T5` **defines** `q_l := rank(C̃_l M_l)`, a measurable rank; the harness **computes** `min(r_l − N, rank M_l)`, which is the **refuted** T5.2's almost-sure evaluation of that rank. The corrected `cap(L)` inherits its per-layer input from the theorem the same file refutes.
+
+> **The rule.** Before reading a check's agreement as evidence, ask what the harness would have printed had the
+> claim been false. If it would have printed the same thing, the check tests the implementation, not the claim.
+> **A measurable quantity must be MEASURED, never evaluated through the formula under test** — and a check needs a
+> cell that could have disagreed, which in practice means a control at identical shapes.
+
+### The prediction for the direct measurement, registered before it runs [derived — and this lane has been wrong proposing mechanisms tonight, so treat it as falsifiable rather than expected]
+
+The head's variety dimension is `N(m − 1 + r − N)` because the softmax forces zero column sums, confining
+`col(B_T)` to an `(m−1)`-dimensional subspace. **An intermediate layer has no such confinement**, so its variety
+should be `N(m_l + r − N)` — one larger per image.
+
+> **Therefore the direct measurement of `q_l` at intermediate layers should come out ABOVE the harness's
+> `min(r_l − N, rank M_l)` wherever `rank M_l` is not binding, and `cap(L)` should move UP rather than down.**
+> Falsifier: agreement, or a measurement below the harness value. Either kills the decomposition, and the second
+> would mean intermediate layers carry a constraint nobody has identified.
+
+**Until that runs, `cap(L)` carries an unverified input and the sixfold gain at deployed rank moves with it.**
