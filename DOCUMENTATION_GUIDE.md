@@ -9,7 +9,7 @@ How to maintain and update documentation for this thesis project.
 - **Document "why" not "what"** — code shows what; docs explain motivation and decisions
 - **Keep READMEs scannable** — details go in `docs/`, top-level stays short
 - **Include negative results** — this is a thesis; failures are informative
-- **Single source of truth** — canonical numbers live in [GET_UP_TO_SPEED.md](GET_UP_TO_SPEED.md) "NUMBERS TO REMEMBER"
+- **Single source of truth** — canonical numbers live in [results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md)
 - **Per-directory READMEs are self-contained** — readable without navigating up
 
 ---
@@ -21,7 +21,7 @@ How to maintain and update documentation for this thesis project.
 | [README.md](README.md) | GitHub landing page | New major result or structural change |
 | [STATUS.md](STATUS.md) | Sprint-by-sprint progress | After every experiment run |
 | [LESSONS_LEARNED.md](LESSONS_LEARNED.md) | Insights and pitfalls log | After debugging or unexpected results |
-| [GET_UP_TO_SPEED.md](GET_UP_TO_SPEED.md) | 30-minute onboarding | When major milestones change |
+| [notes/research_overview_2026-09-17.md](notes/research_overview_2026-09-17.md) | Start here — current position | When the research position changes |
 | [STYLE_GUIDE.md](STYLE_GUIDE.md) | Formatting rules | When creating new document types |
 | [CLAUDE.md](CLAUDE.md) | AI assistant context | New workflows, tools, or architecture |
 | [docs/architecture.md](docs/architecture.md) | Code architecture | When adding new modules |
@@ -66,7 +66,7 @@ How to maintain and update documentation for this thesis project.
 
 ## Cross-Reference Rules
 
-- **Canonical numbers** live in [GET_UP_TO_SPEED.md](GET_UP_TO_SPEED.md) "NUMBERS TO REMEMBER" table
+- **Canonical numbers** live in [results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md)
 - **README.md** links to `docs/` for details — never duplicates full content
 - **CLAUDE.md** is for AI assistant context — not linked from README.md
 - **Per-directory READMEs** should be self-contained (no assumed knowledge from parent)
@@ -76,7 +76,7 @@ How to maintain and update documentation for this thesis project.
 
 ## Staleness Prevention
 
-- **After each sprint:** review GET_UP_TO_SPEED.md status table
+- **After each sprint:** review the research overview and STATUS.md
 - **After number changes:** `grep -rn "SSIM" *.md docs/*.md` to audit consistency
 - **Monthly:** scan per-directory READMEs against actual file listings
 - **Archive outdated guides:** rename with date suffix (e.g., `_archived_april2026.md`)

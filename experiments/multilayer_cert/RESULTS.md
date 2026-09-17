@@ -181,6 +181,18 @@ ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the con
 > release does, so C10's mechanism reaches the certificate route (the degradation is a property of φ's depth, not
 > the route — a negative but real finding). A100 355778 confirms the deep profile below the plain-GPU floor; the
 > gap verdict does not depend on it.
+>
+> **SAME-NET control (355835), read as SHAPES not scalars** (the `gap_at_corrected` ratios are taken at different
+> indices per arm — 400 vs 48 — and are not comparable; the full spectra are). One depth-15 net, L=4, k=784,
+> `first_adapted` swept 1→12 (frozen layers below = 0/3/7/11), everything else fixed. The spectra differ
+> QUALITATIVELY at each arm's own scale: `first_adapted=1` (0 frozen below, d_j≈[784,784,784,687]) delivers all
+> ~400 supplied conditions within ~4 orders of the top then a **cliff to machine zero** (a clean rank);
+> `first_adapted=4/8/12` (3/7/11 frozen below, d_j contracting to [48,30,24,19]) give **smooth spectra spanning
+> 11+ orders with no cliff**. So on ONE network the certificate's gap survives when its input is shallow and
+> collapses as the frozen path below it deepens and its rank profile contracts — nothing else varying. **This is
+> NOT the null** (the shallow arm has a genuine gap), so the collapse is **frozen-path-driven, not route- or
+> training-driven**, and the separately-trained shallow net (355825) is not needed as a control. The variable is
+> the frozen path's rank profile; depth is how you move it.
 
 `real_encoder_ranklaw.py --ks 16..784` (job **355531**, attested `script_sha 01043d6a5fec`), `r=108`, `N=8`, real
 15-layer MNIST encoder. The question M6 opened: at what chart width `k` does depth stop being free?

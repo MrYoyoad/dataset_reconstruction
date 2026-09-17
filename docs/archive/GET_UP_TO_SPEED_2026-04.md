@@ -1,3 +1,5 @@
+> **ARCHIVED 2026-09-18.** Written April 2026 for the Gradient-Bridge / direct-inversion phase, which is superseded. Kept as history. The current position is [notes/research_overview_2026-09-17.md](../../notes/research_overview_2026-09-17.md); audited claims are in [results/CLAIMS_LEDGER.md](../../results/CLAIMS_LEDGER.md).
+
 # GET UP TO SPEED IN 30 MINUTES
 
 **You've been away since late March 2026. Here's the current state.**

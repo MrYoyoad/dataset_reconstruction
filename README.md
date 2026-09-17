@@ -38,30 +38,38 @@ Two properties of the certificate:
 Private images are recovered from a published adapter using **only the released weights and a public image
 family** — no training recipe, no labels, no random seed, no shadow models:
 
-| | Measured |
+| Setting | Recovered |
 |---|---|
-| Distinct private images recovered | **7 of 8** |
-| Random starts that land on a private image | **51%** of 2000 |
-| The same solve without a chart | **0%** |
-| Telling a true recovery from a false one | precision **1.000** against a 0.000 null (base rate 0.324) |
-| Ambiguity removed by a 12-dimensional chart | **232 dimensions → 0** |
-| Depths at which the theory is exact | nullity **80 = predicted 80**, depths 2–8 |
+| EMNIST — a new letter class added to a digit model, `r=64`, `k=32` | **8 of 8** images · 38% of 500 random starts |
+| CIFAR-10 colour images — adapter on a hidden layer, public PCA chart | **8 of 8** · 253 of 400 starts |
+| CIFAR-10 — adapter on the classifier head | **8 of 8** · 171 of 400 starts |
+| Control: same certificate from a release trained on 8 *other* images | **0 of 400** |
+| Same solve with no chart | **0** |
+| Telling a true recovery from a false one, blind | precision **1.000** against a 0.000 null |
+
+*Recovered* means recovered **on the chart**: the search returns the private image's coordinates in the public
+family to machine precision, and a release trained on different images returns nothing. The public PCA charts
+measured so far are too coarse to hold a raw photograph, so the front the project is on now is a chart that can —
+a learned nonlinear chart is the agreed next attempt.
 
 Three findings behind those numbers:
 
 - **The adapter can be inverted without knowing how it was trained.** The certificate `C·h = 0` is built from the
   released factors and nothing else. Attacks in this space normally assume the training recipe, the labels, or a
   set of shadow models; this one assumes none of them.
-- **The chart is the load-bearing component.** The same cell solved without one returns nothing at all — the
-  private data is not recovered by having more equations, but by searching in the right small space.
+- **The chart is the load-bearing component.** The same cell solved without one returns nothing, and constraining
+  the search to a 12-dimensional chart takes the solution's ambiguity from 232 dimensions to 0. Private data is not
+  recovered by having more equations, but by searching in the right small space.
 - **What leaks is what the model had to learn.** Each example is recorded at the scale of the error it still
   carried, which predicts *which* images leak from the public model alone, and makes leakage something a defender
   can reason about in advance.
 
+The theory is exact at every depth it can be evaluated at (nullity 80 against a predicted 80, depths 2–8).
+
 Full numbers, conditions and job ids: **[results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md)**.
 Current position and open problems: **[notes/research_overview_2026-09-17.md](notes/research_overview_2026-09-17.md)**.
 
-**Next:** multilayer adapters · other chart families · representations to pixels · a first attempt at text.
+**Next:** multilayer adapters · a chart that holds real photographs · a first attempt at text.
 
 ---
 
