@@ -136,11 +136,37 @@ Gal.** (Both faults verified at source here before removal.)
    contamination regime, where the hypothesis fails. Promoting this to cite-our-job-id status was premature by a
    full audit pass, on precisely the claim it would be worst to get ahead of.
 
-*One correction back to the lane that caught this, because it is the kind of detail this table exists to get
-right:* job **692603 does carry rank-law rows** (`rank_C_full`, `expect_rank_C`, 216 rows) — what it does not do is
-test the law **as written**, which is 351745's job. A quick reconstruction here reproduced the corrected law in 116
-B3-holding rows and disagreed in 9; I could not establish whether those 9 are the data or my own reading of which
-field gives `n_l`, **so that is not a finding** and is recorded only so nobody quotes 116 as a clean count.
+*One correction back to the lane that caught this:* job **692603 does carry rank-law rows** —
+`expect_rank_C` appears in 200 of its 216 — so the withdrawn row was wrong for the certification reason, not for
+that one.
+
+**And the not-a-finding is now a finding, with a refinement that makes it larger than the account I was given.**
+Registers: `read-rows` for the counts, `read-function` for the gate.
+
+- **The split is real and is not an artefact of my reading of `n_l`.** Of 125 B3-holding rows, **116 agree with the
+  corrected rank law and 9 disagree**. The 9 carry adapter norm `beta` from **1.28e+21 to 3.84e+302** (three are
+  `nan`); the 116 top out at **572.9**. Eighteen orders of magnitude with **nothing in between** — so any threshold
+  in that range gives the same split, which is what "untuned" means when it is measured rather than asserted.
+  All 9 are flagged `diverged: False`.
+- **The nine are four exploded configs, not nine scattered rows**: `(seed 0, lr 1.0, T 8)`, `(1, 1.0, 8)`,
+  `(1, 3.0, 4)`, `(2, 3.0, 4)`. All 16 rows of those four configs read `diverged: False`.
+- **The explanation offered — that the detector cannot fire at layer 0, because layer 0's inputs are the data so
+  its drift is identically zero — is correct and covers exactly one of the nine.** That row has `delta` exactly
+  `0.000e+00` with `beta` 1.28e21. **The other eight sit at layers 1–3, where drift IS measured and is
+  astronomical**: `delta` = 4.8e+43, 9.5e+51, 1.2e+20, 3.4e+86, 4.5e+103, 8.0e+29, 5.2e+129, and one row at
+  **`inf`** — all still flagged `diverged: False`.
+- **So the hole is in the gate, not only in layer 0's geometry.** `experiments/multilayer_cert/survival.py:33-43`
+  marks a config diverged iff some entry of the representations or factors is non-finite **or** some
+  representation entry exceeds `1e100`, and then returns stub rows (`layer`, `diverged` and the config only — no
+  `delta`, no `rho_full`, no `B3_holds`). It fired on four *other* configs, producing the 16 stub rows already
+  known. **It did not fire on these four, one of which reports infinite drift** — which the guard as written
+  should have prevented, since an infinite Frobenius norm needs entries far above `1e100`. **I have not determined
+  why**, and it cannot be settled from the rows: it needs an instrumented re-run, which belongs to the lane that
+  owns the harness.
+
+**What this changes.** `116` is a clean count **once the adapter-norm guard is applied**, and the guard is now
+measured rather than asserted. But the divergence detector admits configs with infinite drift at depth, so
+`diverged: False` in this file does not mean "did not diverge" and must not be used as a filter on its own.
 
 **Reserve the dagger for what remains the bundle's alone**: its basin fractions, exact-inversion residuals and
 phase-diagram percentages, and the deep-certificate / stacked-Jacobian numbers whose only generators are
