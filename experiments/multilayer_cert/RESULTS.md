@@ -169,9 +169,11 @@ must never be quoted against these.
 
 **The capacity RISES with depth: `cap(L) = min(L·(r−N) + (m−1), nesting ceiling)`.** (This REPLACES an earlier
 "the depth-helps and well-posed windows do not intersect" claim, WITHDRAWN 2026-09-17 — it mistook a ratio for a
-gap; the cap is not fixed, it rises with `L`.) At `L=1` this is the capacity line `k < m+r−N`, which is SETTLED,
-sharp to one unit of `k` (jobs 467914/469120) — so 6e's `110` at `r=108` is that line's `L=1` value, not a
-separate extrapolation. The split is not a fit: `STATUS.md` records `B_T` on the rank-`N`, zero-column-sum variety
+gap; the cap is not fixed, it rises with `L`.) At `L=1` this is the capacity line `k < m+r−N`, which is DERIVED (from
+the `B_T`-variety dimension `N(m−1+r−N)`) and confirmed sharp to one unit of `k` at **r=16** (jobs 467914/469120,
+varying `k` and `N`). **`r` was never varied in those jobs** (verified at the rows, all r=16), so evaluating the
+line at `r=108` is an extrapolation along the untested `r`-axis — derivation-supported but NOT measured at r=108.
+So 6e's `110` is the capacity line's `L=1` value r-extrapolated to 108, not a settled measurement there. The split is not a fit: `STATUS.md` records `B_T` on the rank-`N`, zero-column-sum variety
 of dimension `N(m−1+r−N)`, so depth adds more `(r−N)` rank parts but only ONE `(m−1)` head part — only the head
 carries the simplex constraint. **Positive headline:** depth buys usable chart width, from the single-layer cap
 toward the architectural ceiling as layers are added. The exact deployed-`r` (8–64) gain is NOT quoted here,
