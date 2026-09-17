@@ -113,6 +113,28 @@ All three passed. None could have failed. Each was found by derivation, not by l
    `8.0e29`, `5.2e129`, and **one row at `inf`** — every one flagged `diverged: False`. They are four exploded
    configs, and **all 16 rows of those configs read `diverged: False`**.
 
+   **RESOLVED by arithmetic, 2026-09-17 — seven of the eight are not a bug at all.** The gate tests
+   `max|entry| > 1e100` (**absolute, entrywise**) while the row reports `delta = max(‖d‖/‖H0‖)` (**relative**).
+   With `dims=[40,30,30,30,8]`, `N=3`, a block holds ≤120 entries so `‖d‖ ≤ 11·max|entry|`; a silent gate therefore
+   implies `‖H0‖ ≥ 1.1e101/delta`. For `1.2e20, 4.8e43, 9.5e51, 8.0e29, 3.4e86` that bound is satisfied trivially,
+   and for `4.5e103` and `5.2e129` it requires `‖H0‖ ≥ 2.4e-3` and `≥ 2.1e-29` — both plausible. **In all seven the
+   gate behaved exactly as written: entries stayed below the threshold while RELATIVE drift ran to 1e103.** The
+   defect is that **the threshold is orders of magnitude too permissive for the quantity the row reports** — a
+   calibration failure, not a logic failure, whose fix is **to gate on the relative drift, not on entry magnitude.
+   Moving the `1e100` would be tuning the wrong quantity.**
+
+   **Only the `inf` row is a genuine contradiction** — no finite `‖H0‖` is consistent with a silent gate. Two
+   possibilities with opposite meanings: an entry did exceed the threshold and the guard failed, or **`‖H0‖`
+   underflowed to zero and the `inf` is a division artefact**, in which case that row was never a drift measurement.
+   One instrumented field (`‖H0‖`, tested for **underflow**, not smallness) settles it.
+
+   **And a SCOPE fact about the whole track, which is not a defect.** `common.py` appends representations at the
+   **top** of each step, so `reps` holds `t = 0…T−1` — the inputs *before* each of the `T` updates — while the
+   returned `A, B` are *after* update `T`, and the certificate is built from those. **Every row in that file pairs a
+   post-final-update certificate against a pre-final-update drift, and `beta` is the only quantity that sees the
+   last update.** That is exactly the layer-0 row: `delta` identically `0.000e+00` beside `beta = 1.28e+21`, an
+   explosion living entirely in the parameters where nothing else in the row can observe it.
+
    **And the gate should have caught them.** `survival.py` marks a config diverged if any entry is non-finite **or**
    any representation entry exceeds `1e100`, and its own comment anticipates exactly this failure (*"at entries
    ~1e150 the Frobenius norm itself overflows to inf"*). It fired on four **other** configs. It did not fire on
