@@ -219,12 +219,34 @@ these are stalled iterates, not solutions, and the prediction applies to solutio
 `phi = identity` here, so `range(Phi_0) = R^d` and `min_x ‖Phi_0(x) − ĥ‖` is identically zero for every candidate
 by construction. The real-backbone cell is a separate addition, not this one.
 
+**C9 — The law SURVIVES a nonlinear `phi`, measured with a matched affine control (job 355535).** The cap's
+weakest joint was that the law is derived where the chart-to-adapted-layer map is affine, while real releases put
+a trained network in that path. Built small enough to measure exactly rather than fought at CIFAR scale, since
+what is under test is the nonlinearity and not the size: `n = 32`, `m = 11`, `r = 12`, `N = 8`, so `cap = 14`, on
+a GELU MLP trained on CIFAR-10, with the identical shapes re-run using `phi = ` a fixed linear map as control.
+
+| k | 8 | 12 | 14 | **15** | 16 | 20 | 24 |
+|---|---|---|---|---|---|---|---|
+| predicted | 0 | 0 | 0 | **8** | 16 | 48 | 80 |
+| trained `phi` (nonlinear) | 0 | 0 | 0 | **8** | 16 | 48 | 80 |
+| identity `phi` (affine control) | 0 | 0 | 0 | **8** | 16 | 48 | 80 |
+
+**7/7 in both arms**, including the one-unit step at the cap. The control matching matters as much as the trained
+arm: it shows the harness reproduces the law, so a hit in the trained arm is not a harness that would have said
+"hit" regardless. The rank saturates at 496 = `r·n + N(m−1+r−N)` in both, exactly the variety bound.
+
+**What this does and does not license.** The *mechanism* — a nonlinear `phi` does not reduce the Jacobian's rank,
+so the cap survives it — is now measured rather than assumed, which was the open joint. It is measured at **one
+scale with a weakly trained backbone** (42% train accuracy: "genuinely nonlinear", not "well trained") and not at
+the CIFAR releases' own shapes (`n = 256`–`1000`, `r = 64`, cap 66). So C7's cap is no longer a bare extrapolation,
+but the specific CIFAR numbers remain formula-applied and are still labelled so.
+
 **C7's identifiability cap is a FORMULA APPLIED, not a measurement on these releases.** The `N·(k − (m+r−N−1))`
 law is derived and confirmed on the *synthetic affine* release, where the map from chart coordinates to the adapted
 layer's input is affine. The CIFAR releases put a trained network `phi` in that path, and whether the same rank
 argument survives a nonlinear `phi` is **not established here**. The cap is therefore reported as an extrapolation
-and labelled as one. Two arguments (yoado-a8's, recorded as reasoning and **not** as measurement) suggest it cuts
-in the safe direction: the dimension count is unchanged by a nonlinear `phi` — unknowns are still `N·k` and the
+and labelled as one. **C9 now measures the first of the two arguments below directly, at one scale.** They were recorded as reasoning
+(yoado-a8's) and **not** as measurement when written: the dimension count is unchanged by a nonlinear `phi` — unknowns are still `N·k` and the
 equations are the same — so what a nonlinearity could change is whether the Jacobian attains full rank, and a
 nonlinearity generically does not *reduce* rank; and separately, the affine degeneracy this project has been
 worrying about is a statement about the **certificate's** zero set (every blend is an exact zero), whereas this
