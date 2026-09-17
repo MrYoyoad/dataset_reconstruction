@@ -429,3 +429,44 @@ load-bearing.
 **The right "open or closed" statement is neither:** public PCA **plateaus**, so it cannot be made to work by
 choosing `k`; what remains open is the chart **family**, not its width. That turns agreed step 2 from a preference
 into a requirement, with a measurement saying why.
+
+---
+
+## A22 — The chart-shortfall discrepancy: NEITHER figure is canonical, and both compress silently
+
+[derived; arithmetic reproduced from the ladder rows]
+
+Ledger **G3** says the public chart is *"20 to 35× coarser than the gate"*. `STATUS.md`'s two-wall table says
+**14.9× and 45.7×** at the cap and **9× and 26×** at `k = 384`. Both are right about different cells, and they
+differ in **two** places, only one of which either lane noticed.
+
+**Difference one — the chart width.** G3 reads the ladder's own public row at `k = 32`; the table reads the chart
+at the identifiability cap (`k = 66`) and far past it (`k = 384`). Chart error falls with width, so these are not
+the same quantity.
+
+**Difference two, and nobody named it — the gate is a BRACKET, not a point.** The ladder measures landings at one
+width and none at the next, so the gate is an interval: `(0.0124, 0.0186]` on motorcycle, `(0.0045, 0.0090]` on
+keyboard. **Any ratio quoting it as a scalar has already compressed an interval**, and the two figures compress it
+differently: **G3 divides by the bracket MIDPOINT** (reproduced exactly: 0.3176/0.0155 = 20.5, 0.2432/0.0067 =
+36.0), while the table divides by the **near end only**.
+
+**The honest picture, carrying both the width and the bracket:**
+
+| chart width | motorcycle | keyboard | overall |
+|---|---|---|---|
+| `k = 32` (ladder's public row) | 17.1–25.6× | 27.0–54.0× | **17–54×** |
+| `k = 66` (identifiability cap) | 9.9–14.9× | 22.9–45.7× | **10–46×** |
+| `k = 384` (far past the cap) | 5.9–8.8× | 13.2–26.4× | **6–26×** |
+
+**Ruling: neither is canonical and no scalar can be.** The quantity is *chart error at a named `k`, divided by the
+gate as a bracket*, and it is a range at every width. G3 gets a scope line naming `k = 32` and disclosing the
+midpoint step; the table gets the bracket added. **The single source of truth is the table with `k` stated, not a
+number.**
+
+**And the conclusion is robust to every one of those choices**, which is what should actually be said: at the most
+generous reading available — widest chart, far end of the bracket — the shortfall is still **5.9×**. It never
+approaches 1 anywhere in the grid. *That* is the claim, and it survives whichever convention a reader prefers.
+
+**The failure mode is the freshness rule's own:** one quantity, two sources, no single place saying which governs —
+and underneath it a silent compression of an interval into a point, which is the same family as reading a median
+where the rule says worst-case.
