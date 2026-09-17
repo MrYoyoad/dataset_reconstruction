@@ -142,36 +142,51 @@ identifiability cap entirely and pushing to `k = 384`, the projection error is s
 and 26× the respective gates. **A public PCA chart of this family cannot be made to work on these releases by
 choosing `k`** — and the scope of that sentence is exact: *this chart family*, not charts in general.
 
-**C8 — The obstruction in the seed-known arm is the SUPPLY OF STARTS, not conditioning and not identifiability
-(job 351007).** Nullity 0 said the truth is unique; this separates the two remaining explanations without using
-random starts at all, since random-start landings conflate the solver with the geometry.
+**C8 — The obstruction in the seed-known arm is the SUPPLY OF STARTS, and the requirement on a start is
+ALIGNMENT, not distance (jobs 351007, 351035, 352266, 353524).** Nullity 0 said the truth is unique. Two
+explanations remained — ill-conditioning, or a small basin — and they are separated without random starts, since
+random-start landings conflate the solver with the geometry.
 
-| setup | unknowns | nullity | **condition number** | converges from a relative perturbation of |
-|---|---|---|---|---|
-| free `H`, seed known | 512 | 0 | **1.201e+02** | every η tested, up to **1.0** |
-| chart `k=12`, seed known | 96 | 0 | **1.789e+01** | every η tested, up to **1.0** |
+| setup | unknowns | nullity | **condition number** |
+|---|---|---|---|
+| free `H`, seed known | 512 | 0 | **1.201e+02** |
+| chart `k=12`, seed known | 96 | 0 | **1.789e+01** |
 
-A condition number of ~10² is **well conditioned** — nothing like the ill-conditioning that would explain a
-solver failing — and Levenberg–Marquardt started at the truth plus a perturbation returns to **machine precision**
-(max per-image error 1e-15 to 1e-13) at every perturbation size tested, including a *100% relative* one. So the
-truth is unique, well conditioned, and reachable; yet random starts give 0 of 120 under Adam and 0 of 20 so far
-under LM.
+Both are **well conditioned** — nothing like what a solver failure would require — so conditioning is excluded.
+Levenberg–Marquardt started at the truth plus a perturbation returns to **machine precision** (max per-image error
+~1e-15) out to a relative perturbation of **1.343**, and fails by **1.5**.
 
-**Therefore the missing ingredient is an initialiser, not a better chart and not a better solver.** That is a
-different remedy from either of the alternatives, and it is the first time this project has separated the three
-cleanly on one release: identifiability (nullity), reachability-in-principle (conditioning), and
-reachability-from-random-starts (basin).
+**But distance is the wrong axis, and comparing the two start families on it is a mistake I nearly made.** A point
+at `H + η‖H‖u` is *not* the same kind of point as a random start at the same distance:
 
-**The chart improves conditioning by about 7× (18 against 120)**, so the chart's second job is real but modest on
-this release — it is not what stands between a random start and the truth.
+| start family | relative distance | **cosine to the truth** | norm / ‖H‖ |
+|---|---|---|---|
+| the arms' random starts (Gaussian) | 1.3431 | **−0.0034** | 0.897 |
+| the arms' random starts (ker-`C`) | 1.3449 | **−0.0022** | 0.897 |
+| isotropic perturbation, η = 1.343 | 1.3430 | **0.5979** | 1.675 |
+| isotropic perturbation, η = 1.5 | 1.5000 | **0.5554** | 1.804 |
+
+At *identical distance*, the from-near-truth point retains a cosine of 0.60 with the truth while a random start is
+essentially orthogonal to it. **So convergence at η = 1.343 does not imply that a random start at 1.343 should
+converge**, and no bracket on the basin radius can be inferred by combining the two families — the from-near-truth
+sweep measures the basin *along rays from the truth*, not a radius in any isotropic sense.
+
+**Stated on the right axis, the result is sharper and directly useful.** LM converges from starts whose cosine
+with the truth is **0.598** and fails by **0.555**; the arms' random starts sit at cosine **≈ 0**. So what an
+initialiser must supply is **direction**: roughly a cosine of 0.6 with the private representations. That is a
+concrete, measured target for the learned-prior / decoder slot, and it is a requirement that distance-based
+intuitions state wrongly.
+
+**The chart improves conditioning by about 7×** (18 against 120), so the chart's second job is real but modest,
+and it is not what stands between a random start and the truth.
 
 ## What is NOT claimed
 
-**The basin radius is NOT yet bounded, and C8 says only that it is at least 1.0.** Every perturbation tested
-converged, so 1.0 is a *lower bound* on the radius and not a measurement of it. A job is running to locate the
-edge and to report it against the yardstick that makes it meaningful — the relative distance at which the random
-starts the real arms use actually sit. Until that lands, "the obstruction is the supply of starts" is supported by
-the conditioning number and the near-truth convergence, not by a located radius.
+**No isotropic basin radius is claimed, and the distance bracket that looked available is NOT valid.** It is
+tempting to combine "converges at 1.343" with "all 120 random starts at 1.30–1.42 failed" and conclude the edge
+lies between — but those are different families of points (cosine 0.60 against cosine 0), so the inference is
+void. The cosine threshold (converges at 0.598, fails at 0.555) is measured only along rays from the truth; it is
+a statement about that family, and whether it transfers to arbitrary starts at the same cosine is untested.
 
 **The Adam arms do not show that recovery is impossible.** In the seed-known arm the nullity is 0, so recovery is
 possible in principle and Adam's total failure there is a **solver** result, not an information result. The LM

@@ -71,16 +71,24 @@ without using random starts at all:
 | free `H`, seed known | 0 | **1.201e+02** | every size tested, up to **1.0** |
 | chart `k=12`, seed known | 0 | **1.789e+01** | every size tested, up to **1.0** |
 
-A condition number of ~10² is well conditioned, and LM started at the truth plus a **100% relative** perturbation
-returns to machine precision (per-image error ~1e-15). So the truth is unique, well conditioned and reachable —
-and random starts still miss it. **The missing ingredient is an initialiser, not a better chart and not a better
-solver.** The chart improves conditioning about 7× (18 against 120), so its second job is real but modest and is
-not what stands between a random start and the truth.
+A condition number of ~10² is well conditioned, so conditioning is excluded. **The missing ingredient is an
+initialiser, not a better chart and not a better solver** — and the requirement on it is **alignment, not
+distance**:
 
-This is the first clean three-way separation on one release: identifiability (nullity), reachability in principle
-(conditioning), and reachability from random starts (basin). **Caveat:** every perturbation tested converged, so
-1.0 is a *lower bound* on the basin radius, not a measurement of it; a job is locating the edge against the
-distance at which random starts actually sit.
+| start family | relative distance | **cosine to truth** | LM converges? |
+|---|---|---|---|
+| the arms' random starts | 1.343 | **−0.003** | no, 0 of 120 |
+| isotropic perturbation η=1.343 | 1.343 | **0.598** | **yes, to 1e-15** |
+| isotropic perturbation η=1.5 | 1.500 | 0.555 | no |
+
+At *identical distance* the two families are completely different points, so no basin radius can be inferred by
+combining them — a comparison this lane nearly made and withdrew. On the right axis the result is sharper: **an
+initialiser must supply a cosine of roughly 0.6 with the private representations**; below ≈0.56 it fails. That is
+a concrete, measured target for the learned-prior slot. The chart improves conditioning about 7× (18 against 120),
+so its second job is real but modest and is not what stands between a random start and the truth.
+
+First clean three-way separation on one release: identifiability (nullity), reachability in principle
+(conditioning), reachability from a given start (alignment).
 
 ## Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing (2026-09-17; jobs 350996, 218345/218346, theory_checks 688036)
 
