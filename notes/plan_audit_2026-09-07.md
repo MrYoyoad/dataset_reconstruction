@@ -225,3 +225,58 @@ the true photographs onto a public PCA chart, with job ids. So C1 reads 0.2432�
 
 **Carry the correction back into the brief**, since §6.1 is the user's document and the mislabelling will otherwise
 be quoted again: the 0.25/0.01 pair there is a certificate residual and a blend floor, not projection residuals.
+
+---
+
+## A13 — My A12 derivation is REFUTED in both directions, and the check exposed a design defect (job 697344)
+
+[read: rows. The check was written in response to A12 and ran 2026-09-07; nobody acted on it.]
+
+I predicted the unreduced seed-free arm has a 32-dimensional solution family and the reduced arm has none. **Both
+halves are wrong**, and the measurement is a Jacobian nullity with a twelve-order singular-value gap, so it is not
+a threshold artefact.
+
+| parametrisation | equations fitted | Jacobian | nullity |
+|---|---|---|---|
+| unreduced | product `A@H` only (**what the harness does**) | 672 × 2048 | **1704** |
+| unreduced | full `A_T` (available) | 2016 × 2048 | **232** |
+| reduced | product `A@H` only (**what the harness does**) | 672 × 1025 | **681** |
+| reduced | full `A_T` (available) | 2016 × 1025 | **232** |
+
+**Where I was wrong.** The unreduced fibre is 232, not 32 — my count assumed all released numbers are independent
+constraints and 200 further degenerate directions exist that counting does not see. And **the reduction does not
+make the truth isolated**: reduced and unreduced both sit at 232 once the same equations are fitted. My claim that
+the reduction is "the difference between a solution family and a point" is **withdrawn**. It shrinks the search; it
+does not change the identifiability.
+
+### The defect the check exposed, which is worth more than the correction
+
+**The harness fits the product `A@H` — 192 equations — when the release contains `A_T` in full, 1536.** Using what
+is already available drops the nullity from **1704 to 232** unreduced and **681 to 232** reduced, a factor of seven,
+at no cost. The running E1B arms were solving a far weaker problem than the release supports.
+
+### And the consequence that changes what E1B can conclude
+
+**Nullity 232 > 0 in every cell means the truth is not locally isolated in either arm.** Recovery of `H` from this
+release is **not unique**, by measurement — an information property, not a solver property. So E1B's decision line
+cannot read "dynamics invertible from H: yes" in this configuration however well the solver performs, and a low
+residual there is expected rather than evidential. Under the verdict rule this is the **alias** side, not the
+optimisation-failure side, and the two must not be merged.
+
+**Required before E1B is quoted at all:** refit against the full `A_T`, re-measure the nullity in the configuration
+actually used, and if it remains positive, report E1B as an identifiability negative rather than as a solver
+result. The 232 needs its own explanation — it is 200 beyond the counting deficit and is presumably a structural
+symmetry — but the decision does not wait on that.
+
+## A14 — The H3 question is UNTESTED, not settled (job 696469)
+
+The sweep varies the step size looking for a cell where the invertibility hypothesis fails. The only cell that
+breaks it, `lr = 5`, has a conditioning of 7.9e17 **and a diverged trajectory** — `‖ΠA_T − ΠA_0‖` at 4.95e+67 —
+and `rank B_T` collapses from 5 to 2, so **H4 fails in the same cell**. Every other cell has conditioning between
+1.0 and 3.0 with both hypotheses holding.
+
+**So no cell separates H3 from H4**, and the conjecture that H3 can be dropped is neither confirmed nor refuted by
+this. It is also the wrong instrument: a hypothesis that is never *used* cannot be falsified by making it false —
+falsifying it requires a cell where H3 fails, H4 holds, and the conclusion still breaks, and the sweep produced
+none. The proof sketch in the W1 audit stands on its own; the sweep is consistent with it and is not evidence for
+it. **Report as untested and settle it in the proof, not the sweep.**
