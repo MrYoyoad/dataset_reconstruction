@@ -3938,3 +3938,43 @@ eta — every converging point also had a norm above the truth's. Disentangling 
 set independently (`rho*||H||*(c*Hhat + sqrt(1-c^2)*u_perp)` has cosine exactly `c` and norm exactly `rho`). The
 general form: **a one-parameter family cannot separate two quantities that parameter controls**, however many
 points you sample along it.
+
+
+## What the release determines is predictable; what a search does is not (2026-09-17)
+
+Five predictions were registered before their rows across the E1B work. The split was total and it is structural.
+
+**Every prediction about GEOMETRY held**: scale is first-order identifiable; the solution-family dimension is
+`N * max(0, k - (m + r - N - 1))`, confirmed 12/12 with a one-unit step and again 7/7 at different shapes under a
+trained nonlinear map; `Pi A_T = c_T Pi A_0` with `c_T` exactly 1, to 3.4e-15.
+
+**Every prediction about SOLVER BEHAVIOUR failed** or could not be tested: that a nullity-0 arm would land under a
+second-order solver (it returned 0 of 40); that a non-identifiable arm would show the alias signature (the solver
+never reached a zero, so the signature could not appear); that a reduced arm would behave differently from a
+seed-known one (all three return zero landings, so the observable cannot separate the branches).
+
+**The reason is not bad luck.** The geometry predictions are consequences of exact algebra, so measuring them
+confirms a derivation. The solver predictions depend on quantities that are nowhere in that algebra — basin shape,
+conditioning along the path, the start distribution, the optimiser's dynamics.
+
+**The rule that follows:** a prediction of the form *"therefore the attack will or will not succeed"* is a solver
+prediction wearing geometry's clothes. Register predictions about what the release determines; **measure** search
+behaviour rather than predicting it. Nullity 0 is a fact about the release; landings are a fact about a search; the
+inference between them is unsupported. A nullity-0, well-conditioned problem that converges from a 100%-relative
+perturbation still gave zero landings from 120 random starts.
+
+**And the productive counterpart:** when a search question arises, try to **convert it into a geometric one by
+construction**. Instead of asking "would an initialiser work", the alignment plane asked "what region must a start
+lie in" — and built points with cosine and norm set exactly, which can be tested exhaustively. That produced a
+usable answer where two rounds of landing counts produced only nulls.
+
+## A control that could have disagreed is what turns a hit into evidence (2026-09-17)
+
+The nonlinear-`phi` cell ran two arms at identical shapes: a trained GELU network, and a fixed linear map as
+control. Both matched the predicted nullities 7/7. **The trained arm alone would have been much weaker evidence**,
+because it could not distinguish *"the law survives a nonlinearity"* from *"this harness prints the predicted
+number whatever you feed it"*. The control is the arm that could have disagreed, and running it is what makes the
+agreement mean something.
+
+The general form: **before reporting that a prediction was confirmed, ask what result the harness was capable of
+producing instead.** If the answer is "none", the confirmation is about the harness.

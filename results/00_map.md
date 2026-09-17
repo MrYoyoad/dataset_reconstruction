@@ -188,8 +188,27 @@ chance to show itself. The reduced arm (350931) finished the same way: 0 of 40, 
 | dynamics | seed-free shows the alias signature (P4) | **failed**, never reached a zero |
 | dynamics | reduced behaves unlike seed-known (P5) | **not discriminable as posed** |
 
-The identifiability side of this framework is predictive to the unit. **The optimisation side is not predictable at
-all from it**, and every attempt to infer solver behaviour from geometry — mine and the approver's — was wrong.
+**This is structural, not a coincidence of five tries.** The geometry predictions are consequences of exact
+algebra, so measuring them confirms a derivation. The solver predictions depend on quantities that appear nowhere
+in the algebra — basin shape, conditioning along the path, the start distribution, the optimiser's own dynamics.
+
+> **This project can predict what the release determines. It cannot predict what a search does.**
+
+That is the boundary of the theory, and it has a standing consequence.
+
+**THE RULE FOR FUTURE PREDICTIONS.** Any prediction of the form *"therefore the attack will (or will not)
+succeed"* is a **solver prediction wearing geometry's clothes**, and the record says those fail. So: **register**
+predictions about what the release determines; **measure** search behaviour rather than predicting it. P3 was
+exactly this boundary being crossed — nullity 0 is a fact about the release, landings are a fact about a search,
+and the inference between them is the one thing repeated measurement says is unsupported. It was made by this lane
+and endorsed by the approver, so seniority is no protection against it.
+
+**AND THE PRODUCTIVE MOVE, which follows from the same observation.** The alignment plane (job 353562) worked
+because it **converted a search question into a geometric one by construction**: instead of asking whether an
+initialiser would work, it asked what region of a two-dimensional space a start must lie in — a property one can
+build points in and test exhaustively. That conversion is what to reach for whenever a search question arises, and
+it is why that cell produced an answer where landing counts produced only nulls (0 of 120, then 0 of 120 again).
+
 Nullity 0, a condition number of 10², and convergence from a 100%-relative perturbation still bought zero landings
 from 120 random starts. **Identifiability and recoverability are independent properties on this release**, and no
 result in this file should be read as licensing an inference from one to the other.
