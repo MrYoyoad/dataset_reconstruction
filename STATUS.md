@@ -33,8 +33,11 @@ a plan audit; everything below is read from rows, the rest is still running (WP1
 - **A pretrained decoder cannot be a chart for 32×32 CIFAR on fidelity grounds alone** (WP3 smoke 355910, SD VAE
   `sd-vae-ft-mse`): the autoencoding ceiling on the ladder's eight motorcycles is 0.055 at 8× upsampling against a
   gate bracket of 0.0124–0.0186 → CEILING-BOUND on the pre-registered rule; the attacker-available local latent
-  chart is no better than pixel PCA (0.36 vs 0.34 at k=16); only an oracle latent anchor reaches 0.045. Full grid
-  (keyboards, letters, K and k sweeps) running.
+  chart is no better than pixel PCA (0.36 vs 0.34 at k=16); only an oracle latent anchor reaches 0.045. **Full grid,
+  interim (356034–356098):** the ceiling decides all three sets — motorcycle 0.055, keyboard 0.024, letters-a 0.021
+  at 8×, i.e. 1.5–5× above the high end of each gate bracket → **CEILING-BOUND everywhere**; global latent PCA loses
+  to pixel PCA at every k on every set. One new fact: on letters the attacker-available local latent chart is the
+  **first chart in this repo to beat pixel PCA at the same width** (0.170 vs 0.235 at k=32) — and still 12× the gate.
 - **For raw privates the truth's pixel projection is NOT the chart's argmin** (WP4 smoke 355880/355915): the
   certificate objective at the recovery is 0.003–0.57× its value at the projection on 8/8 letters, and an oracle
   start converges to a chart point 10–80× below the projection's objective. Every bootstrap round therefore uses

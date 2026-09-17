@@ -21,7 +21,7 @@ the class TRAIN split. Resize path in every decoder arm: up = bilinear (`align_c
 median + range over the 8.
 
 **Gates are brackets** (audit; ledger §0.1, A22): MLP-motorcycle **0.0124–0.0186**, CNN-keyboard **0.0045–0.0090**
-(last all-8 landing – first failure). Every row is compared at both ends. MNIST: no gate yet (WP5) — no shortfall quoted.
+(last all-8 landing – first failure), EMNIST-a **0.0069–0.0139** (WP5, jobs 355845–355858: recovery at 0.0069, gone at 0.0139). Every row is compared at both ends.
 
 ## Pre-registered outcomes (fixed before the first row)
 
@@ -74,39 +74,75 @@ Rows: `results/decoder_chart/fidelity_<anchor>_K<K>_<jobid>.jsonl` (measurements
 every job, so they appear 6x per image set — same numbers); tensors and grids carry the same tag. Command per job:
 `python -u -m experiments.decoder_chart.fidelity --image-sets <set> --anchors <anchor> --Ks <K> --steps 400 --tag <anchor>_K<K>`.
 
-### 1. Autoencoding ceiling (reported first) — `‖D(E(x)) − x‖/‖x‖`, native space
+### INTERIM (2026-09-18 02:10) — closed-form rows complete for all three sets; local chart partial
 
-| image set | resize floor (64/128/256) | ceiling @64 | ceiling @128 | ceiling @256 | bracket | verdict |
+First submission 356034–356051 (plain `num=1`): **9 of 18 died of CUDA OOM on shared A40s** (356037, 356039, 356040,
+356042, 356043, 356044, 356047, 356050, 356051 — other users' processes held 13–20 GB of 44 GB; the fit needs ~12 GB).
+Their fragments held only the closed-form rows (identical in every job) and were deleted; the nine cells were
+resubmitted with `gmem=20G` as 356090 (motorcycle truth_nn K256), 356091 (motorcycle truth_latent K256), 356092
+(keyboard proxy_nn K64), 356093 (keyboard truth_nn K64), 356094 (keyboard truth_nn K256), 356095 (keyboard
+truth_latent K64), 356096 (letters proxy_nn K256), 356097 (letters truth_latent K64), 356098 (letters truth_latent
+K256). The nine survivors of the first submission (356034, 356035, 356036, 356038, 356041, 356045, 356046, 356048,
+356049) are running.
+
+#### 1. Autoencoding ceiling (reported first) — `‖D(E(x)) − x‖/‖x‖`, native space, median (range over 8)
+
+| image set | floor ×2/×4/×8 | ceiling ×2 | ceiling ×4 | ceiling ×8 | bracket | ×8 vs low / high | verdict |
+|---|---|---|---|---|---|---|---|
+| mlp_motorcycle | 0 / 0 / 0 | 0.2145 (0.126–0.274) | 0.0777 (0.057–0.105) | **0.0554** (0.019–0.080) | 0.0124–0.0186 | 4.5× / 3.0× | **CEILING-BOUND** (0 of 8 below the high end) |
+| cnn_keyboard | 0 / 0 / 0 | 0.1812 (0.058–0.292) | 0.0456 (0.022–0.087) | **0.0237** (0.009–0.138) | 0.0045–0.0090 | 5.3× / 2.6× | **CEILING-BOUND** (1 of 8 at 0.0089, i.e. at the high end; median 2.6× above it) |
+| mnist_letter_a | 0 / 0 / 0 | 0.1309 (0.103–0.297) | 0.0552 (0.042–0.122) | **0.0213** (0.015–0.048) | 0.0069–0.0139 | 3.1× / 1.5× | **CEILING-BOUND** (0 of 8 below the high end) |
+
+Pre-registered rule: the ceiling exceeds the bracket's high end on every set, so no chart built on `D(E(·))` passes;
+the result is about the decoder. Caveat recorded, not a verdict change: the oracle-anchor Adam fit (below) goes UNDER
+`D(E(x))` — the encoder's latent is not the decoder's best latent — to 0.0430 at k = 32 on motorcycle, still 2.3× the
+high end; the decoder's true floor is bounded above by those `truth_latent` rows, not by `D(E(x))`.
+
+#### 2 + 4. Pixel PCA (C7 convention) vs global latent PCA (decoded projection), median over the ladder's 8 images
+
+| image set | k | pixel PCA | latent PCA ×2 | ×4 | ×8 | best vs bracket low / high |
 |---|---|---|---|---|---|---|
-| mlp_motorcycle | | | | | 0.0124–0.0186 | |
-| cnn_keyboard | | | | | 0.0045–0.0090 | |
-| mnist_letter_a | | | | | none (WP5) | — |
+| mlp_motorcycle | 16 | 0.3413 | 0.3982 | 0.3642 | 0.3492 | 27.5× / 18.3× |
+| | 32 | 0.2983 | 0.3729 | 0.3410 | 0.3198 | 24.1× / 16.0× |
+| | 66 | 0.2549 | 0.3330 | 0.3201 | 0.3062 | 20.6× / 13.7× |
+| | 128 | 0.2180 | 0.2967 | 0.3018 | 0.2826 | 17.6× / 11.7× |
+| cnn_keyboard | 16 | 0.2858 | 0.2993 | 0.2950 | 0.2924 | 63.5× / 31.8× |
+| | 32 | 0.2539 | 0.2957 | 0.2937 | 0.2804 | 56.4× / 28.2× |
+| | 66 | 0.2009 | 0.2757 | 0.2748 | 0.2394 | 44.6× / 22.3× |
+| | 128 | 0.1681 | 0.2458 | 0.2465 | 0.2218 | 37.4× / 18.7× |
+| mnist_letter_a | 16 | 0.3155 | 0.3236 | 0.3466 | 0.3304 | 45.7× / 22.7× |
+| | 32 | 0.2346 | 0.2948 | 0.2769 | 0.2696 | 34.0× / 16.9× |
+| | 66 | 0.1659 | 0.1874 | 0.2123 | 0.2080 | 24.0× / 11.9× |
+| | 128 | 0.1101 | 0.1375 | 0.1677 | 0.1835 | 16.0× / 7.9× |
 
-### 2. Global latent PCA chart (attacker-available; on-chart recovery convention) vs 4. pixel PCA at the same `k`
+Global latent PCA is worse than pixel PCA at every k on every set. C7 cross-check (two_walls index set, mean):
+motorcycle 0.2456 / 0.2151 / 0.1845 / 0.1566, keyboard 0.2840 / 0.2573 / 0.2058 / 0.1704 at k = 16 / 32 / 66 / 128 —
+C7's stored rows to 4 decimals. On the ladder's own images the motorcycle numbers are higher (0.2549 at k = 66, not
+0.1845): C7 and the ladder used different index sets.
 
-| image set | k | pixel PCA median (range) | latent PCA @64 | @128 | @256 | vs bracket |
-|---|---|---|---|---|---|---|
-| mlp_motorcycle | 16 / 32 / 66 / 128 | | | | | |
-| cnn_keyboard | 16 / 32 / 66 / 128 | | | | | |
-| mnist_letter_a | 16 / 32 / 66 / 128 | | | | | |
+#### 3. Local chart (Adam 400 steps, 3 restarts, FP32, ×8 scale) — rows landed so far
 
-(Cross-check: the same pixel-PCA computation on the two_walls.py index set reproduces C7's 0.1845 / 0.2058 at k = 66? ___)
+| image set | K | k (k_eff) | anchor | avail. | w = 0 | best-of-restarts (range) | traj. min | solver flag | vs low / high |
+|---|---|---|---|---|---|---|---|---|---|
+| mlp_motorcycle | 64 | 16 | truth_latent | NO | 0.0554 (= ceiling, diff 0.0) | 0.0454 (0.019–0.067) | 0.0454 | ok | 3.7× / 2.4× |
+| mlp_motorcycle | 64 | 32 | truth_latent | NO | 0.0554 (= ceiling) | 0.0430 (0.018–0.061) | 0.0430 | ok | 3.5× / 2.3× |
+| mlp_motorcycle | 64 | 16 | truth_nn | NO | 0.4496 | 0.3513 (0.249–0.514) | 0.3513 | ok | 28.3× / 18.9× |
+| mnist_letter_a | 64 | 16 | proxy_nn | yes | 0.4044 | 0.2555 (0.218–0.456) | 0.2555 | ok | 37.0× / 18.4× |
+| mnist_letter_a | 64 | 32 | proxy_nn | yes | 0.3716 | 0.1699 (0.140–0.378) | 0.1699 | ok | 24.6× / 12.2× |
+| mnist_letter_a | 256 | 16 | truth_nn | NO | 0.4171 | 0.2999 (0.264–0.566) | 0.2999 | ok | 43.5× / 21.6× |
 
-### 3. Local patch chart `min_w ‖D(a + U w) − x‖/‖x‖` (Adam, FP32, 2000 steps, 3 restarts; scale ___)
+No solver-failure or solver-limited row so far (every fit ends at its trajectory minimum, below its w = 0 value). The
+attacker-available local chart on letters (0.2555 / 0.1699 at k = 16 / 32) is BETTER than pixel PCA at the same k
+(0.3155 / 0.2346) — the first chart to beat PCA in this repo — but still 12× the bracket's high end at k = 32.
+On motorcycle (smoke 355910, K = 64, k = 16) it was worse than pixel PCA (0.3585 vs 0.3413). Keyboard local rows: none yet.
 
-| image set | K | k (k_eff) | anchor | attacker-available | w = 0 median | best-of-restarts median (range) | solver flag | vs bracket |
-|---|---|---|---|---|---|---|---|---|
-| | 64 / 256 | 16 / 32 / 66 / 128 | proxy_nn | yes | | | | |
-| | 64 / 256 | 16 / 32 / 66 / 128 | truth_nn | NO | | | | |
-| | 64 / 256 | 16 / 32 / 66 / 128 | truth_latent | NO (ceiling check) | | | | |
+#### Verdict per image set (INTERIM)
 
-### Verdict per image set
-
-| image set | ceiling vs bracket | best attacker-available arm at k ≤ 66 | outcome (PASS / FAIL / CEILING-BOUND) |
+| image set | ceiling vs bracket | best attacker-available arm at k ≤ 66 so far | outcome |
 |---|---|---|---|
-| mlp_motorcycle | | | |
-| cnn_keyboard | | | |
-| mnist_letter_a | | no bracket: fidelity numbers only | — |
+| mlp_motorcycle | 0.0554 vs 0.0124–0.0186 | pixel PCA 0.2549 at k = 66 (local chart rows pending) | **CEILING-BOUND** |
+| cnn_keyboard | 0.0237 vs 0.0045–0.0090 | pixel PCA 0.2009 at k = 66 (local chart rows pending) | **CEILING-BOUND** |
+| mnist_letter_a | 0.0213 vs 0.0069–0.0139 | local chart proxy_nn K = 64 k = 32: 0.1699 | **CEILING-BOUND** |
 
 ## Deviations from the plan as written
 
