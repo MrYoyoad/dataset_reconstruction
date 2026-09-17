@@ -4112,3 +4112,20 @@ conclusion, which is usually the one that matters, and leave the theoretical one
 
 This is the same shape as the crossing-vs-limit near-miss recorded above, and it arrived within the hour: a number
 the data is consistent with but cannot adjudicate, where the tempting reading is the one that sounds like a result.
+
+
+## The cross-object inference runs both ways, including out of your own result (2026-09-18)
+
+Hours after being corrected for comparing decay rates between two different Jacobians, the same error arrived from
+the opposite direction: a neighbouring lane cited C10 — a depth sweep of the **release-route** Jacobian — as making
+an absent spectral gap "the expected outcome" for their **certificate-route** Jacobian on a different net.
+
+**Being the author of a result does not make you its best custodian; it often makes you its worst.** The pull is to
+let a result be applied generously, because a widely-applicable result feels like a better result. Here the honest
+position was to narrow my own finding on someone else's behalf, against my interest in its reach.
+
+**The distinction that does the work: a mechanism can transfer even when a measurement does not.** C10 measures one
+route and supplies a *candidate mechanism* — `phi`'s Jacobian spectrum spreading with depth — that plausibly
+reaches any route differentiating through the same `phi`. "Consistent with, mechanism named" is a real and useful
+status, and it is not "expected". The cost of conflating them is asymmetric and easy to miss: an expected outcome
+gets under-reported when it occurs, and over-interpreted when it does not.

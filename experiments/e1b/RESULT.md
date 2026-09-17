@@ -290,6 +290,16 @@ tolerance-dependent quantity can only settle a tolerance-dependent claim — C10
 at depth". It is: *the law's prediction stops being checkable, and the information those directions carry stops
 being usable.* Those are the same statement for an attacker and different statements for a theorem.
 
+**C10 licenses no expectation for the CERTIFICATE route, only for the release route it measured.** It was
+immediately cited by a neighbouring lane as making an absent spectral gap "the expected outcome" for their stacked
+zero-drift certificate Jacobian at depth 15. That is a different map — no trained release, no drift, width 1000 —
+and these seven points say nothing directly about it. What C10 does supply is a **candidate mechanism**: through
+enough layers `phi`'s own Jacobian spectrum spreads, and both routes differentiate through the same `phi` (a
+certificate is linear in the features, so its Jacobian is essentially `C · J_phi · V` and inherits that spectrum).
+So an absent gap there would be *consistent* with C10 and would have a named cause — but consistent-with is not
+expected, and recording it as expected would turn a real finding into a non-event while making the opposite result
+look surprising.
+
 **C10's boundary is one configuration**: width 256, head width 32, r=12, k=24, N=8, one dataset, one seed. "Between
 8 and 12" is not a universal depth and no functional form is fitted to seven points.
 
