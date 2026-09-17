@@ -39,6 +39,15 @@ a plan audit; everything below is read from rows, the rest is still running (WP1
   certificate objective at the recovery is 0.003–0.57× its value at the projection on 8/8 letters, and an oracle
   start converges to a chart point 10–80× below the projection's objective. Every bootstrap round therefore uses
   the oracle-start chart optimum as its reference (recovery-to-optimum = solver, optimum-to-truth = chart).
+- **Bootstrapping the chart from the recovery STALLS on MNIST letters, in both variants** (WP4, job 355987, 200 starts,
+  raw privates, generic EMNIST PCA-32 round 0). Class recognition works (7/8 top-1, calibrated 87 % on projections) and
+  the recognised class's chart is more faithful than the generic one (chart optimum to truth 0.40 vs 0.43; wrong-class
+  control 0.50), yet recovery error to the truth rises (0.76 vs 0.60): inside the class chart the certificate objective
+  collapses onto one mode (7 of 8 candidates are the same upright A). Local charts anchored on the recovery reach a
+  per-slot fidelity of 0.27–0.31, below per-class PCA (0.40) and below the random-anchor control, but the eight slots
+  collapse onto two of the eight truths and nothing improves after round 1. No landings vs the raw truth anywhere
+  (by construction at these chart errors). CIFAR arm (355988) running; its recogniser is already below the
+  calibration void threshold on projections (48 % for motorcycle), so variant A will be VOID there.
 - **The two-walls fidelity numbers were measured on a different eight motorcycles than the gate** (found by WP3):
   `experiments/e1b/two_walls.py:58` draws with `np.random.RandomState(seed)`, the ladder with a torch generator at
   `seed+7`. On the ladder's own images pixel PCA at k=16 is 0.341, not C7's 0.2456. The C7 conclusion (no width
