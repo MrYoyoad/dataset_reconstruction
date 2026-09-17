@@ -470,3 +470,52 @@ approaches 1 anywhere in the grid. *That* is the claim, and it survives whicheve
 **The failure mode is the freshness rule's own:** one quantity, two sources, no single place saying which governs —
 and underneath it a silent compression of an interval into a point, which is the same family as reading a median
 where the rule says worst-case.
+
+---
+
+## A23 — Tonight's capacity formula carries an unstated hypothesis: q = N
+
+[raised by the archive lane from `notes/gal_2026-09/` Appendix A.5 and Remark 3.9; checked against my own derivation]
+
+The archive's chart note **explicitly declines** to convert the capacity line into a theorem by substituting `q`,
+and Remark 3.9 states that `q_l` is **not interchangeable** with the recorded-span object. **I set `q = N`
+explicitly in the derivation of tonight's formula** and never wrote the hypothesis down.
+
+> `nullity = N·[k − (m − 1 + r − N)]` **assumes the private representations are linearly independent**, `q = N`.
+> Where `q < N` it must be restated in `q`, and which slots take `q` and which take `N` is exactly what Remark 3.9
+> warns is not interchangeable.
+
+**It does not invalidate anything measured**, because every cell asserted `rank H = N` before solving — that was
+A1's precondition. But the statement travels without the hypothesis, and it is the most-quoted result of the
+night. **Attach it wherever the formula appears**, and say that `q < N` is unrestated rather than assumed benign.
+The same applies to every repo statement written `k < r − N`.
+
+## A24 — Four archive conflicts, ruled
+
+**C1 — the "searched, not found" cancellation: reword, and it is a UNIFICATION rather than a correction.** A claim
+about a search is refuted by exhibiting one, so `theory/T4-C5`'s wording must go. The suggested replacement is
+right — no cancellation for generic instances, a structural one under the range condition. **But the interesting
+part is that the range condition keeping first-order drift inside the span is the same mechanism as T3.2's
+"in-span drift is free".** Two files describing one phenomenon in different vocabularies. Merge them rather than
+patching one.
+
+**C2 — FAIL on `experiments/multilayer_cert/RESULTS.md` §3, and it has two faults.** The attribution is wrong: 36
+of 64 such rows sit at hidden layers 1–2, only 28 at the last layer. And the last-layer rows are **additionally**
+capped at `m − 1` by a proved softmax bound the file does not mention — which is **the simplex cap this project
+already has** (`N′ ≤ m − 1`), so the file attributes to one cause what demonstrably has two, while the second is
+already in our own ledger unreferenced. Correct at source. **One reader so far** — the re-aggregation came from a
+sub-agent — so the multilayer lane confirms before the edit.
+
+**C3 — the R2 row is stale, and this is now THREE independent routes agreeing.** A counterexample with independent
+Gaussian seeds that still fails; the measured `[9,18,20,20]` identical under shared and independent seeds; and the
+archive's Thm 10.2 requiring only a **density** on the allowable covectors rather than independence. Independence
+was never the hypothesis. Remove the row; the refutation already in T5 is the correct reading.
+
+**C4 — check the three hand-computed coefficients.** Marked PROVED, never checked, and the repo's existing check
+validates a different instance. A twenty-line FP64 evaluation of each is cheap and closes it. **A hand-computed
+constant carrying a PROVED status with no independent evaluation is the same shape as a numerical check whose
+harness implements the corrected law** — a status resting on the author's own arithmetic.
+
+**And the independence finding is correctly scoped.** `theory/T1..T6` cite neither the archive note nor its lemmas
+and agree on every shared statement. That is a **consistency signal, not a joint proof**, and recording it as such
+is right — two derivations agreeing is evidence about the derivations, not a second proof of the result.
