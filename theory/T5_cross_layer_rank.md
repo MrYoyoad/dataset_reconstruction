@@ -12,16 +12,30 @@ Let `x = G(z)` be a `k`-dimensional chart, `Phi_l^0` the base network's feature 
 
     rank J_F(z*)  <=  rank M_1  =:  k_1  <=  min(k, n_1).
 
-No amount of depth exceeds the first adapted layer's chart sensitivity.
+No amount of depth exceeds the first adapted layer's chart sensitivity. Stated for the realism question: the
+ceiling on stacked information is the first adapted layer's chart sensitivity `k_1`, and `k_1 <= k`, so it sits
+**at** the requirement rather than below it — depth remains the mechanism that reaches that ceiling when one
+layer's `r - N` falls short.
 
-**T5.2 (generic additivity at zero drift — PROVED).** At zero drift `Ctil_l = P_{col(X_l)^perp} A_{l,0}` with
+**T5.2 (generic additivity at zero drift — FALSE AS STATED; see Status and the corrected law below).** At zero drift `Ctil_l = P_{col(X_l)^perp} A_{l,0}` with
 `A_{l,0}` independent Gaussians across `l`. Then almost surely
 
     rank J_F(z*)  =  min( k_1 ,  sum_{l=1}^{L} q_l ),        q_l = min( r_l - N , rank M_l ).
 
 So depth **is** additive, up to two ceilings: the per-layer budget `r_l - N`, and the global nesting ceiling `k_1`.
 
-**T5.3 (what this says about the "~200 equations" objection).** The row count `r_l - N` is an *upper bound* on the
+> **This equality is FALSE as stated (audit F11, 2026-09-17).** It assumes the per-layer row spaces
+> `row(Ctil_l M_l)` spread independently inside `row(M_1)`; they cannot, because `row(M_l)` nests (T5.1). When
+> `q_l = rank M_l` a layer contributes `row(M_l)` exactly, so two deep layers whose row spaces have collapsed to
+> the same subspace are counted twice. The **corrected law** (candidate, confirmed 12/12 on the counterexample
+> family, not yet proved):
+>
+>     rank J_F = min_j ( d_j + sum_{l<j} q_l ),   d_j := rank M_j,  j = 1..L+1,  d_{L+1} := 0.
+>
+> T5.2 is only the `j=1` and `j=L+1` terms; it omits every intermediate nesting constraint. R2 (independence of
+> `A_{l,0}`) is **not** where it fails — the failure is geometric and survives independent seeds.
+
+**T5.3 (what this says about the "~200 equations" objection — CONDITIONAL; see Status).** The row count `r_l - N` is an *upper bound* on the
 useful contribution; the effective one is `q_l = min(r_l - N, rank M_l)`. Two regimes:
 - `r - N >= k_1`: **one layer already saturates**; depth adds nothing and the objection is moot in the other
   direction — the constraint was never rank-limited.
@@ -96,8 +110,19 @@ Grassmannian and therefore null. Summing gives the formula. []
 
 ## Status
 
-**PROVED** T5.1, T5.2, T5.3 (zero drift, R1-R3). **CONJECTURE** T5.4 (nonzero drift). The `min(k_1, sum q_l)` law
-is the falsifiable prediction for M3, with the caveat of failure mode 4.
+- **T5.1 PROVED** (nesting ceiling), confirmed independently.
+- **T5.2 FALSE as stated.** The `min(k_1, sum q_l)` equality fails because `row(M_l)` nests (T5.1), so the per-layer
+  row spaces cannot spread independently. Measured: 0/12 seeds match T5.2, 12/12 match the corrected law
+  `rank J_F = min_j(d_j + sum_{l<j} q_l)` (job 350996; audit F11, 2026-09-17). The corrected law is a **candidate**,
+  confirmed on that counterexample family, **not yet proved**. R2 is not the cause — the failure is geometric and
+  survives independent seeds.
+- **T5.3 conditional.** `L >= k_1/(r-N)` is derived from T5.2 and holds only when `rank M_l = k_1` at **every**
+  adapted layer (rank-preserving frozen path); otherwise the ceiling is `min_j(d_j + sum_{l<j} q_l)`, an **upper
+  bound** on what depth delivers, and layers past a collapsed `d_j` add nothing. The 8-adapted-layers figure for
+  `k_1 = 128` at `r=24, N=8` is that upper bound. Precondition: measure `rank M_l` per adapted layer first.
+- **T5.4 CONJECTURE** (nonzero drift), unchanged, now sitting on top of a corrected T5.2. Under drift the honest
+  object is effective rank at a stated tolerance (pre-register a ladder), not exact rank — and the elbow's
+  stability across the ladder is the result, since an elbow that moves with the cut is a property of the cut.
 
 ## Numerical sanity check
 
@@ -108,5 +133,10 @@ is the falsifiable prediction for M3, with the caveat of failure mode 4.
 | measured `rank J_F` | 9 | 18 | 20 | 20 |
 | predicted `min(k_1, sum q_l)` | 9 | 18 | 20 | 20 |
 
-with `k_1 = 20 = k`, `q_l = 9 = r - N` at every layer. Exact agreement: **T5.1 and T5.2 confirmed**. The
-shared-seed arm gives the identical `[9, 18, 20, 20]` and so **refutes** the R2 defence prediction above.
+with `k_1 = 20 = k`, `q_l = 9 = r - N` at every layer. This is a random FP64 MLP (widths 30 >= k), so it is
+**rank-preserving** (`d_j = k_1` at every layer), and there the corrected law provably collapses to
+`min(k_1, sum q_l)` — the two laws **coincide**. So this cell confirms **T5.1** and confirms the additivity **in
+its valid (rank-preserving) regime**, but it discriminates **neither** law from the other (read-rows verification,
+job 688036 not the survival sweep, `notes/m4_additivity_verification_2026-09-17.md`). The shared-seed arm gives the
+identical `[9, 18, 20, 20]` and so **refutes** the R2 defence prediction above. The discrimination lives only in a
+contracting net (`d_j < k_1`), where the counterexample gives 0/12 for T5.2 and 12/12 for the corrected law (F11).
