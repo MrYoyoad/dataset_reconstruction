@@ -4,6 +4,35 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A `git` field in a result row records HEAD, not the code that ran (2026-09-17)
+
+**The contradiction that exposed it.** All 216 rows of `survival_692603.jsonl` carry `git: 082bb09`, and all 216
+carry a **`diverged`** key. But `git show 082bb09:experiments/multilayer_cert/survival.py` contains **zero**
+occurrences of `diverged` — the field was introduced by `691ac2e`, of which `082bb09` is an **ancestor**. **The rows
+cannot have been produced by the committed code whose hash they record.**
+
+**The mechanism, and it is one line.** `survival.py:128` does
+`subprocess.check_output(["git","rev-parse","--short","HEAD"])` — **HEAD only, with no dirty check.** The job ran
+with a modified working tree: the *script* had the gate, *HEAD* did not. `theory_checks.py:375` and
+`real_encoder_ranklaw.py` capture it the same way, and a sibling lane separately found `theory_checks.py` was
+**untracked** across the runs it is cited for. Same family.
+
+**Why it matters more than the bug that surfaced it.** This project's whole audit discipline is *verify at the rows,
+with the job id and the git hash*. **That reconstruction is unsound whenever the script was dirty or untracked, and
+nothing in the row says which.** Two opposite conclusions were drawn from these rows tonight — *"the magnitude gate
+should have fired and did not"* and *"the data predates the gate entirely"* — and **neither is established, because
+the recorded hash does not identify the code.** The honest state is: *we do not know what gate code produced
+692603.* Both readings are withdrawn.
+
+**The fix, cheap and worth doing everywhere a row is written:** append `-dirty` when `git diff --quiet` fails, and
+better, record a **hash of the script file itself** beside the commit. A commit hash answers "what was the repo",
+which is not the question; "what code ran" is.
+
+**The consolation, and it is the reason nothing downstream collapses:** the re-run under known code (353865) flags
+those configs correctly, so the corrected numbers stand on their own provenance. **Re-running under a known commit
+is the remedy for an unknown one — arguing about what the old code must have done is not.**
+
+
 ## 2026-09-17 — a de-duplication scan that skips the repository root will import a file that is already tracked
 
 While integrating an external archive I imported a script as "the only copy of the code behind this result", and
