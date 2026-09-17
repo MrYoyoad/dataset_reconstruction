@@ -39,6 +39,29 @@ into a theorem by substituting `q`). The multilayer note says the same ("a rank,
 and only after this proof, we may replace feature rank `q` by example count `N`"). Repo statements written with
 `r − N` are therefore conditional on independent private features.
 
+**This caught a live hypothesis, and the approver has ruled on it (A23, commit e0a2bb1).** The solution-family
+formula derived on 2026-09-17 — `nullity = N·[k − ((m−1) + r − N)]` — **sets the span dimension equal to the image
+count and never states it**. Nothing measured is invalidated, because every cell asserted `rank H = N` before
+solving, but the statement travels without its hypothesis and it is the most-quoted result of that night. Where
+`q < N` the formula must be restated in `q`, and *which* slots take `q` and which take `N` is exactly what Remark
+3.9 warns is not interchangeable. **`q < N` is unrestated, not assumed benign.**
+
+**Where the hypothesis needs attaching.** The capacity line is written in terms of `N` in 58 files. Twenty-four are
+prose or claims files, where a reader can be misled; the rest are scripts, where the variable is bound to a
+measured rank. The prose files, so the owning lanes can attach it:
+
+| owner | files |
+|---|---|
+| claims / status | `results/CLAIMS_LEDGER.md`, `STATUS.md`, `LESSONS_LEARNED.md`, `CLAUDE.md` |
+| the formula's own lane | `notes/fibre_capacity_formula_2026-09-17.md`, `notes/perturbed_inputs_what_they_supply_2026-09-17.md` |
+| theory | `theory/T6_local_reconstruction.md`, `notes/exact_channel_rev10.tex` |
+| tracks | `experiments/exact_inversion/RESULTS.md`, `experiments/e1b/RESULT.md` |
+| planning / audits | `notes/chain_rho_certificate_plan.md`, `notes/math_rulings_2026-09-06.md`, `notes/plan_audit_2026-09-07.md`, `notes/assumption_relaxation_program.md`, `notes/audit_inverting_a_finetune_2026-09-05.md`, `notes/science_state_2026-09-04.md`, `notes/exact_inversion_tool_onepager.md`, `notes/exact_lora_inversion_framework.md` |
+| session records | `docs/sessions/{handover-latest,handover-log,explainer_crux_logic_audit}.md` |
+
+(Inventory produced by grep on 2026-09-17 and listed so the attachment is checkable, not so it is done here — these
+files belong to other lanes.)
+
 ---
 
 ## 2. The single-layer certificate — PROVED, with its exact assumption stack

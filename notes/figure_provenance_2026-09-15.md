@@ -16,8 +16,13 @@ editable sources in `scripts/figpack_2026_09_15/`.
    consistent with the 5.7e-14 error of an oracle chart built from the private digits, but the panel gives a
    reader no cue that the chart is **not attacker-available**. The repo's later figure
    (`figures/exact_inversion/chart_dependence_k17.png`) says so on its face; use that one.
-3. **"Glyph correlations ≈ 0.95–0.97"** appears in the provenance prose with no script, row or log behind it
-   anywhere in the archive or the repo. **UNTRACED** — do not repeat it.
+3. **"Normalized glyph correlations are approximately 0.95–0.97"** (Part 1 below) has no script, row or log
+   behind it anywhere in the archive or the repo. **UNTRACED** — but read the distinction precisely: the sentence
+   *does* describe a check somebody performed. What is missing is that the check was **visual**, and a visual
+   estimate written to two decimal places reads as a measurement. **The claim survives if it says so — "the
+   correspondence was checked by eye" — the number does not.** Grep hazard: a second, unrelated 0.95–0.97 lives at
+   `notes/phase0_report.tex:275`, where it is `cos_sim` near the optimum and is legitimately sourced. Purging the
+   untraced number by grep will damage the phase0 report. See `notes/archive_evidence_map_2026-09-17.md` §2a.
 
 ---
 

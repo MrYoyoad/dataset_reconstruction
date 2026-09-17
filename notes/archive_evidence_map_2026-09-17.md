@@ -25,11 +25,36 @@ Job ids below were read from `results/**/*.jsonl` rows, not from adjacent prose.
 | same, NTK row | the NTK row is a real free-coefficient linearised fit, errors ≈0.48–0.62 | same figure, row "NTK linearised (free coefficients)" | **TRACED** |
 | `03_reconstruction_results`, motorcycles | "8/8 PCA targets", original/reconstruction pairs | job **335732**, `results/cifar_newclass/nc_structured_335732.jsonl`: `arch mlp, k 32, r 64, m 11, n 1000, N 8, T 400, starts 200, landed 135, images_found 8, landings_per_image [6,33,12,7,17,33,14,13]`; residual at truths 1.6e-14 against public median 4.2e-01 | **TRACED** |
 | `motorcycle_results_template` | "8/8 training inputs recovered", "135/200 successful starts" | same row | **TRACED** |
-| `03_reconstruction_results`, Fashion bags | "4/8 PCA targets + 2 approximations shown" | job **473802**, `results/cifar_newclass/sharp2_473802.jsonl`: `landed 9/150`, `images_found 4`, `landings_per_image [0,1,2,0,0,2,4,0]` (landed columns 2, 3, 6, 7 — exactly the panel's), residual max 1.3e-13 against public median 3.86e-01, CNN 92.67% test / 99.83% train | **SUPERSEDED** — the repo's 400-start re-run of the same cell reports **23/400 landed, 6 of 8** (job **556643**, `figures/cifar_newclass/cnn_fashion_bag_k64_onchart.png`) |
+| `03_reconstruction_results`, Fashion bags | "4/8 PCA targets + 2 approximations shown" — **not a wrong number: the same cell read at a smaller budget** (see §2a) | job **473802**, `results/cifar_newclass/sharp2_473802.jsonl`: `landed 9/150`, `images_found 4`, `landings_per_image [0,1,2,0,0,2,4,0]` (landed columns 2, 3, 6, 7 — exactly the panel's), residual max 1.3e-13 against public median 3.86e-01, CNN 92.67% test / 99.83% train | **SUPERSEDED** — the repo's 400-start re-run of the same cell reports **23/400 landed, 6 of 8** (job **556643**, `figures/cifar_newclass/cnn_fashion_bag_k64_onchart.png`) |
 | `07_mnist_coverage` | three chart strips: public PCA, warped, "private-built reference" | `figures/exact_inversion/chart_dependence_k17.png`, generator `experiments/exact_inversion/chart_dependence.py`; per-row errors 5.1e-01 / 5.1e-01 / **5.7e-14** | **TRACED**, with a labelling hazard: the archive's strip omits that the third chart is **oracle-built from the private digits and not an attack**; the repo figure says so on its face. Its three source crops are byte-identical to one another, so each digit is paired with a copy of itself |
 | `06_multilayer` | `k=32`, `d=3072`, `m=11`, `r=64`, `q=8`, "56 equations per image" | `cert_line = rank_C = 56`, `m = 11` in every `r=64` row of `results/cifar_newclass/*.jsonl` | **TRACED** |
 | `02_certificate_subspaces`, `04_ntk_partial_information`, `05_image_family`, `08_local_families`, `01_one_layer`, `figure_pack` pages 1–3 and 6–8 | the certificate invariant, the one-step NTK gauge, the toy score, local families | schematics with no data; the algebra is asserted by `scripts/figpack_2026_09_15/validate.py` (synthetic, seed 713: `‖BP‖<1e-10`, `‖P(A−A0)‖<1e-10`, `rank B = q`, `rank(PA) = r−q`) | **ILLUSTRATIVE**; the same invariants are checked in-repo by `experiments/exact_inversion/certificate.py` and `experiments/multilayer_cert/theory_checks.py` (`sanity.CH_rel ≈ 1e-14…1e-16` in every row) |
-| figure-pack prose | "glyph correlations ≈ 0.95–0.97" for the A-column match | nothing, anywhere | **UNTRACED** — do not repeat |
+| figure-pack prose | "normalized glyph correlations are approximately 0.95–0.97" for the A-column match | a **visual** correspondence check, described in `notes/figure_provenance_2026-09-15.md:110`; no script, row or log anywhere | **UNTRACED**, and see §2a — the *claim* survives, the *number* does not |
+
+## 2a. Two notes on how these verdicts must be read
+
+**SUPERSEDED does not mean wrong.** The Fashion-MNIST "4 of 8" and the repo's "6 of 8" are the *same cell read at
+two budgets* — 150 starts and 400 starts. A landed count without its start budget is not a quantity at all, so
+neither number is a correction of the other. Quote the denominator every time, and put the budget in the ledger's
+`NOT shown` column rather than in a footnote. (Raised by the GM lane, 2026-09-17.)
+
+**UNTRACED here is subtler than "no source".** The glyph-correlation number *does* describe a check somebody
+performed — the provenance note says the correspondence was checked by comparing displayed PCA glyphs after
+accounting for polarity, scaling and crop, and that each of the first four source glyphs has its strongest match
+in the same-numbered column. What is missing is that the check was **visual**, and a visual estimate written to two
+decimal places reads as a measurement. So the fix is not only to drop the number: say the correspondence was
+checked by eye. **That claim can survive; the number cannot.**
+
+**A grep hazard on that number, recorded so the next person does not trip on it.** There are two unrelated
+occurrences of 0.95–0.97 in this repository:
+
+| where | what it is | status |
+|---|---|---|
+| `notes/figure_provenance_2026-09-15.md:110` | "normalized glyph correlations are approximately 0.95–0.97" — the visual figure-level check above | **UNTRACED**, do not repeat as a measurement |
+| `notes/phase0_report.tex:275` | `cos_sim` near the optimum, "hyperparameter-tuned points achieve only ~0.95–0.97, not ~1.0" — a different quantity in a different study | **legitimately sourced**, leave alone |
+
+Anyone purging the untraced number by grep will damage the phase0 report. (Collision found and verified at source
+by the GM lane; both lines re-checked here before recording.)
 
 ## 2. Claims in the archive's briefs and notes
 

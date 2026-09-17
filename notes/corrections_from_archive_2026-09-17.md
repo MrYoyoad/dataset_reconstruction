@@ -6,8 +6,9 @@ Companion to the repository's own correction record. **The rulings of record sta
 `theory/AUDIT_2026-09-17.md` (independent audit of T1–T6), `LESSONS_LEARNED.md` (how numbers went wrong).
 This file records only what the **archive** adds: corrections that live inside the archived documents, the
 supersession chain between archive revisions, and the places where an archive document and a repository file
-disagree. Nothing here overrides a ruling; where a conflict is open it is marked **OPEN** and routed to the
-approver lane rather than settled.
+disagree. Nothing here overrides a ruling. The four conflicts §3 raises were **ruled by the approver lane the
+same evening** (A24, commit e0a2bb1); they are recorded with their rulings and their owning lanes, and the edits
+they call for belong to those lanes, not to this one.
 
 ---
 
@@ -102,30 +103,54 @@ Byte-identical duplicates inside the archive (same sha256, different paths) are 
 
 ---
 
-## 3. Where an archive document and the repository disagree — OPEN, routed to the approver
+## 3. Where an archive document and the repository disagree — RULED 2026-09-17 (approver, commit e0a2bb1)
 
-These are recorded as conflicts with both sources cited. None is settled here, and no working code was changed to
-agree with a document.
+Raised here as conflicts with both sources cited, and ruled the same evening by the approver lane as A24. **The
+edits belong to the lanes that own those files, not to this one**, so the rulings are recorded rather than
+applied. No working code was changed to agree with a document.
 
-1. **`theory/T4` C5 wording vs the archive's Thm 8.2 / App A.4.** T4 records that a cancellation making the
-   truncation error quadratic was "searched, not found". The archive exhibits a *structural* mechanism for exactly
-   that (initial-gradient range condition `col(∇_{B_l}L(θ_0)) ⊆ U`, first-order forward drift staying in the span)
-   in one designed family. The theorems do not conflict — T3.2's "in-span drift is free" is the same mechanism —
-   but C5's wording is too strong as a general statement.
-2. **`experiments/multilayer_cert/RESULTS.md` §3 attribution.** It attributes the `rank B_T < N'` rows to the last
-   layer. A re-aggregation of `results/multilayer_cert/survival_692603.jsonl` puts 36 of 64 such rows at hidden
-   layers, with the last-layer rows additionally capped by the softmax bound `rank B_T ≤ m − 1` (archive, PROVED).
-   Needs a row-level recheck before either statement is quoted.
-3. **`theory/T5`'s assumption table** still lists R2 ("violated by a shared seed") although the defence was
-   withdrawn. The archive's Thm 10.2 needs only a **density** on the layers' allowable covectors, not independence,
-   which is what the measured shared-seed result shows.
-4. **Three hand-computed expansions in the archive** (Ex 3.5, Ex 5.5, §8.6 — coefficients `−3/8`, `1/16`, `−1/3`)
-   are marked PROVED and have never been checked numerically here; the repo's T3 check validates a different
-   instance. A short FP64 check of each is cheap and would close the gap.
+1. **`theory/T4` C5 wording vs the archive's Thm 8.2 / App A.4** — **RULED: reword, and it is a unification.**
+   C5 records that a cancellation making the truncation error quadratic was "searched, not found"; the archive
+   exhibits a structural one (the initial-gradient range condition `col(∇_{B_l}L(θ_0)) ⊆ U`, first-order forward
+   drift staying inside the span). A claim about a search is refuted by exhibiting one, so the wording must go.
+   The ruling's substantive point goes further than the correction: **that range condition is the same mechanism
+   as T3.2's "in-span drift is free"** — two files describing one phenomenon in different vocabularies, which
+   should be merged rather than patched. *Owner: the multilayer/theory lane.*
+
+2. **`experiments/multilayer_cert/RESULTS.md` §3 attribution** — **RULED: FAIL, with two faults rather than one.**
+   The attribution is wrong (36 of 64 such rows sit at hidden layers 1–2, only 28 at the last layer), *and* the
+   last-layer rows are additionally capped at `m − 1` by a proved softmax bound the file does not mention — which
+   is **the simplex cap this project already holds in its own ledger** (`N′ ≤ m − 1`). So the file attributes to
+   one cause what demonstrably has two, and the second was already ours and unreferenced. Correct at source.
+   **The re-aggregation has had one reader**, so the multilayer lane confirms before the edit.
+   *Owner: the multilayer lane.*
+
+3. **`theory/T5`'s stale R2 row** — **RULED: remove it; three independent routes now agree.** A counterexample
+   built with independent Gaussian seeds that still fails; the measured `[9,18,20,20]` identical under shared and
+   independent seeds; and the archive's Thm 10.2 requiring only a **density** on the allowable covectors rather
+   than independence. Independence was never the hypothesis. The refutation already in T5 is the correct reading.
+   *Owner: the theory lane.*
+
+4. **Three hand-computed coefficients marked PROVED and never evaluated** (Ex 3.5 `−3/8`, Ex 5.5 `η/16`, §8.6
+   `−1/3`) — **RULED: run the checks.** "A hand-computed constant carrying a PROVED status with no independent
+   evaluation is the same shape as a numerical check whose harness implements the corrected law — a status resting
+   on the author's own arithmetic." **Written and committed here as
+   `experiments/archive_checks/check_hand_coefficients.py`** (FP64, CPU, seconds; submitter
+   `scripts/run_archive_coeff_check_wexac.sh`). It re-derives each coefficient from the dynamics the note
+   specifies rather than re-evaluating the note's own closed forms, checks the note's exact intermediate matrices
+   first, and withholds the coefficient verdict when those disagree — `construction mismatch` and
+   `coefficient wrong` are different outcomes. Tolerances are pre-stated in the module docstring.
+   **It has not been run**: this lane launches nothing, and the standing rule is that nothing runs locally.
+   *Owner: whoever next submits — one bsub.*
+
 5. **Emphasis, not content.** The archive's title page answers Gal's changing-input question with "yes, locally and
    for sufficiently short training", while `theory/README.md` says the perturbative framing "is not the right one".
    Both documents contain both results. The merged statement: *exact with rank `r − N'` for any `T`; truncated with
    `O(ε_⊥)` error, provably `O(τ)` in the MLP family inside a short-total-step-size window.*
+
+**And one finding the ruling asked to be kept in these words.** `theory/T1…T6` cite neither the archive note nor
+its lemmas and agree on every shared statement. That is a **consistency signal, not a joint proof** — evidence
+about the derivations, not a second proof of the result.
 
 ---
 
