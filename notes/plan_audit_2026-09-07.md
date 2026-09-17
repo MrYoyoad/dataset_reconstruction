@@ -565,3 +565,45 @@ volunteering the reading that weakens its own answer is what makes the answer us
 **Margins reported as a table rather than three verdicts:** 3353× and 35014× against 2.0× on the coefficient,
 240× and 583× against 2.0× on the order. The flattening was doing real work — four to five orders, not a rounding
 difference.
+
+---
+
+## A27 — Tonight's work IS the programme of the user's own August note, and it delivers what that note asked for
+
+[read: source PDF, `.claude/uploads/3f041044-.../568dfbcf-identifiability_rank_bound4.pdf`, 10 pp, dated
+2026-08-20, unreferenced anywhere in this session or by any lane]
+
+The note — *"When Does Fine-Tuning Preserve Enough Information to Recover the Training Data?"* — sets out a
+three-level ladder and names its own central proposal:
+
+> *"The real object is one Jacobian `J_full = ∂(released adapter)/∂(private-data coordinates)`, and the singular
+> spectrum of its metric-normalised form is the leakage diagnostic."* Status in its own table: **"the correct
+> end-to-end object … the note's central proposal."**
+
+**That is precisely what was measured tonight.** Four correspondences, none of them noticed while the work was
+being done:
+
+| the August note | tonight |
+|---|---|
+| *"full column rank `rank(J_T) = Σ_i k_i` is a sufficient condition for regular local identifiability"* | nullity of the residual Jacobian at the truth, zero ⇔ locally isolated |
+| *"`σ_min(J_T)` measures how stably they survive"* | the condition-number column — 120 free-`H`, 18 with the chart |
+| *"a count is only a count: having as many equations as unknowns does not mean the equations point in useful independent directions"* | the necessary-not-sufficient rulings, argued from scratch all week |
+| *"the `dρ ≥ Σ_i k_i` count is the **dimensional shadow** the Jacobian casts"* | the closed form and the measured nullity agreeing exactly, 12 of 12 |
+
+**And it delivers more than the note asks for.** The note says: *"The thesis-worthy statement is **not** a capacity
+formula but a **measurable transition**… if that is observed, the count becomes the **explanation** of a measured
+transition rather than an asserted law — the defensible version of the whole idea."* Tonight produced **both**: a
+capacity formula *and* the measured transition confirming it, with a **one-unit discontinuity** at the predicted
+width. That is the note's own stated criterion for the defensible version, met.
+
+**THE GAP THE NOTE NAMES AND WE HAVE NOT CLOSED.** Its status line for the central object reads *"needs a stated
+metric and a fixed training seed"*. Our nullity and condition numbers are computed **metric-free** — no
+normalisation of the private-data coordinates is stated anywhere. A condition number without a stated metric is
+**basis-dependent**, so the 120 and the 18 are comparable to each other only because they share an implicit
+parametrisation nobody wrote down. **That is a real hole in tonight's headline diagnostic and it is in the user's
+own status table.** State the metric, or report the numbers as parametrisation-relative.
+
+**The finding about the finding:** this note was in the uploads throughout, unreferenced by any lane tonight,
+while five sessions independently re-derived its central object. **Fifth instance of the delivery bottleneck**,
+and the most expensive — not a measurement nobody read, but a *framework* nobody read, so the work was done
+without knowing it was the execution of an existing plan.
