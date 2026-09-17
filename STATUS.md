@@ -92,9 +92,14 @@ First clean three-way separation on one release: identifiability (nullity), reac
 
 ## Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing (2026-09-17; jobs 350996, 218345/218346, theory_checks 688036)
 
-**T5.2 is refuted.** `theory/T5_cross_layer_rank.md` states `rank J_F = min(k_1, sum_l q_l)` and is marked PROVED.
-Counterexample derived then confirmed on the cluster (job 350996): **0 of 12 seeds match T5.2, 12 of 12 match a
-corrected law.** `d=[10,3,3]`, `q=[5,3,3]`: T5.2 predicts 10, corrected predicts 8, measured **8** on every seed —
+**T5.2 is refuted, and the refutation is DERIVATIONAL — it does not rest on a run.** `theory/T5_cross_layer_rank.md`
+states `rank J_F = min(k_1, sum_l q_l)` and is marked PROVED. The argument is checkable by reading: T5.2 assumes the
+per-layer row spaces spread independently inside `row(M_1)`; **T5.1's own nesting forbids exactly that**; and when
+`q_l = rank M_l` the layer contributes `row(M_l)` *exactly*, so nested layers contribute the same subspace twice and
+T5.2 counts it twice. **Job 350996 corroborates — 0 of 12 seeds match T5.2, 12 of 12 match the corrected law — and
+is NOT load-bearing.** Its provenance is **timestamp-attested only** (script edited 20:31:05, output 20:31:12,
+committed 20:31:36, no git or script hash recorded in the run) and **should be re-run under known code**; seconds of
+NumPy. **The refutation stands regardless of that re-run.** `d=[10,3,3]`, `q=[5,3,3]`: T5.2 predicts 10, corrected predicts 8, measured **8** on every seed —
 an integer rank, so not a tolerance artefact. Audit F11, `theory/AUDIT_2026-09-17.md`.
 
 **The leak is T5.1 itself, which is why it survived.** T5.2's equality assumes the per-layer row spaces spread

@@ -48,6 +48,26 @@ was more source-dependent than the error it replaced.** Reasoning about what the
 **manufactures a second unverifiable claim to shore up the first, and the second is harder to spot because it
 arrives wearing the authority of a correction.**
 
+**"COMMITTED AND RE-RUNNABLE" IS THE PHRASE THIS FAILURE MODE IMITATES.** It *sounds* like provenance while being a
+claim about the **repository** rather than about the **execution** — the same category error as the commit hash, one
+level up. It was made in the very pass that was classifying everyone else's dependence on commits, about the one
+finding everything downstream leans on, and it was false: the script was **untracked when the job ran and committed
+24 seconds later**, recording **no git hash and no script hash at all** — in that one respect worse than the
+harnesses the pass was criticising, which at least record something to be misled by. The tie between run and
+committed file rests on **mtime ordering plus memory**: real physical evidence, and not the property claimed. **The
+reason it went unchecked is the general one: it was the author's own, and it flattered the finding.**
+
+**What saved that finding was that it never needed the run.** Its conclusion is a **derivation** — checkable by
+reading — and the measurement **corroborates rather than carries** it. **State such findings as "derivational, with
+a corroboration that should be re-run", not as "confirmed by job N".** The second phrasing borrows an authority the
+argument does not need and cannot support.
+
+**Tooling note, from two lanes making the same ambiguous read.** `git show <commit>:<path> | grep` finding nothing is
+**visually identical** for "the file exists and lacks the term" and "the file does not exist at that commit" —
+`git show` errors on a missing path and `grep` reads empty input. **`git cat-file -e <commit>:<path>` is the check
+that distinguishes them**, and the two conclusions differ in exactly the way that matters: **untracked-at-run-time
+versus modified-at-run-time.** Neither lane reached for it first.
+
 **The consolation, and it is the reason nothing downstream collapses:** the re-run under known code (353865) flags
 those configs correctly, so the corrected numbers stand on their own provenance. **Re-running under a known commit
 is the remedy for an unknown one — arguing about what the old code must have done is not.**
