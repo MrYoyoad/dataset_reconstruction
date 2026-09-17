@@ -4035,3 +4035,32 @@ configuration each was measured in — space, release, adaptation depth, start f
 agree on every axis, not just the one being compared. If they differ on any axis, the expression needs a
 justification or a different number. "They are both projection errors" and "they are both at distance 1.343" were
 each true and each insufficient.
+
+
+## A nullity is only meaningful if the spectrum has a gap (2026-09-17, deep-network cell)
+
+Measuring the release-route nullity on a real 15-layer MNIST MLP produced a row that looked like a clean
+refutation of the identifiability law: predicted nullity 0, measured 76. Reporting it would have been wrong.
+
+**The rank was a choice of tolerance, not a property of the matrix.** The spectrum around the cut ran
+2.45e-10, 2.19e-10, 2.00e-10, 1.56e-10, 1.34e-10, 1.15e-10 | 8.53e-11, 8.09e-11, ... — a **gap of 1.35**, i.e.
+none. And the rank slid across ten decades of threshold:
+
+    1e-6 -> 16014    1e-8 -> 16029    1e-10 -> 16052    1e-12 -> 16083    1e-14 -> 16106    1e-16 -> 16122
+
+**108 units of movement.** By contrast every synthetic and shallow-network cell in this project has a gap of
+1e9–1e12 at the cut and a count that does not move at all across the same decades.
+
+**The check, which costs one line:** compute the rank at 1e-6 through 1e-16. A real rank is FLAT across decades.
+If it slides, report the nullity as UNDEFINED with the ladder, never as an integer — an integer there is false
+precision, and it will be read as a measurement.
+
+**The substantive reading**, offered as interpretation rather than measurement: through fifteen layers, chart
+directions reach the adapted layer with enormously varying gain, so identifiability stops being a dichotomy and
+becomes a continuum. The sharp step of the affine law does not so much *fail* as *stop being askable*, and the
+right instrument on a deep network is an effective rank at a stated tolerance or the spectral profile itself.
+
+**Note the shape of the near-miss.** Two outcomes had been pre-registered — a HIT confirming the law, a MISS
+refuting it — and the actual outcome was neither: the question degenerated. The harness happily printed "MISS".
+**Pre-registering two outcomes does not make them exhaustive**, and the diagnostic that caught it (`gap_at_cut`)
+was one I had computed but not surfaced in the table.
