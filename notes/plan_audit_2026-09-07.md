@@ -519,3 +519,49 @@ harness implements the corrected law** — a status resting on the author's own 
 **And the independence finding is correctly scoped.** `theory/T1..T6` cite neither the archive note nor its lemmas
 and agree on every shared statement. That is a **consistency signal, not a joint proof**, and recording it as such
 is right — two derivations agreeing is evidence about the derivations, not a second proof of the result.
+
+---
+
+## A25 — No bundle number has a reproducing script here. Scope it: unreproduced NUMBERS ≠ unsupported STATEMENTS
+
+[read: rows — repo-wide content hash of 43,832 `.py` files including the vendored tree, zero matches against the
+37 bundle scripts]
+
+The archive lane's rescan upgrades an earlier four-directory check to an exhaustive one and the verdict holds:
+**none of the provisional numbers in `framework_rev10/11/12` or its audit has a reproducing script in this
+repository.** CLAIM.md's ground rule 3 anticipated exactly this — *every number from the external bundle is
+†provisional until reproduced by a committed script with a recorded seed* — and it is now confirmed rather than
+assumed.
+
+**But the finding must carry a distinction or it will over-reach, and it is the same one the archive lane got
+right about independent derivations.** "No reproducing script" is a statement about **numbers**, not about
+**claims**:
+
+| | status |
+|---|---|
+| the bundle's **numbers** — basin fractions, the exact-inversion residuals, the phase-diagram percentages | **unreproduced here**, †provisional, no script |
+| several of the bundle's **statements** — the certificate annihilating the training span, `rank C = r − q`, the quotient-sensing form, the capacity line | **independently derived and measured here**, by code that does not descend from the bundle |
+
+Those are different things and conflating them would either overstate the problem (calling proved statements
+unsupported) or understate it (treating a measured statement as licensing the bundle's numbers).
+
+**The operational consequence is better than a caveat.** For anything we have measured ourselves, **cite our own
+measurement rather than the bundle** — it is independent, it has a job id, and it removes the provenance question
+entirely. Reserve the dagger for the numbers that remain the bundle's alone. A claim sourced to our own rows is
+strictly stronger than the same claim sourced to an unreproduced document, so this costs nothing and closes the
+exposure.
+
+## A26 — The window question, answered with evidence and qualified honestly
+
+**DERIVED, and checkable rather than asserted:** the first submission crashed inside that cell on its first step
+value and its rows file records only the other two, **so no number from that cell ever existed to react to.** The
+window was set from the fourth-power criterion while repairing the crash.
+
+**And the qualification is the valuable half:** the criterion was computed at the *second* draft — the original
+window would have put two of its four points below the representable range. So *"derived before the cell ever
+ran"* is true and *"derived before the script was written"* is not, and both sentences are in the file. **A lane
+volunteering the reading that weakens its own answer is what makes the answer usable.**
+
+**Margins reported as a table rather than three verdicts:** 3353× and 35014× against 2.0× on the coefficient,
+240× and 583× against 2.0× on the order. The flattening was doing real work — four to five orders, not a rounding
+difference.
