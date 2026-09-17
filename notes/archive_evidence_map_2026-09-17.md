@@ -97,9 +97,40 @@ Recorded because their absence is itself a finding.
   `framework_rev10/11/12` or its audit has a reproducing script here**. Also confirmed by hash: `rn_phase.png` and
   `fig_certificate_phase.png` are the same file — one figure, not two results.
 
+## 3a. The bundle: a citation rule, not a caveat
+
+The finding in §3 — zero content matches for any of the 14 September bundle's 37 scripts across a repo-wide hash
+of 43,832 Python files — is exhaustive, and it is **a statement about numbers, not about claims.** Letting it
+travel undifferentiated would be wrong in both directions at once: it would either call proved statements
+unsupported, or let a measured statement license unreproduced numbers. (Same distinction as two independent
+derivations agreeing: evidence about the derivation is not a second proof of the result.)
+
+**Several of the bundle's statements have been independently derived and measured here, by code that does not
+descend from it.** For those, **cite our own rows, never the bundle.** Verified at source on 2026-09-17:
+
+| statement | our own evidence | where |
+|---|---|---|
+| The certificate annihilates every recorded representation — no recipe, no labels, no seed | job **701679**, ledger row A3, `SETTLED`, register derived + read-rows | `results/CLAIMS_LEDGER.md:68` |
+| Quotient-sensing form `Π A_T = c_T Π A_0`, with `c_T = 1.000000000000` derivable rather than fitted | job **675031** gate | `notes/w1_certificate_proofs.tex:115`, `experiments/e1b/RESULT.md:19` |
+| The capacity line `k < m + r − N`, sharp to one unit of `k` | jobs **469120**, **467914** (+ the N=4/8/12 arms) | `STATUS.md:1135`, `figures/exact_inversion/capacity_law.png` |
+| Certificate exact at depth over the training span, and the rank law | jobs **688036**, **692603** (`theory_checks_688036.jsonl`, `survival_692603.jsonl`) | `experiments/multilayer_cert/RESULTS.md:3-4` |
+| The three hand-computed coefficients of the multilayer note | job **353169** | `results/archive_checks/hand_coefficients_353169.jsonl` |
+
+**Reserve the dagger for what remains the bundle's alone**: its basin fractions, exact-inversion residuals and
+phase-diagram percentages, and the deep-certificate / stacked-Jacobian numbers whose only generators are
+`trajspan.py`, `stackrank.py`, `rn_*.py` and the audit scripts. Those have no reproducing code here and stay
+†provisional until they do.
+
+**Why this is better than a caveat.** A claim sourced to our own measurement is strictly stronger than the same
+claim sourced to an unreproduced document, and it carries a job id. So the rule costs nothing and closes the
+exposure instead of disclosing it: for anything we have measured, the provenance question simply does not arise.
+*(Raised by the approver lane, 2026-09-17; routed to the narrative lane because it changes how the bundle may be
+cited in Gal-facing material.)*
+
 ## 4. How to use this file
 
 Before quoting a number from any archived PDF or figure: find it here. If it is **TRACED**, cite the job id and
 the row, not the PDF. If it is **SUPERSEDED**, quote the repo number with its start count. If it is
 **ARCHIVE-ONLY**, say so in the sentence that uses it, or do not use it. If it is **UNTRACED**, it does not go
-out. New claims go to `results/CLAIMS_LEDGER.md` and the track's `RESULT(S).md`, which remain the claims record.
+out. And before citing the 14 September bundle for anything at all, read §3a: where we have measured the statement
+ourselves, cite our rows and their job id rather than the bundle. New claims go to `results/CLAIMS_LEDGER.md` and the track's `RESULT(S).md`, which remain the claims record.
