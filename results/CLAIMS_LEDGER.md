@@ -30,7 +30,7 @@ line here whenever you add a row below.** See LESSONS_LEARNED, "the bottleneck i
 | Does depth add information additively? | **M4** (9,18,20,20 — rank-preserving regime only), **job 688036** (**NOT** 692603, as the row states — corrected at the rows); `STATUS.md` T5.2 section; audit F11–F14 | **T5.2 FALSE as stated.** Corrected law is a CANDIDATE. M4's sweep cannot discriminate (`q_l` saturated 180/180) |
 | How many adapted layers buy a chart of width k? | `STATUS.md` T5.2 section; **§19a** / `STATUS.md:323` ladder, jobs 218345/218346 | Upper bound only. **Precondition (`rank M_l` per layer) already measured and unfavourable** |
 | Is a shared/tied `A_0` across layers a defence? | **M5**; audit F11 counterexample | Answered: **no**, three ways. **But job 674726 asserts the opposite from byte-identical data with `passed: true` — mark superseded in place, do not cite** |
-| Does the certificate survive when a layer's inputs drift? (Gal's main question) | M1–M3 | **UNAUDITED, ZERO PASSES.** Nothing here reaches Gal yet |
+| Does the certificate survive when a layer's inputs drift? (Gal's main question) | M1–M3 | **ZERO PASSES.** M4/M5 have PASS #1; M1–M3 have none. Nothing here reaches Gal yet |
 | Can the attacker tell when the certificate is dead, or contaminated? | M2, M3; audit F6 | Rank death **is** attacker-visible; contamination is **not**. Lifetime result is **defender-facing** |
 | Does a chart restore identifiability? | N1–N4 | Yes — **measured with the release's own ORACLE chart**. Establishes the mechanism a chart must supply, not that any buildable chart supplies it |
 | Are identifiability and recoverability the same thing? | N2; seed-known LM arm (in flight) | **Provisionally no** — nullity 0 with zero landings. Two separable jobs for a chart |
@@ -180,7 +180,15 @@ It must never be cited about nonlinear charts in **either** direction.
 
 ## M. Multilayer certificate — Gal's own main question (7 Sept runs, **UNAUDITED**)
 
-> **STATUS FOR EVERY LINE BELOW: UNAUDITED, ZERO PASSES.** `experiments/multilayer_cert/RESULTS.md` is dated
+> **UPDATED 2026-09-17.** **M4 and M5 now carry PASS #1** (`read-rows`, `notes/m4_additivity_verification_2026-09-17.md`):
+> their job id is **688036**, not 692603, and M4 **discriminates neither additivity law** — the path is
+> rank-preserving (`k_1=20`, `q_l=[9,9,9,9]`, widths 30), so the corrected law provably collapses to the stated one
+> there. **M1–M3 remain at ZERO PASSES.** And the **stated rank law `r − N'` was REFUTED and corrected today** to
+> `(min(r,n_l) − N')_+`: the de-rigged check `T2_rank_C_matches_AS_WRITTEN_r_minus_Nprime` **FAILS** at job **351745**
+> while the corrected form passes. **Do not cite "the rank law" to 688036/692603 — cite the corrected law to 351745.**
+> A second PASS is still required on every line before any of this reaches Gal.
+>
+> **STATUS FOR EVERY LINE BELOW: UNAUDITED unless marked otherwise.** `experiments/multilayer_cert/RESULTS.md` is dated
 > 7 Sept 17:01 and contains **no occurrence of the string AUDIT** — not a missing second PASS, no audit log at
 > all. It has stood complete and uncertified for ten days, and it is the document answering the extension
 > question Gal named as his main one. **Nothing here may reach him or the co-authors until two independent
