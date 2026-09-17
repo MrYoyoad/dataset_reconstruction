@@ -4087,3 +4087,28 @@ looking at a crossing. If the limit *equals* it, the agreement is still only as 
 construction. One of these rows reached 16122 against an ambient 16128 — within six of counting every direction.
 So "the count climbs toward the predicted value at very small tolerance" is what a **noise floor** looks like, and
 a prediction can only be tested against the saturation curve, never against the predicted number in isolation.
+
+
+## A numerical rank cannot refute a claim about exact-arithmetic rank (2026-09-18)
+
+A neighbouring lane restated a refutation carefully — a theorem predicts 756 directions, the measured effective
+rank at a meaningful tolerance is ~402, so the theorem overpredicts about 2x — and the restatement is much better
+than the version it replaced. It still does not reach the claim it names, and the reason generalises.
+
+Their ladder gains 28 directions between 1e-10 and 1e-14. Reaching 756 needs 329 more, about twelve times that
+rate, all of it below 1e-14 where fp64 cannot resolve anything. **So the measurement cannot separate:**
+
+- **(a)** the theorem is wrong, from
+- **(b)** the theorem is right and 329 of its directions are determined at below-1e-14 strength.
+
+**Practically the two are the same** — directions that weak carry no usable information, and a privacy claim can
+rest on exactly that. **Theoretically they are different claims**, and only (b)-compatible language is supported:
+*"the effective rank at any meaningful tolerance is ~2x smaller"* is measured; *"the theorem is refuted"* is not.
+
+**The rule: a tolerance-dependent quantity can only refute a tolerance-dependent claim.** Before reporting that a
+measurement refutes a theorem, check whether the theorem is about exact arithmetic — if it is, a numerical rank,
+nullity, or effective dimension can bound its *usable* content but cannot falsify it. State the practical
+conclusion, which is usually the one that matters, and leave the theoretical one open.
+
+This is the same shape as the crossing-vs-limit near-miss recorded above, and it arrived within the hour: a number
+the data is consistent with but cannot adjudicate, where the tempting reading is the one that sounds like a result.
