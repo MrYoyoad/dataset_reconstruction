@@ -176,13 +176,30 @@ Registers: `read-rows` for the counts, `read-function` for the gate.
   drift-based flag misses them, and it is exactly the shape of the one layer-0 row: `delta` identically `0.000e+00`
   with `beta` 1.28e+21 — an explosion living entirely in the parameters.
 
-**A hypothesis for the deep rows, flagged as one.** The guard is **entrywise and absolute** (`h.abs().max() >
-1e100`) while the reported drift is **relative** (`‖d‖/‖H0‖`). Where `‖H0‖ < 1` a config can report relative drift
-of `1e103` with every entry still under `1e100` — at `‖H0‖ ≈ 1e-3` the arithmetic works out exactly. If that is the
-mechanism, the threshold was never the problem and raising or lowering it would have hidden the bug rather than
-fixed it. **This is decidable by the instrumentation already requested**: record `max|entry|` as the `huge` test
-actually sees it, **and `‖H0‖`**, beside the relative drift the row reports. I have not run it; the harness belongs
-to another lane.
+**The absolute-versus-relative mismatch, and how far arithmetic alone settles it.** The guard is **entrywise and
+absolute** (`h.abs().max() > 1e100`); the reported drift is **relative** (`‖d‖/‖H0‖`). If the gate did not fire
+then every entry is `≤ 1e100`, so for a `30×3` block `‖d‖_F ≤ √90 · 2e100 = 1.9e101`, and therefore
+**`‖H0‖ ≤ 1.9e101 / delta`** — an *upper* bound on the base norm, which is the direction that decides each row:
+
+| reported `delta` | requires `‖H0‖ ≤` | verdict |
+|---|---|---|
+| 1.2e+20, 8.0e+29, 4.8e+43, 9.5e+51, 3.4e+86 | 1.6e+81 … 5.6e+14 | **consistent — no bug.** A base norm of order 10 already satisfies these, so relative drift can reach ~1e100 with every entry legitimately under the threshold |
+| 4.5e+103 | **4.2e-03** | possible, but needs a base norm below ~1e-3 |
+| 5.2e+129 | **3.6e-29** | **implausible** for any base representation of a GELU MLP at these dimensions |
+| **inf** | **0** exactly | **impossible** unless `‖H0‖` underflowed to zero, in which case the row is a division artefact and never was a drift measurement |
+
+**So five of the eight rows are the gate behaving exactly as written**, and the defect there is *calibration*, not
+logic: the threshold is orders too permissive relative to the quantity the row reports. The fix is to **gate on the
+relative drift the row itself reports**, not on entry magnitude. **Two rows still demand an explanation** — the
+`5.2e+129` and the `inf` — and both turn on the same unrecorded field.
+
+**What the instrumentation must capture**, then, is narrower than "max entry per layer and step": it is **`‖H0‖`**,
+checked for *underflow* specifically and not merely for smallness, on those two rows. And the representations
+**after** the final update, which the harness never computes. I have not run it and have not touched the harness.
+
+*(Arithmetic by the narrative lane, recomputed here. Their table states the bound as `‖H0‖ ≥`; it is `≤`. The five
+easy rows are satisfied under either reading, which is why the slip does not affect them — it bites only at the two
+extremes, where it turns "constrains, still possible" into "requires a base norm of 3.6e-29".)*
 
 **What this changes.** `116` is a clean count **once the adapter-norm guard is applied**, and the guard is now
 measured rather than asserted. But the divergence detector admits configs with infinite drift at depth, so
