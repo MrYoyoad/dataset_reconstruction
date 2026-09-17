@@ -4,6 +4,25 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A commit body names the SEAT, not the speaker (2026-09-17)
+
+**What happened.** `notes/w1_certificate_proofs.tex`'s history contains a commit whose body says *"my own
+overstatement"*, correcting a claim that a hypothesis was attacker-checkable. After the team restarted, that "my"
+named a session that no longer existed. The correction was then **misattributed to the approver lane**, which had
+not made it, and the approver had to say so before it propagated further.
+
+**Why it recurs here specifically.** Git attributes every commit to one user, so lanes are indistinguishable in
+`git log`. The only thing carrying authorship is the prose in the body — and first-person prose stops resolving the
+moment the session ends, which in this project is often.
+
+**The rule.** Commit bodies, audit entries and result files name the **seat** — "the W1 lane", "the executor", "the
+approver" — never "I" or "my". A correction that cannot be attributed after a restart will be attributed to
+whoever is nearest, and the nearest lane is usually the one that reviewed it.
+
+**Same family as** the audit that existed only in cross-session messages and would have been redone or assumed, and
+the number sourced only to a docstring. In each case the artefact survived and its **provenance** did not.
+
+
 ## Four ways a numerical check passed or failed for reasons that had nothing to do with the theorem (2026-09-07)
 
 Building the multilayer-certificate checks, every one of these produced a confident wrong answer before it was
