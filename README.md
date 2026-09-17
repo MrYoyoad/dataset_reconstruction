@@ -26,12 +26,10 @@ for every private representation `h` the adapter recorded. No knowledge of the t
 access to the random seed, no shadow models. The private images are then searched for inside a low-dimensional
 public image family (a **chart**), where the certificate turns into a small system of equations.
 
-Two things this buys, and one it does not:
+Two properties of the certificate:
 
 - **It is exact, not approximate.** Where every representation is recorded, the residual sits at machine precision.
 - **It says what the adapter recorded, not how many photos there were.** The batch size is not recoverable.
-- **It does not yet produce recognizable images.** Turning a recovered representation back into a picture is the
-  open problem, and it is the one the project is working on.
 
 ---
 
