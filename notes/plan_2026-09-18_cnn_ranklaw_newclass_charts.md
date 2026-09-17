@@ -289,3 +289,18 @@ Arm (b) shares encoder, images and chart pool with the depth window; it differs 
 since no multi-layer attack harness exists) and in being a confident batch (known classes), and the row reports
 `rank B_T` and the recording strength so a weak recording is visible. It is the closest attainable gate for the
 window, and the write-up says exactly that.
+
+## Addendum 2026-09-18 (Yoad, after the interim readout) — a second recovery criterion
+
+The exact-landing bar (relative pixel error < 1e-2) is the certificate's floor; it is not the only bar that matters.
+Yoad: recovery should be judged as a human would — is the output identifiably the private image, not pixel-identical
+to it. Adopted as a second tier, reported beside the first in every recovery table:
+
+- **Tier 1, exact landing:** relative pixel error < 1e-2 (unchanged; drives the certificate-floor claims).
+- **Tier 2, perceptual identification:** the recovery is closer to the truth than to the nearest public image of the
+  class (SSIM, and the base model's penultimate features), and the truth is top-1 in a line-up of truth + 99 public
+  decoys of the class drawn from the public train split. Resemblance to the class ("looks like an A") is NOT tier 2.
+
+Tooling: `experiments/utils/perceptual_id.py` + `perceptual_id_sweep.py` (CPU), run over every saved cell of this
+package (ladder, WP2 cells, bootstrap rounds, decoder rows). The number to read first: on the letters ladder, the
+largest chart error at which the recovery is still tier-2 identified while tier-1 landings are already zero.
