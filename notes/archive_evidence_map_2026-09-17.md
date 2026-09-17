@@ -197,6 +197,11 @@ relative drift the row itself reports**, not on entry magnitude. **Two rows stil
 checked for *underflow* specifically and not merely for smallness, on those two rows. And the representations
 **after** the final update, which the harness never computes. I have not run it and have not touched the harness.
 
+**The one assumption that could overturn the two verdicts above is measured by that same field at no extra cost.**
+`‖H0‖ ~ 10` is inferred from the architecture here, not measured. If the base representations are in fact tiny at
+some layer, both the `4.5e+103` and `5.2e+129` verdicts move. `‖H0‖` per layer is already the field being
+requested, so this needs **no separate job** — and nothing here should be run locally to get it.
+
 *(Arithmetic by the narrative lane, recomputed here. Their table states the bound as `‖H0‖ ≥`; it is `≤`. The five
 easy rows are satisfied under either reading, which is why the slip does not affect them — it bites only at the two
 extremes, where it turns "constrains, still possible" into "requires a base norm of 3.6e-29".)*

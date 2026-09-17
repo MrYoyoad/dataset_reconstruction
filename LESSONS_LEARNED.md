@@ -4,6 +4,34 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## 2026-09-17 — a one-line derivation is where a slip has nothing to collide with
+
+In one short exchange, two lanes each got something wrong inside the *same* three-line piece of arithmetic, and
+both were caught by the other lane **recomputing** rather than reading.
+
+The arithmetic: a divergence guard is entrywise and absolute (`max|entry| > 1e100`) while the drift a row reports
+is relative (`‖d‖/‖H0‖`), so "the gate did not fire" bounds `‖d‖`, and `‖H0‖ = ‖d‖/delta` then bounds the base
+norm. One lane wrote that bound as `‖H0‖ ≥` where it is `‖H0‖ ≤`. Earlier in the same thread another lane had
+back-fitted a quantity into a related count.
+
+**Why a short derivation is the dangerous case, which is the opposite of the intuition.** A long calculation has
+redundancy: a sign error usually collides with something further down and produces a visible absurdity. A
+three-line one has nothing to collide with, so the error produces a **plausible number**, and plausible numbers are
+what get quoted.
+
+**And this particular error class has a signature worth memorising: an inverted inequality is invisible on the easy
+cases and decisive on the extremes.** Five of the eight rows here were satisfied under *either* reading of the
+bound — so the slip survived a sanity check performed exactly where one would naturally perform it. It changed the
+verdict only on the two rows at the far end, turning "constrains, still possible" into "requires a base norm of
+3.6e-29, which nothing in this network has". The consequence would have been one explanation arriving later and
+being spent on two different problems.
+
+**What follows.** Recompute a short derivation rather than reading it — reading is how both of these survived.
+Check a bound at the **extremes**, not on the comfortable middle where it holds either way. And when a step rests
+on a quantity nobody measured (here `‖H0‖ ~ 10`, inferred from the architecture), say so in the same breath as the
+conclusion and name what would overturn it, because that flag is what makes the rest of the derivation usable by
+someone else.
+
 ## 2026-09-17 — a job id is a pointer to rows, and rows have a certification state
 
 A rule was written tonight that says: where we have measured a statement ourselves, cite our own rows and job id
