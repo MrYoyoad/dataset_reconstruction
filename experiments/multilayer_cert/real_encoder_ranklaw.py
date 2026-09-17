@@ -68,9 +68,11 @@ from experiments.exact_inversion.deep_stack import inputs_of, load_deep
 from experiments.multilayer_cert.common import provenance
 
 torch.set_default_dtype(torch.float64)
-LADDER = ("1e-6", "1e-8", "1e-10", "1e-12", "1e-13", "1e-14", "1e-15", "1e-16")   # to machine precision: 6e showed
-TOL = {"1e-6": 1e-6, "1e-8": 1e-8, "1e-10": 1e-10, "1e-12": 1e-12,               # a deep phi has NO gap and the
-       "1e-13": 1e-13, "1e-14": 1e-14, "1e-15": 1e-15, "1e-16": 1e-16}           # rank is a choice of threshold
+LADDER = ("bf16", "fp16", "1e-4", "1e-5", "1e-6", "1e-8", "1e-10", "1e-12",   # UPWARD to the precision adapters
+          "1e-13", "1e-14", "1e-15", "1e-16")   # SHIP in (bf16/fp16 are the attacker-relevant cuts) AND down to
+TOL = {"bf16": 3.9e-3, "fp16": 4.9e-4, "1e-4": 1e-4, "1e-5": 1e-5,            # machine precision (6e: a deep phi
+       "1e-6": 1e-6, "1e-8": 1e-8, "1e-10": 1e-10, "1e-12": 1e-12,           # has no gap; the rank is a choice of
+       "1e-13": 1e-13, "1e-14": 1e-14, "1e-15": 1e-15, "1e-16": 1e-16}       # threshold, and the SHIP cut is coarse)
 
 
 def med(v):
@@ -219,6 +221,8 @@ def main():
                           q_l_measured_matches_formula=bool(ql == [min(dof[l], d_layer[l]) for l in layers]),
                           t52_pred=int(t52), corrected_pred=int(corrected),
                           measured_rank_by_tol=meas, measured_at_1e10=meas["1e-10"], measured_at_finest=meas[fine],
+                          usable_rank_fp16=meas["fp16"], usable_rank_bf16=meas["bf16"],   # DEPLOYMENT precision:
+                          # the attacker-relevant usable rank is set by the precision the adapter SHIPS in, not ours
                           ambient_maxrank=min(rows[0]["n_rows"], in_dim),   # tau->0 count saturates HERE; a value
                           # the count merely CROSSES on the way to ambient is not a real rank (6e's tau->0 test)
                           ladder_spread=int(max(ladder_vals) - min(ladder_vals)),
