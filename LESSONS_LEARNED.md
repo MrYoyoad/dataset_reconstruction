@@ -11,6 +11,12 @@ carry a **`diverged`** key. But `git show 082bb09:experiments/multilayer_cert/su
 occurrences of `diverged` — the field was introduced by `691ac2e`, of which `082bb09` is an **ancestor**. **The rows
 cannot have been produced by the committed code whose hash they record.**
 
+**Stronger than first written: the file did not EXIST at that commit.** `git cat-file -e 082bb09:.../survival.py`
+→ *"exists on disk, but not in '082bb09'"*; the whole module landed at `691ac2e`. So the script was **untracked**
+when the job ran, not merely modified. *(My first check — `git show ... | grep` finding no matches — could not
+distinguish "exists without the term" from "does not exist", because `git show` on a missing path errors and grep
+reads empty input. Same visible result, different fact.)*
+
 **The mechanism, and it is one line.** `survival.py:128` does
 `subprocess.check_output(["git","rev-parse","--short","HEAD"])` — **HEAD only, with no dirty check.** The job ran
 with a modified working tree: the *script* had the gate, *HEAD* did not. `theory_checks.py:375` and
@@ -25,8 +31,22 @@ the recorded hash does not identify the code.** The honest state is: *we do not 
 692603.* Both readings are withdrawn.
 
 **The fix, cheap and worth doing everywhere a row is written:** append `-dirty` when `git diff --quiet` fails, and
-better, record a **hash of the script file itself** beside the commit. A commit hash answers "what was the repo",
-which is not the question; "what code ran" is.
+better, record a **hash of the script file itself** beside the commit — **in the ROW, not only the run header**, so a single
+row is self-describing when it is quoted out of its file, which is how most of these numbers travel. A commit hash
+answers "what was the repo", which is not the question; "what code ran" is.
+
+**THE ASYMMETRY, which is the durable rule and is sharper than "check your provenance":** *conclusions drawn from
+**recorded fields** survive a provenance failure, because **the fields ARE the measurement**. Conclusions drawn from
+**source** do not, because the source is not the one that ran.* Applied as a one-question pass over an audit's own
+findings — *does this conclusion need the source, or only the recorded fields?* — **seven of nine survived untouched
+and the two that did not were exactly the two reached by reading code.** The pass is cheap and the author already
+knows which is which.
+
+**And the trap has a second stage that is worse than the first.** One withdrawn finding had its mechanism *replaced*
+by a better-sounding one read off the **current** source describing rows from **unknown** code — so **the correction
+was more source-dependent than the error it replaced.** Reasoning about what the old code must have done
+**manufactures a second unverifiable claim to shore up the first, and the second is harder to spot because it
+arrives wearing the authority of a correction.**
 
 **The consolation, and it is the reason nothing downstream collapses:** the re-run under known code (353865) flags
 those configs correctly, so the corrected numbers stand on their own provenance. **Re-running under a known commit
