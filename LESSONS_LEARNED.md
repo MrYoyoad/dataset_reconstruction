@@ -331,6 +331,32 @@ theorem statement that is wrong and was known to fail, one law refuted, and six 
 **That is a documentation and harness problem of unusual severity, not a mathematical one, and saying exactly that is
 what makes it safe to hand to a supervisor.**
 
+7. **A prediction with an ambiguous subject — committed by the seat that had just written the rule.** An hour after
+   naming the pattern, the approver registered a falsifiable prediction about a per-layer quantity, derived by
+   reasoning from **the variety dimension of the released `B`** (a free-parameter count in `R^{m×r}`) to **`q_l`** (a
+   **rank in chart space**, bounded by the layer width and the chart dimension). **Two different spaces, no map
+   between them, and none existed in anything written.** Two further objections were each independently fatal: the
+   harness's per-layer term carries **no head term at any layer**, the confinement entering the cap **once, outside**
+   the per-layer sum — so *"an intermediate layer lacks the head's confinement"* had no purchase on the predicted
+   quantity, **the confinement was never in it**; and read literally with the layer width it predicts a value in the
+   thousands for a quantity bounded by the chart dimension, so **the named object cannot be the object the
+   measurement emits.** Withdrawn in full; **nothing registered.**
+
+   **A prediction with an ambiguous subject is "confirmed" unfalsifiably** — the same failure as the six above,
+   arriving as a *prediction* rather than as a check.
+
+**"ASK FOR THE STEP" IS THE OPERATIONAL FORM OF THE RULE, AND IT IS CHEAPER THAN ANY CHECK.** Within two hours the
+same seat produced two pieces of arithmetic that **looked identical on the page** — both attached to a mechanism,
+both plausible. One was a **constant** that *followed* from a decomposition already settled in `STATUS` and
+reproduced a measured 66 exactly. The other was a **prediction** that *resembled* a derivation with no settled object
+underneath it. **Same shape, different provenance, and only one survived being asked for its step.** Neither a
+re-run nor a control would have separated them; one question did.
+
+**And the cost of the withdrawal is real, which is the point.** The "safe reading" that fell with it — that an
+under-counting input would make the measured gain a **floor rather than a ceiling** — rested on the same collapsed
+argument. **The direction of that exposure is now UNKNOWN, not merely unquoted.** A retraction that leaves you
+knowing less than before the claim was made is the honest outcome, not a failed one.
+
 **The general check, cheap and worth doing before any confirmatory run:** *state the outcome that would have
 falsified this, and verify the configuration can produce it.* If it cannot, the cell is a regression test — which
 is a legitimate thing to have, under its own name.
