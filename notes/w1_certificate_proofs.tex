@@ -35,8 +35,14 @@ Assume
 \item[(H2)] $\operatorname{rank}A_0=r$ and $\operatorname{col}(H)\cap\ker A_0=\{0\}$ --- generic
   over the seed, and needed because $A_0$ maps $\mathbb R^{d}$ to $\mathbb R^{r}$ with $r<d$ and so
   has a kernel of dimension $d-r$;
-\item[(H3)] \emph{excitation}: $\operatorname{rank}B_T=q$. Unlike the others this one is
-  \emph{checkable by the attacker}, directly from the released factor.
+\item[(H3)] \emph{excitation}: $\operatorname{rank}B_T=q$. Since
+  $\operatorname{row}(B_T)\subseteq\operatorname{col}(A_0H)$ always, $\operatorname{rank}B_T\le q$
+  unconditionally, and (H3) is the case of equality. The attacker can compute
+  $\operatorname{rank}B_T$ from the release and so holds a \emph{lower bound} on $q$; verifying that
+  the bound is tight needs $H$ and is not available to them. So (H3) is a hypothesis about the
+  release, not a test the attacker can run --- but it is the one whose failure has a visible
+  direction, since a collapsed $\operatorname{rank}B_T$ means the certificate is built from too small
+  a subspace and $CH\neq0$.
 \end{itemize}
 Nothing here requires $I+M_tG$ to be invertible. That condition is one route by which (H3) comes to
 hold, but it is not used in the proof, and (H3) is checked directly rather than inferred.

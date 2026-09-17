@@ -3444,3 +3444,38 @@ is exactly when it is least likely to be questioned.
 **Check the exit status and stderr, not the file list.** Applied immediately afterwards to two E4a jobs whose row
 counts and `.pth` files looked right: both did report `Successfully completed` (CLIP's stderr was a single timm
 `FutureWarning`), so the claim survived — but it survived because it was checked.
+
+## 2026-09-07 — A stress test that confirmed a ruling and caught the ruling's own overstatement
+
+**Context.** An audit proposed dropping the invertibility hypothesis (`I + M_t G` non-singular) from the
+certificate theorem. I traced the derivation, found invertibility is used nowhere, cut it, and wrote in
+the distinction that invertibility is *one route* by which excitation (`rank B_T = q`) comes to hold
+rather than a requirement of the result. Then I stress-tested it on the cluster (job 696469).
+
+**What the stress test showed.** Sweeping the step size to push `I + M_t G` far from the identity:
+
+| lr | cond(I+M G) | q | rank B_T | ‖ΠA_T − ΠA₀‖ | ‖CH‖ |
+|---|---|---|---|---|---|
+| 0.01–0.5 | 1.7–3.0 | 5 | 5 | ~6e-16 | ~4e-16 |
+| **5** | **7.9e+17** | 5 | **2** | **4.95e+67** | **4.9e-01** |
+| 50 | 1.005 | 5 | 5 | 5.45e-16 | 2.9e-16 |
+| 500 | 1.000 | 5 | 5 | **0.00e+00** | 1.6e-16 |
+
+The identity fails in exactly one row, and in that row `rank B_T = 2 ≠ q`, so the theorem's own
+hypothesis failed and it never applied. Not a counterexample — a confirmation that the surviving
+hypothesis is the load-bearing one, and that a degenerating `I + M_t G` acts *through* it.
+
+**The overstatement it caught, which was mine.** I had written that excitation is "checkable by the
+attacker, directly from the released factor". It is not. `row(B_T) ⊆ col(A₀H)` always, so
+`rank B_T ≤ q` unconditionally and excitation is the case of *equality* — verifying tightness needs
+`H`, which the attacker does not have. What the attacker actually holds is a **lower bound on q**.
+
+**The rule.** *Computable from X* and *verifiable from X* are different properties, and the gap between
+them is where an attacker-side claim quietly becomes an experimenter-side one. `rank B_T` is computable
+from the release; `rank B_T = rank H` is not verifiable from it. Before calling a hypothesis
+attacker-checkable, name the quantity on each side of the equality and ask whether the attacker has
+both. Here they have one.
+
+**What survives, and it is still useful.** The failure has a visible direction: a collapsed `rank B_T`
+means the certificate is built from too small a subspace, so `CH ≠ 0` and the attack degrades rather
+than silently returning something wrong-but-plausible.
