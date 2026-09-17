@@ -16,6 +16,12 @@ a plan audit; everything below is read from rows, the rest is still running (WP1
   gone at 0.0139 (0/8) and every larger error; the all-8 end does not exist (one letter is never found even in the
   exact chart); public PCA sits at 0.3123, 0/8; the wrong-release control finds nothing with residual 4.9e-1. Same
   shape as CIFAR, and **not** the depth-window gate (that is digits on the 15-layer net; arm b, running).
+- **The depth-window encoder's digits release records nothing, so it has no gate** (WP5 arm b, jobs 355883–355896):
+  a head adapter on `mnist_mlp_d15w1000` trained on the k-sweep's eight test digits (known classes, base softmax
+  residual ≤ 1e-3 on six of them) gives `‖B_T‖_F = 0.37` with `σ₈/σ₁ = 8.7e-11`; 0/400 landings in every cell
+  including ε = 0, and the wrong-release control reaches the same ~1e-17 objective — a degenerate certificate, the
+  confident-batch corner on a fresh cell. Follow-up running: `d15_letter_a` (EMNIST a as an 11th class on the same
+  encoder), the release that does record.
 - **On a CNN the depth question does not arise at zero drift** (WP1, bottleneck conv net trained to the gate, r=256,
   k up to 512 read so far): a conv certificate acts at every spatial position, so the one conv layer's `q_l` equals
   the chart width (24 certificate rows × 49 positions at conv 2) and a single conv layer pins the whole chart;
