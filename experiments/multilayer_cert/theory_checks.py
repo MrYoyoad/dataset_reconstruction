@@ -138,8 +138,11 @@ def check_T2(dev, seed=0):
                 worst_all = max(worst_all, max(rho_t)); worst_base = max(worst_base, rho0)
         rank_ok &= (not exact_hyp) or (rC == exp_rC)
         rows.append(dict(layer=l, drift=drift, N_prime=Nprime, rank_B=q, rank_C=rC, expect_rank_C=exp_rC,
+                         expect_rank_C_as_written=r - Nprime, as_written_law_agrees=bool(rC == r - Nprime),
                          rho_base=rho0, rho_worst_t=max(rho_t), exact_hypothesis=exact_hyp))
-        log(f"    layer {l}: drift={drift:.3f}  N'={Nprime}  rank B_T={q}  rank C={rC} (expect {r - Nprime})"
+        log(f"    layer {l}: drift={drift:.3f}  N'={Nprime}  rank B_T={q}  rank C={rC} "
+            f"(corrected min={exp_rC}; as-written r-N'={r - Nprime}"
+            f"{'  <-- AS-WRITTEN OVERCOUNTS' if (exact_hyp and rC != r - Nprime) else ''})"
             f"  rho(H^0)={rho0:.2e}  max_t rho={max(rho_t):.2e}  B3={'yes' if exact_hyp else 'NO'}"
             f"  sigma(B_T)[:6]={[f'{v:.1e}' for v in sB[:6].tolist()]}")
     exercised = [rw for rw in rows if rw["exact_hypothesis"] and rw["layer"] >= 1 and rw["drift"] > 1e-3]
@@ -149,7 +152,13 @@ def check_T2(dev, seed=0):
                  exercised_deep_layers=[rw["layer"] for rw in exercised],
                  max_drift_exercised=f"{max([rw['drift'] for rw in exercised], default=0):.3f}",
                  note="FAILS as vacuous if no DEEP layer with real drift satisfies B3", layers=rows)
-    ok2 = record("T2_rank_C_equals_r_minus_Nprime", rank_ok)
+    ok2 = record("T2_rank_C_matches_corrected_min_law", rank_ok, law="max(0, min(r-Nprime, n_l-Nprime))")
+    # The statement AS ORIGINALLY WRITTEN in theory/T2 was rank C = r - N'. Record a check against THAT law too, so
+    # a row exists that can disagree. It FAILS at any narrow layer (n_l < r); that failure is the point (audit A18)
+    # and is deliberately NOT gated into the return value.
+    as_written_ok = all((not rw["exact_hypothesis"]) or rw["rank_C"] == rw["expect_rank_C_as_written"] for rw in rows)
+    record("T2_rank_C_matches_AS_WRITTEN_r_minus_Nprime", as_written_ok, law="r - Nprime",
+           note="the statement as originally written; expected to FAIL at any narrow layer n_l<r")
 
     # --- T2.1 exact identity for the truncated certificate, at a layer with drift
     ident, gaps = 0.0, []

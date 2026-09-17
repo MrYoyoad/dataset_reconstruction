@@ -17,15 +17,20 @@ Consequently, **if `rank B_{l,T} = N'`** (so `row(B_{l,T}) = col(X')`), the full
 
     C_full H_{l,t} = 0   for EVERY t < T,   in particular   C_full H_l^0 = 0   EXACTLY,
 
-with `rank C_full = r - N'` and `ker C_full = Hcal (+) ker A_{l,0}`.
+with `rank C_full = (min(r, n_l) - N')_+` and `ker C_full = Hcal (+) ker A_{l,0}`. The kernel clause is the
+primary statement; the rank scalar follows from it. It equals `r - N'` **only when `n_l >= r`**. When the layer is
+narrower than the adapter rank (`n_l < r`), `A_{l,0}` is a.s. injective (`ker A_{l,0} = 0`), so the certificate has
+`rank = n_l - N'` — it cannot supply `r` independent output directions. Writing it as a bare `r - N'` overcounts
+the surviving equations at every narrow layer, and it contradicts the kernel clause on the same line. (Corrected
+per audit A18, 2026-09-17; the harness has always used the `min` form.)
 
 **No small-drift hypothesis is used.** The certificate at a deep layer is exact, not perturbative. What depth
-costs is *rank*: `r - N'` instead of `r - N`, where `N <= N' <= min(n_l, N*T)`.
+costs is *rank*: `(min(r, n_l) - N')_+` instead of `min(r, n_l) - N`, where `N <= N' <= min(n_l, N*T)`.
 
 ### Corollary A.1 (the real failure mode is discontinuous)
 
-`rank C_full = r - N'`. Since `N'` grows with the diversity of the drift, the certificate **degrades by losing
-equations, and dies outright once `N' >= r`** — at which point `C_full = 0`. There is no regime in which it is
+`rank C_full = (min(r, n_l) - N')_+`. Since `N'` grows with the diversity of the drift, the certificate
+**degrades by losing equations, and dies outright once `N' >= min(r, n_l)`** — at which point `C_full = 0`. There is no regime in which it is
 "slightly wrong": it is exact until it is empty. (If instead `rank B_{l,T} = q < N'`, the hypothesis fails and
 `C_full` is *contaminated*, `C_full H_l^0 != 0`, matching hypothesis 3 of the Rev-10 framework.)
 
@@ -98,8 +103,10 @@ layer, everything the rest of the network does to the *gradients* is irrelevant;
 Given B3, `row(B_T) = col(X')` exactly, so `P_{row(B_T)^perp} = P_{col(X')^perp}` annihilates `col(A_TU')` by
 (iii). For any `t < T`, `H_{l,t} = U'(U'^T H_{l,t})`, hence
 `C_full H_{l,t} = P_{col(X')^perp}(A_TU')(U'^TH_{l,t}) = 0`. Taking `t=0` and using `H_{l,0} = H_l^0` (which is
-B1 at *every* layer) gives the base-representation statement. `rank C_full = r - N'` because `A_0` is a.s. of full
-rank and `C_full = P_{col(X')^perp}A_0` on `Hcal^perp` (B6). []
+B1 at *every* layer) gives the base-representation statement. `rank C_full = (min(r, n_l) - N')_+`: `A_0` is a.s.
+of full rank `min(r, n_l)`, so on `Hcal^perp` the map `C_full = P_{col(X')^perp}A_0` has rank `min(r, n_l) - N'`,
+with `ker C_full = Hcal (+) ker A_0` — the `ker A_0` term nonempty exactly when `n_l > r`, and `A_0` injective
+(so `rank = n_l - N'`) when `n_l < r` (B6). It reduces to `r - N'` only for `n_l >= r`. []
 
 **T2.1.** `Rhat subset R` gives the orthogonal decomposition `P_{Rhat^perp} = P_{R^perp} + P_{R (-) Rhat}`.
 Apply to `A_TH_l^0` and use `P_{R^perp}A_TH_l^0 = C_full H_l^0 = 0` from Prop. A. []
@@ -167,6 +174,19 @@ so `max_t||Delta_t||` may be replaced by `eps^perp ||H_l^0||` in the leading ter
 | Cor. A.1 discontinuous death (`r=6` ladder) | `rank C` = 4, 2, **0**, 0, 0, 0, 0, 0 as `N'` = 2, 4, 6, 8, 9 |
 | T2.1 exact error identity | `1.1e-14` |
 | `B3` fails (`rank B_T < N'`) -> contamination | median `rho_full` **2.3e-4**, max **0.27** — `O(1)`, no small parameter |
+
+> **What the `rank C_full` row does and does not establish (audit A18, 2026-09-17).** The harness computes the
+> expected rank as `max(0, min(r - N', n_l - N'))` — the corrected law — and compares the measured rank against
+> *that*. So the agreement verifies the code implements the corrected formula; it is a regression test on the
+> implementation, **not** independent evidence for the proposition, because the only law it could have disagreed
+> with (the bare `r - N'`, which the earlier code and the run log both used) was engineered out of the comparison
+> before the check ran. This is not hypothetical: the stated `r - N'` law **was** tested and **failed** — jobs
+> `674726` (`ba9ca00`) and `683234` (`a2f71c6`), where `expect_rank_C = r - N'` gave `passed: false` — and passed
+> only at `688036` (`de8b0ae`) once the expectation became the `min` form (`expect_rank_C` = 13, 5 there vs 21, 23
+> before). The disagreement survives in a **sane, non-diverged** row: `688036` layer 0 has `n_l = 16 < r = 24`,
+> `N' = 3`, B3 holding at zero drift, and measures `rank C = 13 = min(21, 13)`, against the as-written `r - N' =
+> 21` — an eight-equation overcount. A fresh run comparing against the as-written law reproduces this **known**
+> failure under an honest name; it is a record being made honest, not a new result.
 
 **A measured law the theory did not predict, and which the whole picture now rests on:** the training span
 inflates at the *maximal* rate, `N' = N*T` (116/129 deep rows; `N' <= N*T` in all of them). Every SGD step adds
