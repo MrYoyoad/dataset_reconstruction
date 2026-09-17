@@ -15,6 +15,27 @@ reason, never deleted.
 
 ---
 
+## §0. QUESTION INDEX — read this before commissioning anything
+
+**Why this exists.** On 2026-09-17, five experiments were commissioned whose answers were already in this
+repository, one of them in this file. The ledger is organised by **claim** — *what have we said* — but a lane about
+to spend compute asks a **question** — *what do we already know about X*. This index is the second lookup. **Add a
+line here whenever you add a row below.** See LESSONS_LEARNED, "the bottleneck is not measurement".
+
+| live question | rows / sources that already bear on it | state |
+|---|---|---|
+| Can a chart be both narrow enough to be identifiable and faithful enough to contain the data? | `STATUS.md` top section (two-wall table, both releases); G1–G4 | **Answered for public PCA: no width works, and the fidelity wall alone carries it.** Open for other chart *families* |
+| How coarse is a public chart against the landing gate? | **G3** (20–35×, oracle ladder) vs `STATUS.md` two-wall table (14.9×/45.7× at the cap, 9×/26× at k=384) | **Two sources disagree in spread; canonical source unsettled — quote the table with its cell, never a midpoint** |
+| Does a foundation-model embedding dissolve the chart problem? | H1–H3 | Answered: no. Shared-concept chart is *worse* |
+| Does depth add information additively? | **M4** (9,18,20,20 — rank-preserving regime only), job 692603; `STATUS.md` T5.2 section; audit F11–F14 | **T5.2 FALSE as stated.** Corrected law is a CANDIDATE. M4's sweep cannot discriminate (`q_l` saturated 180/180) |
+| How many adapted layers buy a chart of width k? | `STATUS.md` T5.2 section; **§19a** / `STATUS.md:323` ladder, jobs 218345/218346 | Upper bound only. **Precondition (`rank M_l` per layer) already measured and unfavourable** |
+| Is a shared/tied `A_0` across layers a defence? | **M5**; audit F11 counterexample | Answered: **no** — both routes, measurement and derivation |
+| Does the certificate survive when a layer's inputs drift? (Gal's main question) | M1–M3 | **UNAUDITED, ZERO PASSES.** Nothing here reaches Gal yet |
+| Can the attacker tell when the certificate is dead, or contaminated? | M2, M3; audit F6 | Rank death **is** attacker-visible; contamination is **not**. Lifetime result is **defender-facing** |
+| Does a chart restore identifiability? | N1–N4 | Yes — **measured with the release's own ORACLE chart**. Establishes the mechanism a chart must supply, not that any buildable chart supplies it |
+| Are identifiability and recoverability the same thing? | N2; seed-known LM arm (in flight) | **Provisionally no** — nullity 0 with zero landings. Two separable jobs for a chart |
+| Does replay or the certificate recover more? | D section; E1–E5 | Both measured; see D for the route split |
+
 ## A. Structure of the release
 
 | # | text | measured on | holds under | NOT shown | job ids | register | status |

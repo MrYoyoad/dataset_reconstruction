@@ -1,5 +1,56 @@
 # Project Status
 
+## Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing (2026-09-17; jobs 350996, 218345/218346, 692603)
+
+**T5.2 is refuted.** `theory/T5_cross_layer_rank.md` states `rank J_F = min(k_1, sum_l q_l)` and is marked PROVED.
+Counterexample derived then confirmed on the cluster (job 350996): **0 of 12 seeds match T5.2, 12 of 12 match a
+corrected law.** `d=[10,3,3]`, `q=[5,3,3]`: T5.2 predicts 10, corrected predicts 8, measured **8** on every seed —
+an integer rank, so not a tolerance artefact. Audit F11, `theory/AUDIT_2026-09-17.md`.
+
+**The leak is T5.1 itself, which is why it survived.** T5.2's equality assumes the per-layer row spaces spread
+independently inside `row(M_1)`. T5.1's own nesting forbids exactly that: `M_l = J_psi M_{l-1}` gives
+`row(M_1) ⊇ row(M_2) ⊇ ...`, so two deep layers whose row spaces have collapsed into the same small subspace
+contribute it **twice** and T5.2 counts it twice. **The file proves the nesting in one theorem and assumes it away
+in the next.**
+
+**Corrected law (CANDIDATE, not proved):** `rank J_F = min_j ( d_j + sum_{l<j} q_l )`, `d_j := rank M_j`,
+`d_{L+1} := 0`. Each term: whatever the first `j−1` layers contributed, everything from layer `j` onward is
+**trapped** inside `row(M_j)`. T5.2 is the `j=1` and `j=L+1` terms only — it omits every intermediate constraint.
+
+**Two measurements that looked contradictory are the two regimes of the corrected law, and neither was built to
+test it.**
+
+| cell | frozen path | additivity | T5.2 | corrected |
+|---|---|---|---|---|
+| ledger M4 / job 692603, random FP64 MLP, `k=20`, `r−N=9` | rank-preserving (`d_j = k_1`) | **holds**: 9, 18, 20, 20 | correct | identical |
+| `STATUS.md` depth-of-first-adaptation + §19a, real encoder, `r=256` | **contracts** | **stops** | predicts 692 | consistent at 445 |
+
+At **depth 4** the transmitted ranks are `[692, 220, 187, 138]` against a per-layer budget `r − N ≈ 248`, so the
+later encoders sit **below** the budget — the discriminating condition. T5.2 predicts the full **692**; measured
+**445**, a **36% overshoot on real data**, twelve days before the law was derived. Depth 7 does **not**
+discriminate (`d_1 = 138` caps both laws). **Honest status: §19a REFUTES T5.2 and is CONSISTENT WITH the
+correction** — the corrected law's binding term at depth 4 is `d_2 + q_1 = 220 + q_1`, reproducing 445 exactly at
+`q_1 = 225`, but §19a records totals and not per-layer `q_l`, so this is one-sided.
+
+**Consequence for planning — the precondition is already answered and the answer is unfavourable.** Depth only
+delivers its budget where the frozen path between adapted layers preserves rank. The measured ladder contracts
+**784 → 692 → 445/220 → 187 → 138 → 96 → 85**, and at depth 7 *"the third and fourth adapted layers add nothing."*
+So *"8 adapted layers for a `k=128` chart at `r=24, N=8`"* is an **upper bound on what depth can deliver, not an
+estimate**, and the ceiling binds well before eight layers at realistic depth. **Re-cost against the measured
+ladder rather than re-testing.**
+
+**Scope, carried.** (a) This is the **no-chart** case (`G = identity`, so `M_j = J_{Phi_j^0}` and the sweep's
+"transmitted rank" *is* `d_j` — identification confirmed). **With a chart, `M_j = J_Phi J_G` and the ranks can only
+be smaller: the contraction is at least this severe.** (b) **One architecture** — the mechanism generalises, the
+numbers do not. (c) The corrected law is a **candidate**: 12/12 on one counterexample family plus one real-data
+consistency. Not proved.
+
+**R2 is NOT the failure mode**, and this was my written hypothesis to two lanes before the counterexample landed.
+The counterexample uses perfectly independent Gaussian seeds and fails anyway: **the constraint is geometric, not
+probabilistic — independence only randomises orientation inside a space the summand is already trapped in.**
+Confirmed independently from the measurement side by ledger M5: shared-seed and independent initialisations both
+give 9, 18, 20, 20, so a shared `A_0` is **not a defence**.
+
 ## The capacity line is the identifiability boundary, and on real releases the two chart walls do not overlap (2026-09-17; jobs 350967, 350993)
 
 **The capacity line has a meaning.** `k < m + r − N` was a counting heuristic; it is now the width at which the
@@ -20,9 +71,16 @@ same eight photographs, with the attacker-buildable public PCA chart the ladder 
 | keyboard / CNN | k ≤ 66 | 0.2058 | 0.0045 | **45.7×** |
 
 **Zero widths satisfy both walls on either release.** The fidelity wall alone carries it: even ignoring the cap and
-pushing to k = 384, the error is still 0.109 and 0.119, about 9× and 26× the gates. A public PCA chart of this
-family cannot be made to work on these releases by choosing k — which turns agreed step #2 ("charts beyond a
-single fixed PCA") from a preference into a requirement. **Caveat carried:** the cap is derived on the synthetic
+pushing to k = 384, the error is still 0.109 and 0.119, about 9× and 26× the gates. A public PCA chart of this family cannot be made to work on
+these releases by choosing k.
+
+**Scope, and it decides how this reads.** What was measured is ONE chart family — top-k PCA of public images of
+the added class. No other family was measured. So this is not a wall across the direction; it is the measurement
+that **motivates agreed step #2** ("try different charts, including extensions beyond a single fixed PCA
+ parameterisation") **with a number attached**: a new chart family has to beat the present one by roughly 15x on
+the MLP release and 46x on the CNN release to put the private data inside a chart the attack can use. We measured
+our own chart family against the gate we measured, on the same images, and it is an order of magnitude short —
+which is why the next thing is a different chart family, not why the direction is closed. **Caveat carried:** the cap is derived on the synthetic
 affine release and applied to CIFAR by formula; a trained `phi` sits in that path on the real releases and whether
 the rank argument survives it is not yet established. The fidelity column is measured directly and needs no caveat.
 

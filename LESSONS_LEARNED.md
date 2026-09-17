@@ -4,6 +4,68 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## A check that CANNOT FAIL is not weak evidence — it is no evidence. Three shapes in one night (2026-09-17)
+
+All three passed. None could have failed. Each was found by derivation, not by looking at the rows.
+
+1. **The harness implements the corrected form of the theorem.** T2 Prop. A states `rank C = r − N'`; the harness
+   implements `max(0, min(r−N', n_l−N'))`, which is what Prop. A's *own kernel clause* gives. The 116/116 agreement
+   is between the harness and the correction. **The disagreement the check exists to detect had been engineered
+   away before it ran.** Rule: *a check whose harness implements the corrected form of a theorem is a regression
+   test on the implementation wearing a theorem's name.* This is sharper than the track's existing rule that a
+   numerical check agreeing never promotes a status to PROVED.
+2. **The exclusions were unstated.** The load-bearing annihilation check gave `max rho_full = 7.10e-01` over all
+   rows — falsification by thirteen orders — because `diverged` is computed from **representation drift**, and
+   layer 0's inputs *are the data*, so its drift is identically zero however badly the adapter explodes (operator
+   norms to 3.84e+302, none flagged). **The detector cannot fire at layer 0 by construction.** With an
+   adapter-norm guard: 116 rows, max 2.68e-13, identical across six orders of the threshold — untuned, so it
+   removes a disjoint population rather than shaving a tail. The numbers were right; the row selection was never
+   stated. **Under this project's rules the documentation changes, not the number.**
+3. **The sweep ran entirely inside the regime where the hypothesis cannot be wrong.** `survival_692603` has `q_l`
+   **saturated at `r − N` in 180 of 180 layers** (`r=16, N=3` → `q_l = 13` everywhere). Saturation means the
+   per-layer budget binds and the transmitted rank never does — precisely where nesting cannot bite and the two
+   competing laws **coincide identically**. The sweep built to test additivity is consistent with T5.2 *and
+   equally consistent with its refutation*. To discriminate it needs one layer with `rank M_l < r − N`; no such
+   stack exists in it, and the fix is a **configuration change, not new machinery**.
+
+**The general check, cheap and worth doing before any confirmatory run:** *state the outcome that would have
+falsified this, and verify the configuration can produce it.* If it cannot, the cell is a regression test — which
+is a legitimate thing to have, under its own name.
+
+## The overstatement lives in the FRAMING sentence, not in the number (2026-09-17)
+
+Three corrections in one evening from the approver seat, all the same shape and **none of them a wrong number**:
+*"removes precisely the directions that trade against the seed"* (it removed those **and 184 others**);
+*"the identifiability negative is dead"* (dead **in the oracle configuration**); *"a different experiment, months
+apart in intent"* (**the same jobs, thirteen days**). Each was a true result stated one notch past its evidence,
+and every one occurred in the sentence that **frames** the result rather than in the result itself — where numbers
+get checked and prose does not.
+
+**Rule:** check the framing sentence against the rows with the same care as the number it frames. A claim stated
+tighter than the data supports does not read as more confident — **it reads as unchecked**, and it is the sentence
+an expert reader tests first.
+
+**Corollary, from the same evening:** when a theorem establishes a **containment**, check every later theorem that
+**sums** over the contained objects. *Additivity and nesting are natural enemies*, and `theory/T5` had both.
+
+## The bottleneck is not measurement — it is that measurements do not reach the people who would use them (2026-09-17)
+
+**Five times in one evening**, something being commissioned turned out to already exist in the repository:
+
+| commissioned | already existed |
+|---|---|
+| a one-setting sweep of both chart walls, "ahead of both routes" | `STATUS.md` top section — same axis, same photographs, attacker-buildable PCA chart |
+| a measurement of `rank M_l` per adapted layer, before committing a depth budget | `STATUS.md:323` / `notes/assumption_relaxation_program.md` §19a, jobs 218345/218346 |
+| a real-data test of the corrected additivity law | the same rows, measured twelve days before the law was derived |
+| per-layer accumulation data to discriminate the two laws | ledger row M4, job 692603 |
+| an index of what has been measured | `results/CLAIMS_LEDGER.md`, 220 rows, **owned by the GM lane** |
+
+The fifth is the indictment. The ledger exists **to stop claims outrunning evidence** and was not consulted before
+commissioning experiments its own rows answer — because it is organised by **claim** ("what have we said"), and a
+lane about to run something asks a **question** ("what do we already know about X"). **Fix: a question index at the
+top of the ledger**, mapping live questions to the rows that bear on them. A retrieval problem, not a recording
+problem — and the recording was already good.
+
 ## A commit body names the SEAT, not the speaker (2026-09-17)
 
 **What happened.** `notes/w1_certificate_proofs.tex`'s history contains a commit whose body says *"my own
