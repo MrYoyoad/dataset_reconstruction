@@ -70,9 +70,11 @@ Every chart cell returned nullity 0. Two labels belong on that, and without them
 and `k = 12` sits below all of them, so zero is what the closed form says in all six cells. It is worth
 reporting — a formula predicting cells it was not derived on is the point — but as confirmation.
 
-**The chart is an oracle** (disclosed by the executor lane). The data is generated as `H = LW + b` and the search
-is parametrised with that same `L` and `b`, so the truth lies in the chart by construction. An attacker does not
-have it. So the correct statement is **not** "a chart closes the deficit" but **"a chart that CONTAINS the
+**The chart is an oracle** (disclosed by the executor lane; **confirmed at the code for my own cells**, not
+inferred — `build_release` draws `L` and `b` and sets `H = L W_true + b`, and the chart arm reads those same `L`
+and `b` back out of the release and searches over `W`). The truth lies in the chart by construction. An attacker
+does not have it. Head width and batch size were swept; **the chart construction was untouched, so nothing here
+bears on containment at all.** So the correct statement is **not** "a chart closes the deficit" but **"a chart that CONTAINS the
 private representations closes it"** — a mechanism a chart must supply, not a property any buildable chart has.
 The composing measurement belongs in the same breath: **public charts sit at projection error 0.24–0.32 while
 landings need ≤ 0.0124, so public charts do not contain the truth.**
@@ -97,3 +99,23 @@ separately.
 
 **The cell that matters next** is the same measurement with an **attacker-buildable** chart, where a different
 answer is expected: a chart that does not contain the truth cannot take the nullity to zero.
+
+## What this licenses saying to the supervisor, in two parts
+
+His 15 September suggestion was to look for additional equations from perturbed inputs. The workplan that
+question lacked is now written down, and it has a negative half that must travel with it.
+
+**What a perturbed input cannot supply.** Probing the released `A_T` in a chosen direction returns a linear
+function of numbers the attacker already holds in full, so it adds equations and adds **no rank**. That was the
+pre-registered failure mode and it is the first thing to say, because it is the version of the idea that would
+otherwise be costed and run.
+
+**What it can.** The only constraint the release does not already contain is that the representation must be
+**the encoder evaluated at some image**, not a free matrix — which is what a chart is, and evaluating the frozen
+base model at perturbed inputs is how such a constraint is built or verified.
+
+**And the honest two-part form**, because the removal was measured with a containing chart: *the constraint the
+suggestion points at removes the shortfall, and no chart we can currently build supplies that constraint.* Public
+charts sit at projection error 0.24–0.32 against a gate of ≤ 0.0124. **That gap is twenty to thirty times, not
+orders** — so whether a better-built public chart can cross it is open, not closed, and that is the actionable
+part.
