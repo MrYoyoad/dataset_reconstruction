@@ -35,6 +35,7 @@ line here whenever you add a row below.** See LESSONS_LEARNED, "the bottleneck i
 | Can the attacker tell when the certificate is dead, or contaminated? | M2, M3; audit F6 | Rank death **is** attacker-visible; contamination is **not**. Lifetime result is **defender-facing** |
 | Does a chart restore identifiability? | N1–N4 | Yes — **measured with the release's own ORACLE chart**. Establishes the mechanism a chart must supply, not that any buildable chart supplies it |
 | Are identifiability and recoverability the same thing? | N2; seed-known LM arm (in flight) | **Provisionally no** — nullity 0 with zero landings. Two separable jobs for a chart |
+| **Does the certificate/identifiability framework survive depth?** | **P1–P4** (E1B depth sweep, 2026-09-18); `STATUS.md` top section | **The law is exact wherever evaluable; depth destroys the MEASUREMENT between 8 and 12.** Say it in that form — stated loosely it reads as a refutation. One config, 7 points, PASS #1 only |
 | What does an attacker actually recover, and how many starts does it take? | D section; E1–E5; **E6** (yield vs start budget) | Both measured; see D for the route split |
 
 ### §0.1 The public-chart shortfall — why no single number is canonical
@@ -243,6 +244,26 @@ than asserted, and it is the answer to the "~200 equations" concern in the form 
 supplying *more equations*: the multilayer additivity of M4, and Gal's own perturbed-inputs suggestion. **If a
 chart already takes the seed-free nullity to zero in the configuration the attack actually runs in, both answer a
 question that no longer binds.** Sequence them against N1 rather than running them in parallel.
+
+---
+
+## P. Depth and the limit of measurability (E1B depth sweep, 2026-09-18)
+
+> Read from the rows by the GM lane on 2026-09-18: `results/e1b/depth_vs_measurability_matched.jsonl`
+> (7 cells, budget scaled with depth) and `results/e1b/depth_vs_measurability.jsonl` (7 cells, fixed budget).
+> One configuration throughout: `N=8, T=20, r=12, k=24, m=11, width=256`, 576 unknowns against 516 equations.
+> **PASS #1 only — a second independent read is required before any of this reaches Gal.**
+
+| # | text | measured on | holds under | NOT shown | job ids | register | status |
+|---|---|---|---|---|---|---|---|
+| P1 | **The law is exact at every depth where it can be evaluated.** Nullity is **80 against a predicted 80** at depths 2, 3, 4, 6 and 8, with no drift. | matched arm, 5 cells | fp64; that one configuration; lightly-trained nets (train acc 0.368 to 0.535) | that it was checked at depth > 8 — **it cannot be**, see P2. Seven points, one configuration, **no fitted form** | matched arm rows | read-rows (GM) | **HELD, one PASS** |
+| P2 | **What depth destroys is the measurement, not the law.** The gap at the cut collapses from **4.4e+07 at depth 8 to 1.48 at depth 12** and 1.26 at depth 16, the rank ladder spreads from 31 to 67 to 91, and the nullity stops being a property of the Jacobian (83, then 144, against the predicted 80). | matched arm, depths 8/12/16 | same | **that the law FAILS at depth.** This is measurability in fp64, **not** exact-arithmetic rank — in exact arithmetic the deep rank may be unchanged | matched arm rows | read-rows (GM) | **HELD, one PASS** |
+| P3 | **The trainedness confound is controlled at the boundary**: train accuracy is 0.5346 at depth 8 against 0.5286 at depth 12, so the collapse is not deeper-nets-are-less-trained. | matched arm, depths 8 and 12 | same | that trainedness is controlled **across the whole sweep** — it is not; accuracy falls to 0.400 by depth 16 | matched arm rows | read-rows (GM) | **HELD, one PASS** |
+| P4 | **The `rank_exists` flag fires only in the matched arm.** In the fixed-budget arm it is `false` at **every** depth including 2, while the nullity there still reads 80 = predicted. | both arms, 14 cells | same | that the two arms disagree on the *nullity* — they agree at depths 2 to 8. The disagreement is in the **verdict flag**, so any "rank exists" statement must name the matched arm | both files | read-rows (GM) | **HELD, one PASS** |
+
+**Why this group matters for sequencing.** It lands directly on the meeting's agreed step #1. The framework stays
+correct and stops being *applicable* — which is more useful than either "it holds" or "it fails", and it is the
+kind of statement that has to be said in exactly that form or it will be read as a refutation.
 
 ---
 
