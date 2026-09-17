@@ -35,14 +35,14 @@ Two properties of the certificate:
 
 ## Results
 
-Private images are recovered **exactly** — to 15 decimal places, from the adapter alone, starting from random
-initialisations:
+Private images are recovered from a published adapter using **only the released weights and a public image
+family** — no training recipe, no labels, no random seed, no shadow models:
 
 | | Measured |
 |---|---|
-| Private images recovered, exactly | **8 of 8**, on 16 of 60 random starts |
-| Recovery error on those starts | `2e-15` — machine precision (19 of 60 clear a `1e-2` bar) |
-| Certificate residual `C·h` | machine precision, no recipe or labels used |
+| Distinct private images recovered | **7 of 8** |
+| Random starts that land on a private image | **51%** of 2000 |
+| The same solve without a chart | **0%** |
 | Telling a true recovery from a false one | precision **1.000** against a 0.000 null (base rate 0.324) |
 | Ambiguity removed by a 12-dimensional chart | **232 dimensions → 0** |
 | Depths at which the theory is exact | nullity **80 = predicted 80**, depths 2–8 |
@@ -50,14 +50,13 @@ initialisations:
 Three findings behind those numbers:
 
 - **The adapter can be inverted without knowing how it was trained.** The certificate `C·h = 0` is built from the
-  released factors and nothing else — no training recipe, no labels, no random seed, no shadow models. Attacks in
-  this space normally assume at least one of these.
-- **An attacker can verify their own answers.** Ranking candidates blind by final objective separates true
-  recoveries from false ones perfectly on the cell we measured, so recovery does not depend on already knowing the
-  private data.
+  released factors and nothing else. Attacks in this space normally assume the training recipe, the labels, or a
+  set of shadow models; this one assumes none of them.
+- **The chart is the load-bearing component.** The same cell solved without one returns nothing at all — the
+  private data is not recovered by having more equations, but by searching in the right small space.
 - **What leaks is what the model had to learn.** Each example is recorded at the scale of the error it still
-  carried, which predicts *which* images leak from the public model alone — and makes the amount of leakage a
-  property the defender can reason about.
+  carried, which predicts *which* images leak from the public model alone, and makes leakage something a defender
+  can reason about in advance.
 
 Full numbers, conditions and job ids: **[results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md)**.
 Current position and open problems: **[notes/research_overview_2026-09-17.md](notes/research_overview_2026-09-17.md)**.
@@ -80,8 +79,9 @@ Python 3.8 · PyTorch 2.4.1 · timm · peft · kornia. Experiments run on the WE
 ## Usage
 
 ```bash
-# certificate + replay inversion  (FP64 throughout)
-python experiments/exact_inversion/lora_exact_inversion.py --release sgd --init random --solver lm
+# certificate inversion on a chart  (FP64 throughout; this is the job behind the Results table)
+python experiments/exact_inversion/certificate.py --part B --sets confident hard1_diff \
+    --ks 6 8 10 --N 8 --r 16 --random-starts 2000 --out results/exact_inversion/cert.jsonl
 python experiments/exact_inversion/analyze_exact_inversion.py          # tables + figures
 
 # multilayer: does the certificate survive when a layer's inputs drift?
@@ -104,7 +104,7 @@ bsub -q long-gpu -gpu "num=1" bash scripts/run_exact_inversion_wexac.sh step1
 
 ```
 ├── experiments/
-│   ├── exact_inversion/     certificate + replay inversion (the main track)
+│   ├── exact_inversion/     certificate inversion on a chart (the main track)
 │   ├── multilayer_cert/     does the certificate survive at depth
 │   ├── oracle_ladder/       how good does a chart have to be
 │   ├── dataset_sensitivity/ the earlier whitened-Jacobian identifiability ruler
