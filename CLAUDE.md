@@ -352,6 +352,37 @@ Modules: `deck/config.py` (paths, palette, geometry), `deck/helpers.py` (text/ru
 notes template). Output pptx is gitignored (`*.pptx`); a copy goes to `figures/supervisor_meeting_2026_08_31_v1.pptx`.
 spire renders ≤10 slides per file (free tier) — the builder renders in chunks. Log slide feedback in `docs/presentation-remarks-log.md`.
 
+### Multilayer certificate track — `theory/` + `experiments/multilayer_cert/` (added 2026-09-07)
+
+Parallel research track: does the exact first-adapted-layer certificate `CH = 0` survive at later layers of a
+multilayer LoRA network, and does each adapted layer add independent information?
+
+- **Theory**: `theory/T1..T6*.md`, one proposed theorem per file in a fixed format (Statement | Assumptions |
+  Proof | Where each assumption is used | Counterexample search | Status: PROVED/CONJECTURE/FALSE | Numerical
+  sanity check). `theory/README.md` is the index and carries the notation table. **A numerical check agreeing
+  never promotes a status to PROVED** — the status line records the state of the *proof*. Nothing in `theory/`
+  has been independently re-derived by a sibling session, so nothing there may enter a Gal-facing PDF yet.
+- **Code**: `experiments/multilayer_cert/{common.py, theory_checks.py, survival.py}`, FP64, CPU.
+  `bash scripts/run_multilayer_cert_wexac.sh {checks|survival}` (submit with `bsub`).
+  `checks` runs every theorem's sanity check with PRE-STATED tolerances; `survival` is the M1/M2/M3 sweep.
+- **Results**: `results/multilayer_cert/*.jsonl`, write-up `experiments/multilayer_cert/RESULTS.md`.
+
+**Ground rules for this track:**
+1. **The load-bearing check is T2 (Prop. A)**: the full certificate must annihilate `H_l^0` to machine zero at
+   large drift wherever `rank B_T = N'`. A FAIL there falsifies the track — do not loosen the tolerance.
+2. **Report three outcomes, not two.** A cell that tested nothing is distinct from a pass and a fail: the deep
+   test fails as *vacuous* if no drifting layer satisfies the hypothesis, diverged trajectories are recorded as
+   `diverged: true`, and stability rows where the optimiser stopped above the truth's residual are
+   *solver-limited*. See LESSONS_LEARNED 2026-09-07 for the four ways this harness passed for the wrong reason.
+3. **Ranks need an absolute floor** tied to the source matrix's scale — a relative-only threshold calls a
+   numerically zero matrix full rank, which is exactly backwards for an annihilated certificate.
+4. **Select the drift regime by landing the measured drift in a band**, never by "largest lr that stays finite":
+   an exploded net makes every singular subspace noise while still looking like a large-drift test.
+5. **The axis is the ORTHOGONAL drift** `eps_perp` (the part leaving `col(H_l^0)`) and the **training-span
+   dimension** `N'`, not `||Delta H||`. In-span drift is free at any magnitude.
+6. Where `N' > N` the certificate constrains the training *span*, not the individual images, so per-image norms
+   are not the legitimate metric there — principal angles are.
+
 ### Data Freshness Rules (Critical)
 
 These rules prevent stale numbers from appearing in documents and presentations:

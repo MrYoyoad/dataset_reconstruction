@@ -35,12 +35,11 @@ Assume
 \item[(H2)] $\operatorname{rank}A_0=r$ and $\operatorname{col}(H)\cap\ker A_0=\{0\}$ --- generic
   over the seed, and needed because $A_0$ maps $\mathbb R^{d}$ to $\mathbb R^{r}$ with $r<d$ and so
   has a kernel of dimension $d-r$;
-\item[(H3)] $I+M_tG$ is invertible for every $t\le T$, where $G=H^{\top}H$ and $M_t$ is the
-  coefficient matrix of the trajectory. At $t=0$ this is the identity, so it holds for a small enough
-  step size; it can fail in principle;
-\item[(H4)] \emph{excitation}: $\operatorname{rank}B_T=q$. Unlike the others this one is
+\item[(H3)] \emph{excitation}: $\operatorname{rank}B_T=q$. Unlike the others this one is
   \emph{checkable by the attacker}, directly from the released factor.
 \end{itemize}
+Nothing here requires $I+M_tG$ to be invertible. That condition is one route by which (H3) comes to
+hold, but it is not used in the proof, and (H3) is checked directly rather than inferred.
 Then
 \[
   \Pi A_T=\Pi A_0\ \text{ exactly},\qquad
@@ -50,14 +49,15 @@ Then
 
 \begin{proof}
 Under (H1) the factor dynamics close: $B_t=P_t(A_0H)^{\top}$ and $A_t=A_0(I+HM_tH^{\top})$ for
-coefficient matrices $P_t,M_t$. Hence $A_tH=A_0H\,(I+M_tG)$, and under (H3)
-$\operatorname{col}(A_tH)=\operatorname{col}(A_0H)$ for every $t\le T$.
+coefficient matrices $P_t,M_t$. The induction needs only \emph{containment}: $A_tH=A_0H\,(I+M_tG)$
+lies in $\operatorname{col}(A_0H)$ whatever the right factor is, so the $B$ update keeps its rows
+there and the $A$ update keeps its shape, with no condition on $I+M_tG$.
 
 Every row of $B_T=P_T(A_0H)^{\top}$ is a combination of the columns of $A_0H$, so
 $S=\operatorname{row}(B_T)\subseteq\operatorname{col}(A_0H)$ always. Under (H2),
-$\dim\operatorname{col}(A_0H)=\operatorname{rank}(A_0H)=q$, and (H4) gives $\dim S=q$; a subspace
+$\dim\operatorname{col}(A_0H)=\operatorname{rank}(A_0H)=q$, and (H3) gives $\dim S=q$; a subspace
 contained in another of the same finite dimension equals it, so
-$S=\operatorname{col}(A_0H)$. \emph{Excitation is therefore a consequence of (H4), not an extra
+$S=\operatorname{col}(A_0H)$. \emph{Excitation is therefore a consequence of (H3), not an extra
 assumption about the training signal.}
 
 Now $A_T=A_0+A_0HM_TH^{\top}$, and $\Pi$ annihilates $\operatorname{col}(A_0H)=S$, so
@@ -68,7 +68,8 @@ $\Pi A_0H=0$ and the second term dies:
 an exact identity with no scalar. Consequently $C=\Pi A_T=\Pi A_0$, and
 $CH=\Pi A_0H=0$.
 
-For the rank, $\Pi$ has rank $r-q$ and, by (H2), $\Pi A_0$ attains it, so $s=r-q$. Finally $Cx=0$
+For the rank, $\Pi$ has rank $r-\dim S=r-q$ by (H3); $A_0$ is onto $\mathbb R^{r}$ by (H2), so
+$\Pi A_0$ has the same rank as $\Pi$ and $s=r-q$. Finally $Cx=0$
 iff $A_0x\in\operatorname{col}(A_0H)$ iff $x\in\operatorname{span}(H)+\ker A_0$, and (H2) makes the
 sum direct.
 \end{proof}

@@ -1,5 +1,44 @@
 # Project Status
 
+## Multilayer certificates: exact at depth, but with a lifetime (2026-09-07, jobs 688036 / 692603)
+
+New parallel track (`theory/T1..T6`, `experiments/multilayer_cert/`, results
+[experiments/multilayer_cert/RESULTS.md](experiments/multilayer_cert/RESULTS.md)). The question was whether the
+single-layer certificate `C H = 0` survives approximately at later layers of a multilayer LoRA network. It does
+better than that, and the brief's framing was wrong in a useful direction.
+
+**The closure induction never needed frozen inputs — only inputs confined to a fixed subspace.** It runs verbatim
+at any depth with the TRAINING SPAN `Hcal_l = sum_{t<T} col(H_{l,t})` replacing the private span, and `H_l^0` is
+annihilated *exactly* because the base representation is literally the `t=0` member of that span (`B_0 = 0` at
+every layer). Measured: `||C H_l^0||/(||C|| ||H^0||)` max **6.5e-15 at 923% representation drift** (13 deep-layer
+rows), max 2.7e-13 over all 110 rows where `rank B_T = N'`. There is no drift dependence to fit.
+
+**What depth costs is rank, and the cost has a hard schedule.** `rank C = (min(r, n_l) - N')_+` held 110/110, and
+the span inflates at the maximal rate `N' = N*T` (116/129 deep rows, `<=` always). So a deep certificate has a
+**lifetime**: empty once `T >= min(r, n_l)/N`. Death is discontinuous, not graceful — measured ladder
+`rank C` = 4, 2, 0, 0, ... as `N'` = 2, 4, 6, 8. **The governing condition at depth is a small training span (few
+steps, few examples, low-rank drift), NOT small drift.**
+
+**Where `rank B_T < N'` the certificate is contaminated, not weakened**: median residual 2.3e-4, max 0.27, with no
+small parameter. The sting: `rank B_T = N` is not an attacker-side proof of exactness at depth, because the
+attacker cannot observe `N'`.
+
+**The truncated (rank `r-N`) certificate is where the perturbative story lives**, and it is first order with no
+cancellation: log-log slope **1.0004** (an `O(eps^2)` rate would read 2.00), closed-form coefficient matched to
+0.45%, `K_l ~ 0.082` flat across three decades. Drift inside the base feature span is free (4.7e-14 at 100%
+in-span drift), so the axis is the ORTHOGONAL drift.
+
+**Depth adds information additively**: stacked chart-Jacobian rank 9, 18, 20, 20 for 1-4 layers, exactly
+`min(k_1, sum_l q_l)`. Two layers close a `k=20` chart that one layer's 9 equations cannot — the direct answer to
+the "~200 equations" concern.
+
+**Refuted, my own prediction:** tying the adapter initialisation across layers does NOT collapse additivity
+(shared-seed gives the identical 9, 18, 20, 20), so a shared `A_0` is not a defence. Claim withdrawn in T5.
+
+Next: M4 (certificate-only reconstruction at 1/2/4/8 layers, then multilayer vs single-layer guidance inside
+replay); evaluate the T2.2 constant against the measured `K_l`; and re-measure the span-inflation law on a
+trained backbone, since the lifetime bound rests on it and it is the claim most likely to change.
+
 ## E4a: a public chart of FEATURES is worse than a public chart of pixels — the premise is refuted (2026-09-07; jobs 674521 DINO, 674524 CLIP)
 
 The realism objection said: private images sit far off a public pixel chart, but surely a foundation-model

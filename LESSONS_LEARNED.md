@@ -4,6 +4,45 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## Four ways a numerical check passed or failed for reasons that had nothing to do with the theorem (2026-09-07)
+
+Building the multilayer-certificate checks, every one of these produced a confident wrong answer before it was
+caught. They are all instances of one thing: **the harness failing in a way that looks like a result.**
+
+**1. A relative-only rank tolerance calls the ZERO matrix full rank.** `rank = #{s_i > rtol * s[0]}` is standard
+and wrong when the matrix can legitimately vanish: an annihilated certificate has every `s_i` at rounding level,
+including `s[0]`, so every singular value clears the bar and it reports rank `r` instead of rank `0`. This
+inverted the sign of the result being tested — the predicted discontinuous death of the certificate looked like
+no death at all. Fix: an absolute floor tied to the scale of the matrix it was built from (`||A_T||` for
+`C = (I-QQ^T)A_T`). A sibling session (yoado-76) checked its own three occurrences on this prompt and found them
+safe, with the right general statement: *the relative form is wrong precisely when the true answer is zero, which
+is when it reports the maximum.*
+
+**2. `max()` silently swallows NaN.** `max(0.0, float('nan'))` returns `0.0` in Python, because the comparison is
+False. A tolerance test accumulating a worst-case with `worst = max(worst, value)` therefore **passes** when the
+value is NaN. A diverged training run produced NaN residuals and the check reported `max_rho = 0.00e+00, PASS`.
+Fix: test `math.isfinite` explicitly before folding a value into a worst-case.
+
+**3. Entrywise finiteness does not imply a finite norm.** A guard of `torch.isfinite(H).all()` passes at entries
+`~1e150`, and then `H.norm()` overflows to `inf` because the square does. Rows recorded `drift = inf` while
+flagged as healthy. Gate on magnitude (`abs().max() > 1e100`), not only on `isfinite`.
+
+**4. A test can be "large drift" and measure nothing.** Choosing the learning rate by "largest value that stays
+finite" gave a net with 400000x representation drift, where every singular subspace is numerical noise — the
+single-layer certificate, which is exact by a theorem, read `3.8e-06`. The regime has to be selected by landing
+the measured drift in a band, not by avoiding overflow.
+
+**And one non-numerical version of the same disease:** results written only at the end of a sweep are lost when
+the last cell crashes. 200 good rows died with a divergence in the final configuration. Append per cell.
+
+**The common repair** is that a check should be able to say *"this cell tested nothing"* as a distinct outcome
+from pass and fail. Three of the checks here now do: the deep-layer test fails as **vacuous** if no layer with
+real drift satisfies the hypothesis, diverged cells are recorded as `diverged: true` rather than crashing, and
+the stability check reports rows where the optimiser stopped above the residual at the truth as
+**solver-limited**, testing the solver rather than the theorem.
+
+---
+
 ## A figure crashed on the cell that worked best, and a crashed replot got committed (2026-09-07)
 
 **The bug.** `replot_newclass.py` drew a fourth row of the N worst-scoring *failing* starts. In a cell where
@@ -13,8 +52,9 @@ twice (jobs 412849/412850, then 413710) before the guard was added: draw the fai
 rest "no further failing starts", and drop the row entirely when there are none.
 
 **Worth naming:** the plotting code failed precisely on the *strongest* cells. A near-total landing rate is the
-result one most wants to show, and it was the input the figure could not render. Assume every "there are always at
-least N of these" in plotting code is false in the best cell.
+result one most wants to show, and it was the input the figure could not render. As a sibling session put it, a
+failure mode that only fires when the science goes well is the one that gets committed. Assume every "there are
+always at least N of these" in plotting code is false in the best cell.
 
 **How it presented, and the part that cost something.** The crash is loud in stderr but the job had already written
 40 of its figures before dying, and the *working tree looked complete*. Those partial figures were then committed
