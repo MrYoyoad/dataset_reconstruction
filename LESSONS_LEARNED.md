@@ -101,7 +101,11 @@ All three passed. None could have failed. Each was found by derivation, not by l
    layer 0's inputs *are the data*, so its drift is identically zero however badly the adapter explodes (operator
    norms to 3.84e+302, none flagged). **The detector cannot fire at layer 0 by construction.** With an
    adapter-norm guard: 116 rows, max 2.68e-13, identical across six orders of the threshold — untuned, so it
-   removes a disjoint population rather than shaving a tail. The numbers were right; the row selection was never
+   removes a disjoint population rather than shaving a tail. **Quantified 2026-09-17 at the rows:** of 125
+   B3-holding rows in `survival_692603`, the **9** that disagree with the rank law carry `beta` from **1.27e+21 to
+   3.84e+302**, all with `diverged: False`; the **116** that agree carry a maximum `beta` of **572.9**. **An
+   eighteen-order gap with nothing in between** — any threshold anywhere in it gives the identical split, which is
+   what "untuned" means when it is measured rather than asserted. The numbers were right; the row selection was never
    stated. **Under this project's rules the documentation changes, not the number.**
 3. **The sweep ran entirely inside the regime where the hypothesis cannot be wrong.** `survival_692603` has `q_l`
    **saturated at `r − N` in 180 of 180 layers** (`r=16, N=3` → `q_l = 13` everywhere). Saturation means the
