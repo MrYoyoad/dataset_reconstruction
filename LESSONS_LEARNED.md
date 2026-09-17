@@ -4,6 +4,32 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## 2026-09-17 — a script in the repository is evidence that someone wrote it, not that it runs
+
+The standing rule is *commit or it did not happen*. It covers uncommitted work. It does not cover **committed work
+that has never executed**, and that gap has a distinct failure mode.
+
+A verification script for three published constants was written, reviewed, committed, and reported as
+"written but unrun, one bsub away". When it was finally submitted (job 352807) it **exited on a shape bug in its
+own third cell** — a rank-one residual block written as a matrix product. That cell had never run. Had it stayed
+unrun, the repository would have contained something that *looked* like a closed gap: a committed check, with
+pre-stated tolerances and a careful design, that could not execute. The person who eventually ran it would have
+found my bug instead of the arithmetic it was written to test, and would have had to debug someone else's check
+before they could use it.
+
+**The variant to name:** this is the unread-result failure one layer earlier. A result nobody reads is a fact that
+exists and is ignored. A check nobody runs is a fact that *does not exist* while appearing to. The second is worse,
+because the first is discoverable by reading.
+
+**What follows.** A check is finished when it has run, not when it is committed. If it genuinely cannot be run in
+the lane that wrote it, hand it to a lane that launches rather than leaving it in the tree — and say in the commit
+that it is unrun, so nobody reads its presence as its result. Corollary for reviewers: "the script is in the repo"
+answers who wrote it, never whether it works.
+
+*(Related, from the same run: report the margin against the bar, not the pass. Two cells cleared the coefficient
+tolerance by 3,353× and 35,014×; the third cleared it by 2.0×. All three are "confirmed" and the third is the one
+an adversarial reader re-runs.)*
+
 ## 2026-09-17 — five ways a document outlives the number it quotes (from the archive reconciliation)
 
 Reconciling 92 archived documents against the rows turned up five failure modes that have nothing to do with the

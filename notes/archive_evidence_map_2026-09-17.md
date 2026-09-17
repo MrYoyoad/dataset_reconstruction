@@ -88,9 +88,14 @@ Recorded because their absence is itself a finding.
   as proofs under stated hypotheses.
 - **Three hand-computed expansions in the multilayer note** (coefficients `−3/8`, `1/16`, `−1/3`) are marked
   PROVED and have never been checked numerically here; the repo's T3 check validates a different instance.
-- **0 of 37 scripts in the 14 September bundle exist in this repo by content.** Only
-  `lora_exact_inversion.py` matches by name (278 lines there against 583 here — the repo file is the executed
-  descendant).
+- **0 of 37 scripts in the 14 September bundle exist in this repo by content**, now on a repo-wide hash scan of
+  **43,832 `.py` files** (including the vendored `dataset_reconstruction/` tree), not just the obvious
+  directories. Only `lora_exact_inversion.py` matches **by name** — 278 lines there against 583 here, and the
+  hashes differ, so the repo file is the executed descendant. The consequence is the one that matters: the
+  bundle's entire numerical apparatus (`trajspan.py`, `stackrank.py`, `rn_*.py`, `p3sim*.py`, `cap_check.py`,
+  `pop_features.py` and the ten audit scripts) is archive-only, so **none of the †provisional numbers in
+  `framework_rev10/11/12` or its audit has a reproducing script here**. Also confirmed by hash: `rn_phase.png` and
+  `fig_certificate_phase.png` are the same file — one figure, not two results.
 
 ## 4. How to use this file
 

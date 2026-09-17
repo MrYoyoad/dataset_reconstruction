@@ -33,14 +33,25 @@ measurements / success criteria for each item are now at `notes/meeting_2026-09-
 The NTK conclusion the participants accepted is **scoped** to the formulation and setting discussed and must not
 be quoted as an impossibility result for NTK methods.
 
-**The archive's three hand-computed coefficients are now independently evaluated (job 353169).** All three
-reproduce from the dynamics the note specifies, not from its own closed forms: Ex 3.5's `−3/8` to 6.0e-07, Ex 5.5's
-`η/16` to 5.7e-08, §8.6's `−1/3` to 1.0e-03, with measured orders 0.9998, 0.9999 and 1.9754 against the claimed
-1, 1 and 2. Every intermediate matrix the note states in closed form reproduces to machine precision, which is what
-makes these comparisons rather than coincidence tests. Their status moves from "PROVED on one person's arithmetic"
-to "PROVED and independently evaluated". FP64, CPU, 2.2 seconds; rows in
-`results/archive_checks/hand_coefficients_353169.jsonl`. The first submission (352807) died on a shape bug in the
-check itself, so the third cell had never executed — the argument for running a check rather than shipping it.
+**The archive's three hand-computed coefficients are now independently evaluated (job 353169), and the three
+margins are not comparable.** All three reproduce from the dynamics the note specifies rather than from its own
+closed forms, but they clear the pre-stated bars by very different factors:
+
+| cell | coefficient rel. err. (bar 2e-3) | margin | measured order (bar 0.05) | margin |
+|---|---|---|---|---|
+| Ex 3.5, `−3/8` | 6.0e-07 | **3353×** | 0.9998 vs 1 | **240×** |
+| Ex 5.5, `η/16` | 5.7e-08 | **35014×** | 0.9999 vs 1 | **583×** |
+| §8.6, `−1/3` | 1.0e-03 | **2.0×** | 1.9754 vs 2 | **2.0×** |
+
+**Quote the margins, not "three passes".** §8.6 is confirmed with four to five orders less room than the other two,
+consistent with its sitting near the resolution limit: its truncation direction is read from a Gram matrix whose
+entries span `η²` to `η⁶`, so the `η⁴` ratio is 1e-12 at the retained floor and 1e-16 one decade below. Its step
+window was **derived from that criterion before the cell had ever produced a number**, not discovered by seeing
+noise. Every intermediate the note states in closed form reproduced to machine precision, so the harness's
+`construction mismatch` branch existed and never fired — which is what makes these comparisons rather than
+coincidence tests. Status moves from "PROVED on one person's arithmetic" to "PROVED and independently evaluated".
+FP64, CPU, 2.2 s; rows in `results/archive_checks/hand_coefficients_353169.jsonl`. The first submission (352807)
+died on a shape bug in the check itself, so the third cell had never executed.
 
 **Four conflicts, ruled by the approver (A24, commit e0a2bb1) rather than settled here** (`notes/corrections_from_archive_2026-09-17.md`
 §3): `theory/T4`-C5's "no quadratic cancellation found" against the archive's structural mechanism;

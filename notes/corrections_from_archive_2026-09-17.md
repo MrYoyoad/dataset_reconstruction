@@ -143,22 +143,41 @@ applied. No working code was changed to agree with a document.
    **RUN AND CONFIRMED, job 353169** (WEXAC `short`, 2.2 s CPU, FP64, rows in
    `results/archive_checks/hand_coefficients_353169.jsonl`). All three coefficients reproduce from the dynamics:
 
-   | cell | claim | coefficient rel. err. | measured order | worst exact-matrix err. |
-   |---|---|---|---|---|
-   | Ex 3.5 | `C e1 = −(3/8) ε e2` | 6.0e-07 | 0.9998 (claimed 1) | 1.1e-16 |
-   | Ex 5.5 | `C h = (η/16)(1,−1)^T` | 5.7e-08 | 0.9999 (claimed 1) | 0.0 |
-   | §8.6 | `C̃_2 e1 = −(1/3) η² e2` | 1.0e-03 | 1.9754 (claimed 2) | 0.0 |
+   | cell | claim | coefficient rel. err. | **margin vs the 2e-3 bar** | measured order | **margin vs the 0.05 bar** | worst exact-matrix err. |
+   |---|---|---|---|---|---|---|
+   | Ex 3.5 | `C e1 = −(3/8) ε e2` | 6.0e-07 | **3353×** | 0.9998 (claimed 1) | **240×** | 1.1e-16 |
+   | Ex 5.5 | `C h = (η/16)(1,−1)^T` | 5.7e-08 | **35014×** | 0.9999 (claimed 1) | **583×** | 0.0 |
+   | §8.6 | `C̃_2 e1 = −(1/3) η² e2` | 1.0e-03 | **2.0×** | 1.9754 (claimed 2) | **2.0×** | 0.0 |
+
+   **Read the margins, not the three passes.** §8.6 is confirmed, and it is confirmed with four to five orders
+   less room than the other two on the coefficient and two on the order. Its measured order is 1.975 where the
+   others returned 0.9998 and 0.9999. That is consistent with — and mildly corroborates — the diagnosis below that
+   this cell sits near the resolution limit of the arithmetic. It is the cell an adversarial reader will re-run,
+   so it must never be averaged into a single "all three confirmed".
 
    The exact-matrix column is the load-bearing one: every intermediate the note states in closed form
    (`v_2`, `A_2`, `u_1`, `B_1`, `b_1`, `a_1`, `d_1`) reproduces to machine precision, so the coefficients were
    compared against the note's own dynamical system rather than a lookalike. **The status of the three
    coefficients moves from "PROVED on one person's arithmetic" to "PROVED and independently evaluated".**
 
-   Two things the first submission taught, worth keeping: the third cell **crashed on a shape bug in the check
-   itself** (job 352807) and had never executed, which is exactly what leaving it written-but-unrun would have
-   concealed. And §8.6 needs a larger step window than the other two — its truncation direction is read from a
-   Gram matrix whose entries span `η²` to `η⁶`, so below `η ≈ 1e-3` the direction stops being resolvable in
-   FP64. The window moved; the tolerances did not.
+   **The §8.6 step window was DERIVED, not discovered, and here is the checkable form of that claim.** The cell's
+   truncation direction is read from a Gram matrix whose off-diagonal is `O(η⁴)` against a first diagonal of
+   `O(η²)` and a second of `O(η⁶)`, so the ratio that must stay representable is `η⁴`: at the retained floor
+   `η = 1e-3` that is 1e-12, comfortably above FP64 epsilon, while at `1e-4` it is 1e-16, i.e. at the floor. The
+   window `[3e-2, 1e-2, 3e-3, 1e-3]` was set from that criterion **while repairing the crash and before the cell
+   had ever produced a number** — job 352807 crashed inside `cell_C` on its first step, and its rows record only
+   cells A and B, so no §8.6 value existed to be reacted to. Honest qualification: the criterion was computed at
+   the *second* draft, not the first; the original window `[1e-2 … 1e-5]` was written without it. The tolerances
+   were not touched. This is a scope statement about where the quantity is representable, not a loosening.
+
+   **The other thing the first submission taught.** The third cell **crashed on a shape bug in the check itself**
+   and had never executed — exactly what leaving it written-but-unrun would have concealed.
+
+   **And a branch that did not fire is evidence, but only if its existence is reported.** Each cell checks the
+   note's exact intermediates *before* its coefficient and withholds the coefficient verdict as `construction
+   mismatch` if they disagree. That branch **existed and never fired**: every stated intermediate reproduced to
+   machine precision. That is what makes these comparisons against the note's own dynamical system rather than
+   coincidence tests against a lookalike.
    *Ruled by the approver; run by this lane.*
 
 5. **Emphasis, not content.** The archive's title page answers Gal's changing-input question with "yes, locally and
