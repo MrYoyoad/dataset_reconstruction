@@ -341,3 +341,112 @@ hold (0.90 against a control of 0.50). Report the two separately; do not quote a
 | `experiments/cifar/cifar_newclass.py` | fully-trained MLP / CNN backbones, weird added-on classes, over-trained regime |
 | `experiments/cifar/replot_grids.py` | regenerates every figure and the summary table from saved tensors |
 | `figures/cifar_charts/` | one figure per cell plus `table.md` |
+
+## 7. WP2 — Class composition × chart × T, 2026-09-18 (INTERIM — jobs 355926–355983 still running)
+
+**Question (plan 2026-09-18, WP2 + audit).** Does it matter whether the eight private images are one added class or
+two? Is the certificate (separable, per image) composition-blind while the NTK/linearised free-coefficient route
+(coupled through one sum) is not? Per-class vs pooled chart? Dependence on `T`?
+
+**Setting.** `experiments/cifar/ntk_vs_certificate.py`, N = 8, head LoRA r = 64, `B_0 = 0`, full-batch SGD lr 0.01,
+float64, on-chart privates, 200 shared random starts, seed 1, k ∈ {16, 32, 48}, T ∈ {1, 5, 20, 100, 400}. Cells:
+`mnist_a` (8 a), `mnist_t` (8 t), `mnist_mixed` (4 a + 4 t, two head rows), `mnist_mixed_samerow` (4 + 4, ONE head row);
+`cifar_motorcycle`, `cifar_bottle`, `cifar_mixed_mb`, `cifar_mixed_mb_samerow`, each on TWO bases. Charts: `pca`, `ae`
+= ONE chart on the union of the public pools (the meaning every earlier row had; verified at the old line 179), and on
+mixed cells `pca_perclass` = one chart per class, each private slot on its own class's chart (the attacker is told the
+slot classes). Privates are on-chart, so per-class and pooled charts define different privates and different
+releases: recovery is compared only within a chart; charts are compared only on the raw-image projection error
+(true test images before projection), which every row records per image with median and range.
+
+**Bases (WP0 gate: train acc ≥ 99.5 %, train CE ≤ 1e-2; measured at load on the full splits, stored in every row).**
+`mnist_mlp_strong.pth` 99.83 % / 6.35e-3 / test 98.21 % PASS. `cifar10_cnn_newclass.pth` 99.83 % / **9.82e-3** / test
+92.67 % PASS (narrow; the checkpoint stores no loss). `cifar10_mlp_overtrained_newclass.pth` 100.00 % / 6.82e-4 / test
+57.31 % PASS. The weak `cifar10_mlp_newclass.pth` is not used in any WP2 cell.
+
+**Control (new, per private image).** The nearest PUBLIC image of the slot's chart pool, projected on that chart, at
+the recoveries' relative-error metric (`control_public_nn_err`). A recovery not closer than this is no better than a
+release-free guess. EMNIST `letters` merges cases; each private letter's case is recovered by exact byte match against
+the `byclass` split and stored per row (`private_case`): a = A, A, A, a (test idx 323, 693, 173, 92); t = T, T, t, t
+(305, 484, 3, 27).
+
+**Pre-registered (three outcomes per cell, read literally).** Certificate: 8/8 in every composition at T = 400 on
+chart (composition-blind) · partial (count reported; R5) · below the single-class cells at the same (chart, k, T) —
+a finding against separability. NTK free-coefficient (lora:varpro, the fair form): not fixed beyond "the two-row
+mixed cell is at least as hard as the harder single-class cell"; the T dependence is the object, and every cell
+reports the model floor at the truth so "residual above floor" (search) is never merged with "at floor, wrong
+images" (alias). Chart: per-class raw projection error ≤ pooled at fixed k, per image.
+
+**Reuse.** T ∈ {1, 400} for `mnist_a` and `mnist_mixed` are the existing rows of jobs **308862 / 308863** (git
+f5e099c; same dataset, class, pooled chart, k, T, N, r, lr, seed, starts, Adam/LM/AE budgets, base, main form; they
+also ran `--oracle-diag`, which adds labelled arms and touches no RNG — job 308865's T = 5 / 20 rows at pca k = 32
+reproduce the new 355926 rows to every printed digit). Jobs 302279 / 302280 (git 1b18818, one k = 32 T = 400 cell,
+old schema, no lora form) and 304349 (one row, dW form only) do NOT match and are not pooled. The new rows quote the
+median as `np.median` (mean of the two middle values); the earlier rows used `torch.median` (lower middle value) — the
+per-image values are identical, e.g. mixed pca k = 16: 0.423 (old) vs 0.439 (new) from the same eight numbers.
+
+### 7.1 INTERIM table (completed cells at 2026-09-18 02:00; NTK = lora:varpro free coefficients; ctrl = median control error)
+
+| cell | base | chart | k | T | cert found | cert landed | NTK found | NTK best resid | floor | raw proj. err (median) | ctrl | source |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| mnist_a | strong | pca | 16 | 1 | 8/8 | 169/200 | 0/8 | 2.40e-2 | 2.7e-16 | 0.316† | — | 308862 |
+| mnist_a | strong | pca | 16 | 5 | 8/8 | 170/200 | 0/8 | 2.29e-2 | 3.7e-16 | 0.320 | 0.245 | 355926 |
+| mnist_a | strong | pca | 16 | 20 | 8/8 | 175/200 | 1/8 | 1.47e-2 | 3.2e-16 | 0.320 | 0.245 | 355926 |
+| mnist_a | strong | pca | 16 | 100 | 8/8 | 174/200 | 8/8 | 1.58e-3 | 4.5e-16 | 0.320 | 0.245 | 355926 |
+| mnist_a | strong | pca | 16 | 400 | 8/8 | 173/200 | 1/8 | 1.03e-2 | 7.6e-16 | 0.316† | — | 308862 |
+| mnist_a | strong | pca | 32 | 1 | 7/8 | 84/200 | 0/8 | 6.78e-3 | 2.9e-16 | 0.235† | — | 308862 |
+| mnist_a | strong | pca | 32 | 5 | 7/8 | 82/200 | 0/8 | 5.71e-3 | 3.5e-16 | 0.245 | 0.313 | 355926 |
+| mnist_a | strong | pca | 32 | 20 | 8/8 | 69/200 | 0/8 | 3.15e-3 | 4.0e-16 | 0.245 | 0.313 | 355926 |
+| mnist_a | strong | pca | 32 | 100 | 8/8 | 73/200 | 0/8 | 2.71e-3 | 3.9e-16 | 0.245 | 0.313 | 355926 |
+| mnist_a | strong | pca | 32 | 400 | 8/8 | 80/200 | 0/8 | 3.24e-3 | 8.0e-16 | 0.235† | — | 308862 |
+| mnist_a | strong | pca | 48 | 1 | 3/8 | 7/200 | 0/8 | 3.81e-3 | 2.7e-16 | 0.192† | — | 308862 |
+| mnist_a | strong | pca | 48 | 400 | 2/8 | 4/200 | 0/8 | 1.74e-3 | 9.6e-16 | 0.192† | — | 308862 |
+| mnist_a | strong | ae | 16 | 1 | 5/8 | 9/200 | 0/8 | 4.21e-2 | 3.8e-16 | 0.235† | — | 308862 |
+| mnist_t | strong | pca | 16 | 1 | 8/8 | 187/200 | 8/8 | 3.33e-3 | 2.1e-16 | 0.444 | 0.239 | 355927 |
+| mnist_t | strong | pca | 16 | 5 | 8/8 | 189/200 | 8/8 | 2.48e-3 | 3.9e-16 | 0.444 | 0.239 | 355927 |
+| mnist_t | strong | pca | 16 | 20 | 8/8 | 187/200 | 2/8 | 8.63e-3 | 3.9e-16 | 0.444 | 0.239 | 355927 |
+| mnist_mixed (2 rows) | strong | pca | 16 | 1 | 8/8 | 157/200 | 8/8 | 3.93e-3 | 3.2e-16 | 0.423† | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 16 | 5 | 8/8 | 160/200 | 0/8 | 2.79e-2 | 3.8e-16 | 0.439 | 0.204 | 355928 |
+| mnist_mixed (2 rows) | strong | pca | 16 | 400 | 8/8 | 173/200 | 8/8 | 1.91e-3 | 9.1e-16 | 0.423† | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 32 | 1 | 8/8 | 48/200 | 1/8 | 1.69e-2 | 2.8e-16 | 0.294† | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 32 | 400 | 8/8 | 67/200 | 2/8 | 7.77e-3 | 9.6e-16 | 0.294† | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 48 | 1 | 1/8 | 1/200 | 0/8 | 2.01e-2 | 2.7e-16 | 0.234† | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 48 | 400 | 2/8 | 2/200 | 0/8 | 6.20e-3 | 8.7e-16 | 0.234† | — | 308863 |
+| mnist_mixed (2 rows) | strong | ae | 16 | 1 | 5/8 | 9/200 | 0/8 | 1.76e-1 | 2.5e-16 | 0.237† | — | 308863 |
+| mnist_mixed (2 rows) | strong | ae | 16 | 400 | 5/8 | 10/200 | 0/8 | 5.90e-2 | 8.5e-16 | 0.237† | — | 308863 |
+| mnist_mixed (2 rows) | strong | ae | 32 | 1 | 0/8 | 0/200 | 0/8 | 8.54e-2 | 2.6e-16 | 0.189† | — | 308863 |
+| mnist_mixed (2 rows) | strong | ae | 32 | 400 | 2/8 | 2/200 | 0/8 | 3.13e-2 | 7.7e-16 | 0.189† | — | 308863 |
+| mnist_mixed_samerow (1 row) | strong | pca | 16 | 1 | 8/8 | 157/200 | 0/8 | 2.66e-2 | 2.6e-16 | 0.439 | 0.204 | 355929 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 1 | 8/8 | 191/200 | 5/8 | 1.19e-2 | 3.6e-16 | 0.338 | 0.176 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 5 | 8/8 | 191/200 | 5/8 | 1.21e-2 | 3.8e-16 | 0.338 | 0.176 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 20 | 8/8 | 191/200 | 8/8 | 5.94e-4 | 3.0e-16 | 0.338 | 0.176 | 355952 |
+| cifar_mixed_mb_samerow (1 row) | mlp_overtrained | pca | 16 | 1 | 8/8 | 191/200 | 2/8 | 9.50e-3 | 4.1e-16 | 0.338 | 0.176 | 355968 |
+
+† torch.median convention of the earlier rows (see Reuse). "found" = images with a start within relative error 1e-2
+of the on-chart target; "landed" = starts within 1e-2 of any target. Every NTK cell above has its best residual ≥ 1e-3
+against a floor ≤ 1e-15, i.e. the row's verdict is "search failure: residual ABOVE the model floor" in every case,
+never "alias".
+
+### 7.2 Within-chart comparisons (INTERIM, pooled `pca` only — no `ae` or `pca_perclass` cell of the new jobs has completed)
+
+**(1) Composition, certificate.** At pca k = 16 the certificate found 8/8 in every completed composition and T:
+a (169–175/200 landed), t (187–189), mixed two-row (157–173), mixed same-row (157) — composition-blind so far, with
+no mixed cell below a single-class cell. At k = 32 the counts are also matched where both exist (a: 7–8/8; mixed:
+8/8 at T = 1, 400) and at k = 48 both collapse the same way (a 3/8, 2/8; mixed 1/8, 2/8: landed starts 1–7/200 — a
+basin effect at large k already recorded in §3b, present in single- and two-class cells alike). The same-row and
+two-row mixed cells land IDENTICAL start counts at T = 1 (157/200, k = 16). Derivation, not yet a separate check:
+at T = 1, `B_1 = −η D (A_0 H)ᵀ` with `D = (softmax − Y)/N`, so `row(B_1) = col(A_0 H · Dᵀ)`; when `rank D = N` this is
+`col(A_0 H)` whatever `Y` is, so `C` at T = 1 does not depend on the labels at all — only the NTK target `B_1` does
+(its residual differs: 2.66e-2 vs 3.93e-3). The two compositions separate only for T > 1.
+
+**(2) T trend per arm.** Certificate: flat in T at every k where rows exist (k = 16: 157–191/200 across T = 1…400 in
+all four compositions; k = 32: 69–84/200 for a, 48–67 for mixed). NTK lora:varpro: non-monotone in T and
+composition-dependent — mnist_a pca k = 16 goes 0, 0, 1, **8**, 1 of 8 at T = 1, 5, 20, 100, 400; mnist_t 8, 8, 2 at
+T = 1, 5, 20; mnist_mixed 8, 0, ·, ·, 8 at T = 1, 5, 400; CIFAR mixed (over-trained MLP) 5, 5, 8 at T = 1, 5, 20. In
+every one of these the best residual sits 13 orders above the floor, so the swings are the optimiser finding or
+missing the basin from the same 200 starts, not a change in what the release identifies. The mixed two-row cell is
+not consistently harder than the harder single-class cell for this arm (8/8 at T = 1 where mnist_a gives 0/8). The
+`dW` form stays at its floor (0.69–0.97) everywhere, as before.
+
+**Not shown yet.** `ae` and `pca_perclass` cells (the chart comparison), k = 32/48 for t and the same-row cells, the
+CNN base (50 jobs, one per T × chart, lora:varpro only), T = 100/400 for CIFAR, mnist_a/mnist_mixed `ae` at k = 32/48
+(never run: 308862 stopped after ae k = 16 T = 1; 308863 has no ae k = 48).
