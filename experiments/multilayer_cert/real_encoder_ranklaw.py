@@ -204,7 +204,11 @@ def main():
                     rows.append(row)
                     # 6e's decisive diagnostic: a REAL rank has a GAP (sv[c-1]/sv[c] >> 1) at the effective rank;
                     # smooth decay (no gap, ratio ~ 1) means "rank" is a choice of threshold, not a property.
-                    if 0 < corrected < len(sv):
+                    # DEAD-JACOBIAN GUARD (convention 4, 6e 2026-09-18): a collapsed phi gives a ~0 Jacobian, where
+                    # sv[c-1]/sv[c] is 0/0 or inf and reads as a strong gap for a net computing nothing. The gap is
+                    # meaningful only if sv[c-1] is a REAL singular value: sv[0] above an absolute floor AND
+                    # sv[c-1]/sv[0] above fp64 resolution. Otherwise it is undefined, not a gap.
+                    if 0 < corrected < len(sv) and float(sv[0]) > 1e-25 and float(sv[corrected - 1] / sv[0]) > 1e-14:
                         gaps.append(float(sv[corrected - 1] / sv[corrected]))
                     if i == 0 and float(sv[0]) > 0:          # FULL spectral profile: if there is no gap, the
                         spec0_lo = 0                          # profile IS the honest object, not a rank integer
@@ -228,6 +232,7 @@ def main():
                           ladder_spread=int(max(ladder_vals) - min(ladder_vals)),
                           ladder_converged=bool(meas[LADDER[-1]] - meas[LADDER[-2]] == 0),
                           gap_at_corrected=gap_at_corr,
+                          dead_jacobian=bool(med([o["sigma_max"] for o in rows]) < 1e-25),   # collapsed phi guard
                           real_rank_at_corrected=bool(gap_at_corr is not None and gap_at_corr > 10),
                           spectrum_window_img0=spec0, spectrum_window_start=spec0_lo,
                           discriminates=bool(corrected < t52),
