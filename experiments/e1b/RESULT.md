@@ -290,7 +290,22 @@ tolerance-dependent quantity can only settle a tolerance-dependent claim — C10
 at depth". It is: *the law's prediction stops being checkable, and the information those directions carry stops
 being usable.* Those are the same statement for an attacker and different statements for a theorem.
 
-**C10 licenses no expectation for the CERTIFICATE route, only for the release route it measured.** It was
+**C10's mechanism was then TESTED on the certificate route and reached it (yoado-83, jobs 355778/355781).** Their
+stacked zero-drift certificate Jacobian at depth 15 loses its gap too — `gap_at_corrected` ≈ 1.08–1.15 at every
+discriminating cell, the spectrum decaying smoothly through index 417 with no jump, and the count climbing toward
+the ambient dimension below the noise floor (rank at 1e-16 = 446/464/482). So the gap collapse is **not** a
+property of the release route: it reaches a frozen, drift-free, differently-conditioned route on a different net.
+**There is no frozen-versus-trained asymmetry**, which was the alternative outcome and would have been a result of
+its own. Two consequences: their `k* = 417` and the 1.8× ratio are confirmed as crossings and effective-rank
+statements rather than integer ranks, and C10's mechanism moves from *candidate* to *observed on both routes*.
+
+**The joint that is still soft, and it should not be glossed.** "A property of `phi`'s depth rather than of the
+route" needs each route to show a gap where `phi` is shallow. The release route has that control from C10 itself
+(gaps of 1e7–1e9 at depths 2–8). The certificate route's control is a **synthetic** cell (their F11, integer ranks
+with a clean 0/12 against 12/12), not a shallow *real* network. So the 2×2 is complete only if a synthetic cell
+counts as the shallow control for that route. It is decent evidence and it is not the same thing.
+
+**C10 licensed no expectation for the CERTIFICATE route, only for the release route it measured.** It was
 immediately cited by a neighbouring lane as making an absent spectral gap "the expected outcome" for their stacked
 zero-drift certificate Jacobian at depth 15. That is a different map — no trained release, no drift, width 1000 —
 and these seven points say nothing directly about it. What C10 does supply is a **candidate mechanism**: through
