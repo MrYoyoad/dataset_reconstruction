@@ -119,6 +119,38 @@ modest.
 First clean three-way separation on one release: identifiability (nullity), reachability in principle
 (conditioning), reachability from a given start (alignment).
 
+## The certificate's clean rank exists ONLY where nobody adapts (2026-09-18; job 355835, same-net control)
+
+**Clean control, one depth-15 net, `L = 4`, `k = 784`, nothing varying but where adaptation starts.**
+
+| first adapted | frozen below | `d_j` | spectrum |
+|---|---|---|---|
+| **1** | 0 | [784, 784, 784, 687] | ~400 conditions within ~4 orders of the top, then a **CLIFF to machine zero — a clean rank** |
+| 4 / 8 / 12 | 3 / 7 / 11 | contracting to [48, 30, 24, 19] | **smooth over 11+ orders, no cliff** |
+
+**So the collapse is frozen-path-driven, not route-driven and not training-driven** — established within one network
+with nothing else moving. **This is NOT the null**: the shallow arm has a genuine gap, so the comparison had a live
+alternative and rejected it. Read by **comparing normalised spectra, not the scalar ratios** — those sat at index
+400 against index 48 and would have misled.
+
+**The statement, kept verbatim because it survives a question the shorter version does not:** *the gap collapses as
+the frozen path below the adapted layer deepens and its rank profile contracts; the variable is the rank profile,
+depth is how you move it.* *"Depth destroys the gap"* fails against a deep net with no contraction.
+
+**THE CONSEQUENCE NOBODY HAS STATED, and it is the deployment reading.** The only arm with a clean, measurable
+certificate rank is **`first_adapted = 1` — adaptation on the raw input layer.** §19 already established that **real
+LoRA does not do this**: adapters go on attention/MLP blocks, so the first adapted layer's input is **already a
+feature**. Every realistic arm here contracts to `d_j` of **19–48** with a spectrum smooth over eleven orders.
+
+> **The configuration in which the certificate has a clean rank is the one nobody deploys. Everywhere adapters
+> actually go, there is no rank — only an effective rank at a stated tolerance, over a transmitted budget of a few
+> dozen directions.**
+
+**And it compounds with release precision.** At deployed fp16/bf16 (unit roundoff 4.9e-4 / 3.9e-3) the usable count
+is read far up a spectrum that spans eleven orders — **a small fraction of an already tiny `d_j`.** This is the same
+conclusion §19b reached by pixel count (**~7% of the image at deployed rank**), now reached independently at the
+spectral level. **Two routes, one deployment story, neither built to test the other.**
+
 ## NO SPECTRAL GAP on a real encoder: what survives the cut and what does not (2026-09-18; job 355531 ladder, gap check 355778 pending)
 
 **The caveat.** On a real 15-layer `φ` the release Jacobian shows **no spectral gap** — smooth decay, rank moving
