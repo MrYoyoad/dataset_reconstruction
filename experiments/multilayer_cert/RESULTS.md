@@ -177,10 +177,13 @@ ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the con
 > (k=512/692/784), `real_rank=False`, the spectrum decaying smoothly through index 417 (5e-11 → 1e-12, no jump)
 > above the noise floor and the count climbing toward the ambient dimension below it (rank@1e-16 = 446/464/482). So
 > **k\*=417 and the 1.8× ratio are CONFIRMED crossings / effective-rank statements, not integer ranks**, and there
-> is **NO frozen-vs-trained asymmetry** — the frozen zero-drift certificate loses the gap just as 6e's trained
-> release does, so C10's mechanism reaches the certificate route (the degradation is a property of φ's depth, not
-> the route — a negative but real finding). A100 355778 confirms the deep profile below the plain-GPU floor; the
-> gap verdict does not depend on it.
+> is **NO frozen-vs-trained asymmetry in the depth-DEPENDENCE** — both routes lose the gap as the frozen path
+> deepens: the trained release keeps a gap through depth 10 at width 1000 and won't train past 12 (6e, jobs
+> 355831/355844), and my frozen zero-drift certificate loses it as `first_adapted` grows (same-net control below).
+> There is no matched depth-15 release point (the release won't train that deep at width 1000), so the shared claim
+> is the depth-dependence, not a single-depth head-to-head — C10's mechanism reaches the certificate route (the
+> degradation is a property of the frozen-path depth/rank-profile, not the route — a negative but real finding).
+> A100 355778 confirms the deep profile below the plain-GPU floor; the gap verdict does not depend on it.
 
 **SAME-NET control (355835): the gap collapse is frozen-path-driven, and the clean-rank arm is the one nobody
 deploys.** Read as spectral SHAPES, not scalars — `gap_at_corrected` is taken at each arm's own corrected index
