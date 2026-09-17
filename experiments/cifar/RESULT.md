@@ -432,11 +432,7 @@ never "alias".
 a (169–175/200 landed), t (187–189), mixed two-row (157–173), mixed same-row (157) — composition-blind so far, with
 no mixed cell below a single-class cell. At k = 32 the counts are also matched where both exist (a: 7–8/8; mixed:
 8/8 at T = 1, 400) and at k = 48 both collapse the same way (a 3/8, 2/8; mixed 1/8, 2/8: landed starts 1–7/200 — a
-basin effect at large k already recorded in §3b, present in single- and two-class cells alike). The same-row and
-two-row mixed cells land IDENTICAL start counts at T = 1 (157/200, k = 16). Derivation, not yet a separate check:
-at T = 1, `B_1 = −η D (A_0 H)ᵀ` with `D = (softmax − Y)/N`, so `row(B_1) = col(A_0 H · Dᵀ)`; when `rank D = N` this is
-`col(A_0 H)` whatever `Y` is, so `C` at T = 1 does not depend on the labels at all — only the NTK target `B_1` does
-(its residual differs: 2.66e-2 vs 3.93e-3). The two compositions separate only for T > 1.
+basin effect at large k already recorded in §3b, present in single- and two-class cells alike). The same-row and two-row mixed cells land IDENTICAL start counts at T = 1 (157/200 at k = 16) — see §7.3.
 
 **(2) T trend per arm.** Certificate: flat in T at every k where rows exist (k = 16: 157–191/200 across T = 1…400 in
 all four compositions; k = 32: 69–84/200 for a, 48–67 for mixed). NTK lora:varpro: non-monotone in T and
@@ -448,5 +444,21 @@ not consistently harder than the harder single-class cell for this arm (8/8 at T
 `dW` form stays at its floor (0.69–0.97) everywhere, as before.
 
 **Not shown yet.** `ae` and `pca_perclass` cells (the chart comparison), k = 32/48 for t and the same-row cells, the
-CNN base (50 jobs, one per T × chart, lora:varpro only), T = 100/400 for CIFAR, mnist_a/mnist_mixed `ae` at k = 32/48
-(never run: 308862 stopped after ae k = 16 T = 1; 308863 has no ae k = 48).
+CNN base (50 jobs, one per T × chart, lora:varpro only), T = 100/400 for CIFAR. mnist_a `ae` at T ∈ {1, 400} was never
+run (308862 stopped after ae k = 16 T = 1); fill-in job **356100** (`CHARTS=ae TS="1 400" bash
+experiments/cifar/submit_ntk_vs_cert.sh mnist_a`, k 16/32/48, 200 starts, otherwise identical) is queued. 308863 has
+no mnist_mixed `ae` k = 48 row; the new mnist_mixed job (355928) runs `ae` only at T = 5/20/100.
+
+### 7.3 Observation: at T = 1 the certificate does not depend on the labels (matched 157/200)
+
+Stated observation, from the release equations, checked so far only by the coincidence below. With `B_0 = 0` one SGD
+step gives `B_1 = −η D (A_0 H)ᵀ` and `A_1 = A_0`, where `D = (softmax(W_0 H) − Y)/N` is `m × N`. The certificate is
+`C = P_{row(B_1)^⊥} A_1`, and `row(B_1) = col(B_1ᵀ) = col(A_0 H · Dᵀ)`. If `rank D = N` (every completed T = 1 row reports
+`rank B_T = 8 = N`), `col(Dᵀ) = ℝ^N` and `row(B_1) = col(A_0 H)`, whatever `Y` is. So at T = 1 the label assignment —
+one new row for all eight images or two rows of four — changes `B_1` but not `C`, and the certificate arm is run on
+the same objective from the same starts in both compositions. Measured: `mnist_mixed` (two rows, job 308863) and
+`mnist_mixed_samerow` (one row, job 355929), pooled pca k = 16, T = 1: certificate residual at the truths 6.7e-15 (two rows) vs
+1.3e-13 (one row; both at the FP64 floor of a different `B_1`), **landed starts 157/200 in both, 8/8 images in both**; the NTK targets do differ (lora:varpro best
+residual 3.93e-3 with two rows, 2.66e-2 with one). The label dependence of the certificate therefore starts at T = 2,
+where `A_2 ≠ A_0` and `row(B_2)` picks up `Bᵀ D H ᵀ` terms that carry `Y`. A direct check (`‖C_two-row − C_same-row‖`
+at T = 1 from the saved releases) is not yet run.
