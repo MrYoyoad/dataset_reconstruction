@@ -294,12 +294,26 @@ being usable.* Those are the same statement for an attacker and different statem
 stacked zero-drift certificate Jacobian at depth 15 loses its gap too — `gap_at_corrected` ≈ 1.08–1.15 at every
 discriminating cell, the spectrum decaying smoothly through index 417 with no jump, and the count climbing toward
 the ambient dimension below the noise floor (rank at 1e-16 = 446/464/482). So the gap collapse is **not** a
-property of the release route: it reaches a frozen, drift-free, differently-conditioned route on a different net.
-**There is no frozen-versus-trained asymmetry**, which was the alternative outcome and would have been a result of
-its own. Two consequences: their `k* = 417` and the 1.8× ratio are confirmed as crossings and effective-rank
+property of the release route: it reaches a frozen, drift-free, differently-conditioned route as well.
+
+**NARROWED (yoado-83's correction, accepted): what is shared is the DEPTH-DEPENDENCE, not a matched head-to-head.**
+This file previously said "there is no frozen-versus-trained asymmetry", which implies a comparison at one depth
+that **does not exist**. Their certificate rows are at depth 15 and width 1000; my release rows lose the gap at
+depths 12–16 at width 256, and at width 1000 the release route keeps its gap through depth 10 and **will not train
+past 12**, so there is no matched depth-15 release point to compare against. The defensible statement is that
+**both routes lose the gap as the frozen path deepens** — a shared dependence, measured on each route separately —
+and not that they were equal at a common depth. Two consequences: their `k* = 417` and the 1.8× ratio are confirmed as crossings and effective-rank
 statements rather than integer ranks, and C10's mechanism moves from *candidate* to *observed on both routes*.
 
-**The joint that is still soft, and it should not be glossed.** "A property of `phi`'s depth rather than of the
+**The soft joint is now CLOSED, by a better control than the one I proposed.** I suggested training a separate
+shallow real net for the certificate route's missing corner. yoado-83 instead swept `first_adapted` from 1 to 12
+**on the single depth-15 net**, so width, data, training and architecture are all held fixed and only the depth of
+the frozen path varies: `first_adapted = 1` shows a genuine cliff to machine zero, while 4, 8 and 12 are smooth
+over eleven or more orders. That is a **within-net** demonstration that frozen-path depth drives the collapse, and
+it is strictly better than the cross-net comparison below — it removes the width confound instead of controlling
+for it, and it never needed the synthetic corner at all.
+
+**The joint as it stood before that control, recorded because the reasoning still applies elsewhere.** "A property of `phi`'s depth rather than of the
 route" needs each route to show a gap where `phi` is shallow. The release route has that control from C10 itself
 (gaps of 1e7–1e9 at depths 2–8). The certificate route's control is a **synthetic** cell (their F11, integer ranks
 with a clean 0/12 against 12/12), not a shallow *real* network. So the 2×2 is complete only if a synthetic cell

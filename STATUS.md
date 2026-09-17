@@ -16,8 +16,12 @@ between depth 8 and 12, and the nullity stops being a property of the Jacobian a
 controlled at the boundary (53.5% against 52.9%).
 
 **Tested on the other route and it reaches there too** (yoado-83, jobs 355778/355781): the stacked zero-drift
-certificate Jacobian at depth 15 also loses its gap (≈1.08–1.15), so there is **no frozen-versus-trained
-asymmetry** and the collapse is a property of `phi`'s depth rather than of the release route. That confirms their
+certificate Jacobian at depth 15 also loses its gap (≈1.08–1.15), so **both routes lose the gap as the frozen path
+deepens**. Narrowed on 83's correction: there is no matched depth-15 release point (at width 1000 the release
+route keeps its gap through depth 10 and will not train past 12), so the shared quantity is the **depth-dependence
+measured on each route separately**, not a head-to-head at one depth. Their same-net control — `first_adapted`
+swept 1→12 on the one depth-15 net — shows a genuine cliff at 1 and smooth decay at 4/8/12, which closes the
+question within a single network. That confirms their
 `k*` and 1.8× ratio as effective-rank statements rather than integer ranks. Soft joint: the certificate route's
 shallow control is a *synthetic* cell rather than a shallow real network, so the 2×2 rests on that substitution.
 
