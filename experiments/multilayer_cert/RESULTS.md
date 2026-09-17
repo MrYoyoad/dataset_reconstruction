@@ -102,12 +102,16 @@ Adapting from layer 3 through the encoder's rank cliff (`d_j = 784, 687, 217, 16
 
 **Two claims, and the first must NOT carry the second.**
 
-**(1) T5.2 is refuted at real scale — solid, rung-independent (PASS #1).** The measured rank is
-`saturated_below_k1: True` and lands at 326/372/402/418 across the ladder — every rung far below T5.2's prediction
-of 756. The refutation does not depend on which rung is read. The structure is the nesting ceiling:
-`d_3 + q_1 + q_2 = 217 + 200 = 417` traps everything from the fourth adapted layer on inside the 217-dim row space,
-so layers 5-8 add nothing. The rank-preserving control (first adapted layer at the pixel input, `d_j = 784`)
-saturates at both laws' common value — the positive control that makes this a live test.
+**(1) T5.2 overpredicts the USABLE rank ~2× at real scale (rung-independent); the EXACT-rank refutation is the
+synthetic F11, not this measurement (see the §5c caveat, 6e's exact-vs-effective distinction).** The measured
+effective rank is `saturated_below_k1: True` and lands at 326/372/402/418 across the ladder — every rung far below
+T5.2's 756, which is 96% of the ambient 784. So at any meaningful tolerance the usable rank is ~2× smaller than
+T5.2 predicts, and T5.2's extra directions (if exact-real) sit below the fp64 floor with no usable information.
+This does NOT depend on which rung is read. The structure is the nesting ceiling: `d_3 + q_1 + q_2 = 217 + 200 =
+417` traps everything from the fourth adapted layer on inside the 217-dim row space, so layers 5-8 add nothing (as
+an effective-rank statement — whether 417 is an exact rank is the pending gap question). The rank-preserving
+control (first adapted layer at the pixel input, `d_j = 784`) saturates at both laws' common value — the positive
+control that makes this a live test.
 
 **(2) The corrected law's VALUE (417) is consistent in direction but NOT confirmed.** The harness reports
 `matches_corrected: False` **and** `matches_t52: False` — it matches neither. The apparent ±1 agreement is **rung
@@ -135,6 +139,26 @@ does depth stop being free — i.e. where does the nesting begin to bind between
 ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the convergence point above.
 
 ### 5c. The k-sweep — where depth stops being free, and what depth buys below it (2026-09-17)
+
+> **⚠ PENDING the gap / tau→0 check (2026-09-18): the RANK numbers below are provisional.** 6e showed a real
+> 15-layer φ can have NO spectral gap (smooth decay), in which case "rank" is a choice of threshold, not a
+> property — and below the FP64 noise floor the count saturates to the ambient dimension `min(rows, in_dim)` by
+> construction. So a law's value is real only if the count APPROACHES it (a gap) rather than CROSSING it toward
+> ambient. My own ladder (`325·371·402·418·421·428` at 1e-6…1e-14) is still climbing through 417, which suggests
+> **k\*=417 and the 1.8× ratio are CROSSINGS (tolerance choices), not integer ranks** — the honest object is then
+> the effective rank at a stated tolerance, which is **theory/T5.4's own caveat arriving for the real encoder
+> rather than only under drift** (the conjecture flagged this before it was measured — theory doing its job).
+> **What survives, and its exact scope (6e's exact-vs-effective distinction).** T5.2 and the corrected law are
+> **exact-arithmetic** rank claims. On the SYNTHETIC net their exact ranks are well-defined (F11: real gap, 0/12
+> vs 12/12 on integer ranks) and **T5.2 is refuted there**. On THIS real deep φ the exact rank is **not
+> fp64-measurable** — 329 of T5.2's directions, if exact-real, would sit below the fp64 floor, and my measurement
+> cannot reach them. So the real-net statement is about the **effective/usable** rank: T5.2's 756 is 96% of the
+> ambient 784, while the effective rank at a meaningful tolerance (1e-10) is ~402 ≈ 51% — **T5.2 overpredicts the
+> usable rank ~2×, and its extra directions, if they exist, carry no usable information.** Practically identical to
+> a refutation; theoretically weaker — the exact-rank refutation is the synthetic F11, NOT this measurement. Do
+> not write "T5.2 refuted at real scale" as an exact-rank claim. The clean-FP64 A100 run (355778:
+> full spectrum + gap_at_corrected + ambient) settles approached-vs-crossed; the k\*/discrimination text below is
+> restated per its verdict.
 
 `real_encoder_ranklaw.py --ks 16..784` (job **355531**, attested `script_sha 01043d6a5fec`), `r=108`, `N=8`, real
 15-layer MNIST encoder. The question M6 opened: at what chart width `k` does depth stop being free?
