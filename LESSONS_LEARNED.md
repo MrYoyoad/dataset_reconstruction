@@ -28,6 +28,22 @@ All three passed. None could have failed. Each was found by derivation, not by l
    equally consistent with its refutation*. To discriminate it needs one layer with `rank M_l < r − N`; no such
    stack exists in it, and the fix is a **configuration change, not new machinery**.
 
+4. **The same data, recorded with the opposite conclusion, both marked `passed: true`.** Job **674726** ran
+   `T5_R2_shared_seed_COLLAPSES_additivity` with `shared=[9,18,20,20]`, `independent=[9,18,20,20]`, `passed: true`,
+   noting *"R2 is a DEFENCE: tie the adapter initialisations and the layers stop adding."* Jobs 683234/686846/688036
+   ran `T5_R2_shared_seed_OBSERVATION` on **byte-identical data**, `passed: true`, `collapsed: false`, noting
+   *"tying `A_0` did NOT reduce the stacked rank — R2 is NOT a defence."* `shared == independent` means tying
+   changed nothing, which is unambiguously the later reading. **So `passed: true` in the first run meant only "the
+   code ran and its output was read as confirming the hypothesis" — no discriminating content at all.** The
+   superseded row is still on disk asserting the opposite, and a future reader can cite it in perfectly good faith:
+   **mark it superseded in place**, the convention this project already uses for withdrawn numbers.
+
+   **Naming rule that follows:** *a check whose NAME asserts its conclusion* (`..._collapses_additivity`) *will be
+   read as having confirmed it whenever it passes.* **Name checks for the quantity measured, not the expected
+   verdict** — the later runs' rename to `..._observation` is the only reason the contradiction is visible at all.
+
+**Four mechanisms, four checks, all reporting success without the capacity to report failure.**
+
 **The general check, cheap and worth doing before any confirmatory run:** *state the outcome that would have
 falsified this, and verify the configuration can produce it.* If it cannot, the cell is a regression test — which
 is a legitimate thing to have, under its own name.

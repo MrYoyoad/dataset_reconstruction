@@ -1,6 +1,6 @@
 # Project Status
 
-## Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing (2026-09-17; jobs 350996, 218345/218346, 692603)
+## Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing (2026-09-17; jobs 350996, 218345/218346, theory_checks 674726/683234/686846/688036)
 
 **T5.2 is refuted.** `theory/T5_cross_layer_rank.md` states `rank J_F = min(k_1, sum_l q_l)` and is marked PROVED.
 Counterexample derived then confirmed on the cluster (job 350996): **0 of 12 seeds match T5.2, 12 of 12 match a
@@ -22,7 +22,7 @@ test it.**
 
 | cell | frozen path | additivity | T5.2 | corrected |
 |---|---|---|---|---|
-| ledger M4 / job 692603, random FP64 MLP, `k=20`, `r−N=9` | rank-preserving (`d_j = k_1`) | **holds**: 9, 18, 20, 20 | correct | identical |
+| ledger M4 / theory_checks 674726–688036, random FP64 MLP, `k=20`, `r−N=9` | rank-preserving (`d_j = k_1`) | **holds**: 9, 18, 20, 20 | correct | identical |
 | `STATUS.md` depth-of-first-adaptation + §19a, real encoder, `r=256` | **contracts** | **stops** | predicts 692 | consistent at 445 |
 
 At **depth 4** the transmitted ranks are `[692, 220, 187, 138]` against a per-layer budget `r − N ≈ 248`, so the
@@ -49,7 +49,10 @@ consistency. Not proved.
 The counterexample uses perfectly independent Gaussian seeds and fails anyway: **the constraint is geometric, not
 probabilistic — independence only randomises orientation inside a space the summand is already trapped in.**
 Confirmed independently from the measurement side by ledger M5: shared-seed and independent initialisations both
-give 9, 18, 20, 20, so a shared `A_0` is **not a defence**.
+give 9, 18, 20, 20, so a shared `A_0` is **not a defence**. **Provenance corrected 2026-09-17:** M4/M5 cite job
+692603, but `survival_692603.jsonl` has only `r=16, N=3, k=20` and contains **no** `r−N=9` cell and no `[9,18,20,20]`
+— those numbers come from the **theory_checks** jobs. The ledger rows need their job id changed. **And job 674726
+recorded the OPPOSITE conclusion from byte-identical data, marked `passed: true`** — see LESSONS.
 
 ## The capacity line is the identifiability boundary, and on real releases the two chart walls do not overlap (2026-09-17; jobs 350967, 350993)
 
