@@ -3750,3 +3750,35 @@ saying a departure from 1 on that release is a harness bug. It was neither a bug
 converged**, so those were stalled iterates, not solutions, and the prediction applies to solutions. Reporting
 them would have manufactured a bug hunt out of a non-result. When a run fails to converge, every derived quantity
 it reports is about where the optimiser stopped — check convergence before reading any of them.
+
+
+## Matching two populations on one quantity does not make them comparable (2026-09-17, E1B basin)
+
+Two lanes independently tried to bracket a "basin radius" by combining two facts: Levenberg-Marquardt converges
+from a point at relative **distance** 1.343 from the truth, and all 120 random starts — which sit at distance
+1.298 to 1.413 — failed. The bracket looked airtight and was void.
+
+**The two populations were matched in distance and in nothing else.** A point built as `H + eta*||H||*u` has
+
+    cosine to the truth = 1/sqrt(1+eta^2)        norm ratio = sqrt(1+eta^2)
+
+so at distance 1.343 it carries **cosine 0.598** and norm **1.675**, while a random start at the same distance has
+cosine ≈ 0 and norm 0.897. Same distance, opposite ends of the space. The from-near-truth test was systematically
+easier than it looked, and no inference about random starts could survive the gap.
+
+**The rule: when you compare two families at a matched value of one quantity, enumerate what else differs.** Here
+distance was the obvious axis and it was the wrong one — the requirement turned out to be alignment. An axis being
+the natural one to plot is not evidence that it is the one the phenomenon depends on.
+
+**And the failure was derivable without running anything.** The cosine of a truth-plus-noise point is a one-line
+calculation from eta. Both lanes proposed the bracket before computing it; the measurement then matched the analytic value
+to four digits. **When a construction has a closed form, evaluate it before designing an experiment around what it
+implies** — the same lesson the equation-counting episode taught in the opposite direction, where a count was
+trusted in place of a measurement.
+
+**The replacement finding inherited the same defect one level down, and had to be caught again.** "The requirement
+is a cosine of about 0.6" is confounded, because along that ray cosine and norm are locked to the single parameter
+eta — every converging point also had a norm above the truth's. Disentangling needs starts with both quantities
+set independently (`rho*||H||*(c*Hhat + sqrt(1-c^2)*u_perp)` has cosine exactly `c` and norm exactly `rho`). The
+general form: **a one-parameter family cannot separate two quantities that parameter controls**, however many
+points you sample along it.
