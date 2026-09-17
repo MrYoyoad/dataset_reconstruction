@@ -22,6 +22,17 @@ a plan audit; everything below is read from rows, the rest is still running (WP1
   including ε = 0, and the wrong-release control reaches the same ~1e-17 objective — a degenerate certificate, the
   confident-batch corner on a fresh cell. Follow-up running: `d15_letter_a` (EMNIST a as an 11th class on the same
   encoder), the release that does record.
+- **On the 15-layer encoder the certificate is exact but unreachable: depth kills the SEARCH, not the information**
+  (WP5 arm c, `d15_letter_a`, 7 of 14 cells, jobs 356075–356088). Same encoder as the depth window, EMNIST a as an
+  11th class, r=64, T=400, k=32. The release records (rank `B_T` = 8, `‖B_T‖_F` = 1.27, `σ₈/σ₁` = 1.6e-5, against
+  0.37 and 8.7e-11 on the digits release) and the certificate annihilates the true letters to 1.7e-14 with
+  rank C = 56. Yet **0 of 400 starts land even on the exactly-spanning chart (ε = 0)**, best image error 0.51; every
+  start stalls at objective ≥ 1.6e-17 against a floor of 2.8e-28, a factor 5.6e10 short. The wrong-release control
+  sits 5.5e13 above its own floor and ~500× above the true release's stalls, so the release does shape the landscape
+  — unlike the digits cell, where control and truth were indistinguishable. Read literally (residual not zero):
+  **basin/optimisation failure on a 15-layer feature map**, not an information failure, and therefore no landing
+  gate can be read on this encoder at any chart error. The 3-layer net's gate (0.0069 → 0.0139) stands; the depth
+  window still has no gate of its own, now for a different and better-understood reason.
 - **On a CNN the depth question does not arise at zero drift** (WP1, bottleneck conv net trained to the gate, r=256,
   k up to 512 read so far): a conv certificate acts at every spatial position, so the one conv layer's `q_l` equals
   the chart width (24 certificate rows × 49 positions at conv 2) and a single conv layer pins the whole chart;
