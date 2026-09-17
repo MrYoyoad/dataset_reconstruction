@@ -34,7 +34,7 @@ line here whenever you add a row below.** See LESSONS_LEARNED, "the bottleneck i
 | Can the attacker tell when the certificate is dead, or contaminated? | M2, M3; audit F6 | Rank death **is** attacker-visible; contamination is **not**. Lifetime result is **defender-facing** |
 | Does a chart restore identifiability? | N1–N4 | Yes — **measured with the release's own ORACLE chart**. Establishes the mechanism a chart must supply, not that any buildable chart supplies it |
 | Are identifiability and recoverability the same thing? | N2; seed-known LM arm (in flight) | **Provisionally no** — nullity 0 with zero landings. Two separable jobs for a chart |
-| Does replay or the certificate recover more? | D section; E1–E5 | Both measured; see D for the route split |
+| What does an attacker actually recover, and how many starts does it take? | D section; E1–E5; **E6** (yield vs start budget) | Both measured; see D for the route split |
 
 ### §0.1 The public-chart shortfall — why no single number is canonical
 
@@ -119,6 +119,8 @@ quoted. **Where a bare positive appears without the negative beside it, cite thi
 | E3 | An attacker ranking blind by final objective separates perfectly: precision 1.000 against a disjoint-release null of 0.000, base rate 0.324. | same cell | attacker-available information only | breadth — see E4 | 304540 | read-rows | HELD, one PASS |
 | E4 | **Breadth frontier.** With the window scaled to the budget, distinct images climb 1, 2, 5, 7 and reach 8 only where precision falls to 0.648 — the last image is bought by accepting a third of the list is wrong. | letters cell | — | that more starts buy the last image; **a fixed-k distinct-image count is not an attacker statistic** and *falls* as starts grow, 5 at 300 and 2 at 3000 | 304540 | read-rows | HELD, one PASS |
 | E5 | Against a shadow-model membership attack the certificate matches on separation and wins only on assumptions: no shadows, no recipe, no distributional assumption. | ViT-B/16 head, 128 shadows | frozen backbone | that it detects more | 287241 | read-rows | SETTLED |
+
+| E6 | **Fashion-MNIST yield is 6 of 8 at 400 starts** (job 556643). The widely-quoted **4 of 8 is the same cell at 150 starts** (job 473802, `landed 9/150`) — one cell read at two budgets, **not** a wrong number and its correction. | Fashion-MNIST cell, start budgets 150 and 400 | as the cell | **that either figure is a property of the release.** A landed count without its start budget is **not a quantity** — yield rises with budget, so any count quoted bare understates or overstates by the budget's ratio. The SUPERSEDED verdict on 4/8 does **not** mean the archive was wrong | 473802, 556643 | read-rows (c4) | **SETTLED** |
 
 ## G. Chart fidelity — the oracle ladder (28 cells, complete; read in 2026-09-07)
 
