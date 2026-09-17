@@ -116,17 +116,25 @@ All three passed. None could have failed. Each was found by derivation, not by l
    **RESOLVED by arithmetic, 2026-09-17 — seven of the eight are not a bug at all.** The gate tests
    `max|entry| > 1e100` (**absolute, entrywise**) while the row reports `delta = max(‖d‖/‖H0‖)` (**relative**).
    With `dims=[40,30,30,30,8]`, `N=3`, a block holds ≤120 entries so `‖d‖ ≤ 11·max|entry|`; a silent gate therefore
-   implies `‖H0‖ ≥ 1.1e101/delta`. For `1.2e20, 4.8e43, 9.5e51, 8.0e29, 3.4e86` that bound is satisfied trivially,
-   and for `4.5e103` and `5.2e129` it requires `‖H0‖ ≥ 2.4e-3` and `≥ 2.1e-29` — both plausible. **In all seven the
-   gate behaved exactly as written: entries stayed below the threshold while RELATIVE drift ran to 1e103.** The
+   implies **`‖H0‖ ≤ 1.9e101/delta`** — an **UPPER** bound on the base norm, since `‖H0‖ = ‖d‖/delta`. *(First
+   written here as `≥`, which inverts it and flips one verdict; corrected same day.)* For
+   `1.2e20, 8.0e29, 4.8e43, 9.5e51, 3.4e86` the bound lands between `1.6e81` and `5.6e14` — **no constraint at all**,
+   so those rows are consistent. `4.5e103` needs `‖H0‖ ≤ 4.2e-3`, small but possible. **In those SIX the gate
+   behaved exactly as written: entries stayed below the threshold while RELATIVE drift ran to ~1e100, which is what
+   a base norm of order ten permits.** The
    defect is that **the threshold is orders of magnitude too permissive for the quantity the row reports** — a
    calibration failure, not a logic failure, whose fix is **to gate on the relative drift, not on entry magnitude.
    Moving the `1e100` would be tuning the wrong quantity.**
 
-   **Only the `inf` row is a genuine contradiction** — no finite `‖H0‖` is consistent with a silent gate. Two
+   **TWO rows demand an explanation, not one.** `5.2e129` needs `‖H0‖ ≤ 3.6e-29`, which **no base representation of
+   a GELU MLP at these dimensions has**, so it is anomalous on the same footing as the `inf` row — which needs
+   `‖H0‖ = 0` exactly. Both turn on the same unrecorded field, so this does not widen the instrumentation; it means
+   **expect two strange rows, and do not treat the `5.2e129` as explained when the `inf` one resolves.** Two
    possibilities with opposite meanings: an entry did exceed the threshold and the guard failed, or **`‖H0‖`
    underflowed to zero and the `inf` is a division artefact**, in which case that row was never a drift measurement.
-   One instrumented field (`‖H0‖`, tested for **underflow**, not smallness) settles it.
+   One instrumented field (`‖H0‖`, tested for **underflow**, not smallness) settles both. **Caveat: `‖H0‖ ~ 10` is a
+   requirement inferred from the architecture, not a measurement — if the base representations really are tiny at
+   some layer, the `4.5e103` and `5.2e129` verdicts both move, and that is the one way this reading fails.**
 
    **And a SCOPE fact about the whole track, which is not a defect.** `common.py` appends representations at the
    **top** of each step, so `reps` holds `t = 0…T−1` — the inputs *before* each of the `T` updates — while the
