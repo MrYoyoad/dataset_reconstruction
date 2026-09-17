@@ -21,7 +21,8 @@ Sweeps drift through lr and T (M2) rather than through a proxy, and records the 
 import argparse, json, math, os, socket, subprocess, sys, time
 import torch
 
-from experiments.multilayer_cert.common import MultiLoRANet, certificate, numrank, rel_annihilation, span_of
+from experiments.multilayer_cert.common import (MultiLoRANet, certificate, numrank, rel_annihilation, span_of,
+                                                provenance)
 
 torch.set_default_dtype(torch.float64)
 
@@ -124,10 +125,7 @@ def main():
     dims = [a.din] + [a.width] * (a.L - 1) + [a.classes]
     grid = [(lr, T) for lr in ([0.01, 0.03, 0.1, 0.3, 1.0, 3.0] if a.sweep else [a.lr])
             for T in ([2, 4, 8] if a.sweep else [a.T])]
-    try:
-        githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode().strip()
-    except Exception:
-        githash = "?"
+    PROV = provenance(__file__)                          # attested provenance: commit (+ -dirty) AND a script hash
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     log(f"# multilayer survival | dims={dims} r={a.r} N={a.N} k={a.k} | {len(grid)} cells x {a.seeds} seeds "
         f"| device={a.device} | host={socket.gethostname()}")
@@ -144,7 +142,8 @@ def main():
             rows, A, B = measure(net, X, y, T, lr, V, mean, Z[:, :1], a.k)
             with open(a.out, "a") as f:                      # append per cell, not at the end
                 for rw in rows:
-                    rec = dict(rw, seed=seed, lr=lr, T=T, dims=dims, r=a.r, N=a.N, k=a.k, git=githash,
+                    rec = dict(rw, seed=seed, lr=lr, T=T, dims=dims, r=a.r, N=a.N, k=a.k,
+                               git=PROV["git"], script_sha=PROV["script_sha"],
                                host=socket.gethostname(), cmd=" ".join(sys.argv))
                     out_rows.append(rec)
                     f.write(json.dumps(rec) + "\n")

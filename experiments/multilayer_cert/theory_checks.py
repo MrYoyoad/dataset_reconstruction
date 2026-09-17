@@ -11,7 +11,7 @@ import argparse, json, math, os, socket, subprocess, sys, time
 import torch
 
 from experiments.multilayer_cert.common import (MultiLoRANet, certificate, numrank, rel_annihilation, span_of,
-                                                gelu, _gelu_prime)
+                                                gelu, _gelu_prime, provenance)
 
 torch.set_default_dtype(torch.float64)
 RES = []
@@ -371,10 +371,8 @@ def main():
     names = list(CHECKS) if a.check == "all" else a.check.split(",")
     dev = a.device
     log(f"# multilayer certificate theory checks | device={dev} | seed={a.seed} | host={socket.gethostname()}")
-    try:
-        githash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode().strip()
-    except Exception:
-        githash = "?"
+    PROV = provenance(__file__)                          # attested provenance: commit (+ -dirty) AND a script hash
+    githash = PROV["git"]
     t0, allok = time.time(), True
     for nm in names:
         log(f"\n== {nm} ==")
@@ -387,8 +385,9 @@ def main():
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "a") as f:
         for rrow in RES:
-            f.write(json.dumps(dict(rrow, seed=a.seed, git=githash, host=socket.gethostname(),
-                                    cmd=" ".join(sys.argv), seconds=time.time() - t0)) + "\n")
+            f.write(json.dumps(dict(rrow, seed=a.seed, git=githash, script_sha=PROV["script_sha"],
+                                    host=socket.gethostname(), cmd=" ".join(sys.argv),
+                                    seconds=time.time() - t0)) + "\n")
     log(f"\n# {'ALL CHECKS PASSED' if allok else 'SOME CHECKS FAILED'} "
         f"({sum(r['passed'] for r in RES)}/{len(RES)}) in {time.time()-t0:.1f}s -> {a.out}")
     return 0 if allok else 1

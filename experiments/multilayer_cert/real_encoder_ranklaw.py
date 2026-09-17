@@ -47,9 +47,9 @@ PRE-REGISTERED, before any row:
 import argparse, json, math, socket, sys, time
 import torch, torch.func as tf
 
-from experiments.exact_inversion.lora_exact_inversion import git_hash
 from experiments.exact_inversion.trained_backbone import PCAChart, read_idx
 from experiments.exact_inversion.deep_stack import inputs_of, load_deep
+from experiments.multilayer_cert.common import provenance
 
 torch.set_default_dtype(torch.float64)
 LADDER = ("1e-6", "1e-8", "1e-10", "1e-12")
@@ -85,6 +85,7 @@ def main():
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(); dev = torch.device(a.device)
+    PROV = provenance(__file__)                          # attested provenance: commit (+ -dirty) AND a script hash
 
     Xtr, _ = read_idx(a.data_root, "train"); Xte, yte = read_idx(a.data_root, "test")
     Xtr_t = torch.tensor(Xtr[:a.n_fit], device=dev); Xte_t = torch.tensor(Xte, device=dev)
@@ -102,7 +103,8 @@ def main():
             with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
 
     print(f"# real_encoder_ranklaw depth={D} width={Ws[0].shape[0]} acc={ck.get('test_acc')} "
-          f"N={a.N} r={a.r} maxL={a.maxL} pixels={npix} git={git_hash()} dev={dev}", flush=True)
+          f"N={a.N} r={a.r} maxL={a.maxL} pixels={npix} git={PROV['git']} script_sha={PROV['script_sha']} "
+          f"dev={dev}", flush=True)
     print(f"# THEORY TEST of the rank law, NOT an attack config (pixel arm k_1~692 is ~10x the k<=66 cap)", flush=True)
 
     for chart_mode in a.charts:
@@ -196,7 +198,8 @@ def main():
                           note=("pixel arm: k_1 is the transmitted pixel rank, ~10x the k<=66 identifiability cap; "
                                 "chart66 arm: attacker-buildable scale" if chart_mode == "pixel"
                                 else "attacker-buildable chart scale k<=66"),
-                          git=git_hash(), host=socket.gethostname(), cmd=" ".join(sys.argv)))
+                          git=PROV["git"], script_sha=PROV["script_sha"],
+                          host=socket.gethostname(), cmd=" ".join(sys.argv)))
                 print(f"  [{chart_mode} first={first} L={L}] d_j={dl} q_l={ql} k1={k1} Sq={Sq} "
                       f"| T5.2={t52} corrected={corrected} discriminates={corrected < t52} "
                       f"| MEASURED {meas['1e-6']}/{meas['1e-8']}/{meas['1e-10']}/{meas['1e-12']} "

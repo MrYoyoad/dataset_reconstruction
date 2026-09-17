@@ -128,3 +128,28 @@ def span_of(mats, rtol=1e-10):
     U, s, _ = torch.linalg.svd(Mcat, full_matrices=False)
     d = int((s > rtol * s[0]).sum())
     return d, U[:, :d]
+
+
+def provenance(script_path):
+    """What CODE ran, not just what the repo HEAD was.
+
+    The commit hash alone is a trap: `git rev-parse HEAD` answers "what was the repo", which is NOT the question
+    when a job runs against a modified or untracked working tree (see the 692603 provenance failure, 2026-09-17 --
+    rows carried a commit hash whose committed code did not contain a field every row had). This records, beside
+    the hash: a `-dirty` suffix when tracked files differ from HEAD, and a sha256 of THE SCRIPT FILE ITSELF, which
+    pins the exact code that ran regardless of repo state.
+    """
+    import hashlib, subprocess
+    try:
+        h = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode().strip()
+        dirty = (subprocess.call(["git", "diff", "--quiet"]) != 0
+                 or subprocess.call(["git", "diff", "--cached", "--quiet"]) != 0)
+        h = h + ("-dirty" if dirty else "")
+    except Exception:
+        h = "?"
+    try:
+        with open(script_path, "rb") as f:
+            sha = hashlib.sha256(f.read()).hexdigest()[:12]
+    except Exception:
+        sha = "?"
+    return dict(git=h, script_sha=sha)
