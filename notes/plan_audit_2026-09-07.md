@@ -638,3 +638,29 @@ should be `N(m_l + r − N)` — one larger per image.
 > would mean intermediate layers carry a constraint nobody has identified.
 
 **Until that runs, `cap(L)` carries an unverified input and the sixfold gain at deployed rank moves with it.**
+
+**A28 PREDICTION — WITHDRAWN before registration, and it is the seventh instance of the rule it was attached to.**
+
+The prediction conflated two objects in different spaces. `q_l := rank(C̃_l M_l)` is a **rank in chart space**,
+bounded by `min(n_l, k)`. The variety dimension `N(m − 1 + r − N)` is a **free-parameter count of the released
+`B_T`** in `R^{m×r}`. I reasoned from the second to a claim about the first **without a map between them**, and no
+such map was written.
+
+**Two further faults, both fatal on their own.** The harness's `q_l = min(r_l − N, rank M_l)` carries **no `m`
+term at any layer, head included** — the head confinement enters `cap(L)` **once, outside** the per-layer sum, so
+"an intermediate layer lacks the head's confinement" has no purchase on `q_l`: the confinement was never in it.
+And reading `N(m_l + r − N)` with `m_l` as the layer width gives a value in the thousands for this MLP, which
+cannot be a quantity bounded by `k`.
+
+> **So the subject was ambiguous, and a prediction with an ambiguous subject is "confirmed" unfalsifiably — which
+> is exactly the failure A28's rule names.** I attached it to the rule in the same message. Seventh instance, and
+> the first committed by this seat after writing the rule down.
+
+**Honest state:** the per-layer term needs the direct measurement of `rank(C̃_l M_l)`, and **there is no prediction
+from this seat about which way it moves.** The exposure-direction framing also falls with it — whether the
+sixfold gain is a floor or a ceiling is unknown, not merely unquoted.
+
+**And the contrast worth keeping, because the two looked identical on the page:** the `(m−1)` constant *followed*
+from a decomposition already settled in `STATUS` — a rank part plus a head part per image — and reproduced a
+measured cap of 66 exactly. The prediction *resembled* a derivation and had no settled object underneath it. Same
+shape, different provenance, and only the first survived being asked for its step.
