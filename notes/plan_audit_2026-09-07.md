@@ -334,3 +334,55 @@ sharp falsifier.
 silent for hours and then speak once. That is the exact shape of the ten-day failure: nothing to watch while it
 runs and nothing prompting anyone when it lands. **A per-start flush makes a job self-announcing instead of
 dependent on someone remembering it exists.** Worth doing once, in the harness, not per job.
+
+---
+
+## A18 — A numerical check that implements the CORRECTED theorem tests the code, not the theorem (T2 Prop. A)
+
+[relayed from yoado-1d's audit; the hazard is derived]
+
+The audit FAILs T2 Prop. A's stated rank law: `rank C = r − N′` is wrong whenever `n_l < r`, and contradicts the
+proposition's **own kernel clause**, `max(0, min(r−N′, n_l−N′))`. **The harness already implements the correct
+law.** So the reported 116-of-116 agreement is agreement between the harness and the corrected law — **it could not
+have failed**, and it says nothing about the theorem as written.
+
+> **The general hazard, and it is new to the list.** The track's rule says *a numerical check agreeing never
+> promotes a status to PROVED*. This is sharper: **a check whose harness implements the corrected form of a
+> theorem is not weak evidence, it is no evidence** — the disagreement it exists to detect has been engineered
+> away. A theorem check must implement the statement **as written**, independently of the production code, or it
+> is a regression test on the implementation wearing a theorem's name.
+
+**Required:** re-label the 116/116 as verifying the implementation; correct the stated law to the kernel clause;
+and re-run the check against the statement as written before any claim rests on it. This is the self-confirmation
+risk the audit spec named — the checks were written by the author of the theorems — arriving in its most
+disguised form.
+
+## A19 — Route B (depth) has a closed form, and it is proved in the regime we are NOT in
+
+`theory/T5.3`: if `r − N ≥ k_1` one layer already saturates and depth adds nothing; if `r − N < k_1`, depth closes
+the gap and `L ≥ k_1/(r−N)` layers suffice generically. At `r=24, N=8` that makes `k_1 = 128` need **L ≥ 8 adapted
+layers** — set against a **113-output head** for the same chart width by the other route. **Real released adapters
+are deep, not wide-headed**, so if it survives, the depth route reaches an adequate chart in a configuration that
+exists and the head route does not. That is a better realism answer than the head number.
+
+**Three reasons it is the next AUDIT and not the next claim.** T5.2/T5.3 are unaudited — the auditor covered T2
+Prop. A, Cor. A.1 and T5.1 only and says so. T5.2 holds at **zero drift** and needs **independent per-layer
+initialisations**, violated by a shared seed or tied adapters. And T5.4, the drift case, is a **CONJECTURE** whose
+own caveat is the sharp one: under drift the honest object is **effective rank at a stated tolerance, not rank**.
+
+**Our setting has drift.** So the formula that decides Route B is proved only where we are not, and the quantity it
+is stated in is not the quantity that survives there. **Effective rank at a tolerance requires a tolerance ladder**
+— the same treatment the dedup stop signal needed, and for the same reason: an elbow that moves with the cut is a
+property of the cut.
+
+**T5.1 does NOT block Route B**, and the near-miss is worth recording: `rank J_F ≤ k_1 ≤ min(k, n_1)` reads as a
+ceiling on depth, but `k_1` is bounded by `k` itself — the quantity being pinned — so **the ceiling sits AT the
+requirement, not below it.** Anyone meeting that line out of context will read it as a blocker.
+
+## A20 — Rank death is attacker-visible; contamination is not. The lifetime result is DEFENDER-facing
+
+`rank C_full` is computable from the release alone, so an attacker sees the channel die. **Contamination is
+`rank B_T = N′`, and the attacker lacks `N′`** — so they cannot verify it. **This is the computable-versus-
+verifiable rule again**, third instance: naming the quantity on each side of an equality and asking whether the
+attacker holds both. The consequence is a scope, not a caveat: the certificate-lifetime result is a statement a
+**defender** can act on and an attacker cannot.
