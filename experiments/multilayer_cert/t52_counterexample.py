@@ -10,7 +10,18 @@ same subspace twice and add nothing. T5.2 would count them twice.
 
 Predicted corrected law:   rank J_F = min_j ( d_j + sum_{l<j} q_l ),  d_j := rank M_j, d_{L+1} := 0.
 """
-import numpy as np, json, sys
+import numpy as np, json, sys, hashlib, subprocess, os
+
+def _prov():
+    """Provenance that survives a row being quoted out of its file: the commit is what the REPO was,
+    which is not the question -- 'what code ran' is, so the script's own SHA-256 goes in every row."""
+    try: g = subprocess.check_output(["git","rev-parse","--short","HEAD"]).decode().strip()
+    except Exception: g = "?"
+    try: g += "-dirty" if subprocess.call(["git","diff","--quiet","HEAD"]) else ""
+    except Exception: pass
+    try: sh = hashlib.sha256(open(os.path.abspath(__file__),"rb").read()).hexdigest()[:12]
+    except Exception: sh = "?"
+    return dict(git=g, script_sha256=sh)
 
 
 def run(seed, k=10, d1=10, deep=3, r=13, N=8, L=3):
@@ -37,7 +48,7 @@ def run(seed, k=10, d1=10, deep=3, r=13, N=8, L=3):
     k1 = ds[0]
     t52 = min(k1, sum(qs))
     corrected = min([ds[j] + sum(qs[:j]) for j in range(L)] + [sum(qs)])
-    return dict(seed=seed, d=ds, q=qs, k1=k1, T52_predicts=int(t52),
+    return dict(**_prov(), seed=seed, d=ds, q=qs, k1=k1, T52_predicts=int(t52),
                 corrected_predicts=int(corrected), ACTUAL=actual,
                 T52_ok=bool(t52 == actual), corrected_ok=bool(corrected == actual))
 
