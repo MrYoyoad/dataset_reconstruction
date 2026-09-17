@@ -114,6 +114,7 @@ def main():
     idx = torch.randperm(Xte_t.shape[0], generator=g)[:a.N].to(dev)
     X_real = Xte_t[idx].T.contiguous()                       # (784, N) raw pixels -- the truth points
     npix = X_real.shape[0]
+    print(f"# private join-key indices: {idx.tolist()}", flush=True)   # 6e joins on these exact indices
 
     def emit(row):
         print(json.dumps(row), flush=True)
