@@ -42,7 +42,35 @@ All three passed. None could have failed. Each was found by derivation, not by l
    read as having confirmed it whenever it passes.* **Name checks for the quantity measured, not the expected
    verdict** — the later runs' rename to `..._observation` is the only reason the contradiction is visible at all.
 
-**Four mechanisms, four checks, all reporting success without the capacity to report failure.**
+5. **The theorem as stated WAS tested, and it failed — twice — and then the expectation was changed.** The check
+   `T2_rank_C_equals_r_minus_Nprime`: **FAIL** at 674726 (git `ba9ca00`), **FAIL** at 683234 (`a2f71c6`), **PASS** at
+   688036 (`de8b0ae`). The `expect_rank_C` values record the formula as data: 674726 expects **21 at `N'=3` and 23
+   at `N'=1`** — exactly `r − N'` with `r=24`, the theorem **as stated**; 688036 expects **13 at `N'=3` and 5 at
+   `N'=15`** — exactly `min(r−N', n_l−N')` with `n_0=16, n_1=20`, the **corrected** law. **The theorem was never
+   updated, and the check still carries the name `equals_r_minus_Nprime` while testing something else.**
+
+   **This is worse than a check that could not fail, and it corrects the earlier reading of defect 1 above.** The
+   disagreement was not engineered away *before* the check ran — **it was observed, twice, and then removed.**
+   *(Provenance: `theory_checks.py` was untracked across those runs so the source cannot be diffed; the verdicts and
+   the `expect_rank_C` values are data, and the configurations also differ between runs — `N'` is 3,1,1,1 in one and
+   3,15,15,15 in the other. The formula change is read off the expectations, not off the source.)*
+
+6. **A pass on an all-NaN diverged run, inside the load-bearing check's own history.** Job 674726's
+   `T2_PropA_full_cert_exact_at_large_drift` reports **`passed: true`** with **`max_rho_base: 0.00e+00`** while every
+   per-layer `rho_base` is **NaN**, `exercised: None`, and the drifts are `0.0`, `8.5e73`, `1.1e148`, **`inf`**. The
+   expectation was 21 and the measured rank was 1. `max()` swallows NaN — already in this file, already fixed — but
+   what is worth recording is that **the pass history of the check whose failure falsifies the track contains a false
+   pass.** Across four runs that check reads: one **false pass** (674726), one **correct FAIL** with `exercised: []`
+   (683234 — the vacuity guard working exactly as designed), one **crash** (686846), one **genuine pass** (688036,
+   `max_rho_base 1.21e-15`, `exercised [1,2]`, drift 2.13). **Only the last is evidence.**
+
+**Six mechanisms, six checks, all reporting success without the capacity to report failure.**
+
+**And the conclusion that matters for how this is presented:** none of it touches the proposition's *mathematics*,
+which was re-derived independently and holds. **What does not survive is the evidentiary record as presented** — one
+theorem statement that is wrong and was known to fail, one law refuted, and six checks that could not have failed.
+**That is a documentation and harness problem of unusual severity, not a mathematical one, and saying exactly that is
+what makes it safe to hand to a supervisor.**
 
 **The general check, cheap and worth doing before any confirmatory run:** *state the outcome that would have
 falsified this, and verify the configuration can produce it.* If it cannot, the cell is a regression test — which
