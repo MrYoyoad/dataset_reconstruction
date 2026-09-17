@@ -90,6 +90,50 @@ so its second job is real but modest and is not what stands between a random sta
 First clean three-way separation on one release: identifiability (nullity), reachability in principle
 (conditioning), reachability from a given start (alignment).
 
+## M6: T5.2 refuted on a REAL encoder — and at every chart width an attacker can build, the two laws agree (2026-09-17; job 354535, attested `59cbe42-dirty` / `script_sha dd81201f5399`)
+
+**First result in this track with identifiable provenance.** PASS #1 `83` (read-rows), PASS #2 `1d` (32 rows).
+
+**(1) PASSES and may travel: T5.2 is refuted at real scale.** 15-layer MNIST encoder, first adapted layer 3, through
+the rank cliff. `d_j = [784, 687, 217, 167, 139, 104, 84, 73]`, `q_l = [100×6, 84, 72]`, `k_1 = 784`, `Σq = 756`. The
+corrected minimum binds at `j=3`: `217 + 200 = 417`. **T5.2 predicts 756; measured is 326 / 372 / 402 / 418 across
+the tolerance ladder — every rung far below, so the refutation is rung-independent**, and `saturated_below_k1: True`.
+The **rank-preserving control saturates at both laws' common value**, establishing the test was live. **This is the
+depth re-costing: a deep adapted stack is trapped at the encoder's transmitted rank, not the naive additive budget,
+and layers past the rank cliff buy nothing.**
+
+**(2) FAILS: the claim that this CONFIRMS the corrected law's value.** Reported as *"418 = 417 (±1)"*. **The row's own
+`matches_corrected` compares `measured_at_1e10` = 402, while 418 is the 1e-12 rung — so the agreement is obtained by
+reading a different rung from the one the verdict field uses.** Rung selection, not tolerance, and the row's verdict
+is `False` against **both** laws. **And the ladder has not converged:** 326 → 372 → 402 → 418 is monotone with no
+plateau, increments 46/30/16 at ratios 0.65 and 0.53, a geometric tail extrapolating to **~430–443 — above 417 on
+either estimate.** 418 is not an elbow; it is where the rungs stopped. **Third instance tonight of the failure that
+cost the 445** (345/411/445): *the result is the elbow's STABILITY across the ladder, not its value at the finest
+rung.*
+
+**PRE-REGISTERED before the clean-FP64 run (354537) lands.** If the extended ladder plateaus **above 417**, the
+corrected law **under-predicts on real data** — it becomes a **lower bound rather than the law**, and the gap is a new
+quantity to explain. **That is a finding, not a failure.** If it plateaus **at 417**, the candidate is confirmed at
+real scale and must be published **with the ladder shown, not the endpoint**. **F11's refutation of T5.2 is
+derivational and survives either outcome**; only the corrected law's candidate status moves. The extended run needs
+**rungs finer than 1e-12** — stopping there again reproduces this ambiguity at higher precision.
+
+**(3) THE BOUND ON WHAT (1) MEANS FOR THE ATTACK — `1d`, and it is the planner's number.** **All 16 `chart66` rows —
+the attacker-buildable scale — have `discriminates: False`, `ladder_spread: 0`, and everything saturating at
+`k_1 = 66`, with BOTH laws agreeing on every one.** With `q_l = 66` against `k_1 = 66`, **one adapted layer already
+saturates and depth adds literally nothing.** So **the discrimination exists only in the pixel arm, where `k_1 = 784`
+is about 10× the measured `k ≤ 66` identifiability cap.**
+
+> **Both statements are true and must be stated together: the corrected law matters at real scale, and at every chart
+> width we can currently build the two laws are indistinguishable — because the ceiling binds before the nesting
+> does.** The second is what a planner needs. Mirror image of F12: M3 could not discriminate at all; M6 can, but only
+> above the usable range.
+
+**The open question this creates, and it is the one worth running next.** The nesting begins to bind somewhere
+between `k = 66` (laws agree, one layer saturates) and `k = 784` (laws differ by 1.8×). **At what `k` does depth stop
+being free?** That is a `k`-sweep on this same harness, and it is the same axis as the chart-window sweep — **so one
+sweep answers both the depth-route and chart-width questions.**
+
 ## Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing (2026-09-17; jobs 350996, 218345/218346, theory_checks 688036)
 
 **T5.2 is refuted, and the refutation is DERIVATIONAL — it does not rest on a run.** `theory/T5_cross_layer_rank.md`
