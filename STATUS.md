@@ -109,10 +109,27 @@ a chart is identifiable when that equals `k`.
 | 256 | 100 | 200 | **256** | 256 | **L = 3** |
 | 384 | 100 | 200 | 300 | **384** | **L = 4** |
 
-> **`cap(L) = min( L·(r−N) + m , nesting ceiling )`** — reduces to the capacity line at `L = 1` (`r=108, N=8, m=10`
-> → **110**, matching the independent derivation), saturating at the architecture's **nesting ceiling, 417 here.**
+> **`cap(L) = min( L·(r−N) + (m−1) , nesting ceiling )`** — saturating at the architecture's **nesting ceiling,
+> 417 here.**
 
-**The headline inverts.** At deployed `r = 64` (`q_l = 56`), eight adapted layers give `min(448, 417) = 417` against
+**The constant is `(m−1)`, not `m`, and it is derivable rather than fitted.** The settled cap decomposes as
+**`(r−N)` — a rank part from the adapter's own factor — plus `(m−1)` — a head part from the softmax's zero-column-sum
+constraint on the released `B`.** That is this repo's own mechanism: `B_T` lies on the rank-`N`, zero-column-sum
+variety of **dimension `N(m−1+r−N)`** (STATUS §capacity line). **Depth adds more rank parts but only ONE head part,
+because only the head carries the simplex constraint.** At `L=1, r=64, N=8, m=11` this gives **66**, matching the
+measured cap exactly; my earlier `+ m` gave 67, **one above a measured value**, and the table's rank column implied
+a third answer with no head term at all.
+
+**UNAUDITED INPUT — the per-layer term is inherited from the REFUTED theorem.** `theory/T5` defines
+`q_l := rank(Ctil_l M_l)` (a measurable rank), but the harness computes it as **`q_l = min(r_l − N, rank M_l)`**,
+which is T5.2's *a.s. evaluation* under its assumptions — **and T5.2 is FALSE as stated.** The refutation concerned
+the *combination* rule, not the per-layer term, so the term may well survive; **but it rests on the same assumptions
+(R2 independence, zero drift) and nobody has audited it.** Intermediate layers carry **no simplex constraint**, so
+their variety dimension need not match the head's. **This is the harness computing the quantity it is testing —
+the sixth instance of that pattern tonight. Cheap fix: measure `rank(Ctil_l M_l)` DIRECTLY and compare against
+`min(r−N, rank M_l)`.** Until that runs, `cap(L)` carries an unverified input.
+
+**The headline inverts.** At deployed `r = 64` (`q_l = 56`), eight adapted layers give `min(8·56+10, 417) = 417` against
 a single-layer cap of **66** — **a 6× gain in usable chart width from depth alone.** The rank table previously
 recorded here presented the ceiling-to-single-layer-cap ratio **as if it were a gap between two windows; it is the
 size of what depth buys.** Struck.
