@@ -181,9 +181,17 @@ All three passed. None could have failed. Each was found by derivation, not by l
    **expect two strange rows, and do not treat the `5.2e129` as explained when the `inf` one resolves.** Two
    possibilities with opposite meanings: an entry did exceed the threshold and the guard failed, or **`‖H0‖`
    underflowed to zero and the `inf` is a division artefact**, in which case that row was never a drift measurement.
-   One instrumented field (`‖H0‖`, tested for **underflow**, not smallness) settles both. **Caveat: `‖H0‖ ~ 10` is a
-   requirement inferred from the architecture, not a measurement — if the base representations really are tiny at
-   some layer, the `4.5e103` and `5.2e129` verdicts both move, and that is the one way this reading fails.**
+   One instrumented field (`‖H0‖`, tested for **underflow**, not smallness) settles both.
+
+   **MEASURED (job 353865, corrected gate): `H0_underflow = 0` on every row, `‖H0‖` is order ~10, never tiny.** The
+   inferred requirement is now a measurement, and **the underflow hypothesis is retired for both rows.** But this
+   **converts the anomaly rather than closing it**: with `‖H0‖ ~ 10` and `delta = 5.2e129`, the displacement norm is
+   `~5e130`, so with ≤120 entries per block the largest entry was **`~5e129`** — and the old gate tested exactly
+   `max|entry| > 1e100` over exactly those representations. **It should have fired and did not.** The new
+   relative-drift gate catches these rows, so the harness is fixed; **why the absolute test missed entries
+   twenty-nine orders above its own threshold is still unexplained**, and the same idiom appearing elsewhere would
+   fail the same way. *(Superseded caveat: `‖H0‖ ~ 10` was an architectural inference — if the base representations really are tiny at
+   some layer, the verdicts move — now settled by measurement, and they did not move.)*
 
    **And a SCOPE fact about the whole track, which is not a defect.** `common.py` appends representations at the
    **top** of each step, so `reps` holds `t = 0…T−1` — the inputs *before* each of the `T` updates — while the
