@@ -216,9 +216,14 @@ def main():
                           matches_corrected_at_finest=bool(abs(meas[fine] - corrected) <= 1),
                           matches_t52_at_finest=bool(abs(meas[fine] - t52) <= 1),
                           chart_error=chart_err,
-                          cert_route_nullity_finest=in_dim - meas[fine],   # unconstrained chart directions (tol-dep)
-                          identifiability_nullity=None,      # PRESENT-BUT-EMPTY: 6e's release-route tool, folded in later
-                          condition_number=None,             # PRESENT-BUT-EMPTY: rides along 6e's identifiability()
+                          cert_route_nullity_finest=in_dim - meas[fine],   # CERT route: chart dirs the stacked C leaves free (tol-dep)
+                          release_route_nullity=None,        # 6e's SEPARATE job joins this on the k axis (release/recipe route)
+                          condition_number=None,             # from 6e's identifiability(), joined on the same k
+                          nullity_note=("cert_route and release_route nullities measure DIFFERENT zero sets "
+                                        "({C h = 0} superset {replay residual = 0} superset {truth}); the cert one "
+                                        "is a superset so it can be large while the release one is 0 — that is the "
+                                        "nesting, NOT a disagreement. Never difference them. cert_route is "
+                                        "zero-drift; release_route (6e) carries drift, a different regime."),
                           H0_norm_per_layer=[H0_norm[l] for l in layers], H0_underflow=[underflow[l] for l in layers],
                           sigma_max_median=med([o["sigma_max"] for o in rows]),
                           claim_class="theory rank-law test at the truth (no solve, no attack)",
