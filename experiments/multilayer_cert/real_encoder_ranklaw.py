@@ -68,8 +68,9 @@ from experiments.exact_inversion.deep_stack import inputs_of, load_deep
 from experiments.multilayer_cert.common import provenance
 
 torch.set_default_dtype(torch.float64)
-LADDER = ("1e-6", "1e-8", "1e-10", "1e-12", "1e-13", "1e-14")   # finer rungs: the 1e-12 stop reproduced ambiguity
-TOL = {"1e-6": 1e-6, "1e-8": 1e-8, "1e-10": 1e-10, "1e-12": 1e-12, "1e-13": 1e-13, "1e-14": 1e-14}
+LADDER = ("1e-6", "1e-8", "1e-10", "1e-12", "1e-13", "1e-14", "1e-15", "1e-16")   # to machine precision: 6e showed
+TOL = {"1e-6": 1e-6, "1e-8": 1e-8, "1e-10": 1e-10, "1e-12": 1e-12,               # a deep phi has NO gap and the
+       "1e-13": 1e-13, "1e-14": 1e-14, "1e-15": 1e-15, "1e-16": 1e-16}           # rank is a choice of threshold
 
 
 def med(v):
@@ -185,24 +186,32 @@ def main():
                     hs = feats(v)
                     return torch.cat([(Cs[l] @ hs[l]).reshape(-1) for l in _ls])
 
-                rows = []
-                for i in range(a.N):
-                    J = tf.jacfwd(g_stack)(X_domain[:, i].contiguous()).detach()
-                    sv = torch.linalg.svdvals(J)
-                    row = {lab: numrank(sv, TOL[lab]) for lab in LADDER}
-                    row["sigma_max"] = float(sv[0]); row["n_rows"] = int(J.shape[0])
-                    rows.append(row)
-                meas = {lab: med([o[lab] for o in rows]) for lab in LADDER}
-
                 dl = [d_layer[l] for l in layers]
                 ql = [q_layer[l] for l in layers]
                 Sq = sum(ql)
                 cum = [sum(ql[:j]) for j in range(L)]        # sum_{l<j} q_l for j=1..L (0-indexed)
                 t52 = min(k1, Sq)
                 corrected = min([dl[j] + cum[j] for j in range(L)] + [Sq])
-                # elbow stability across the ladder: spread of the measured rank over the tolerance cuts
+
+                rows, gaps, spec0, spec0_lo = [], [], None, None
+                for i in range(a.N):
+                    J = tf.jacfwd(g_stack)(X_domain[:, i].contiguous()).detach()
+                    sv = torch.linalg.svdvals(J)
+                    row = {lab: numrank(sv, TOL[lab]) for lab in LADDER}
+                    row["sigma_max"] = float(sv[0]); row["n_rows"] = int(J.shape[0])
+                    rows.append(row)
+                    # 6e's decisive diagnostic: a REAL rank has a GAP (sv[c-1]/sv[c] >> 1) at the effective rank;
+                    # smooth decay (no gap, ratio ~ 1) means "rank" is a choice of threshold, not a property.
+                    if 0 < corrected < len(sv):
+                        gaps.append(float(sv[corrected - 1] / sv[corrected]))
+                    if i == 0 and float(sv[0]) > 0:          # representative spectrum around the elbow -> T5.2
+                        spec0_lo = max(0, corrected - 12)
+                        hi = min(len(sv), max(t52, corrected) + 60)
+                        spec0 = [float(sv[j] / sv[0]) for j in range(spec0_lo, hi)]
+                meas = {lab: med([o[lab] for o in rows]) for lab in LADDER}
                 ladder_vals = [meas[lab] for lab in LADDER]
                 fine = LADDER[-1]                            # finest rung, for the explicit-rung match flags
+                gap_at_corr = med(gaps) if gaps else None    # >>1: real effective rank at `corrected`; ~1: no gap
                 emit(dict(part="RANKLAW", config=dict(model=a.model.split("/")[-1], chart=chart_label, k=k_eff,
                           in_dim=in_dim, first_adapted=first, seed=a.seed, r=a.r, N=a.N, depth=D),
                           n_layers=L, layers_in_objective=[l + 1 for l in layers],
@@ -213,6 +222,9 @@ def main():
                           measured_rank_by_tol=meas, measured_at_1e10=meas["1e-10"], measured_at_finest=meas[fine],
                           ladder_spread=int(max(ladder_vals) - min(ladder_vals)),
                           ladder_converged=bool(meas[LADDER[-1]] - meas[LADDER[-2]] == 0),
+                          gap_at_corrected=gap_at_corr,
+                          real_rank_at_corrected=bool(gap_at_corr is not None and gap_at_corr > 10),
+                          spectrum_window_img0=spec0, spectrum_window_start=spec0_lo,
                           discriminates=bool(corrected < t52),
                           saturated_below_k1=bool(meas[fine] < k1),
                           saturated_at_k1=bool(meas[fine] >= k1 - 1),
