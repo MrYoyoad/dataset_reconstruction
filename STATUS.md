@@ -90,14 +90,25 @@ test it.**
 | cell | frozen path | additivity | T5.2 | corrected |
 |---|---|---|---|---|
 | ledger M4 / **job 688036**, random FP64 MLP, `k=20`, `r−N=9`, widths 30 | rank-preserving (`d_j = k_1`) | **holds**: 9, 18, 20, 20 | correct | identical |
-| `STATUS.md` depth-of-first-adaptation + §19a, real encoder, `r=256` | **contracts** | **stops** | predicts 692 | consistent at 445 |
+| `STATUS.md` depth-of-first-adaptation + §19a, real encoder, `r=256` | **contracts** | **stops** | — | — *(row alignment defective; see withdrawal below)* |
 
-At **depth 4** the transmitted ranks are `[692, 220, 187, 138]` against a per-layer budget `r − N ≈ 248`, so the
-later encoders sit **below** the budget — the discriminating condition. T5.2 predicts the full **692**; measured
-**445**, a **36% overshoot on real data**, twelve days before the law was derived. Depth 7 does **not**
-discriminate (`d_1 = 138` caps both laws). **Honest status: §19a REFUTES T5.2 and is CONSISTENT WITH the
-correction** — the corrected law's binding term at depth 4 is `d_2 + q_1 = 220 + q_1`, reproducing 445 exactly at
-`q_1 = 225`, but §19a records totals and not per-layer `q_l`, so this is one-sided.
+**WITHDRAWN 2026-09-17 (job 351745 write-up, commit 46bac5a): the depth-4 numeric retrodiction does not stand.**
+It was relayed as *"T5.2 predicts 692, measured 445, a 36% overshoot"* with the corrected law reproducing 445 at
+`q_1 = 225`. Three defects, any one fatal: **(a) the encoder rows carry no config key**, and file-order alignment
+produces a measured **717 against the corrected law's proven upper bound of 468** — a violation of a *proved* bound,
+which means the alignment is wrong, not the law; **(b)** every config's first-layer usable is a constant **248 =
+`r − N`**, inconsistent with the small deep `rank_Dphi` beside it; **(c) the 445 moves with the cut** — **345 / 411 /
+445** at tolerances 1e-6 / 1e-8 / 1e-10. And `q_1 = 225` was **backed out** to fit, not measured; the measured
+`q_1 = 248` gives a corrected bound of **468**, above the 445.
+
+**So §19a currently establishes no retrodiction, numeric or qualitative.** Saturation alone does not discriminate:
+T5.2 predicts saturation *at* `k_1`, and only saturation **strictly below** `k_1` separates the laws. Depth 7 saturates
+*at* `k_1 = 138` and is consistent with both. Depth 4 is the only candidate row and it is the one the alignment
+defect lands on. **This is the tolerance rule firing on our own number — an elbow that moves with the cut is a
+property of the cut.**
+
+**What this does NOT touch:** F11's synthetic refutation of T2.2 (job 350996, 0/12 vs 12/12) stands, and so does the
+corrected law's status as a candidate. What is lost is the claim that it has been confirmed at real scale.
 
 **Consequence for planning — the precondition is already answered and the answer is unfavourable.** Depth only
 delivers its budget where the frozen path between adapted layers preserves rank. The measured ladder contracts
