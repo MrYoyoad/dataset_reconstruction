@@ -31,9 +31,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--T", type=int, default=40, help="dimensions do not depend on T; kept small for the Jacobian")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    # The measured nullity 232 at (d,N,r,m)=(64,8,24,20) is predicted exactly by the capacity count, so the
+    # prediction is testable by moving m. Off the training span the release pins the seed one-for-one, so those
+    # unknowns and equations cancel; what is left is H (d*N) and the on-span seed (r*N) against the deformed
+    # on-span block (r*N) and B_T -- and B_T is NOT m*r free numbers, it lies on the rank-N zero-column-sum
+    # variety of dimension N((m-1)+r-N). Hence
+    #     nullity = d*N - N((m-1)+r-N) = N(d - (m-1) - r + N),
+    # which vanishes when (m-1)+r-N >= d. At d=64, N=8, r=24 that is m >= 49. These knobs exist to test that.
+    ap.add_argument("--N", type=int, default=8); ap.add_argument("--r", type=int, default=24)
+    ap.add_argument("--m", type=int, default=20); ap.add_argument("--k", type=int, default=12)
+    ap.add_argument("--P", type=int, default=64)
     a = ap.parse_args()
     dev = torch.device(a.device)
-    k, N, r, m, P, lr, seed = 12, 8, 24, 20, 64, 0.05, 1
+    k, N, r, m, P, lr, seed = a.k, a.N, a.r, a.m, a.P, 0.05, 1
     R = build_release(k, N, r, m, P, a.T, lr, seed, dev)
     H, A0, W0, y, A_T, B_T = R["H"], R["A0"], R["W0"], R["y"], R["A_T"], R["B_T"]
     d = H.shape[0]
@@ -59,15 +69,33 @@ def main():
         A_s, B_s = sim(Hc, A0c)
         return torch.cat([(B_s - B_T).reshape(-1), (A_s - A_T).reshape(-1)])
 
-    def nullity(fn, args, names):
+    def jac(fn, args):
         J = tfn.jacrev(fn, argnums=tuple(range(len(args))))(*args)
-        Jm = torch.cat([j.reshape(j.shape[0] if j.dim() > 1 else 1, -1) if False else
-                        j.reshape(-1, arg.numel()) for j, arg in zip(J, args)], dim=1)
+        return torch.cat([j.reshape(-1, arg.numel()) for j, arg in zip(J, args)], dim=1)
+
+    def nullity(fn, args, names):
+        Jm = jac(fn, args)
         s = torch.linalg.svdvals(Jm)
         tol = 1e-10 * float(s[0])
         rk = int((s > tol).sum())
         n_in = Jm.shape[1]
         return Jm.shape, rk, n_in - rk, float(s[rk - 1]), float(s[rk]) if rk < len(s) else 0.0
+
+    def h_ambiguity(fn, args, nH):
+        """Of the solution family, how much of it MOVES H? The seed being unidentifiable does not by itself
+        make H unidentifiable -- that is the question the attack actually cares about."""
+        Jm = jac(fn, args)
+        _, S, Vh = torch.linalg.svd(Jm, full_matrices=True)
+        rk = int((S > 1e-10 * float(S[0])).sum())
+        Z = Vh[rk:].T                                     # null space basis, (n_in, nullity)
+        ZH = Z[:nH]                                       # its H block
+        sh = torch.linalg.svdvals(ZH) if ZH.numel() and Z.shape[1] else torch.zeros(1)
+        rkH = int((sh > 1e-10 * float(sh[0])).sum()) if float(sh[0]) > 0 else 0
+        # and: null directions that move H ALONE (seed held exactly fixed)
+        JH = Jm[:, :nH]
+        sH = torch.linalg.svdvals(JH)
+        rk_JH = int((sH > 1e-10 * float(sH[0])).sum())
+        return Z.shape[1], rkH, nH - rk_JH
 
     for label, fn in (("product A@H  (current)", res_product), ("full A_T     (proposed)", res_full)):
         shp, rk, nul, slast, snext = nullity(fn, (H, A0), ("H", "A0"))
@@ -87,6 +115,28 @@ def main():
         shp, rk, nul, slast, snext = nullity(make_red(fn), (H, M_true, c_true), ("H", "M", "c"))
         print(f"REDUCED    {label}:  J {shp[0]}x{shp[1]}   rank {rk}   NULLITY {nul}"
               f"   gap {slast:.2e} -> {snext:.2e}")
+
+    # --- does the family actually MOVE H, or only the seed? ------------------------------------
+    print()
+    for label, fn in (("product A@H  (current)", res_product), ("full A_T     (proposed)", res_full)):
+        nul, rkH, hAlone = h_ambiguity(fn, (H, A0), d * N)
+        print(f"UNREDUCED  {label}:  family dim {nul}   of which MOVES H: {rkH}   "
+              f"moves H with the seed HELD FIXED: {hAlone}")
+
+    # --- the chart-constrained parametrisation: H = L W + b, unknown W (k x N) ------------------
+    L, b = R["L"], R["b"]
+    W_true = torch.linalg.lstsq(L, H - b[:, None]).solution
+
+    def make_chart(res, free_seed):
+        if free_seed:
+            return lambda W, A0c: res(L @ W + b[:, None], A0c)
+        return lambda W: res(L @ W + b[:, None], A0)
+
+    for label, fn in (("product A@H  (current)", res_product), ("full A_T     (proposed)", res_full)):
+        shp, rk, nul, sl, sn = nullity(make_chart(fn, False), (W_true,), ("W",))
+        print(f"CHART k={k}, seed known   {label}:  J {shp[0]}x{shp[1]}   rank {rk}   NULLITY {nul}")
+        shp, rk, nul, sl, sn = nullity(make_chart(fn, True), (W_true, A0), ("W", "A0"))
+        print(f"CHART k={k}, seed free    {label}:  J {shp[0]}x{shp[1]}   rank {rk}   NULLITY {nul}")
 
     print("\n# NULLITY is the local dimension of the family of (H, seed) reproducing the release.")
     print("# 0 means the truth is locally ISOLATED and recovery is well posed; >0 means a solution family")

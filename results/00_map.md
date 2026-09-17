@@ -105,6 +105,46 @@ halving the offset dividing the residual by 2.05. Linear rather than quadratic m
 the scale direction, so scale is **first-order** identifiable. The prediction still open is `||h_hat||/||h||` near
 1 in the seed-free arm.
 
+## 4b-bis. E1B: the fibre is MEASURED, and P3/P4/P5 are registered before the LM arms land (jobs 350928, 350940)
+
+The local dimension of the family of `(H, seed)` reproducing the release, as the nullity of the residual Jacobian
+at the truth. This is an IDENTIFIABILITY measurement and owes nothing to any solver.
+
+| parametrisation | seed | objective | unknowns | rank | **nullity** |
+|---|---|---|---|---|---|
+| free `H` | known | full `A_T`+`B_T` | 512 | 512 | **0** |
+| free `H` | free | full `A_T`+`B_T` | 2048 | 1816 | **232** |
+| reduced seed | free | full `A_T`+`B_T` | 1025 | 793 | **232** |
+| chart `k=12` | known | full `A_T`+`B_T` | 96 | 96 | **0** |
+| chart `k=12` | free | full `A_T`+`B_T` | 1632 | 1632 | **0** |
+| free `H` | free | *v1's* `A_s@H` | 2048 | 344 | **1704** |
+| chart `k=12` | free | *v1's* `A_s@H` | 1632 | 288 | **1344** |
+
+Three things follow, none of which a counting argument gave correctly:
+
+- **The reduction does not change identifiability.** 232 both ways. The reduced arm removed 1023 unknowns and
+  exactly 1023 of the Jacobian's rank, leaving the fibre untouched — because every point of the fibre already
+  satisfies `Pi A_0 = Pi A_T`, so the family lies INSIDE the reduced slice rather than transverse to it. The
+  approver's intersection argument (32 + 1025 − 2048 < 0, therefore isolated) assumed a genericity that the
+  construction itself destroys. The reduction is a conditioning gain, not an identifiability gain.
+- **The whole ambiguity is a seed-against-`H` trade.** All 232 directions move `H`, but **0** of them move `H`
+  with the seed held fixed. So with a known seed the free-`H` problem is well posed, and with a free seed it is not.
+- **The CHART is what makes the seed-free problem well posed** — `k=12` takes the nullity from 232 to 0. That is
+  why job 331384 recovers: not because replay is strong, but because the chart removes exactly the `H` directions
+  that trade against the seed.
+
+**P3 (seed_known, job 350929): nullity 0, so recovery is POSSIBLE and v1's total failure there was the SOLVER.
+Predict landings > 0 under LM.** If LM also returns nothing from 40 starts, the obstruction is the basin, not the
+information, and that is a different finding from v1's.
+
+**P4 (seed_free, job 350930): nullity 232, so the truth is NOT identifiable. Predict the ALIAS signature** — LM
+drives the residual near zero at points whose per-image error stays large. A landing here would falsify the
+nullity measurement and must be chased as a contradiction, not reported.
+
+**P5 (reduced, job 350931): nullity 232, identical to seed_free. Predict it behaves like seed_free and NOT like
+seed_known.** The reduction was sold as a factor of three in search dimension; if it also changed outcomes, the
+nullity table is wrong.
+
 ## 4c. Rank thresholds — verified, not assumed (job 688520)
 
 The multilayer lane found that a purely relative threshold `s > rtol*s[0]` calls a numerically **zero** matrix

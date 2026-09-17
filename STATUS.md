@@ -1,5 +1,43 @@
 # Project Status
 
+## E1B: the CHART restores identifiability — measured, not argued (2026-09-17; jobs 350928/350940, arms 670990/670993/675031)
+
+Free-feature replay (no chart, `H` free in `R^{64x8}`) was run on the affine two-routes release to ask whether the
+training dynamics determine `H`. The identifiability question was then settled directly, as the nullity of the
+residual Jacobian at the truth — a measurement that owes nothing to any solver:
+
+| parametrisation | seed | unknowns | rank | **nullity** |
+|---|---|---|---|---|
+| free `H` | known | 512 | 512 | **0** |
+| free `H` | free | 2048 | 1816 | **232** |
+| reduced seed | free | 1025 | 793 | **232** |
+| chart `k=12` | known | 96 | 96 | **0** |
+| chart `k=12` | free | 1632 | 1632 | **0** |
+
+**The headline.** Constraining `H` to the `k=12` chart takes the seed-free nullity from **232 to 0**. So job
+331384's recovery of all eight from 19 of 60 starts is *not* evidence that replay is strong on free features — it
+is evidence that **the chart restores identifiability**, by removing exactly the `H` directions that trade against
+the unknown seed. Of the 232-dimensional family, all 232 directions move `H` and **none** moves `H` with the seed
+held fixed: the entire ambiguity is a seed-against-`H` trade. The decision line is therefore PARTIAL — invertible
+with a known seed, not invertible with a free one, and a chart restores it.
+
+**A reduction that is not a reduction.** The reduced seed parametrisation (513 seed unknowns instead of 1536,
+licensed by `Pi A_T = c_T Pi A_0` measured at 3.409e-15 with `c_T` = 1.000000000000 exactly, derivable rather than
+fitted) leaves the nullity at 232 — it removed 1023 unknowns and exactly 1023 of the Jacobian's rank. Every point
+of the solution family already satisfies the identity, so the family lies INSIDE the reduced slice rather than
+transverse to it. It is a conditioning gain, not an identifiability gain.
+
+**Also measured: the scale is first-order identifiable.** The replay residual along `(alpha h*, A_0/alpha)` has a
+sharp machine-precision minimum at the true scale (7.5e-16) rising **linearly** both ways, two-sided slope 0.414.
+Linear rather than quadratic means the zero is non-degenerate, so the scale is pinned to order 1e-15 rather than
+merely identifiable in principle. This bears on Oz et al.'s stated reliance on the nearest *training* embedding's
+norm, and is the offer in the (unsent) E6 request.
+
+Three Adam arms returned 0 landings from 120 starts each, stalling fourteen orders above the truth's residual —
+`optimisation failure`, never `alias`. With nullity 0 in the seed-known arm that is a **solver** result, so the
+three arms are being rerun under Levenberg-Marquardt (jobs 350929-350931) with predictions registered in
+`results/00_map.md` 4b-bis before they land. Full write-up: [experiments/e1b/RESULT.md](experiments/e1b/RESULT.md).
+
 ## Multilayer certificates: exact at depth, but with a lifetime (2026-09-07, jobs 688036 / 692603)
 
 New parallel track (`theory/T1..T6`, `experiments/multilayer_cert/`, results

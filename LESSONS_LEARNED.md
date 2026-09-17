@@ -3479,3 +3479,46 @@ both. Here they have one.
 **What survives, and it is still useful.** The failure has a visible direction: a collapsed `rank B_T`
 means the certificate is built from too small a subspace, so `CH ≠ 0` and the attack degrades rather
 than silently returning something wrong-but-plausible.
+
+
+## Counting equations is not measuring identifiability (2026-09-17, E1B)
+
+An approver lane derived, by counting, that the unreduced seed-free arm had a 32-dimensional solution family and
+that a reduced parametrisation would make the truth isolated (`32 + 1025 - 2048 < 0`). Both conclusions were
+wrong, and the measurement was one small job (the nullity of the residual Jacobian at the truth).
+
+- **The fibre is 232-dimensional, not 32.** The count assumed 2016 independent equations; the Jacobian's rank is
+  1816. Two hundred of them are dependent, and no amount of care with the arithmetic would have revealed that.
+- **The reduction changes nothing.** Nullity 232 both ways. It removed 1023 unknowns and exactly 1023 of the rank.
+  The intersection argument assumed the slice was *generic* with respect to the fibre, but the slice is defined by
+  an identity every point of the fibre already satisfies — so the fibre lies INSIDE the slice, not across it.
+  **Genericity is exactly what fails when you construct the slice from a property of the solutions.**
+- **The useful decomposition was not in the count at all**: all 232 directions move `H`, but **zero** move `H`
+  with the seed held fixed. The ambiguity is a seed-against-`H` trade, which is what made the chart's role legible.
+
+**The rule:** an equation count is a hypothesis about identifiability, never a measurement of it. When the map is
+differentiable, the nullity of its Jacobian at the truth is cheap, exact, and owes nothing to a solver — compute it
+before designing an experiment around what the count implies.
+
+## An objective can be degenerate and not attacker-available at the same time (2026-09-17, E1B v1)
+
+E1B v1 matched `A_s @ Hc` against `A_T @ H` instead of matching `A_s` against the released `A_T`. Two faults, and
+each alone would have invalidated the run:
+
+1. **Degenerate.** `r*N = 192` equations instead of `r*d = 1536`, leaving a nullity of 1704 out of 2048. The
+   experiment could not have identified anything regardless of solver or budget.
+2. **Not attacker-available.** The target `A_T @ H` is built from the true `H` — the very unknown being solved
+   for. It silently imported ground truth into the objective.
+
+Neither was visible from the run's own output: three arms all failed the same way, which looked like a clean
+negative result about replay rather than a broken objective. **What exposed it was counting the equations the
+residual actually imposes** — and that count is worth doing for any inverse-problem objective before trusting a
+negative result from it. A negative result from an underdetermined objective is not a finding about the world.
+
+## A stalled iterate is not a measurement of the quantity it carries (2026-09-17)
+
+The reduced arm reported `c_hat` of 2.4 to 5.7 against a theorem saying it is exactly 1, and a pre-registration
+saying a departure from 1 on that release is a harness bug. It was neither a bug nor a discovery: **no start
+converged**, so those were stalled iterates, not solutions, and the prediction applies to solutions. Reporting
+them would have manufactured a bug hunt out of a non-result. When a run fails to converge, every derived quantity
+it reports is about where the optimiser stopped — check convergence before reading any of them.
