@@ -98,22 +98,41 @@ Adapting from layer 3 through the encoder's rank cliff (`d_j = 784, 687, 217, 16
 |---|---|---|---|---|
 | T5.2 `min(k_1, sum q_l)` | 500 | 600 | 684 | 756 |
 | corrected `min_j(d_j + sum_{l<j} q_l)` | **417** | **417** | **417** | **417** |
-| measured rank (1e-12 rung) | 418 | 418 | 418 | 418 |
+| measured rank, ladder 1e-6/8/10/12 | 326/372/402/418 | 326/373/403/418 | 326/372/402/418 | 326/372/402/418 |
 
-**The measured rank saturates at 418 = the corrected law's 417 (to +/-1), and stays 1.8x below T5.2's 756.** The
-binding term is `d_3 + q_1 + q_2 = 217 + 200`: everything from the fourth adapted layer on is trapped inside the
-217-dim row space of that layer's encoder, so layers 5-8 add nothing — the nesting ceiling, measured on a real
-network. The rank-preserving control (first adapted layer at the pixel input, few layers, `d_j = 784`) saturates
-at both laws' common value, confirming the harness can produce the non-discriminating outcome.
+**Two claims, and the first must NOT carry the second.**
 
-**At attack scale (`chart66` arm, k<=66) the two laws COINCIDE** (`d_j = 66 = k_1` everywhere, both give 66): the
-rank-law distinction is invisible at a buildable chart width. So "a deep adapted stack is trapped at ~418, not the
-naive 756" is a statement about the rank LAW; the attack-side re-costing at `k<=66` is a separate claim.
+**(1) T5.2 is refuted at real scale — solid, rung-independent (PASS #1).** The measured rank is
+`saturated_below_k1: True` and lands at 326/372/402/418 across the ladder — every rung far below T5.2's prediction
+of 756. The refutation does not depend on which rung is read. The structure is the nesting ceiling:
+`d_3 + q_1 + q_2 = 217 + 200 = 417` traps everything from the fourth adapted layer on inside the 217-dim row space,
+so layers 5-8 add nothing. The rank-preserving control (first adapted layer at the pixel input, `d_j = 784`)
+saturates at both laws' common value — the positive control that makes this a live test.
 
-**PROVISIONAL rung (per the ladder discipline):** the exact elbow (418) resolves only at the 1e-12 rung; 1e-10
-undercounts to 402/403. 354535 ran on a shared GPU, so every rung below ~1e-10 is provisional until re-run on the
-exclusive A100 (job 354537). The **qualitative** result — corrected confirmed, T5.2 refuted by 1.8x — is robust
-across every rung (even 1e-6 reads ~326, far below 756).
+**(2) The corrected law's VALUE (417) is consistent in direction but NOT confirmed.** The harness reports
+`matches_corrected: False` **and** `matches_t52: False` — it matches neither. The apparent ±1 agreement is **rung
+selection, not tolerance**: the `matches_corrected` field compares the **1e-10** rung (402), while the 418 quoted
+above is the **1e-12** rung — the agreement came from reading a different rung than the verdict uses. And the
+ladder has **not converged**: 326 → 372 → 402 → 418 is monotone increasing with no plateau — a 28% climb, still
+rising at the finest rung — so 418 is not an elbow, it is the last point before the rungs ran out. The increments
+(46, 30, 16) decay by ~half per step and extrapolate to a limit of **~430–443** (geometric tail), *above* 417; the
+trend points *past* the corrected value, not at it. Per the ladder rule
+(an elbow that moves with the cut is a property of the cut), the result is the elbow's STABILITY across the
+ladder, and there is none yet. **Value confirmation is deferred to the A100 run 354537, which must extend the
+ladder to rungs finer than 1e-12 and record the singular spectrum around the elbow** to show a plateau (or its
+absence): a plateau near 417 confirms the corrected law; a plateau near 430 means it *under-predicts* on real data
+— a different, more interesting result.
+
+**At attack scale (`chart66` arm, k<=66) depth adds NOTHING, and this bounds what claim (1) means for an attack.**
+All 16 chart66 rows: `discriminates: False`, `ladder_spread: 0`, everything saturating at `k_1 = 66` with
+`q_l = 66 = k_1` — **one adapted layer already saturates the chart, so stacking more layers buys zero at buildable
+width.** The two laws therefore coincide there and the rank-law distinction is invisible. So the two statements
+must travel together: T5.2 is *mathematics* and is refuted wherever tested (claim 1), but for an *attacker*
+restricted to a buildable chart (`k <= 66`, the identifiability cap), depth is free and the whole re-costing is a
+theory statement at ~10x the reachable width. The planner acts on the second. **Open (see below): at what `k*`
+does depth stop being free — i.e. where does the nesting begin to bind between k=66 and k=784?** That is a
+`k`-sweep, the same axis as the chart-window question. **Provenance:** attested, `script_sha dd81201f5399`; 354535
+ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the convergence point above.
 
 ## 6. What did NOT replicate — my own prediction, refuted
 
