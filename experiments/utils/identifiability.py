@@ -58,8 +58,9 @@ class Identifiability:
     n_unknowns: int
     rank: int
     nullity: int
-    gap_at_cut: float
+    gap_at_cut: float          # NaN when degenerate -- never inf, so it cannot pass a `gap > threshold` test
     condition_number: float
+    degenerate: bool = False   # zero Jacobian, zero rank, or a cut sitting in the noise floor
     singular_values: list = field(repr=False, default_factory=list)
 
     def as_dict(self):
@@ -99,10 +100,22 @@ def identifiability(res: Callable, params: Sequence[torch.Tensor], rtol: float =
     floor = abs_floor if abs_floor is not None else rtol * float(sv[0])
     rank = int((sv > floor).sum())
     n_in = J.shape[1]
-    gap = float(sv[rank - 1] / sv[rank]) if 0 < rank < len(sv) else float("inf")
-    cond = float(sv[0] / sv[rank - 1]) if rank > 0 else float("inf")
+    # Convention 4, installed HERE rather than left to the caller -- a rule in a docstring is not a rule in the
+    # code, and two lanes independently failed to apply this one. Two degenerate cases, both of which otherwise
+    # return a LARGE gap and so read as a confident rank:
+    #   * the Jacobian is (numerically) zero -- a collapsed network, a saturated phi -- so rank comes back 0, there
+    #     is no cut, and `inf` reads as a perfect gap;
+    #   * the cut index sits in the noise floor, so sv[rank-1]/sv[rank] is a ratio of two noise values and can be
+    #     arbitrarily large while meaning nothing (yoado-83's addition, sharper than the zero test alone).
+    degenerate = float(sv[0]) <= 1e-25 or rank == 0 or (rank > 0 and float(sv[rank - 1]) / float(sv[0]) <= 1e-14)
+    if degenerate:
+        gap, cond = float("nan"), float("nan")          # NaN, never inf: an unusable answer must not compare as good
+    else:
+        gap = float(sv[rank - 1] / sv[rank]) if rank < len(sv) else float("inf")
+        cond = float(sv[0] / sv[rank - 1])
     return Identifiability(n_equations=int(J.shape[0]), n_unknowns=int(n_in), rank=rank, nullity=int(n_in - rank),
-                           gap_at_cut=gap, condition_number=cond, singular_values=[float(v) for v in sv])
+                           gap_at_cut=gap, condition_number=cond, degenerate=bool(degenerate),
+                           singular_values=[float(v) for v in sv])
 
 
 def rank_ladder(r: "Identifiability", thresholds=(1e-6, 1e-8, 1e-10, 1e-12, 1e-14, 1e-16)):
