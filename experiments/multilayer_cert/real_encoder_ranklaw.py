@@ -204,10 +204,9 @@ def main():
                     # smooth decay (no gap, ratio ~ 1) means "rank" is a choice of threshold, not a property.
                     if 0 < corrected < len(sv):
                         gaps.append(float(sv[corrected - 1] / sv[corrected]))
-                    if i == 0 and float(sv[0]) > 0:          # representative spectrum around the elbow -> T5.2
-                        spec0_lo = max(0, corrected - 12)
-                        hi = min(len(sv), max(t52, corrected) + 60)
-                        spec0 = [float(sv[j] / sv[0]) for j in range(spec0_lo, hi)]
+                    if i == 0 and float(sv[0]) > 0:          # FULL spectral profile: if there is no gap, the
+                        spec0_lo = 0                          # profile IS the honest object, not a rank integer
+                        spec0 = [float(sv[j] / sv[0]) for j in range(len(sv))]
                 meas = {lab: med([o[lab] for o in rows]) for lab in LADDER}
                 ladder_vals = [meas[lab] for lab in LADDER]
                 fine = LADDER[-1]                            # finest rung, for the explicit-rung match flags
@@ -220,6 +219,8 @@ def main():
                           q_l_measured_matches_formula=bool(ql == [min(dof[l], d_layer[l]) for l in layers]),
                           t52_pred=int(t52), corrected_pred=int(corrected),
                           measured_rank_by_tol=meas, measured_at_1e10=meas["1e-10"], measured_at_finest=meas[fine],
+                          ambient_maxrank=min(rows[0]["n_rows"], in_dim),   # tau->0 count saturates HERE; a value
+                          # the count merely CROSSES on the way to ambient is not a real rank (6e's tau->0 test)
                           ladder_spread=int(max(ladder_vals) - min(ladder_vals)),
                           ladder_converged=bool(meas[LADDER[-1]] - meas[LADDER[-2]] == 0),
                           gap_at_corrected=gap_at_corr,
