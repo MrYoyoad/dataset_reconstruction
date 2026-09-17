@@ -25,7 +25,7 @@ line here whenever you add a row below.** See LESSONS_LEARNED, "the bottleneck i
 | live question | rows / sources that already bear on it | state |
 |---|---|---|
 | Can a chart be both narrow enough to be identifiable and faithful enough to contain the data? | `STATUS.md` top section (two-wall table, both releases); G1–G4 | **Answered for public PCA: no width works, and the fidelity wall alone carries it.** Open for other chart *families* |
-| How coarse is a public chart against the landing gate? | **G3** (20–35×, oracle ladder) vs `STATUS.md` two-wall table (14.9×/45.7× at the cap, 9×/26× at k=384) | **Two sources disagree in spread; canonical source unsettled — quote the table with its cell, never a midpoint** |
+| How coarse is a public chart against the landing gate? | **G3** (k=32, oracle ladder) and `STATUS.md` two-wall table (k=66 and k=384). **Ruled 2026-09-17 (55f1929): NO SCALAR IS CANONICAL** — see §0.1 | **Never quote a single ratio.** The quantity is chart error *at a named width* over the gate *as a bracket* |
 | Does a foundation-model embedding dissolve the chart problem? | H1–H3 | Answered: no. Shared-concept chart is *worse* |
 | Does depth add information additively? | **M4** (9,18,20,20 — rank-preserving regime only), job 692603; `STATUS.md` T5.2 section; audit F11–F14 | **T5.2 FALSE as stated.** Corrected law is a CANDIDATE. M4's sweep cannot discriminate (`q_l` saturated 180/180) |
 | How many adapted layers buy a chart of width k? | `STATUS.md` T5.2 section; **§19a** / `STATUS.md:323` ladder, jobs 218345/218346 | Upper bound only. **Precondition (`rank M_l` per layer) already measured and unfavourable** |
@@ -35,6 +35,29 @@ line here whenever you add a row below.** See LESSONS_LEARNED, "the bottleneck i
 | Does a chart restore identifiability? | N1–N4 | Yes — **measured with the release's own ORACLE chart**. Establishes the mechanism a chart must supply, not that any buildable chart supplies it |
 | Are identifiability and recoverability the same thing? | N2; seed-known LM arm (in flight) | **Provisionally no** — nullity 0 with zero landings. Two separable jobs for a chart |
 | Does replay or the certificate recover more? | D section; E1–E5 | Both measured; see D for the route split |
+
+### §0.1 The public-chart shortfall — why no single number is canonical
+
+Two of our own records disagreed, in **two** places. (1) **Different widths**: G3 reads the ladder's public row at
+`k=32`; the table reads `k=66` (the identifiability cap) and `k=384`. Chart error falls with width, so these are not
+the same quantity. (2) **The gate is a BRACKET, not a point** — the ladder observes landings at one width and none at
+the next, so the gate is an interval: **0.0124–0.0186** (motorcycle/MLP), **0.0045–0.0090** (keyboard/CNN). **G3
+divides by the bracket midpoint** (an undisclosed step: `0.3176/0.0155 = 20.5`, `0.2432/0.00675 = 36.0` — the
+"20–35×"); the table divides by the **near end** only.
+
+| chart width | motorcycle / MLP | keyboard / CNN | overall |
+|---|---|---|---|
+| k = 32 | 17.1–25.6× | 27.0–54.0× | **17–54×** |
+| k = 66 (the cap) | 9.9–14.9× | 22.9–45.7× | **10–46×** |
+| k = 384 (far past the cap) | 5.9–8.8× | 13.2–26.4× | **6–26×** |
+
+> **The claim that survives every convention, and the one to quote:** at the **most generous reading available
+> anywhere in this grid** — widest chart, far end of the bracket — the shortfall is still **5.9×**, and it **never
+> approaches 1 at any width under any convention**. That is robust to whichever number a reader prefers, which is
+> worth more than any individual figure.
+
+**Index rule (2026-09-17):** point at **NOT-shown** columns as well as findings. Half of this evening's corrections
+were about what a row does *not* establish rather than what it does.
 
 ## A. Structure of the release
 
