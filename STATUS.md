@@ -33,7 +33,16 @@ measurements / success criteria for each item are now at `notes/meeting_2026-09-
 The NTK conclusion the participants accepted is **scoped** to the formulation and setting discussed and must not
 be quoted as an impossibility result for NTK methods.
 
-**Four open conflicts, routed to the approver rather than settled** (`notes/corrections_from_archive_2026-09-17.md`
+**The archive's three hand-computed coefficients are now independently evaluated (job 353169).** All three
+reproduce from the dynamics the note specifies, not from its own closed forms: Ex 3.5's `−3/8` to 6.0e-07, Ex 5.5's
+`η/16` to 5.7e-08, §8.6's `−1/3` to 1.0e-03, with measured orders 0.9998, 0.9999 and 1.9754 against the claimed
+1, 1 and 2. Every intermediate matrix the note states in closed form reproduces to machine precision, which is what
+makes these comparisons rather than coincidence tests. Their status moves from "PROVED on one person's arithmetic"
+to "PROVED and independently evaluated". FP64, CPU, 2.2 seconds; rows in
+`results/archive_checks/hand_coefficients_353169.jsonl`. The first submission (352807) died on a shape bug in the
+check itself, so the third cell had never executed — the argument for running a check rather than shipping it.
+
+**Four conflicts, ruled by the approver (A24, commit e0a2bb1) rather than settled here** (`notes/corrections_from_archive_2026-09-17.md`
 §3): `theory/T4`-C5's "no quadratic cancellation found" against the archive's structural mechanism;
 `experiments/multilayer_cert/RESULTS.md` §3 attributing the `rank B_T < N'` rows to the last layer when a
 re-aggregation puts 36 of 64 at hidden layers; `theory/T5`'s stale R2 row; and three hand-computed coefficients in

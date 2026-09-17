@@ -228,7 +228,7 @@ def cell_C(eta: float):
     first = None
     for step in range(3):
         h0 = E1.copy()
-        h1 = h0 + b @ (a @ h0)
+        h1 = h0 + b * float(a @ h0)          # rank-one residual block: (I + b a) h0
         h2 = h1 + B @ (A @ h1)
         D2 = h2  # dL/df for L = ||f||^2 / 2
         g_B = np.outer(D2, A @ h1)
@@ -278,7 +278,11 @@ CELLS = [
         order=2,
         claim=-(1.0 / 3.0) * E2,
         claim_text="Ctil_2 e1 = -(1/3) eta^2 e2 + O(eta^3) (top-one truncated)",
-        steps=np.array([1e-2, 1e-3, 1e-4, 1e-5]),
+        # Larger steps than cells A/B on purpose. The note's own derivation reads the top eigenvector of a Gram
+        # matrix whose off-diagonal is O(eta^4) against a first diagonal of O(eta^2) and a second of O(eta^6);
+        # below eta ~ 1e-3 that spread approaches the FP64 floor and the truncation direction stops being
+        # resolvable. The tolerances are unchanged -- only the window where the quantity exists is.
+        steps=np.array([3e-2, 1e-2, 3e-3, 1e-3]),
         fn=lambda s: cell_C(eta=s),
     ),
 ]

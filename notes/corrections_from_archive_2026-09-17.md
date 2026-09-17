@@ -140,8 +140,26 @@ applied. No working code was changed to agree with a document.
    specifies rather than re-evaluating the note's own closed forms, checks the note's exact intermediate matrices
    first, and withholds the coefficient verdict when those disagree — `construction mismatch` and
    `coefficient wrong` are different outcomes. Tolerances are pre-stated in the module docstring.
-   **It has not been run**: this lane launches nothing, and the standing rule is that nothing runs locally.
-   *Owner: whoever next submits — one bsub.*
+   **RUN AND CONFIRMED, job 353169** (WEXAC `short`, 2.2 s CPU, FP64, rows in
+   `results/archive_checks/hand_coefficients_353169.jsonl`). All three coefficients reproduce from the dynamics:
+
+   | cell | claim | coefficient rel. err. | measured order | worst exact-matrix err. |
+   |---|---|---|---|---|
+   | Ex 3.5 | `C e1 = −(3/8) ε e2` | 6.0e-07 | 0.9998 (claimed 1) | 1.1e-16 |
+   | Ex 5.5 | `C h = (η/16)(1,−1)^T` | 5.7e-08 | 0.9999 (claimed 1) | 0.0 |
+   | §8.6 | `C̃_2 e1 = −(1/3) η² e2` | 1.0e-03 | 1.9754 (claimed 2) | 0.0 |
+
+   The exact-matrix column is the load-bearing one: every intermediate the note states in closed form
+   (`v_2`, `A_2`, `u_1`, `B_1`, `b_1`, `a_1`, `d_1`) reproduces to machine precision, so the coefficients were
+   compared against the note's own dynamical system rather than a lookalike. **The status of the three
+   coefficients moves from "PROVED on one person's arithmetic" to "PROVED and independently evaluated".**
+
+   Two things the first submission taught, worth keeping: the third cell **crashed on a shape bug in the check
+   itself** (job 352807) and had never executed, which is exactly what leaving it written-but-unrun would have
+   concealed. And §8.6 needs a larger step window than the other two — its truncation direction is read from a
+   Gram matrix whose entries span `η²` to `η⁶`, so below `η ≈ 1e-3` the direction stops being resolvable in
+   FP64. The window moved; the tolerances did not.
+   *Ruled by the approver; run by this lane.*
 
 5. **Emphasis, not content.** The archive's title page answers Gal's changing-input question with "yes, locally and
    for sufficiently short training", while `theory/README.md` says the perturbative framing "is not the right one".
