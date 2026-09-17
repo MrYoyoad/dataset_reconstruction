@@ -143,44 +143,46 @@ and 26× the respective gates. **A public PCA chart of this family cannot be mad
 choosing `k`** — and the scope of that sentence is exact: *this chart family*, not charts in general.
 
 **C8 — The obstruction in the seed-known arm is the SUPPLY OF STARTS, and the requirement on a start is
-ALIGNMENT, not distance (jobs 351007, 351035, 352266, 353524).** Nullity 0 said the truth is unique. Two
-explanations remained — ill-conditioning, or a small basin — and they are separated without random starts, since
-random-start landings conflate the solver with the geometry.
+ALIGNMENT with a norm caveat (jobs 351007, 352266, 353524, 353562).** Nullity 0 said the truth is unique. Two
+explanations remained — ill-conditioning or a small basin — separated without random starts, since random-start
+landings conflate the solver with the geometry.
 
-| setup | unknowns | nullity | **condition number** |
-|---|---|---|---|
-| free `H`, seed known | 512 | 0 | **1.201e+02** |
-| chart `k=12`, seed known | 96 | 0 | **1.789e+01** |
+Both seed-known setups are **well conditioned** (free `H` 1.201e+02, chart `k=12` 1.789e+01), so conditioning is
+excluded. The requirement on a start is then measured directly, with cosine and norm set **independently by
+construction** — `ρ‖H‖(c·Ĥ + √(1−c²)·u⊥)` has cosine exactly `c` and norm exactly `ρ‖H‖` for any pair:
 
-Both are **well conditioned** — nothing like what a solver failure would require — so conditioning is excluded.
-Levenberg–Marquardt started at the truth plus a perturbation returns to **machine precision** (max per-image error
-~1e-15) out to a relative perturbation of **1.343**, and fails by **1.5**.
+| cosine \ norm ratio ρ | 0.9 | 1.0 | 1.35 | 1.7 |
+|---|---|---|---|---|
+| 0.00 | fail | fail | fail | fail |
+| 0.30 | fail | fail | fail | fail |
+| **0.50** | **converges** | **converges** | **converges** | fail |
+| 0.60 | converges | converges | converges | fail |
+| 0.70 | converges | converges | converges | converges |
 
-**But distance is the wrong axis, and comparing the two start families on it is a mistake I nearly made.** A point
-at `H + η‖H‖u` is *not* the same kind of point as a random start at the same distance:
+All convergences are to machine precision (max per-image error 3e-15 to 8e-15). **Alignment is the dominant
+requirement**: at cosine ≤ 0.30 no norm converges, so norm alone cannot rescue an unaligned start. But the
+boundary is **not vertical** — it tilts at large norm, where the cosine needed rises from 0.5 to 0.7.
 
-| start family | relative distance | **cosine to the truth** | norm / ‖H‖ |
-|---|---|---|---|
-| the arms' random starts (Gaussian) | 1.3431 | **−0.0034** | 0.897 |
-| the arms' random starts (ker-`C`) | 1.3449 | **−0.0022** | 0.897 |
-| isotropic perturbation, η = 1.343 | 1.3430 | **0.5979** | 1.675 |
-| isotropic perturbation, η = 1.5 | 1.5000 | **0.5554** | 1.804 |
+**This overturns the ray-based threshold this file previously reported, and the reason is instructive.** The
+from-near-truth family lies on `H + η‖H‖u`, where `cos = 1/√(1+η²)` and `ρ = √(1+η²) = 1/cos` are locked — so
+**that family can only ever sample the line `ρ = 1/cos`** and is structurally incapable of separating the two
+quantities. Its apparent threshold (converges at cos 0.597 / ρ 1.674, fails at cos 0.581 / ρ 1.721) sits exactly
+where the plane's **norm** boundary lies, near ρ ≈ 1.7. **The ray was measuring the norm wall and attributing it
+to cosine**, and it overstated the alignment requirement: on the plane, cosine **0.5** suffices at any sane norm.
 
-At *identical distance*, the from-near-truth point retains a cosine of 0.60 with the truth while a random start is
-essentially orthogonal to it. **So convergence at η = 1.343 does not imply that a random start at 1.343 should
-converge**, and no bracket on the basin radius can be inferred by combining the two families — the from-near-truth
-sweep measures the basin *along rays from the truth*, not a radius in any isotropic sense.
-
-**Stated on the right axis, the result is sharper and directly useful.** LM converges from starts whose cosine
-with the truth is **0.598** and fails by **0.555**; the arms' random starts sit at cosine **≈ 0**. So what an
-initialiser must supply is **direction**: roughly a cosine of 0.6 with the private representations. That is a
-concrete, measured target for the learned-prior / decoder slot, and it is a requirement that distance-based
-intuitions state wrongly.
+**What an initialiser must supply, stated correctly:** a cosine of about **0.5** with the private representations,
+while **not inflating the norm** beyond roughly 1.35×. The arms' random starts have a perfectly acceptable norm
+ratio (0.897) and a fatal cosine (≈ 0) — they fail on direction alone.
 
 **The chart improves conditioning by about 7×** (18 against 120), so the chart's second job is real but modest,
 and it is not what stands between a random start and the truth.
 
 ## What is NOT claimed
+
+**The plane is measured at four norm ratios and five cosines, on the seed-known arm, at `T = 400`.** The tilt is
+located between ρ = 1.35 and ρ = 1.7 and the alignment boundary between cosine 0.30 and 0.50; neither is resolved
+more finely than that, and no functional form is fitted to five points. **Condition numbers depend on `T`** (the
+same setup gives 3.539e+02 at `T=20` against 1.201e+02 at `T=400`), so they are never compared across `T`.
 
 **No isotropic basin radius is claimed, and the distance bracket that looked available is NOT valid.** It is
 tempting to combine "converges at 1.343" with "all 120 random starts at 1.30–1.42 failed" and conclude the edge

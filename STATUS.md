@@ -72,20 +72,22 @@ without using random starts at all:
 | chart `k=12`, seed known | 0 | **1.789e+01** | every size tested, up to **1.0** |
 
 A condition number of ~10² is well conditioned, so conditioning is excluded. **The missing ingredient is an
-initialiser, not a better chart and not a better solver** — and the requirement on it is **alignment, not
-distance**:
+initialiser**, and the requirement on it was then measured with cosine and norm set *independently by
+construction* (the earlier ray-based sweep could not separate them — on a ray, `cos = 1/√(1+η²)` and `ρ = 1/cos`
+are locked):
 
-| start family | relative distance | **cosine to truth** | LM converges? |
-|---|---|---|---|
-| the arms' random starts | 1.343 | **−0.003** | no, 0 of 120 |
-| isotropic perturbation η=1.343 | 1.343 | **0.598** | **yes, to 1e-15** |
-| isotropic perturbation η=1.5 | 1.500 | 0.555 | no |
+| cosine \ norm ratio | 0.9 | 1.0 | 1.35 | 1.7 |
+|---|---|---|---|---|
+| ≤ 0.30 | fail | fail | fail | fail |
+| **0.50** | **converges** | **converges** | **converges** | fail |
+| 0.70 | converges | converges | converges | converges |
 
-At *identical distance* the two families are completely different points, so no basin radius can be inferred by
-combining them — a comparison this lane nearly made and withdrew. On the right axis the result is sharper: **an
-initialiser must supply a cosine of roughly 0.6 with the private representations**; below ≈0.56 it fails. That is
-a concrete, measured target for the learned-prior slot. The chart improves conditioning about 7× (18 against 120),
-so its second job is real but modest and is not what stands between a random start and the truth.
+**An initialiser must supply a cosine of about 0.5 with the private representations, without inflating the norm
+past ~1.35×.** Alignment dominates — at cosine ≤ 0.3 no norm helps — but the boundary tilts at large norm. **This
+corrected a number this lane had already published**: the ray-based sweep reported a threshold of 0.6, which was
+the *norm* wall at ρ ≈ 1.7 misattributed to cosine. The random starts have an acceptable norm (0.897) and a fatal
+cosine (≈ 0): they fail on direction alone. The chart improves conditioning ~7×, so its second job is real but
+modest.
 
 First clean three-way separation on one release: identifiability (nullity), reachability in principle
 (conditioning), reachability from a given start (alignment).
