@@ -4,6 +4,29 @@ Running log of insights, pitfalls, and things to remember as the thesis progress
 
 ---
 
+## 2026-09-17 — a job id is a pointer to rows, and rows have a certification state
+
+A rule was written tonight that says: where we have measured a statement ourselves, cite our own rows and job id
+rather than an unreproduced external document. The rule is right — a claim sourced to our own measurement is
+strictly stronger, and it upgrades a supervisor-facing sentence rather than hedging it.
+
+**The first version of its table got two of five rows wrong, in the exact way the rule invites.** One row cited
+"the rank law" to two jobs: the law *as stated* had been refuted the same day (the de-rigged check records
+`passed: false`; only the corrected `max(0, min(r−N', n_l−N'))` form passes), and the accompanying claim, exactness
+at depth, sits at register `read-prose` with **zero audit passes** while being the claim that answers the
+supervisor's own main question. A second row cited the capacity line without its `NOT shown`: it is settled for the
+reduced channel and remains a *candidate* for the full factor pair.
+
+**The failure mode to name.** Substituting our own measurement for an external citation removes a **provenance**
+risk and silently introduces a **certification** risk — and the second is harder for a reader to catch, because a
+job id looks authoritative in a way "see document X" does not. A reader who sees a document reference asks where it
+came from. A reader who sees `job 688036` assumes someone checked.
+
+**What follows.** Any table that says "cite our rows" carries a **status column** — `SETTLED` / `PASS #1` /
+`uncertified` — and a row with no ledger entry is *uncertified*, not merely unlisted. Before a job id goes into a
+citation rule, read the row's audit state, not just its numbers. Two of the corrections above I found by checking
+my own table after being told about the third; the check costs one grep of the claims ledger per row.
+
 ## 2026-09-17 — a script in the repository is evidence that someone wrote it, not that it runs
 
 The standing rule is *commit or it did not happen*. It covers uncommitted work. It does not cover **committed work

@@ -106,26 +106,89 @@ unsupported, or let a measured statement license unreproduced numbers. (Same dis
 derivations agreeing: evidence about the derivation is not a second proof of the result.)
 
 **Several of the bundle's statements have been independently derived and measured here, by code that does not
-descend from it.** For those, **cite our own rows, never the bundle.** Verified at source on 2026-09-17:
+descend from it.** For those, **cite our own rows, never the bundle** — *subject to the status column*, which is
+not decoration:
 
-| statement | our own evidence | where |
-|---|---|---|
-| The certificate annihilates every recorded representation — no recipe, no labels, no seed | job **701679**, ledger row A3, `SETTLED`, register derived + read-rows | `results/CLAIMS_LEDGER.md:68` |
-| Quotient-sensing form `Π A_T = c_T Π A_0`, with `c_T = 1.000000000000` derivable rather than fitted | job **675031** gate | `notes/w1_certificate_proofs.tex:115`, `experiments/e1b/RESULT.md:19` |
-| The capacity line `k < m + r − N`, sharp to one unit of `k` | jobs **469120**, **467914** (+ the N=4/8/12 arms) | `STATUS.md:1135`, `figures/exact_inversion/capacity_law.png` |
-| Certificate exact at depth over the training span, and the rank law | jobs **688036**, **692603** (`theory_checks_688036.jsonl`, `survival_692603.jsonl`) | `experiments/multilayer_cert/RESULTS.md:3-4` |
-| The three hand-computed coefficients of the multilayer note | job **353169** | `results/archive_checks/hand_coefficients_353169.jsonl` |
+> **A job id is a pointer to rows, and rows have a certification state.** Citing our own measurement beats citing
+> the bundle **only where the measurement has passed audit**. Otherwise it trades an undisclosed *provenance* risk
+> for an undisclosed *certification* risk, and the second is harder for a reader to catch, because a job id looks
+> authoritative in a way a document citation does not. (Raised by the narrative lane, 2026-09-17, against the first
+> version of this very table — which got two rows wrong in exactly that way.)
+
+| statement | our own evidence | status | how it may be cited |
+|---|---|---|---|
+| The certificate annihilates every recorded representation — no recipe, no labels, no seed | job **701679**, ledger row A3 (`results/CLAIMS_LEDGER.md:68`) | **SETTLED**, two passes, register derived + read-rows | freely, with A3's own scope (`q = N`; SGD-class; `B_0 = 0`; non-shared module) |
+| Quotient-sensing form `Π A_T = c_T Π A_0` with `c_T = 1.000000000000` derivable rather than fitted | job **675031** gate; proof at `notes/w1_certificate_proofs.tex:115` | **proved + measured, but it has NO ledger row**, so it is uncertified by the ledger's own process | cite the proof first and the gate as confirmation; do not present the job id as an audited measurement |
+| The capacity line `k < m + r − N`, sharp to one unit of `k` | jobs **467914, 481079, 593146**, ledger row C4 (`:85`) | **SETTLED** — *for the reduced channel* | **never bare.** C4's `NOT shown` is explicit: for the **full factor pair** the line is a *candidate, not a result*. The figure `capacity_law.png` is job 469120 |
+| The three hand-computed coefficients of the multilayer note | job **353169** (`results/archive_checks/hand_coefficients_353169.jsonl`) | run 2026-09-17, **one reader**, no second pass | cite with the margins (3353× / 35014× / **2.0×**), never as three equal passes |
+| ~~Certificate exact at depth over the training span, and the rank law~~ | — | **WITHDRAWN FROM THIS TABLE, 2026-09-17** | see below |
+
+**Why that last row was pulled, since it was wrong in two distinct ways and it is the one that would have reached
+Gal.** (Both faults verified at source here before removal.)
+
+1. **The rank law as I cited it was refuted the same day.** `theory/T2` stated `rank C = r − N'`; the de-rigged
+   check `T2_rank_C_matches_AS_WRITTEN_r_minus_Nprime` records **`passed: false` at job 351745**, while
+   `T2_rank_C_matches_corrected_min_law` (`max(0, min(r−N', n_l−N'))`) passes. So the law may be cited **only in
+   its corrected form and only to 351745** — the job that tests it as written is the job that fails it.
+2. **"Exact at depth" is uncertified and it is Gal's own main question.** Ledger M1 carries register
+   `read-prose (GM)` and status **UNAUDITED**, and the question index records **zero passes for M1–M3** while M4/M5
+   have PASS #1. Job 688036's own layer-3 row reads `N' = 15, rank_B = 4, rank_C = 16, expect 5, rho 0.078` — the
+   contamination regime, where the hypothesis fails. Promoting this to cite-our-job-id status was premature by a
+   full audit pass, on precisely the claim it would be worst to get ahead of.
+
+*One correction back to the lane that caught this, because it is the kind of detail this table exists to get
+right:* job **692603 does carry rank-law rows** (`rank_C_full`, `expect_rank_C`, 216 rows) — what it does not do is
+test the law **as written**, which is 351745's job. A quick reconstruction here reproduced the corrected law in 116
+B3-holding rows and disagreed in 9; I could not establish whether those 9 are the data or my own reading of which
+field gives `n_l`, **so that is not a finding** and is recorded only so nobody quotes 116 as a clean count.
 
 **Reserve the dagger for what remains the bundle's alone**: its basin fractions, exact-inversion residuals and
 phase-diagram percentages, and the deep-certificate / stacked-Jacobian numbers whose only generators are
 `trajspan.py`, `stackrank.py`, `rn_*.py` and the audit scripts. Those have no reproducing code here and stay
 †provisional until they do.
 
+**The boundary, which is part of the rule and not a note beside it.** This rule says *cite our rows for the
+statements we measured*. **It says nothing about whether the bundle's other numbers are right.** Unreproduced here
+is a **provenance status, not a verdict**: §3 marks those numbers ARCHIVE-ONLY, which means no reproducing code
+exists in this repository — **not refuted, not doubted, not impeached**. Anyone who reads this rule as evidence
+against the bundle has misread it. (Stated inside the block deliberately: a boundary kept in a neighbouring
+paragraph is separated from the rule the first time someone quotes the rule alone, which is exactly how the
+misreading would happen.)
+
 **Why this is better than a caveat.** A claim sourced to our own measurement is strictly stronger than the same
 claim sourced to an unreproduced document, and it carries a job id. So the rule costs nothing and closes the
 exposure instead of disclosing it: for anything we have measured, the provenance question simply does not arise.
+The consequence for anything supervisor-facing is that a sentence currently leaning on the bundle gets
+**upgraded** when it is re-sourced, not hedged — a caveat costs credibility, a substitution gains it.
 *(Raised by the approver lane, 2026-09-17; routed to the narrative lane because it changes how the bundle may be
 cited in Gal-facing material.)*
+
+## 3b. The mirror image: what has NO repo counterpart at all
+
+§3a lists what to re-source. This lists the opposite and more dangerous set: archive statements that have
+**neither a row to cite nor an independent derivation here** — nothing in this repository bears on them. They are
+the ones most likely to be quoted straight from the document, because the document is the only source.
+
+| archive statement | why nothing here bears on it | what would give it a counterpart |
+|---|---|---|
+| **The short-time trained-family theorems**: certificate error `O(τ)` for a trained two-layer softplus MLP inside `τ ≤ min{ρ/(2g), γ/(4K)}`, and the ReLU width version (`multilayer_lora_theory_source.tex` Prop 4.2, Thm 5.3, Thm 5.4) | The repo has **no theorem converting trajectory bounds into a statement about an actual trained net**, and its measured regime (drift to 923%, `T ≤ 8`, lr to 1) lies far outside any such window — the repo's exactness result does not need one | A cell inside the window: small `τ`, measured `γ` and `K`, checking `e(τ)` against the bound |
+| **The quadratic residual family** achieving `O(τ²)` by the range condition `col(∇_B L(θ_0)) ⊆ U` (Thm 8.2, Cor 8.3) | The repo's T3 proves `O(ε)` is sharp *generically* and has no analogue of a designed family where the first-order forcing vanishes. Ruled C1: same mechanism as T3.2, different vocabulary — but the *family* is untested here | The C1 merge, plus one FP64 cell of the aligned identity-residual construction |
+| **The polynomial / quadratic span-separating families** (chart note Thm 2.7, Thm 2.20; multilayer Thm 6.1) — the only settings where global uniqueness of the image is proved | Proved only where the adapted layer *itself receives* monomial features. Every repo chart is PCA, conv-AE, β-VAE or oracle; none is an expansion family | A chart whose features are the monomials, on a layer that receives them |
+| **The distributional laws**: wrong-affine-chart `Beta((p−k)/2,(b−p)/2)`, the Wishart conditioning rate, the fixed-candidate null law, the affine bias–variance MSE (chart note Thm 2.11, 2.14, 2.18, 2.19) | Never measured here in any form. They are laws of the *kernel experiment* and, by the note's own Correction A.4, do not survive conditioning on a valid release | A synthetic sampler over seeds at fixed `H`, comparing empirical residual distributions to the stated laws |
+| **The cross-layer min–max rank theorem** over allowable covector spaces, and the ideal→trained transfer `σ_min ≥ μ − Δ_J` (Thm 10.2, Prop 10.3) | The repo's own stacking law (T5.2) was **refuted as stated** on 2026-09-17; the archive's strictly more general form is untested here, and Prop 10.3 is the conditional route that would upgrade T5.4 | A stacked-Jacobian measurement with the per-layer `E_l` computed, not assumed |
+| **Everything in the text plan**: the endpoint certificate in text, finite-codebook separation, the sparse known-initialisation route, the distinct-target excitation family (`Text_Certificate_Chart_Research_Plan.md` Props 1–3) | **No text experiment has ever run in this repository.** Its own §10 Gaussian-dictionary example is the only computation behind any of it | Stage 1 of its programme — the theorem instrumentation cell |
+| **The shared-concept theorems and the architecture discussion** (multilayer Sec 12, Sec 13.2–13.4: homogeneity obstruction, width, CNN) | Nothing here measures shared-concept charts at the theorem's level, and the CNN paragraph is discursive in the source itself | The E4a shared-concept arm exists but measures fidelity, not these rank statements |
+| **The deep-certificate-under-drift numbers** (members 1e-15 → 1e-5, non-members ~1e-1, width 16, N=4) and the stacked-rank numbers, from `trajspan.py` / `stackrank.py` | The generators are archive-only; the repo's multilayer harness is a **different** experiment, so these specific numbers have no counterpart even though the *claim* of exactness at depth does | Re-run under our harness, or drop the numbers and cite 688036/692603 for the claim |
+
+**How to use it.** These are not marked doubtful — most are proofs, and a proof does not need a row. The point is
+narrower: if a supervisor-facing sentence rests on one of them, it rests on the document **alone**, so it must be
+stated as a proved statement under its hypotheses and never as something this project has observed. Two of the
+eight are cheap to convert (the quadratic family and the distributional laws), one is already the agreed next
+step (text), and one is a merge that was ruled tonight.
+
+*(Compiled 2026-09-17 from the reconciliation tables of the two theory digests, cross-checked against `theory/`,
+`experiments/multilayer_cert/` and the chart/text notes. **One reader** — it has not been independently checked,
+and a missing counterpart is the kind of claim that is falsified by one grep, so treat an entry as refutable.)*
 
 ## 4. How to use this file
 
