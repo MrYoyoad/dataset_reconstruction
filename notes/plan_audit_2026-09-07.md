@@ -280,3 +280,57 @@ this. It is also the wrong instrument: a hypothesis that is never *used* cannot 
 falsifying it requires a cell where H3 fails, H4 holds, and the conclusion still breaks, and the sweep produced
 none. The proof sketch in the W1 audit stands on its own; the sweep is consistent with it and is not evidence for
 it. **Report as untested and settle it in the proof, not the sweep.**
+
+---
+
+## A15 — A13's headline attributes the non-uniqueness to the WRONG OBJECT. Corrected by yoado-1d (job 350944)
+
+[read: rows, relayed with the decomposition printed per cell]
+
+A13 said: nullity > 0, therefore *"recovery of H from this release is not unique."* **True as stated and wrong in
+what it blames.** The sweep decomposes the family:
+
+```
+    UNREDUCED  full A_T   family dim 72   of which MOVES H: 72   moves H with the SEED HELD FIXED: 0
+    CHART k=12, seed KNOWN, full A_T                            nullity 0
+```
+
+**Zero directions move `H` with the seed held fixed.** So the whole family is a **seed-versus-H trade-off**, not
+slack in `H`. Hold the seed and `H` is pinned; add a chart at `k=12` with the seed known and the truth is locally
+isolated outright.
+
+> **Corrected claim: `H` is not identifiable JOINTLY WITH THE SEED from this release.** That is far narrower than
+> "recovery of `H` is not unique", and it points at the **seed-side** work rather than at the chart.
+
+**The cell that decides whether E1B is a negative at all** has not printed: *chart k=12, seed FREE, full `A_T`.*
+Under the product it is 1344. If the full-`A_T` version returns at or near zero, **a chart plus the full release
+pins the data even with the seed free, and E1B is not a negative in the attack's actual configuration.** If it
+stays large, the negative stands and is specifically a **seed**-identifiability negative. Nothing about E1B's
+verdict may be written until that number exists.
+
+Also confirmed a second time at a different shape: reduced equals unreduced (72 = 72) once the same equations are
+fitted — A13's withdrawal of my reduction claim holds at `m = 40` as well as `m = 20`.
+
+## A16 — The two decompositions reconcile; my "N factors out" was wrong (yoado-b3)
+
+Both splits of the seed give the same formula — one splits by the `r` index, the other by the `d` index, the pinned
+block cancels one-for-one either way, and both leave `dN − N·(bracket)`. **No cancelling errors on either side.**
+
+`nullity = N·[d − (m − 1 + r − N)]`, zero exactly when `m + r ≥ d + N + 1` — the capacity line with the chart
+dimension replaced by the representation dimension.
+
+**My claim that `N` factors out and the batch cannot help was wrong.** `N` appears twice, as multiplier and inside
+the bracket, so `∂(nullity)/∂N = d − m + 1 − r + 2N` = 37 here: shrinking the batch **does** lower the nullity, to
+100 at `N=4` and 22 at `N=1`. It never reaches zero, because the bracket at `m=20` is `21 + N > 0` for every
+`N ≥ 1`. **So the conclusion stands — only the head closes it — and my reason for it did not.**
+
+Sweep 350944 is submitted with predictions fixed in the script header before any row: head widths 40/48/49/64
+predicting 72/8/0/0, and batches 4/1 predicting 100/22. The **8 → 0 step between adjacent head widths** is the
+sharp falsifier.
+
+## A17 — Operational: a job that prints only at the end is how 697344 sat unread for ten days
+
+`experiments/e1b/e1b_lm.py` emits one line after every start and every iteration completes, so three arms will be
+silent for hours and then speak once. That is the exact shape of the ten-day failure: nothing to watch while it
+runs and nothing prompting anyone when it lands. **A per-start flush makes a job self-announcing instead of
+dependent on someone remembering it exists.** Worth doing once, in the harness, not per job.
