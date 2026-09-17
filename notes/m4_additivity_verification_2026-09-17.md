@@ -99,9 +99,14 @@ usable is `248`, which gives the corrected upper bound `d_2 + q_1 = 220 + 248 = 
 **below** it (`445 @ 1e-10`, climbing from `345 @ 1e-6`) — consistent with the corrected law **as an upper bound**,
 tolerance-limited, but **not** an exact numeric confirmation.
 
-**Robust, alignment-free facts** (these hold regardless of the mapping): (i) cumulative usable **saturates** with
-depth — later layers add ≈ 0 (`445 → 445` at layers 3, 4) — and (ii) the saturation value is strongly
-tolerance-dependent. Both are the corrected law's nesting-ceiling signature and neither is predicted by
-T5.2-as-equality; neither is a measured confirmation. **A clean real-scale discrimination needs an instrumented run
-that records `d_j`, `q_l`, and the stacked rank together per config, across a pre-registered tolerance ladder.**
-The synthetic contracting discrimination is already done (F11: 0/12 T5.2, 12/12 corrected).
+**§19a establishes NO retrodiction — numeric OR qualitative (corrected 2026-09-17, my earlier "signature" read was
+itself an over-claim).** Saturation *per se* is NOT discriminating: T5.2 `= min(k_1, Σ q_l)` **also** predicts later
+layers adding exactly zero once `Σ q_l ≥ k_1`. Only saturation strictly **below** `k_1` distinguishes the two laws.
+The depth-7 config saturates *at* `k_1 = 138` — consistent with **both** laws. The depth-4 config is the only row
+that could saturate below `k_1`, and it is exactly the row the alignment defect corrupts. And on defect (a), the
+measured 717 exceeding a **proved** upper bound of 468 refutes the **alignment**, not the theorem (the bound is
+proved). So §19a currently supports neither law over the other. **A clean real-scale discrimination needs an
+instrumented run** that records `d_j`, `q_l`, and stacked rank **on the same row with a config key**, across a
+pre-registered tolerance ladder, and is pre-declared capable of producing saturation *at* `k_1` (the
+non-discriminating outcome) as well as below it. The synthetic contracting discrimination is already done (F11:
+0/12 T5.2, 12/12 corrected); what is missing is the magnitude by which depth falls short on a real architecture.
