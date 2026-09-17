@@ -115,8 +115,8 @@ at the truth. This is an IDENTIFIABILITY measurement and owes nothing to any sol
 | free `H` | known | full `A_T`+`B_T` | 512 | 512 | **0** |
 | free `H` | free | full `A_T`+`B_T` | 2048 | 1816 | **232** |
 | reduced seed | free | full `A_T`+`B_T` | 1025 | 793 | **232** |
-| chart `k=12` | known | full `A_T`+`B_T` | 96 | 96 | **0** |
-| chart `k=12` | free | full `A_T`+`B_T` | 1632 | 1632 | **0** |
+| chart `k=12` **(ORACLE — the release's own generating chart, not attacker-available)** | known | full `A_T`+`B_T` | 96 | 96 | **0** |
+| chart `k=12` **(ORACLE)** | free | full `A_T`+`B_T` | 1632 | 1632 | **0** |
 | free `H` | free | *v1's* `A_s@H` | 2048 | 344 | **1704** |
 | chart `k=12` | free | *v1's* `A_s@H` | 1632 | 288 | **1344** |
 
@@ -129,9 +129,11 @@ Three things follow, none of which a counting argument gave correctly:
   construction itself destroys. The reduction is a conditioning gain, not an identifiability gain.
 - **The whole ambiguity is a seed-against-`H` trade.** All 232 directions move `H`, but **0** of them move `H`
   with the seed held fixed. So with a known seed the free-`H` problem is well posed, and with a free seed it is not.
-- **The CHART is what makes the seed-free problem well posed** — `k=12` takes the nullity from 232 to 0. That is
-  why job 331384 recovers: not because replay is strong, but because the chart removes exactly the `H` directions
-  that trade against the seed.
+- **A chart CONTAINING the private representations makes the seed-free problem well posed** — `k=12` takes the
+  nullity from 232 to 0. That is why job 331384 recovers: not because replay is strong, but because the chart
+  removes exactly the `H` directions that trade against the seed. **The chart here is the release's own generating
+  chart (`H = LW + b`), so the truth lies in it by construction: an ORACLE chart, NOT attacker-available.** The
+  mechanism is established; that a public chart achieves it is not, and the oracle ladder says it does not.
 
 **P3 (seed_known, job 350929): nullity 0, so recovery is POSSIBLE and v1's total failure there was the SOLVER.
 Predict landings > 0 under LM.** If LM also returns nothing from 40 starts, the obstruction is the basin, not the
@@ -144,6 +146,30 @@ nullity measurement and must be chased as a contradiction, not reported.
 **P5 (reduced, job 350931): nullity 232, identical to seed_free. Predict it behaves like seed_free and NOT like
 seed_known.** The reduction was sold as a factor of three in search dimension; if it also changed outcomes, the
 nullity table is wrong.
+
+## 4d. Outcomes of the registered predictions (written after the rows, against §4b/§4b-bis)
+
+**P2 — HELD.** The scale pre-check was not flat: sharp machine-precision minimum at `alpha = 1` (7.5e-16), linear
+both sides, two-sided slope 0.414. Scale is first-order identifiable.
+
+**P3 — FAILED, and it is reported as failed rather than reinterpreted.** I predicted that the seed-known arm,
+having nullity 0, would land under Levenberg-Marquardt. Job 350929 finished its Gaussian family at **20 of 20,
+zero landings**, median objective 4.233e-01 against 8.872e-16 at the truth. **Nullity 0 is necessary and nowhere
+near sufficient.** The approver's instruction to expect landings there was wrong for the same reason my prediction
+was: both of us treated local identifiability as though it implied reachability.
+
+**P1 — still UNTESTED.** `c_hat` was to be 1 on this release, with any departure a harness bug. No start in the
+reduced arm converged, so every `c_hat` it reports is a stalled iterate rather than a solution and the prediction
+does not apply to them. Not a bug, not a confirmation.
+
+**P5 — NOT DISCRIMINABLE as posed, which is a defect in the prediction and not in the run.** It said the reduced
+arm should behave like seed-free and **not** like seed-known. But seed-known also returns zero landings, so all
+three arms agree at 0 and the landing count cannot separate them. The identifiability difference between the arms
+is real and was measured directly (nullity 0 against 232); landings only ever spoke to the basin, which all three
+share. A prediction phrased over an observable that cannot distinguish its two branches is unfalsifiable, and that
+should have been caught when it was registered.
+
+**P4 — pending**, job 350930 still running.
 
 ## 4c. Rank thresholds — verified, not assumed (job 688520)
 
