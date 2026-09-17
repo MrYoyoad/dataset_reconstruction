@@ -4013,3 +4013,25 @@ agreement mean something.
 
 The general form: **before reporting that a prediction was confirmed, ask what result the harness was capable of
 producing instead.** If the answer is "none", the confirmation is about the harness.
+
+
+## Three errors in one night, all the same shape: a number carried across a boundary it was defined on
+
+Each was caught, none by the person who made it, and they are the same mistake wearing different clothes.
+
+- A **feature-space** projection residual divided by a **pixel-space** landing gate — different space, different
+  release, different search.
+- A **from-near-truth** start compared with a **random** start at matched distance — matched on distance, and
+  differing by 0.6 in cosine, because a truth-plus-noise point retains alignment that a random point does not.
+- A **head-only** (L=1) identifiability cap quoted against a **multi-layer** depth threshold — the cap rises with
+  the number of adapted layers, `cap(L) = L(r−N) + (m−1)`, so an L=1 value is simply the wrong constant there.
+
+**The pattern: a quantity is defined in a configuration, and gets used in a neighbouring one where it silently
+means something else.** It is not an arithmetic error and it does not look like one — every number involved is
+correct, and the sentence reads fine.
+
+**The check that catches all three, and it is cheap:** before putting two numbers in the same expression, name the
+configuration each was measured in — space, release, adaptation depth, start family, solver — and confirm they
+agree on every axis, not just the one being compared. If they differ on any axis, the expression needs a
+justification or a different number. "They are both projection errors" and "they are both at distance 1.343" were
+each true and each insufficient.
