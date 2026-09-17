@@ -314,6 +314,15 @@ All three passed. None could have failed. Each was found by derivation, not by l
    the `expect_rank_C` values are data, and the configurations also differ between runs — `N'` is 3,1,1,1 in one and
    3,15,15,15 in the other. The formula change is read off the expectations, not off the source.)*
 
+**INSTANCE 6 WAS WITHDRAWN — it was never an instance, and the withdrawal is its own lesson.** This seat recorded a
+"per-layer term computed through the formula under test" by reading `theory/T5`'s statement of the refuted theorem
+and **inferring** the harness's behaviour without opening the harness. `real_encoder_ranklaw.py:175` **measures** it:
+`numrank(sv_q, 1e-10)`, the singular-value rank of `C_l M_l`, which is T5's definition. **Reasoning from one file's
+source to another file's behaviour is the same failure this file names two entries below**, and it was committed
+while cataloguing that failure. **Ask for the step applies to your own catches: I had a mechanism and a plausible
+shape, and never opened the object.** What survives is smaller and real — the harness now emits the formula value
+and a match flag beside the measured one, a check capable of disagreeing, **which exists because of a false alarm.**
+
 6. **A pass on an all-NaN diverged run, inside the load-bearing check's own history.** Job 674726's
    `T2_PropA_full_cert_exact_at_large_drift` reports **`passed: true`** with **`max_rho_base: 0.00e+00`** while every
    per-layer `rho_base` is **NaN**, `exercised: None`, and the drifts are `0.0`, `8.5e73`, `1.1e148`, **`inf`**. The

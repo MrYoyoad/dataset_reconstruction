@@ -120,14 +120,18 @@ because only the head carries the simplex constraint.** At `L=1, r=64, N=8, m=11
 measured cap exactly; my earlier `+ m` gave 67, **one above a measured value**, and the table's rank column implied
 a third answer with no head term at all.
 
-**UNAUDITED INPUT — the per-layer term is inherited from the REFUTED theorem.** `theory/T5` defines
-`q_l := rank(Ctil_l M_l)` (a measurable rank), but the harness computes it as **`q_l = min(r_l − N, rank M_l)`**,
-which is T5.2's *a.s. evaluation* under its assumptions — **and T5.2 is FALSE as stated.** The refutation concerned
-the *combination* rule, not the per-layer term, so the term may well survive; **but it rests on the same assumptions
-(R2 independence, zero drift) and nobody has audited it.** Intermediate layers carry **no simplex constraint**, so
-their variety dimension need not match the head's. **This is the harness computing the quantity it is testing —
-the sixth instance of that pattern tonight. Cheap fix: measure `rank(Ctil_l M_l)` DIRECTLY and compare against
-`min(r−N, rank M_l)`.** Until that runs, `cap(L)` carries an unverified input.
+**WITHDRAWN — I claimed the harness computes the per-layer term rather than measuring it. IT MEASURES IT.**
+`real_encoder_ranklaw.py:175` computes `q_l` as `numrank(sv_q, 1e-10)` — the singular-value rank of `C_l M_l`, which
+is `theory/T5`'s definition `q_l := rank(Ctil_l M_l)`. **I asserted the opposite from reading the theory file's
+statement of T5.2 and inferring the harness's behaviour, without opening the harness.** That is reasoning from one
+file's source to another file's behaviour — **the exact failure named earlier the same evening** — and it was
+recorded here and in LESSONS as a confirmed "sixth instance" of the could-not-fail family. **It was not an instance.**
+
+**What survives, and it is a smaller and real point.** Whether the measured `q_l` agrees with T5.2's evaluation
+`min(r−N', rank M_l)` is still worth knowing, because the corrected law's *arithmetic* uses the measured value while
+the *intuition* about per-layer budgets comes from the refuted theorem. The harness now emits **`q_l_formula`** and
+**`q_l_measured_matches_formula`** per layer beside the measured value (`:210-211`), pre-registered both ways. **That
+is a genuine check — measured against formula, capable of disagreeing — and it exists because of a false alarm.**
 
 **The headline inverts.** At deployed `r = 64` (`q_l = 56`), eight adapted layers give `min(8·56+10, 417) = 417` against
 a single-layer cap of **66** — **a 6× gain in usable chart width from depth alone.** The rank table previously
