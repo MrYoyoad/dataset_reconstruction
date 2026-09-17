@@ -4154,3 +4154,39 @@ agreement — because agreement is exactly what they would have been counted as.
 **The general form: check what the harness does at its degenerate inputs, not only at its intended ones.** A
 pipeline that returns a confident answer for a network that computes nothing will also return one for a subtler
 failure you have not thought of.
+
+
+## Check the discriminating arithmetic before building the harness, not after (2026-09-18)
+
+The CNN depth-law test was specified on the existing deep conv net. The plan auditor computed the layer widths
+along the path (784 → 12544 → 6272 → 4096 → 1024 → 10) and saw that every chart width `k ≤ 784` is below every
+intermediate width, so `d_j = min(k, 784)` at all layers and the two depth laws coincide provably: no `first`/`maxL`
+config could discriminate. A builder would have produced a clean, passing, vacuous job. The fix was a new
+bottlenecked conv net (128-wide contraction mid-stack) trained to the base gate. **Rule:** for any rank-law cell,
+write down the width profile and the two predictions per config before code exists; if they agree everywhere the
+cell is a control, not a test. (The same run then showed a second thing the arithmetic did not: a conv certificate
+acts at every position, so one conv layer's `q_l` reaches the chart width and depth is moot on CNNs at zero drift.)
+
+## The truth's projection is not the chart's best point (2026-09-18, WP4 smoke)
+
+For raw privates in a chart that does not contain them, I had defined "the solver reached the chart" as reaching the
+pixel projection of the truth. The certificate objective at the recoveries was 2–300× BELOW its value at the
+projection on 8/8 images: `‖C φ(ψ(w))‖` is minimised through a nonlinear `φ`, and the pixel-nearest chart point is not
+its minimiser. A void rule built on the projection would have voided a working solver. **Rule:** when the target is
+off-chart, the reference is the chart optimum found from an oracle start, and every recovery gets two errors,
+to that optimum (solver) and to the truth (chart).
+
+## Two scripts, two RNGs, one claim (2026-09-18, found by WP3)
+
+`two_walls.py` (numpy `RandomState(seed)`) and `ladder_cell.py` (torch generator, `seed+7`) select different
+"eight motorcycles" under the same seed, and the two-walls shortfall put the fidelity from one set over the gate
+from the other. **Rule:** any claim that combines numbers from two scripts must print and diff the join-key indices
+in both; a shared `seed` argument is not a shared image set.
+
+## Do not pip-install into the shared env while lanes are running on it (2026-09-18)
+
+`pip install diffusers` into `rec` would have pulled a `peft`/`huggingface_hub` upgrade under 58 running jobs. The
+working pattern: `pip install --no-deps --target <repo>/.conda/extra_pkgs <pkg>==<pinned>` and `PYTHONPATH` set by
+the job script only; pin to a version whose import does not demand a newer `peft` (0.32.2 works beside peft 0.7.1,
+0.36.0 refuses). Also: a "smoke" that decodes through a 335 MB VAE takes 43 minutes on a shared GPU — size the
+smoke from a per-step timing, not from the word.

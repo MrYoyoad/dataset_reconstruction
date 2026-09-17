@@ -1,5 +1,44 @@
 # Project Status
 
+## 18 Sept package (WP0–WP5): what is already settled while the sweeps run (2026-09-18; jobs 355833–356051)
+
+Plan and audit: `notes/plan_2026-09-18_cnn_ranklaw_newclass_charts.md`. Five packages built by sibling sessions after
+a plan audit; everything below is read from rows, the rest is still running (WP1 final rows 355907; WP2 58 cells
+355926–355983; WP3 356034–356051; WP4 355987/355988; WP5 digits arm 355883–355896).
+
+- **Base training is now a measured gate, not a note** (`experiments/exact_inversion/BASE_TRAINING_GATE.md`, job
+  355833): `mnist_mlp_strong` (99.83 % train / CE 6.3e-3), the CIFAR CNN and the over-trained CIFAR MLP pass
+  (train acc ≥ 99.5 %, CE ≤ 1e-2); the 15-layer MNIST MLP (98.69 % / 4.9e-2), `mnist_conv_deep` and `mnist_conv` fail.
+  Fully trained twins exist (`mnist_mlp_d15w1000_full`, `mnist_conv_deep_full`, all PASS) but **nothing this round
+  substitutes them**; the depth-window rows stay on the original d15.
+- **The MNIST letters landing gate is measured** (WP5 arm a, jobs 355845–355858, `mnist_mlp_strong`, EMNIST a, r=64,
+  T=400, k=32, raw privates, 400 LM starts): recovery survives a measured chart error of 0.0069 (7/8 found) and is
+  gone at 0.0139 (0/8) and every larger error; the all-8 end does not exist (one letter is never found even in the
+  exact chart); public PCA sits at 0.3123, 0/8; the wrong-release control finds nothing with residual 4.9e-1. Same
+  shape as CIFAR, and **not** the depth-window gate (that is digits on the 15-layer net; arm b, running).
+- **On a CNN the depth question does not arise at zero drift** (WP1, bottleneck conv net trained to the gate, r=256,
+  k up to 512 read so far): a conv certificate acts at every spatial position, so the one conv layer's `q_l` equals
+  the chart width (24 certificate rows × 49 positions at conv 2) and a single conv layer pins the whole chart;
+  corrected law = T5.2 in every config (the pre-registered VACUOUS outcome), the dense-only control saturates at the
+  bottleneck width 128 with a real gap (8e7). T arm: with drifting inputs the dense layer's recorded count grows
+  7 → 15 → 18 → 21 → 26 over T = 1…400 (plateau, not N·T) and conv 4 saturates at its patch dimension 72, so its
+  certificate is empty by T=400. One digit has base softmax residual 1.4e-13 and does not imprint at small T
+  (dense `rank B_T = 7`), the "what leaks is what the model had to learn" mechanism on a fresh cell.
+- **A pretrained decoder cannot be a chart for 32×32 CIFAR on fidelity grounds alone** (WP3 smoke 355910, SD VAE
+  `sd-vae-ft-mse`): the autoencoding ceiling on the ladder's eight motorcycles is 0.055 at 8× upsampling against a
+  gate bracket of 0.0124–0.0186 → CEILING-BOUND on the pre-registered rule; the attacker-available local latent
+  chart is no better than pixel PCA (0.36 vs 0.34 at k=16); only an oracle latent anchor reaches 0.045. Full grid
+  (keyboards, letters, K and k sweeps) running.
+- **For raw privates the truth's pixel projection is NOT the chart's argmin** (WP4 smoke 355880/355915): the
+  certificate objective at the recovery is 0.003–0.57× its value at the projection on 8/8 letters, and an oracle
+  start converges to a chart point 10–80× below the projection's objective. Every bootstrap round therefore uses
+  the oracle-start chart optimum as its reference (recovery-to-optimum = solver, optimum-to-truth = chart).
+- **The two-walls fidelity numbers were measured on a different eight motorcycles than the gate** (found by WP3):
+  `experiments/e1b/two_walls.py:58` draws with `np.random.RandomState(seed)`, the ladder with a torch generator at
+  `seed+7`. On the ladder's own images pixel PCA at k=16 is 0.341, not C7's 0.2456. The C7 conclusion (no width
+  works) is unchanged in direction, but its shortfall ratios must be recomputed on the gate's images before they
+  travel. Not yet corrected in `experiments/e1b/RESULT.md` (lane 6e's file).
+
 ## Depth destroys the MEASUREMENT, not the law: identifiability stops being evaluable between depth 8 and 12 (2026-09-18; jobs 355792, 355795)
 
 Sweeping **depth alone**, with the training budget scaled by depth so deeper nets are not simply less trained:
