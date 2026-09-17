@@ -105,7 +105,24 @@ All three passed. None could have failed. Each was found by derivation, not by l
    B3-holding rows in `survival_692603`, the **9** that disagree with the rank law carry `beta` from **1.27e+21 to
    3.84e+302**, all with `diverged: False`; the **116** that agree carry a maximum `beta` of **572.9**. **An
    eighteen-order gap with nothing in between** — any threshold anywhere in it gives the identical split, which is
-   what "untuned" means when it is measured rather than asserted. The numbers were right; the row selection was never
+   what "untuned" means when it is measured rather than asserted.
+
+   **CORRECTED within the hour: the layer-0 mechanism explains ONE of those nine, not all nine.** Only the row at
+   `layer 0, delta 0.000e+00, beta 1.28e+21` is the drift-detector-cannot-fire case. **The other eight sit at layers
+   1, 2 and 3, where drift IS measured and is astronomical** — `4.8e43`, `9.5e51`, `1.2e20`, `3.4e86`, `4.5e103`,
+   `8.0e29`, `5.2e129`, and **one row at `inf`** — every one flagged `diverged: False`. They are four exploded
+   configs, and **all 16 rows of those configs read `diverged: False`**.
+
+   **And the gate should have caught them.** `survival.py` marks a config diverged if any entry is non-finite **or**
+   any representation entry exceeds `1e100`, and its own comment anticipates exactly this failure (*"at entries
+   ~1e150 the Frobenius norm itself overflows to inf"*). It fired on four **other** configs. It did not fire on
+   these four, **one of which reports infinite drift — which requires entries far above the threshold it tests.**
+   Unresolved, and not settleable from the rows: it needs an instrumented re-run.
+
+   **The operational consequence, which is the part to carry:** **`diverged: False` in that file does not mean "did
+   not diverge", and must never be used as a filter on its own.** Anything that has filtered on it — including the
+   116/9 reconstruction above, until the `beta` guard was applied — was silently including exploded configs. **The
+   guard that works is the adapter-norm one, not the flag.** The numbers were right; the row selection was never
    stated. **Under this project's rules the documentation changes, not the number.**
 3. **The sweep ran entirely inside the regime where the hypothesis cannot be wrong.** `survival_692603` has `q_l`
    **saturated at `r − N` in 180 of 180 layers** (`r=16, N=3` → `q_l = 13` everywhere). Saturation means the
