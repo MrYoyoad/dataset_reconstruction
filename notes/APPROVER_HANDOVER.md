@@ -51,6 +51,15 @@ decision does not wait on that.
   the remedy belongs to the attacker, who picks the chart. Geometry, not protection.
 - **Every audit entry carries a register**: read-function / read-rows / derived (hypotheses named) /
   read-prose (**never a PASS**). A claim about what an experiment *did* needs the function or the row.
+- **Computable-from-X and verifiable-from-X are different properties**, and the gap between them is where an
+  attacker-side claim quietly becomes an experimenter-side one. Before calling a hypothesis attacker-checkable,
+  name the quantity on each side of the equality and ask whether the attacker holds **both**. The instance:
+  `rank B_T ≤ q` holds *unconditionally*, so the attacker gets a **lower bound on q**, never a test of the
+  excitation hypothesis, which is the case of equality and needs `H`. (Rule and correction both from the W1 lane,
+  on itself — not mine, and it has been misattributed to me once already.)
+- **An audit that exists only in cross-session messages does not exist.** Every seat that passed W1 has since
+  restarted under a new name; the record survived only because it was written to disk as a *record of what each
+  seat found*, not a certification. Audits go in the repo, naming the commits they are checkable from.
 - **A number sourced only to our own prose — including a docstring — is not a measurement.** Three failures of that
   family in one day, one of them a mislabelled quantity in the brief itself (§6.1's 0.25 is a *certificate*
   residual, not a projection residual).
