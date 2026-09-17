@@ -87,3 +87,77 @@ Two examples, chosen so every figure in the talk is about the same objects: **ei
 
 **`eps` is not proportional to the error it induces.** On the motorcycle ladder the measured projection error is 0.62 of `eps` at `eps`=0.01 and 0.40 of it at `eps`=0.6: the perturbation saturates, so `eps` must not be read as an error axis anywhere.
 
+
+## mlp letter a  (13 charts) — MNIST, arm (a)
+
+**Eight EMNIST letters `a` (test split) added as a NEW CLASS to the 3-layer MNIST MLP** (`models/exact_inversion/mnist_mlp_strong.pth`), the same eight letters as the existing letters cells (join-key indices into the letter-`a` test split: `[323, 693, 173, 92, 129, 696, 298, 767]`). Same construction as the CIFAR ladders: head adapter r=64, T=400, k=32, 400 random starts, the same solver and the same landing bar, privates RAW. The gate for the letters cells and for WP4's void condition.
+
+**WP0 base-model record.** Train accuracy 99.83% (train loss 6.35e-03), test accuracy 98.21%, measured at load time on the full splits. The 'fully trained' gate of the plan is train >= 99.5% and train loss <= 1e-2: this checkpoint **passes** it.
+
+| chart | eps | measured projection error of the letters (mean, range) | landings / 400 | images found | residual at the letters (max) | median start residual | SSIM attack | SSIM ceiling | SSIM control | top-20 all landings |
+|---|---|---|---|---|---|---|---|---|---|---|
+| oracle (not attacker-available) | 0 | 0.0000  (0.0000–0.0000) | 127/400 | 7/8 | 1.1e-11 | 9.2e-04 | 0.94 | 1.00 | 0.55 | yes |
+| oracle (not attacker-available) | 0.01 | 0.0069  (0.0059–0.0116) | 151/400 | 7/8 | 1.1e-11 | 6.0e-04 | 0.99 | 0.99 | 0.57 | yes |
+| oracle (not attacker-available) | 0.02 | 0.0139  (0.0117–0.0232) | 0/400 | 0/8 | 1.1e-11 | 6.0e-04 | 0.96 | 0.97 | 0.57 | no (0/20) |
+| oracle (not attacker-available) | 0.03 | 0.0208  (0.0175–0.0348) | 0/400 | 0/8 | 1.1e-11 | 6.7e-04 | 0.92 | 0.93 | 0.56 | no (0/20) |
+| oracle (not attacker-available) | 0.05 | 0.0345  (0.0290–0.0578) | 0/400 | 0/8 | 1.1e-11 | 7.5e-04 | 0.84 | 0.85 | 0.52 | no (0/20) |
+| oracle (not attacker-available) | 0.075 | 0.0513  (0.0431–0.0863) | 0/400 | 0/8 | 1.1e-11 | 6.7e-04 | 0.75 | 0.77 | 0.53 | no (0/20) |
+| oracle (not attacker-available) | 0.1 | 0.0677  (0.0568–0.1143) | 0/400 | 0/8 | 1.1e-11 | 7.4e-04 | 0.68 | 0.70 | 0.47 | no (0/20) |
+| oracle (not attacker-available) | 0.15 | 0.0987  (0.0818–0.1684) | 0/400 | 0/8 | 1.1e-11 | 8.8e-04 | 0.59 | 0.61 | 0.44 | no (0/20) |
+| oracle (not attacker-available) | 0.2 | 0.1271  (0.1029–0.2194) | 0/400 | 0/8 | 1.1e-11 | 9.1e-04 | 0.53 | 0.56 | 0.40 | no (0/20) |
+| oracle (not attacker-available) | 0.3 | 0.1748  (0.1351–0.3102) | 0/400 | 0/8 | 1.1e-11 | 8.6e-04 | 0.46 | 0.50 | 0.37 | no (0/20) |
+| oracle (not attacker-available) | 0.4 | 0.2114  (0.1567–0.3850) | 0/400 | 0/8 | 1.1e-11 | 9.4e-04 | 0.40 | 0.47 | 0.34 | no (0/20) |
+| oracle (not attacker-available) | 0.6 | 0.2596  (0.1809–0.4923) | 0/400 | 0/8 | 1.1e-11 | 1.0e-03 | 0.34 | 0.45 | 0.33 | no (0/20) |
+| **public PCA (ATTACKER-AVAILABLE)** | — | 0.3123  (0.1871–0.6906) | 0/400 | 0/8 | 1.1e-11 | 8.7e-04 | 0.58 | 0.69 | 0.56 | no (0/20) |
+| *wrong-release control, oracle eps 0* | 0 | 0.0000 | **0/400** | **0/8** | 4.9e-01 | 7.0e-04 | 0.49 | 1.00 | 0.54 | no |
+
+
+- **The gate, two ends.** No oracle cell recovered all 8 letters (the most anywhere is 7 of 8, at projection error 0.0000), so the all-8 end does not exist on this ladder; the smallest error at which none is found is 0.0139 (eps 0.02).
+- **Where the returned image leaves the ceiling.** There is no tracking region on this example: the attack is already more than 0.05 SSIM below the chart's own ceiling at the lowest-error cell of the ladder (0.94 against 1.00 at projection error 0.0000), so the gap at that end is the search and not the chart.
+- **Where the real public chart sits.** Its projection error is 0.3123 and above the zero end (0.0139); it returns 0 of 400 landings and 0 of 8 letters.
+- **Wrong-release control.** The release trained on eight OTHER letters (indices `[328, 22, 408, 778, 565, 406, 499, 199]`) with the exactly-spanning chart of the true eight returns 0 of 400 landings and 0 of 8 letters (certificate residual at the true letters 4.9e-01).
+- **Against the CIFAR ladders.** mlp motorcycle: all-8 end 0.0000, zero end 0.0186; cnn keyboard: all-8 end none, zero end 0.0090. This example differs from both in backbone (a 784-1000-1000 MNIST MLP) *and* in data (28x28 grey letters against 32x32 colour photographs), so a gate that sits elsewhere here is a difference between constructions, not a property of 'the gate'; the three are not averaged.
+
+
+
+![ladder](../../figures/oracle_ladder/ladder_mlp_letter_a.png)
+![curve](../../figures/oracle_ladder/curve_mlp_letter_a.png)
+
+
+## d15 digits  (13 charts) — MNIST, arm (b)
+
+**Eight MNIST TEST DIGITS with their TRUE labels on the 15-layer MNIST MLP of the depth window, head adapter only (the head is NOT extended: a confident batch of known classes)** (`models/exact_inversion/mnist_mlp_d15w1000.pth`), the same eight digits as the k-sweep (`real_encoder_ranklaw.py`) (join-key indices into the MNIST test split: `[723, 923, 2619, 3739, 5981, 4186, 6644, 913]`, labels `[0, 3, 0, 3, 5, 0, 1, 9]`). Same construction as the CIFAR ladders: head adapter r=64, T=400, k=32, 400 random starts, the same solver and the same landing bar, privates RAW. Shares encoder, images and chart pool (first 50 000 train digits) with the depth window; differs from it in adapter placement (head only) and in being a confident batch.
+
+**WP0 base-model record.** Train accuracy 98.69% (train loss 4.92e-02), test accuracy 97.38%, measured at load time on the full splits. The 'fully trained' gate of the plan is train >= 99.5% and train loss <= 1e-2: this checkpoint **does NOT pass** it, and every row of this section is on that not-fully-trained base. d15 FAILED the WP0 base gate (98.69% train, CE 4.9e-2 at the time of the plan audit); used UNCHANGED because the depth window (real_encoder_ranklaw) was measured on it.
+
+**Recording strength (eps 0 cell).** rank B_T = 8, ‖B_T‖_F = 3.737e-01, ‖B_T A_T‖_F = 4.089e-01, σ_N/σ_1 of B_T = 8.7e-11; per-image softmax residual at W0 [1.5e-02, 2.5e-08, 1.4e-05, 1.0e-03, 4.4e-01, 4.2e-07, 2.2e-06, 2.3e-08] and at T [7.6e-03, 3.6e-07, 3.0e-06, 3.2e-03, 4.8e-02, 5.7e-08, 2.0e-06, 3.4e-07] — a batch the base already classifies confidently leaves a weak recording, and the ladder must be read with that in view.
+
+| chart | eps | measured projection error of the digits (mean, range) | landings / 400 | images found | residual at the digits (max) | median start residual | SSIM attack | SSIM ceiling | SSIM control | top-20 all landings |
+|---|---|---|---|---|---|---|---|---|---|---|
+| oracle (not attacker-available) | 0 | 0.0000  (0.0000–0.0000) | 0/400 | 0/8 | 7.9e-10 | 9.9e-13 | 0.59 | 1.00 | 0.62 | no (0/20) |
+| oracle (not attacker-available) | 0.01 | 0.0083  (0.0067–0.0111) | 0/400 | 0/8 | 7.9e-10 | 7.8e-13 | 0.55 | 0.99 | 0.64 | no (0/20) |
+| oracle (not attacker-available) | 0.02 | 0.0166  (0.0134–0.0222) | 0/400 | 0/8 | 7.9e-10 | 9.0e-13 | 0.55 | 0.96 | 0.63 | no (0/20) |
+| oracle (not attacker-available) | 0.03 | 0.0248  (0.0202–0.0333) | 0/400 | 0/8 | 7.9e-10 | 1.2e-12 | 0.53 | 0.93 | 0.63 | no (0/20) |
+| oracle (not attacker-available) | 0.05 | 0.0413  (0.0336–0.0554) | 0/400 | 0/8 | 7.9e-10 | 9.3e-13 | 0.53 | 0.84 | 0.60 | no (0/20) |
+| oracle (not attacker-available) | 0.075 | 0.0616  (0.0503–0.0827) | 0/400 | 0/8 | 7.9e-10 | 1.0e-12 | 0.48 | 0.74 | 0.59 | no (0/20) |
+| oracle (not attacker-available) | 0.1 | 0.0815  (0.0667–0.1095) | 0/400 | 0/8 | 7.9e-10 | 7.8e-13 | 0.46 | 0.66 | 0.59 | no (0/20) |
+| oracle (not attacker-available) | 0.15 | 0.1198  (0.0981–0.1612) | 0/400 | 0/8 | 7.9e-10 | 7.9e-13 | 0.40 | 0.54 | 0.55 | no (0/20) |
+| oracle (not attacker-available) | 0.2 | 0.1554  (0.1272–0.2097) | 0/400 | 0/8 | 7.9e-10 | 8.2e-13 | 0.36 | 0.48 | 0.51 | no (0/20) |
+| oracle (not attacker-available) | 0.3 | 0.2173  (0.1764–0.2951) | 0/400 | 0/8 | 7.9e-10 | 1.2e-12 | 0.30 | 0.41 | 0.47 | no (0/20) |
+| oracle (not attacker-available) | 0.4 | 0.2666  (0.2136–0.3645) | 0/400 | 0/8 | 7.9e-10 | 7.7e-13 | 0.28 | 0.38 | 0.45 | no (0/20) |
+| oracle (not attacker-available) | 0.6 | 0.3346  (0.2602–0.4621) | 0/400 | 0/8 | 7.9e-10 | 9.9e-13 | 0.21 | 0.36 | 0.39 | no (0/20) |
+| **public PCA (ATTACKER-AVAILABLE)** | — | 0.4165  (0.3031–0.6088) | 0/400 | 0/8 | 7.9e-10 | 4.2e-13 | 0.53 | 0.68 | 0.62 | no (0/20) |
+| *wrong-release control, oracle eps 0* | 0 | 0.0000 | **0/400** | **0/8** | 9.8e-01 | 2.5e-14 | 0.57 | 1.00 | 0.57 | no |
+
+
+- **The gate, two ends.** No oracle cell recovered all 8 digits (the most anywhere is 0 of 8, at projection error 0.0000), so the all-8 end does not exist on this ladder; the smallest error at which none is found is 0.0000 (eps 0).
+- **Where the returned image leaves the ceiling.** There is no tracking region on this example: the attack is already more than 0.05 SSIM below the chart's own ceiling at the lowest-error cell of the ladder (0.59 against 1.00 at projection error 0.0000), so the gap at that end is the search and not the chart.
+- **Where the real public chart sits.** Its projection error is 0.4165 and above the zero end (0.0000); it returns 0 of 400 landings and 0 of 8 digits.
+- **Wrong-release control.** The release trained on eight OTHER digits (indices `[848, 6969, 6498, 7865, 789, 8078, 8651, 8494]`) with the exactly-spanning chart of the true eight returns 0 of 400 landings and 0 of 8 digits (certificate residual at the true digits 9.8e-01).
+- **Against the CIFAR ladders.** mlp motorcycle: all-8 end 0.0000, zero end 0.0186; cnn keyboard: all-8 end none, zero end 0.0090. This example differs from both in backbone (the 15-layer, width-1000 MNIST MLP) *and* in data (28x28 grey digits against 32x32 colour photographs), so a gate that sits elsewhere here is a difference between constructions, not a property of 'the gate'; the three are not averaged.
+
+
+
+![ladder](../../figures/oracle_ladder/ladder_d15_digits.png)
+![curve](../../figures/oracle_ladder/curve_d15_digits.png)
+
