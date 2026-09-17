@@ -169,7 +169,31 @@ is real and was measured directly (nullity 0 against 232); landings only ever sp
 share. A prediction phrased over an observable that cannot distinguish its two branches is unfalsifiable, and that
 should have been caught when it was registered.
 
-**P4 — pending**, job 350930 still running.
+**P4 — FAILED.** I predicted the seed-free arm would show the **alias** signature: residual driven near zero at
+points with large per-image error. Job 350930 finished at **0 of 40**, objective min **1.042e-01** against
+8.872e-16 at the truth — fifteen orders above, so the solver never reached a zero at all. That is
+`optimisation failure`, not `alias`, and the nullity-232 non-identifiability it was meant to expose never got the
+chance to show itself. The reduced arm (350931) finished the same way: 0 of 40, objective min 8.455e-02.
+
+### The pattern across all five, which is worth more than any one of them
+
+**Every prediction about GEOMETRY held; every prediction about SOLVER BEHAVIOUR failed.**
+
+| | prediction | outcome |
+|---|---|---|
+| geometry | scale is first-order identifiable (P2) | **held** |
+| geometry | nullity `= N·max(0, k − (m+r−N−1))` | **held, 12/12, incl. a one-unit step** |
+| geometry | `Pi A_T = c_T Pi A_0` with `c_T` exactly 1 | **held to 3.4e-15** |
+| dynamics | seed-known lands under LM because nullity is 0 (P3) | **failed**, 0/40 |
+| dynamics | seed-free shows the alias signature (P4) | **failed**, never reached a zero |
+| dynamics | reduced behaves unlike seed-known (P5) | **not discriminable as posed** |
+
+The identifiability side of this framework is predictive to the unit. **The optimisation side is not predictable at
+all from it**, and every attempt to infer solver behaviour from geometry — mine and the approver's — was wrong.
+Nullity 0, a condition number of 10², and convergence from a 100%-relative perturbation still bought zero landings
+from 120 random starts. **Identifiability and recoverability are independent properties on this release**, and no
+result in this file should be read as licensing an inference from one to the other.
+
 
 ## 4c. Rank thresholds — verified, not assumed (job 688520)
 
