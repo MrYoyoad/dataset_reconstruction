@@ -174,6 +174,21 @@ to cosine**, and it overstated the alignment requirement: on the plane, cosine *
 while **not inflating the norm** beyond roughly 1.35×. The arms' random starts have a perfectly acceptable norm
 ratio (0.897) and a fatal cosine (≈ 0) — they fail on direction alone.
 
+**No single scalar explains the boundary — verified, so the obvious objection is foreclosed.** The three natural
+candidates all have overlapping ranges across the twenty cells (recomputed here from the construction, independently
+of yoado-a8 who raised it):
+
+| candidate scalar | converging cells | failing cells | separates? |
+|---|---|---|---|
+| relative distance to the truth | 0.742 – 1.229 | 1.127 – 1.972 | **no** |
+| component along the truth | 0.450 – 1.190 | 0.000 – 1.020 | **no** |
+| component orthogonal to it | 0.643 – 1.214 | 0.859 – 1.700 | **no** |
+
+There are outright inversions: a start at distance 1.127 fails while one at 1.229 converges. **So the boundary is
+genuinely two-dimensional and the plane is the reportable object** — not a caution about a small grid. Cosine is
+**necessary and not sufficient**: nothing below 0.30 converges at any norm, and 0.50 converges only up to a norm
+ratio of about 1.35.
+
 **The chart improves conditioning by about 7×** (18 against 120), so the chart's second job is real but modest,
 and it is not what stands between a random start and the truth.
 
