@@ -160,9 +160,29 @@ Registers: `read-rows` for the counts, `read-function` for the gate.
   representation entry exceeds `1e100`, and then returns stub rows (`layer`, `diverged` and the config only — no
   `delta`, no `rho_full`, no `B3_holds`). It fired on four *other* configs, producing the 16 stub rows already
   known. **It did not fire on these four, one of which reports infinite drift** — which the guard as written
-  should have prevented, since an infinite Frobenius norm needs entries far above `1e100`. **I have not determined
-  why**, and it cannot be settled from the rows: it needs an instrumented re-run, which belongs to the lane that
-  owns the harness.
+  should have prevented, since an infinite Frobenius norm needs entries far above `1e100`.
+
+**Two things then settled by reading the code rather than re-running it** (register `read-function`):
+
+- **The proposed cause — that the gate inspects a different collection than the drift — is REFUTED.**
+  `survival.py:49-51` computes `D = [rt[l] - H0 for rt in reps]` and `delta = max(‖d‖/‖H0‖)` over **the same
+  `reps` object** the gate iterates at `:35-38`. There is no subset mismatch, and tuning the threshold would not
+  have been hiding this particular bug because this particular bug is not there.
+- **The real structural gap: `reps` never contains the final state.** `common.py:61-64` appends the
+  representations at the *top* of each step, so `reps` holds `t = 0 … T−1` — the inputs **before** each of the `T`
+  updates — while the returned `A, B` are the parameters **after** update `T`. So the gate and the drift both look
+  only at pre-final steps, and **`beta`, computed from the returned `A[l], B[l]` at `:57`, is the only quantity in
+  the row that sees the final update at all.** That is why `beta` separates the two populations cleanly while the
+  drift-based flag misses them, and it is exactly the shape of the one layer-0 row: `delta` identically `0.000e+00`
+  with `beta` 1.28e+21 — an explosion living entirely in the parameters.
+
+**A hypothesis for the deep rows, flagged as one.** The guard is **entrywise and absolute** (`h.abs().max() >
+1e100`) while the reported drift is **relative** (`‖d‖/‖H0‖`). Where `‖H0‖ < 1` a config can report relative drift
+of `1e103` with every entry still under `1e100` — at `‖H0‖ ≈ 1e-3` the arithmetic works out exactly. If that is the
+mechanism, the threshold was never the problem and raising or lowering it would have hidden the bug rather than
+fixed it. **This is decidable by the instrumentation already requested**: record `max|entry|` as the `huge` test
+actually sees it, **and `‖H0‖`**, beside the relative drift the row reports. I have not run it; the harness belongs
+to another lane.
 
 **What this changes.** `116` is a clean count **once the adapter-norm guard is applied**, and the guard is now
 measured rather than asserted. But the divergence detector admits configs with infinite drift at depth, so
