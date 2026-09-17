@@ -148,6 +148,14 @@ ran on a shared GPU, so sub-1e-10 rungs are provisional independently of the con
 > **k\*=417 and the 1.8× ratio are CROSSINGS (tolerance choices), not integer ranks** — the honest object is then
 > the effective rank at a stated tolerance, which is **theory/T5.4's own caveat arriving for the real encoder
 > rather than only under drift** (the conjecture flagged this before it was measured — theory doing its job).
+> **6e's depth sweep (C10, jobs 355792/355795) measured the mechanism:** with the training budget controlled, the
+> law is EXACT wherever evaluable (nullity = predicted at depths 2/4/8, gaps 1e7–1e9), and the gap COLLAPSES ~7
+> orders between depth 8 and 12 (depth 12/16: gap 1.48/1.26, no measurable rank). Depth destroys the
+> *measurability*, not the law. **This net is depth 15 — past that boundary — so an absent gap at k\*=417 is the
+> EXPECTED outcome, not an inadequacy of the measurement**; the effective-rank framing is the correct one, and
+> 355778 additionally tests whether the frozen zero-drift certificate keeps a gap at depth 15 where 6e's
+> trained-release Jacobian loses it.
+>
 > **What survives, and its exact scope (6e's exact-vs-effective distinction).** T5.2 and the corrected law are
 > **exact-arithmetic** rank claims. On the SYNTHETIC net their exact ranks are well-defined (F11: real gap, 0/12
 > vs 12/12 on integer ranks) and **T5.2 is refuted there**. On THIS real deep φ the exact rank is **not
