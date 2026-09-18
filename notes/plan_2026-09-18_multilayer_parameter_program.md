@@ -130,3 +130,54 @@ runner exists for MLP/conv; ResNet/ViT trainers do not). P7 and P8 reuse saved r
 Ground rules carried over: never quote a rank without its gap; never edit a harness under a running job; twins,
 not the failing d15 original; three seeds before a number enters the ledger; the solve's verdict keeps
 `recovered` / `optimisation failure` / `alias` apart.
+
+---
+
+## Audit 2026-09-18 (sibling, read-only) — corrections that SUPERSEDE the text above
+
+Status after audit: **P1, P4 buildable** (rank-law harnesses + flags); **P2(i), P7, P8 buildable** with the fixes
+below; **P3, P6 need a new harness**; **P5** needs an activation flag through trainer, loader, both harnesses and the
+gate; **P2(ii)/(iii)** need trainers that do not exist and P2(iii) is vacuous by arithmetic at N = 8. Build order:
+P4 → P1 → P8/P7 → P3 harness → P6 on it → P2(i) → P5 → P2(ii)/(iii).
+
+1. **P3 layer set.** `mnist_mlp_strong` is 784-1000-1000-10: three weight layers, layer 3 is the softmax head
+   (`rank B_T ≤ m − 1 = 9`, contaminated by construction for T > 1). Use the **d15 twin** with `l ∈ {2, 4, 8}` and
+   layer `l − 1` also adapted; the strong MLP only as `l = 2` (and `l = 3` pre-registered "contaminated").
+2. **P3 Rule A gets a third branch.** Where `rank B_T < N'_l` the residual is O(1) with no small parameter
+   (RESULTS §3, T2 Cor A.1): outcome `contaminated`, keyed on `rank B_T` vs `N'_l`, before any rank test. State which
+   certificates enter the solve: the adapted layer `l − 1` has its own exact certificate (frozen input) and if it is
+   stacked the pinned width is the sum. Local condition is `≥ k`; global alias-freedom is strict `k < p`.
+3. **P3 Rule B priors.** `ε_land` is measured in-cell at zero drift, not carried from memory. `K_l = 0.082` is one
+   synthetic net; T3's closed form gives ≈ 0.5 in slow drift, so no factor-3 band is pre-registered around 0.08 —
+   the deliverable is the measured `K_l` per net and whether the step curve is single-valued in `K_l·δ_perp/ε_land`.
+4. **P6 decay grid.** At lr 0.01, `λ ≤ 1e-2` gives seed scale `(1 − ηλ)^T ≥ 0.96` at T = 400: the grid is a no-op.
+   In exact arithmetic the off-span block is `(1 − ηλ)^T A_0`, so `rank C = r − q` at every finite T; the only true
+   collapse is the `ηλ = 1` corner (Counterexample 5.1). Sweep `ηλT` log-spaced to ≈ 20 plus the `ηλ = 1` corner;
+   report rank at a floor tied to `(1 − ηλ)^T ‖A_0‖` AND at the `‖A_T‖` floor separately; pre-register "residual at
+   floor, rank unchanged" as the exact prediction and the floor-driven rank loss as the numerical (deployment) one.
+   Momentum: `N'` is the span of the layer INPUTS, so momentum moves it only through the upstream adapter; keep the
+   conjecture label. No real-net release loop has momentum/wd today (small port).
+5. **P1 provenance.** The capacity line is measured at `r ∈ {8, 16, 32}` (job 568095) and `N ∈ {4, 8, 12}`
+   (469120); what is r-unvaried is `cap(L)` (355531, r = 108). Add `r = 108` on the twin as a bridge cell to
+   365681/355531 (which used the failing original). CNN: pre-register the live-module set per r from the measured
+   `N'_l = [9, 232, 117, 32, 8, 8]` (conv 2 vacuous for r ≤ 232, conv 3 for r ≤ 117, conv 4 for r ≤ 32; at r = 8
+   every module is rank 0 and the cell tests nothing). "L·56" is the dense count only.
+6. **P1/P4 verdicts.** Never "±1": `gap_at_corrected > 1e3` ⇒ compare the integer; else third outcome
+   `no-gap / vacuous for the rank test`, ladder reported. A P4 miss under the corrected law is consistent with the
+   recorded ~6% under-prediction and is NOT by itself a finding against nesting. Three seeds (`--seed` list).
+7. **P2.** Conv 1 died by `N' = p_l = 9` (patch dimension saturated), not by r. A patch-4 ViT at N = 8 has
+   65 × 8 = 520 token-columns > any r ≤ 256: every attention adapter vacuous by arithmetic — pre-register VACUOUS or
+   choose `N · tokens < min(r, d)`. No ResNet/ViT trainer exists; the CIFAR CNN has a head-only slot. P2(i) on
+   `mnist_conv_deep_full` (`--spec deep`) is buildable now.
+8. **P5.** GELU is hard-coded in `train_strong_backbone.py`, `train_deep_backbone.py`, `deep_stack.py` and the conv
+   specs; an `--act` flag must go through trainer → checkpoint field → loader → both harnesses → gate re-run.
+9. **P7.** The head release (r = 64, N = 8) has `rank C = 56`: `k = 128` is alias-prone by construction. Use
+   `k ≤ 48` (or a stacked-layer release). SD-VAE is ceiling-bound and exists at k ∈ {16, 32, 66} only. The learned
+   chart conditioning (4.28 → 4.72 → 5.90) is on record as a correlate, not a cause.
+10. **P8.** (a) Reference is the chart optimum `x*_chart`, never the truth's projection (10–80× apart). (b) The
+    measured slot collapse is **coverage** (8 slots → 2 truths, warm start = best start, alias flag 0 in 27/32
+    slot-rounds): re-state as coverage/basin with alias as the falsifier. (c) The round-1 chart is built after seeing
+    `C`, so `k < r − q` guarantees nothing for `V_{t+1}` or the union (and 2 × 32 > 56 regardless); the union-chart
+    number is a measurement, not a theorem test. CIFAR 355988 still running at audit time.
+11. **Feasibility.** Memory fine (0.4 GB MLP, 0.57 GB CNN per tangent set). Time ≈ 14 s/row on the MLP: P1 MLP ≈
+    576 rows ≈ 2.5 h; CNN 654 rows ≈ 1 h. Make r innermost and reuse `M_l`. `--r`/`--seed` are single ints today.
