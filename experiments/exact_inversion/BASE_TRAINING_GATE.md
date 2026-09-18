@@ -118,3 +118,21 @@ them (`cifar10_*_newclass`, `mnist_conv_deep_full`) and otherwise from `results/
 Code touched (not committed): `base_training_gate.py` (new), `train_conv_backbone.py` (new),
 `scripts/run_base_training_gate_wexac.sh` (new), `train_strong_backbone.py` (flags), `conv_certificate.train_backbone`
 (keyword-only `init / target_train_acc / min_train_loss / plateau_patience / return_stats`; positional use byte-identical).
+
+## Activation twins — P5 step 1 (2026-09-18, plan `notes/plan_2026-09-18_multilayer_parameter_program.md`)
+
+Trained from scratch with `--act {relu,tanh}` (trainers now record `act` in the checkpoint; GELU originals carry no key
+and every loader must default to gelu), same seed / optimiser / batch as the GELU originals, rule
+`--target-train-acc 0.995 --min-train-loss 1e-2 --max-epochs 300`. Training jobs 366155–366158; gate re-measure
+(FP64) jobs 366204 / 366207 — duplicate rows from the two gate jobs were removed, one row per checkpoint remains.
+
+| checkpoint | act | epochs to rule | train acc | test acc | train CE | gate |
+|---|---|---|---|---|---|---|
+| `mnist_mlp_strong_relu.pth` | relu | 8 | 99.773% | 98.36% | 7.05e-3 | **PASS** |
+| `mnist_mlp_strong_tanh.pth` | tanh | 13 | 99.710% | 97.71% | 9.22e-3 | **PASS** (loss line by < 8%) |
+| `mnist_mlp_d15w1000_relu_full.pth` | relu | 31 | 99.830% | 97.82% | 6.12e-3 | **PASS** |
+| `mnist_mlp_d15w1000_tanh_full.pth` | tanh | 66 | 99.832% | 97.81% | 9.52e-3 | **PASS** (loss line by < 5%) |
+
+Step 2 (pending): `deep_stack.inputs_of/forward_deep/run_training_deep` and the `state_dict` loaders in
+`trained_backbone.py` / `multilayer_lora.py` hard-code GELU; they must dispatch on `ck.get("act", "gelu")` before any
+rank-law or drift row is read from these twins. Until then no harness may load them.
