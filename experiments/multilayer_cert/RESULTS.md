@@ -507,3 +507,36 @@ against) — the same "= k" caveat as §6-CNN.
 class composition (three classes repeated). k = 32/128/384 cells coincide by construction (`q ≥ k` from the first
 live module) and are not listed. No solve, no attack. The corrected law's *value* is confirmed here as an integer;
 its under-prediction on the d15 MLP (§5b, ~6%) is a different net and a no-gap regime, not contradicted.
+
+## P2(i). Plain deep conv without the bottleneck (job 366150) — VACUOUS for the law test, as pre-registered; conditioning stays low — 2026-09-18
+
+*`conv_encoder_ranklaw.py --spec deep --ckpt models/exact_inversion/mnist_conv_deep_full.pth` (gate PASS twin, job
+355840), r = 256 at every module, `first ∈ {1, 3}`, patterns `prefix` and `alternate`, k ∈ {16 … 784}, seed 1, zero
+drift, no T arm. 104 RANKLAW rows, 374 s wall (short-gpu). Rows `results/multilayer_cert/ranklaw_p2i_cnn_366150.jsonl`.
+Single read, provisional.*
+
+Modules `(p_l, P_l, N'_l)`: conv 1 (9, 196, **9** — conv-vacuous), conv 2 (576, 49, 232), conv 3 (1152, 16, 117),
+conv 4 (2304, 4, 32), head (1024, 1, 8). Certificate ranks 0 / 24 / 139 / 224 / 248, residual at the truth ≤ 1e-15.
+
+| stack | k = 66 | k = 384 | k = 784 |
+|---|---|---|---|
+| prefix [1], conv 1 only | 0 (vacuous) | 0 | 0 |
+| prefix [1, 2] | 66, cond 4 | 384, cond 2e1 | 784, **cond 1e6** |
+| prefix [1 … 5] | 66, cond 1e1 | 384, cond 2e2 | 784, cond 5e2 |
+| alternate [1, 3] | 66, cond 5 | 384, cond 4e1 | 784, cond 9e1 |
+| alternate [1, 3, 5] | 66, cond 2e1 | 384, cond 2e2 | 784, cond 6e2 |
+| first = 3, any pattern | 66 | 384 | 784, cond 9e1–6e2 |
+
+Every cell: `corrected == t52 == k`, `rank@1e-10 == rank@1e-16 == k`, `rank_test_outcome = no_gap_vacuous` (nothing to
+gap against when the prediction equals the column count). **Reading.** Without the 8-channel bottleneck there is no
+contracting `d_j`, so the first live conv (conv 2: 24 rows × 49 positions = 1176 conditions per image; conv 3: 139 × 16)
+pins the chart up to the pixel space at any width, and the two depth laws never separate — the discriminating regime
+of P1-CNN needed the bottleneck's `d_j = 128` AND a small live-module row count (r = 64/128). Layer choice (prefix vs
+alternate) changes nothing in rank and little in conditioning. The one conditioning feature: conv 2 alone pinning 784
+columns is at 1e6 (1176 conditions barely covering 784 unknowns through one layer); any additional layer brings it to
+the hundreds. Compared with the bottleneck CNN at r = 256 (P1-CNN: cond 4e2–6e2 at k = 784) and the d15 MLP (1e10–1e12
+at eight stacked layers), **conv stacks are the best-conditioned certificate Jacobians measured so far**.
+
+**NOT shown.** Single seed; r = 256 only (the r-ladder that made P1-CNN discriminating was not run on this net — at
+r ∈ {64, 128} conv 2 and conv 3 are vacuous (N' = 232, 117) and conv 4 (N' = 32) would be the first live module: that
+is the cell to run if a discriminating regime on this net is wanted); no T arm; no solve.
