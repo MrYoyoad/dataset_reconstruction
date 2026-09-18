@@ -24,8 +24,8 @@ def load():
     return out
 
 
-NOUN = {"mlp_letter_a": "letters", "mlp_letter_a_full": "letters", "d15_digits": "digits"}   # every other example: "photographs"
-MNIST_EXAMPLES = ("mlp_letter_a", "mlp_letter_a_full", "d15_digits")
+NOUN = {"mlp_letter_a": "letters", "mlp_letter_a_full": "letters", "d15_letter_a": "letters", "d15_digits": "digits"}   # else "photographs"
+MNIST_EXAMPLES = ("mlp_letter_a", "mlp_letter_a_full", "d15_letter_a", "d15_digits")
 # the two MNIST arms of WP5 (plan audit 2026-09-18) answer different questions and are never quoted against each other
 MNIST_INTRO = {
     "mlp_letter_a": ("Eight EMNIST letters `a` (test split) added as a NEW CLASS to the 3-layer MNIST MLP",
@@ -34,6 +34,11 @@ MNIST_INTRO = {
     "mlp_letter_a_full": ("Eight EMNIST letters `a` (test split) added as a NEW CLASS to the over-trained twin of the 3-layer MNIST MLP",
                           "the same eight letters as the existing letters cells", "letter-`a` test split",
                           "a 784-1000-1000 MNIST MLP", "arm (a) on the `_full` twin; rows never merged with `mlp_letter_a`"),
+    "d15_letter_a": ("Eight EMNIST letters `a` (test split) added as a NEW CLASS to the 15-layer MNIST MLP of the depth window, head adapter "
+                     "only (head extended by a zero row, m=11, exactly as `mlp_letter_a`)",
+                     "the same eight letters as `mlp_letter_a` and the existing letters cells", "letter-`a` test split",
+                     "the 15-layer, width-1000 MNIST MLP", "arm (b'): the depth-window encoder with a release that RECORDS — `d15_digits` "
+                     "below was a confident batch of known classes and recorded nothing, so it gives no gate"),
     "d15_digits": ("Eight MNIST TEST DIGITS with their TRUE labels on the 15-layer MNIST MLP of the depth window, head adapter only "
                    "(the head is NOT extended: a confident batch of known classes)",
                    "the same eight digits as the k-sweep (`real_encoder_ranklaw.py`)", "MNIST test split",
@@ -311,6 +316,21 @@ def mnist_section(ex, rows, ctrl, d):
         s.append(f"**Wrong-release control.** The release trained on eight OTHER {nn} (indices `{ctrl.get('wrong_release_idx', '?')}`) "
                  f"with the exactly-spanning chart of the true eight returns {ctrl['landed']} of {ctrl['starts']} landings and "
                  f"{ctrl['images_found']} of {ctrl['N']} {nn} (certificate residual at the true {nn} {ctrl['residual_at_truths_max']:.1e}).")
+        if "floor_objective" in ctrl:
+            s.append(f"**Is the certificate degenerate on this release?** On the control the minimum start objective is "
+                     f"{ctrl['objective_min']:.1e} against the control release's own floor {ctrl['floor_objective']:.1e} "
+                     f"(ratio {ctrl['objective_min_over_floor']:.1e}; the assertion is ratio > 1e4): "
+                     + ("**non-degenerate** — random starts do not reach the floor of a release whose images are not in the chart, so a "
+                        "landing on the true release would be evidence." if ctrl.get("certificate_nondegenerate") else
+                        "**DEGENERATE** — starts reach the floor of a release that recorded none of the charted images, so a zero of the "
+                        "certificate in this chart says nothing about the release and no gate is read from this ladder."))
+        elif "objective_min" in ctrl and "residual_at_truths_max" in ctrl:
+            s.append(f"**Is the certificate degenerate on this release?** (rows predate the floor field) On the control the minimum start "
+                     f"objective is {ctrl['objective_min']:.1e}; the true-release cells' minima are "
+                     f"{min(r['objective_min'] for r in rows):.1e}–{max(r['objective_min'] for r in rows):.1e} against a truth floor of "
+                     f"{rows[0]['residual_at_truths_max']**2:.1e}"
+                     + (" — the control reaches the same level as the true release, which is the degenerate signature."
+                        if ctrl['objective_min'] < 1e2 * min(r['objective_min'] for r in rows) else "."))
     # placed beside CIFAR as a difference in construction, never pooled
     cif = []
     for cex in ("mlp_motorcycle", "cnn_keyboard"):

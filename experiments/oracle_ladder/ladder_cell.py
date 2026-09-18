@@ -51,6 +51,12 @@ EXAMPLES = {
     # 15-layer MNIST MLP; privates = the eight TEST digits at the k-sweep's join-key indices (real_encoder_ranklaw.py:
     # Generator seed+7, randperm of the test set, first N) with their TRUE labels -- a confident batch of known classes, so
     # the head is NOT extended and the recording strength (||B_T||_F, spectrum, per-image softmax residual) is in the row.
+    # the depth-window encoder with a release that RECORDS: letters "a" as a new class (head extended, m=11) on the 15-layer MLP,
+    # same eight letters and same 4800-image public pool as mlp_letter_a. d15_digits was a confident batch and recorded nothing.
+    "d15_letter_a":      dict(dataset="mnist", arch="mlp_d15", cls="a", ckpt="models/exact_inversion/mnist_mlp_d15w1000.pth",
+                              shape=(1, 28, 28), data_root="dataset_reconstruction/data",
+                              base_gate_note="d15 FAILED the WP0 base gate (98.69% train, CE 4.9e-2 at the time of the plan audit); used "
+                                             "UNCHANGED because the depth window (real_encoder_ranklaw) was measured on it"),
     "d15_digits":        dict(dataset="mnist_digits", arch="mlp_d15", cls="digits", ckpt="models/exact_inversion/mnist_mlp_d15w1000.pth",
                               shape=(1, 28, 28), data_root="dataset_reconstruction/data", n_fit=50000,
                               base_gate_note="d15 FAILED the WP0 base gate (98.69% train, CE 4.9e-2 at the time of the plan audit); used "
@@ -102,15 +108,21 @@ def load_example(ex, root, dev):
     # ---- MNIST: the 98% MLP (784-1000-1000-10, GELU) as loaded by every existing letters cell
     from experiments.exact_inversion.trained_backbone import TrainedBackbone, read_idx
     from experiments.exact_inversion.new_class import load_emnist_letters
-    bb = TrainedBackbone(ex["ckpt"], dev, "gelu")
+    if ex["arch"] == "mlp_d15":                                                  # the depth-window encoder, head input as in the k-sweep
+        from experiments.exact_inversion.deep_stack import inputs_of, load_deep
+        Ws, b1, ck = load_deep(ex["ckpt"], dev)
+        phi = lambda X: inputs_of(X, Ws, b1)[-1]; W_head = Ws[-1]; logits = lambda X: W_head @ phi(X)
+        log(f"# deep stack {ex['ckpt']}: depth {len(Ws)}, width {Ws[0].shape[0]}, checkpoint test_acc {ck.get('test_acc')}")
+    else:
+        bb = TrainedBackbone(ex["ckpt"], dev, "gelu"); phi, W_head, logits = bb.phi, bb.W0, bb.logits
     blob = torch.load(ex["ckpt"], map_location="cpu", weights_only=False)
     Xtr, ytr = read_idx(root, "train"); Xte, yte = read_idx(root, "test")
-    tr, tr_loss = acc_loss_of(bb.logits, Xtr, ytr, dev); te, _ = acc_loss_of(bb.logits, Xte, yte, dev)
+    tr, tr_loss = acc_loss_of(logits, Xtr, ytr, dev); te, _ = acc_loss_of(logits, Xte, yte, dev)
     if "train_acc" in blob: log(f"# checkpoint records train_acc {blob['train_acc']*100:.2f}%; measured now {tr*100:.2f}% (the row carries the measurement)")
     if "test_acc" in blob: log(f"# checkpoint records test_acc {blob['test_acc']*100:.2f}%; measured now {te*100:.2f}%")
     fl = load_emnist_letters(root, ex["cls"])
     Pub = torch.tensor(fl["train"][0], device=dev); Pri = torch.tensor(fl["test"][0], device=dev)
-    return bb.phi, bb.W0, Pub, Pri, f"letter_{ex['cls']}", dict(ckpt=ex["ckpt"], test_acc=te, train_acc=tr, train_loss=tr_loss), None
+    return phi, W_head, Pub, Pri, f"letter_{ex['cls']}", dict(ckpt=ex["ckpt"], test_acc=te, train_acc=tr, train_loss=tr_loss), None
 
 
 def main():
@@ -193,9 +205,12 @@ def main():
     with torch.no_grad():
         Hr = phi(X_raw)                                                            # scored against the true PRIVATES always
         res_truth = torch.linalg.norm(C @ Hr, dim=0) / torch.linalg.norm(A_T @ Hr, dim=0)
+        res_train = torch.linalg.norm(C @ H, dim=0) / torch.linalg.norm(A_T @ H, dim=0)   # at the release's OWN training images
         feat_ref = float(torch.linalg.norm(A_T @ phi(Pub[:256].T), dim=0).median())
+    floor_obj = float(res_train.max()) ** 2                                         # the objective the release's own images attain
     log(f"# release: rank B_T {Np}, rank C {int(torch.linalg.matrix_rank(C, rtol=1e-10))}, certificate residual at the privates "
-        f"max {float(res_truth.max()):.2e}")
+        f"max {float(res_truth.max()):.2e}; at the release's own training images max {float(res_train.max()):.2e} "
+        f"(floor objective {floor_obj:.1e})")
 
     # ---- the search: identical solver, starts and landing criterion in every cell
     def fun(w):
@@ -229,6 +244,13 @@ def main():
                         ssim_control=max(ssim(X_found[:, s], ctrl[:, i], shape) for s in range(0, a.starts, max(1, a.starts // 80))),
                         proj_err=float(proj_err[i])))
     mean_ = lambda v: sum(v) / len(v)
+    obj_min = float(min(r["objective"] for r in runs if not r["degenerate"]))
+    # The certificate is DEGENERATE on this release if random starts reach the release's own floor without landing: on the
+    # wrong-release control (whose training images are not in the chart) the minimum objective must sit far above the floor.
+    cert_nondegenerate = bool(obj_min > 1e4 * max(floor_obj, 1e-300))
+    log(f"# minimum start objective {obj_min:.2e} against the release's floor {floor_obj:.1e} (ratio {obj_min / max(floor_obj, 1e-300):.1e}): "
+        f"certificate {'NON-DEGENERATE' if cert_nondegenerate else 'DEGENERATE (starts reach the floor)'} on this release"
+        + ("  [wrong-release control: this is the assertion]" if a.wrong_release else ""))
     row = dict(part="oracle_ladder", example=a.example, dataset=ex["dataset"], arch=ex["arch"], class_name=cname, shape=list(shape),
                chart=("pca" if not is_oracle else "oracle"),
                eps=(None if not is_oracle else eps), attacker_available=(not is_oracle), wrong_release=a.wrong_release,
@@ -243,6 +265,8 @@ def main():
                proj_err_mean=float(proj_err.mean()), proj_err_min=float(proj_err.min()), proj_err_max=float(proj_err.max()),
                proj_err_per_image=[float(v) for v in proj_err],
                residual_at_truths_max=float(res_truth.max()), residual_at_truths=[float(v) for v in res_truth],
+               residual_at_train_max=float(res_train.max()), floor_objective=floor_obj, objective_min_over_floor=obj_min / max(floor_obj, 1e-300),
+               certificate_nondegenerate=cert_nondegenerate,
                objective_median=float(torch.tensor([r["objective"] for r in runs]).median()),
                objective_min=float(min(r["objective"] for r in runs if not r["degenerate"])),
                landed=sum(r["landed"] for r in runs), images_found=int(sum(1 for p in per if p["landed"])),

@@ -116,12 +116,52 @@ Two examples, chosen so every figure in the talk is about the same objects: **ei
 - **Where the returned image leaves the ceiling.** There is no tracking region on this example: the attack is already more than 0.05 SSIM below the chart's own ceiling at the lowest-error cell of the ladder (0.94 against 1.00 at projection error 0.0000), so the gap at that end is the search and not the chart.
 - **Where the real public chart sits.** Its projection error is 0.3123 and above the zero end (0.0139); it returns 0 of 400 landings and 0 of 8 letters.
 - **Wrong-release control.** The release trained on eight OTHER letters (indices `[328, 22, 408, 778, 565, 406, 499, 199]`) with the exactly-spanning chart of the true eight returns 0 of 400 landings and 0 of 8 letters (certificate residual at the true letters 4.9e-01).
+- **Is the certificate degenerate on this release?** (rows predate the floor field) On the control the minimum start objective is 5.9e-05; the true-release cells' minima are 1.5e-29–1.6e-04 against a truth floor of 1.2e-22.
 - **Against the CIFAR ladders.** mlp motorcycle: all-8 end 0.0000, zero end 0.0186; cnn keyboard: all-8 end none, zero end 0.0090. This example differs from both in backbone (a 784-1000-1000 MNIST MLP) *and* in data (28x28 grey letters against 32x32 colour photographs), so a gate that sits elsewhere here is a difference between constructions, not a property of 'the gate'; the three are not averaged.
 
 
 
 ![ladder](../../figures/oracle_ladder/ladder_mlp_letter_a.png)
 ![curve](../../figures/oracle_ladder/curve_mlp_letter_a.png)
+
+
+## d15 letter a  (13 charts) — MNIST, arm (b')
+
+**Eight EMNIST letters `a` (test split) added as a NEW CLASS to the 15-layer MNIST MLP of the depth window, head adapter only (head extended by a zero row, m=11, exactly as `mlp_letter_a`)** (`models/exact_inversion/mnist_mlp_d15w1000.pth`), the same eight letters as `mlp_letter_a` and the existing letters cells (join-key indices into the letter-`a` test split: `[323, 693, 173, 92, 129, 696, 298, 767]`). Same construction as the CIFAR ladders: head adapter r=64, T=400, k=32, 400 random starts, the same solver and the same landing bar, privates RAW. The depth-window encoder with a release that RECORDS — `d15_digits` below was a confident batch of known classes and recorded nothing, so it gives no gate.
+
+**WP0 base-model record.** Train accuracy 98.69% (train loss 4.92e-02), test accuracy 97.38%, measured at load time on the full splits. The 'fully trained' gate of the plan is train >= 99.5% and train loss <= 1e-2: this checkpoint **does NOT pass** it, and every row of this section is on that not-fully-trained base. d15 FAILED the WP0 base gate (98.69% train, CE 4.9e-2 at the time of the plan audit); used UNCHANGED because the depth window (real_encoder_ranklaw) was measured on it.
+
+**Recording strength (eps 0 cell).** rank B_T = 8, ‖B_T‖_F = 1.267e+00, ‖B_T A_T‖_F = 2.013e+00, σ_N/σ_1 of B_T = 1.6e-05; per-image softmax residual at W0 [1.3e+00, 1.3e+00, 1.4e+00, 9.9e-01, 1.3e+00, 1.1e+00, 1.4e+00, 1.3e+00] and at T [2.6e-04, 1.6e-06, 1.2e-04, 6.3e-02, 2.0e-03, 3.0e-04, 2.4e-05, 1.1e-03]
+
+| chart | eps | measured projection error of the letters (mean, range) | landings / 400 | images found | residual at the letters (max) | median start residual | SSIM attack | SSIM ceiling | SSIM control | top-20 all landings |
+|---|---|---|---|---|---|---|---|---|---|---|
+| oracle (not attacker-available) | 0 | 0.0000  (0.0000–0.0000) | 0/400 | 0/8 | 1.7e-14 | 2.2e-12 | 0.46 | 1.00 | 0.51 | no (0/20) |
+| oracle (not attacker-available) | 0.01 | 0.0069  (0.0059–0.0116) | 0/400 | 0/8 | 1.7e-14 | 1.4e-12 | 0.50 | 0.99 | 0.52 | no (0/20) |
+| oracle (not attacker-available) | 0.02 | 0.0139  (0.0117–0.0232) | 0/400 | 0/8 | 1.7e-14 | 1.5e-12 | 0.50 | 0.97 | 0.52 | no (0/20) |
+| oracle (not attacker-available) | 0.03 | 0.0208  (0.0175–0.0348) | 0/400 | 0/8 | 1.7e-14 | 9.0e-13 | 0.48 | 0.93 | 0.51 | no (0/20) |
+| oracle (not attacker-available) | 0.05 | 0.0345  (0.0290–0.0578) | 0/400 | 0/8 | 1.7e-14 | 1.4e-12 | 0.46 | 0.85 | 0.50 | no (0/20) |
+| oracle (not attacker-available) | 0.075 | 0.0513  (0.0431–0.0863) | 0/400 | 0/8 | 1.7e-14 | 1.7e-12 | 0.42 | 0.77 | 0.48 | no (0/20) |
+| oracle (not attacker-available) | 0.1 | 0.0677  (0.0568–0.1143) | 0/400 | 0/8 | 1.7e-14 | 1.2e-12 | 0.39 | 0.70 | 0.47 | no (0/20) |
+| oracle (not attacker-available) | 0.15 | 0.0987  (0.0818–0.1684) | 0/400 | 0/8 | 1.7e-14 | 1.6e-12 | 0.35 | 0.61 | 0.44 | no (0/20) |
+| oracle (not attacker-available) | 0.2 | 0.1271  (0.1029–0.2194) | 0/400 | 0/8 | 1.7e-14 | 9.0e-13 | 0.32 | 0.56 | 0.42 | no (0/20) |
+| oracle (not attacker-available) | 0.3 | 0.1748  (0.1351–0.3102) | 0/400 | 0/8 | 1.7e-14 | 1.1e-12 | 0.27 | 0.50 | 0.40 | no (0/20) |
+| oracle (not attacker-available) | 0.4 | 0.2114  (0.1567–0.3850) | 0/400 | 0/8 | 1.7e-14 | 1.7e-12 | 0.27 | 0.47 | 0.39 | no (0/20) |
+| oracle (not attacker-available) | 0.6 | 0.2596  (0.1809–0.4923) | 0/400 | 0/8 | 1.7e-14 | 1.4e-12 | 0.25 | 0.45 | 0.36 | no (0/20) |
+| **public PCA (ATTACKER-AVAILABLE)** | — | 0.3123  (0.1871–0.6906) | 0/400 | 0/8 | 1.7e-14 | 2.9e-12 | 0.48 | 0.69 | 0.55 | no (0/20) |
+| *wrong-release control, oracle eps 0* | 0 | 0.0000 | **0/400** | **0/8** | 8.2e-01 | 2.5e-11 | 0.49 | 1.00 | 0.50 | no |
+
+
+- **The gate, two ends.** No oracle cell recovered all 8 letters (the most anywhere is 0 of 8, at projection error 0.0000), so the all-8 end does not exist on this ladder; the smallest error at which none is found is 0.0000 (eps 0).
+- **Where the returned image leaves the ceiling.** There is no tracking region on this example: the attack is already more than 0.05 SSIM below the chart's own ceiling at the lowest-error cell of the ladder (0.46 against 1.00 at projection error 0.0000), so the gap at that end is the search and not the chart.
+- **Where the real public chart sits.** Its projection error is 0.3123 and above the zero end (0.0000); it returns 0 of 400 landings and 0 of 8 letters.
+- **Wrong-release control.** The release trained on eight OTHER letters (indices `[328, 22, 408, 778, 565, 406, 499, 199]`) with the exactly-spanning chart of the true eight returns 0 of 400 landings and 0 of 8 letters (certificate residual at the true letters 8.2e-01).
+- **Is the certificate degenerate on this release?** On the control the minimum start objective is 7.5e-15 against the control release's own floor 1.4e-28 (ratio 5.5e+13; the assertion is ratio > 1e4): **non-degenerate** — random starts do not reach the floor of a release whose images are not in the chart, so a landing on the true release would be evidence.
+- **Against the CIFAR ladders.** mlp motorcycle: all-8 end 0.0000, zero end 0.0186; cnn keyboard: all-8 end none, zero end 0.0090. This example differs from both in backbone (the 15-layer, width-1000 MNIST MLP) *and* in data (28x28 grey letters against 32x32 colour photographs), so a gate that sits elsewhere here is a difference between constructions, not a property of 'the gate'; the three are not averaged.
+
+
+
+![ladder](../../figures/oracle_ladder/ladder_d15_letter_a.png)
+![curve](../../figures/oracle_ladder/curve_d15_letter_a.png)
 
 
 ## d15 digits  (13 charts) — MNIST, arm (b)
@@ -154,6 +194,7 @@ Two examples, chosen so every figure in the talk is about the same objects: **ei
 - **Where the returned image leaves the ceiling.** There is no tracking region on this example: the attack is already more than 0.05 SSIM below the chart's own ceiling at the lowest-error cell of the ladder (0.59 against 1.00 at projection error 0.0000), so the gap at that end is the search and not the chart.
 - **Where the real public chart sits.** Its projection error is 0.4165 and above the zero end (0.0000); it returns 0 of 400 landings and 0 of 8 digits.
 - **Wrong-release control.** The release trained on eight OTHER digits (indices `[848, 6969, 6498, 7865, 789, 8078, 8651, 8494]`) with the exactly-spanning chart of the true eight returns 0 of 400 landings and 0 of 8 digits (certificate residual at the true digits 9.8e-01).
+- **Is the certificate degenerate on this release?** (rows predate the floor field) On the control the minimum start objective is 1.2e-17; the true-release cells' minima are 3.7e-18–1.3e-17 against a truth floor of 6.3e-19 — the control reaches the same level as the true release, which is the degenerate signature.
 - **Against the CIFAR ladders.** mlp motorcycle: all-8 end 0.0000, zero end 0.0186; cnn keyboard: all-8 end none, zero end 0.0090. This example differs from both in backbone (the 15-layer, width-1000 MNIST MLP) *and* in data (28x28 grey digits against 32x32 colour photographs), so a gate that sits elsewhere here is a difference between constructions, not a property of 'the gate'; the three are not averaged.
 
 
