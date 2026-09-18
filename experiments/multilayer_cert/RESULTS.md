@@ -775,10 +775,23 @@ exact certificate has beyond the number of unknowns the chart presents.
 | −1 | 4 | 0 / 0 / 1 | 3 of 4 |
 | 0 … +4 | 13 | 0 / 6 / 8 | 2 of 13 |
 | +5 … +15 | 75 | 2 / 7 / 8 | **0 of 75** |
-| > +15 | 228 | 1 / 8 / 8 | **0 of 228** |
+| > +15 | 249 | 0 / 8 / 8 | **2 of 249** (both at target layer 8 — see below) |
 
 Read across the rows: **short by two or more and nothing is ever recovered, 196 cells without exception. Five or
-more spare equations and no cell ever fails, 303 cells without exception.** Everything ambiguous lives in the
+more spare equations and no cell fails anywhere the search itself works, 322 of 324 cells.**
+
+**The two large-margin failures are SEARCH failures, not identifiability failures, and the verdict field says so.**
+Both are the deepest target (layer 8 of the deep network), **at zero drift**, with an exact certificate
+(`rho_full` 2.6e-16), margin 24, and `optimisation failure (residual not zero)` on **8 of 8 images**: the solver
+stalls about thirty times above the truth's own residual and never reaches the floor. This is the depth-kills-the-search
+behaviour already on record for this network (ledger Q10: 0/400 landings at zero chart error on the 15-layer
+encoder), not a counterexample to the margin law — the equations are there and are exact, the search cannot get to
+them. It is the clearest case today of why the three outcomes are kept apart: merged into "it didn't work" these two
+cells would have falsified a law they have no bearing on.
+
+Per target, margin > +15: deep net layer 2 → 29 cells, 0 fail · layer 4 → 49 cells, 0 fail · **layer 8 → 2 cells,
+2 fail (both search)** · shallow net hidden → 38 cells, 0 fail · shallow net head → 131 cells, 0 fail. Only two
+target-8 cells have arrived so far, so whether the search ever succeeds at that depth is open. Everything ambiguous lives in the
 seventeen cells within one equation short to four spare — the boundary, where a one-dimensional solution family can
 pass near the truth by luck (the `−1` cell that returns one image) and where a small contamination can displace the
 minimiser (both `0…+4` failures sit at margin 1, `rho_full ≈ 1e-7`, with the truncated certificate recovering 6 and
