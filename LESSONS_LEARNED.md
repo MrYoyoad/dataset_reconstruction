@@ -4227,3 +4227,21 @@ unaffected. Rules: (a) every rank of a certificate-derived matrix takes `ref = �
 J); (b) the dead guard is RELATIVE to that natural scale (say 1e-12·ref), never an absolute 1e-25; (c) pre-register
 the r = N cell as "rank 0 by arithmetic" and treat any other reading as a harness failure, not a result. Fix queued
 behind the jobs running against the file.
+
+## 2026-09-18 — a cell-level flag overwrote the per-image verdict, merging two outcomes the rules keep apart
+
+`drift_cert.py` sets `contaminated` per CELL (`rank B_T < N'`) and then writes it into every image's `verdict`. A cell
+where the truncated certificate landed 7 of 8 images inside the exact bar reports `{'contaminated': 8}` — no
+`recovered`, no `alias`. The counts are right; only the label is wrong, so nothing measured is lost, but a reader
+taking verdicts at face value would record a success as a contamination. **Rule: a cell-level hypothesis flag is a
+CONDITION on the row, never a per-image outcome.** Keep them in separate fields and let the per-image verdict be
+decided by residual-and-error as usual. Related: the three-outcome rule (recovered / optimisation failure / alias).
+
+## 2026-09-18 — under drift, giving up exactness to keep rank is the better attack
+
+Counter to the obvious reading of the theory: the full certificate is the exact one, so it looks strictly better. But
+its rank is `r − rank B_T` and `rank B_T` grows with the training span, so exactness is bought with rank, and rank is
+what identifiability needs. Measured on a real net: at `rank C ≈ k` the full certificate returns exact zeros at wrong
+images (aliases) while the truncated certificate, carrying a small first-order error, recovers 7 of 8. **When reading
+any drift cell, check `rank C` against `k` BEFORE reading the residual** — a tiny residual on a rank-starved
+certificate means nothing.

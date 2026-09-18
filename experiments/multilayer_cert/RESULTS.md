@@ -652,3 +652,44 @@ with a live conv reads `rank = k`; the bottleneck-side sets read 128 at every k.
 
 **NOT shown.** r = 256 only (P1-CNN's discriminating r = 64/128 regime was not crossed with patterns); zero drift;
 no solve; MLP patterns are job 366146 (running at write time).
+
+## P3 first cell — under drift the TRUNCATED certificate beats the full one: exactness is worth less than rank (job 366221, twin, target layer 2, seed 3) — 2026-09-18
+
+*Plan P3 (audit items 1–3). `drift_cert.py`: the layer BELOW the target is adapted too, so the target's input moves.
+`mnist_mlp_d15w1000_full`, target layer 2, lower-layer rank ∈ {4, 16, 64}, target rank 64, N = 8, k = 32 PCA,
+on-chart privates, 200 LM starts, both certificates solved on the same starts. 60 rows (15 zero-drift controls +
+45 drift cells). ONE cell of fifteen; provisional, single seed.*
+
+**Zero-drift controls:** `rho_full` at the FP64 floor, rank C = 56, 8/8 images, every r_lower and T. Harness sound.
+
+**The two failure modes separate exactly as pre-registered, and they hit different certificates.**
+
+- **Full certificate — dies by RANK.** `rank C_full = r − rank B_T`, and `rank B_T` climbs with the training span
+  until it saturates at r, where the certificate is empty. Measured: `N'` grows ≈ `N·T` until it saturates at the
+  layer width; `rank B_T` follows it to 64; `rank C` falls 56 → 47 → 31 → 6 → 0. Recovery stops when `rank C < k`,
+  not when the residual degrades. The decisive cell is `r_lower = 4, T = 20, lr = 0.01`: rank C = 31 ≈ k = 32, the
+  solver reaches the certificate's exact zero (objective 1e-27, and the truth's own residual is 6e-6), yet the
+  returned images sit 0.34 from the truth. **Exact zeros, wrong images — non-identifiability, not a search failure.**
+- **Truncated certificate — dies by ERROR, and much later.** It keeps rank 56 at every drift and pays
+  `rho_trunc ≈ K_l · eps_perp` with `K_l` = 0.006–0.031, essentially constant over three decades of drift and over
+  all three lower ranks (the pre-registered single-curve form; `K_l` is ~3× smaller here than the synthetic 0.082).
+  In the same cell it lands 132/200 starts, **7/8 images inside the exact bar and 8/8 identified top-1 by SSIM and
+  by features**, against the full certificate's 0/8.
+
+**Recovery tracks `rho_trunc` alone, across every (r_lower, T, lr) combination:** 8/8 images while `rho_trunc ≲ 1e-4`,
+partial (3–7) at 1e-4 … 7e-4, nothing beyond ~1.5e-3. Through `K_l ≈ 0.015` that is a drift threshold of roughly
+2–5 % orthogonal movement of the layer's input. **This is the predictive rule the plan asked for**, and it is stated
+in a quantity the attacker can compute from the release plus the public model.
+
+**Excitation confirmed where it holds.** One cell has `rank B_T = N' = 40` (no contamination) at 6 % drift, and there
+`rho_full` = 2.9e-15 — machine zero, against ~1e-7 at neighbouring cells. Exactness at arbitrary drift when the
+excitation hypothesis holds, in a real network. But that same cell recovers 0/8 with the full certificate (rank
+C = 24 < k) and 3/8 with the truncated one: **exactness without rank is useless.**
+
+**Reporting bug to fix (does not affect the numbers).** The per-image `verdict` is overwritten by the cell-level
+`contaminated` flag, so a cell where 7 images landed inside the bar reports `{'contaminated': 8}` instead of
+`recovered`/`alias`. The counts (`landed`, `images_found`, `err`) are correct; only the label is wrong. This merges
+outcomes the ground rules require kept apart — fix before the remaining cells are read as verdicts.
+
+**NOT shown.** One target layer, one seed, one chart width, one model; the other 14 cells are running. Privates are
+on-chart (so the chart is not the limit here). No momentum/weight decay yet.
