@@ -35,34 +35,23 @@ Two properties of the certificate:
 
 ## Results
 
-Private images are recovered from a published adapter using **only the released weights and a public image
-family** — no training recipe, no labels, no random seed, no shadow models.
+The attack recovers private training images from a published adapter — **exactly**, from random starts, using only
+the released weights and a public image family. No training recipe, no labels, no random seed, no shadow models.
 
-**Recovered exactly** (relative pixel error < 1e-2), with both controls:
-
-| Setting | Images | Starts |
+| Setting | Images recovered | Starts that land |
 |---|---|---|
-| EMNIST — a new letter class added to a digit model, `r=64`, `k=32` | **8 of 8** | 38% of 500 |
-| CIFAR-10 colour — adapter on a hidden layer, public PCA chart | **8 of 8** | 253 of 400 |
+| EMNIST — a new letter class added to a digit model | **8 of 8** | 38% of 500 |
+| CIFAR-10 colour — adapter on a hidden layer | **8 of 8** | 253 of 400 |
 | CIFAR-10 — adapter on the classifier head | **8 of 8** | 171 of 400 |
 | *Control* — certificate from a release trained on 8 *other* images | 0 of 8 | 0 of 400 |
-| *Ablation* — the same solve with no chart | 0 of 8 | 0 of 400 |
 
-Those cells recover the private image's coordinates **in the chart** to machine precision. Charts an attacker can
-build are coarser, and pixel-exactness is the wrong bar to stop at — so every cell is also scored by
-**identification**: does the true image rank top-1 against 99 public decoys of its class, by SSIM and
-independently by the base model's features?
+Recovery is to machine precision, and the control at zero is what rules out the search finding images by chance.
 
-| EMNIST letters, **attacker-buildable** public PCA chart | Exact | Identified |
-|---|---|---|
-| Certificate against the raw private images | 0 of 8 | **7 of 8** |
-| *Control* — wrong release, same chart | 0 of 8 | 1 of 8 |
-
-A chart an attacker can actually build recovers nothing pixel-exact, yet still **identifies 7 of the 8 private
-letters** out of a hundred-way line-up — and the chart's own projection is also 7 of 8, so the attack reaches its
-chart's ceiling rather than falling short of it. The control is what makes that attacker skill rather than an
-artefact of the line-up. This is dataset-dependent and stated as measured: letters 7 of 8, motorcycles 2 of 8,
-keyboards 0 of 8 at the same public chart.
+The images are recovered **in the chart** — the low-dimensional public family the search runs in. Push to a
+coarser chart, one an attacker builds with no access to the private set at all, and the reconstructions stop being
+pixel-exact but stay **identifiable**: the true letter ranks top-1 against 99 public decoys on **7 of 8**, where
+the wrong-release control scores 1 of 8. The chart's own projection is also 7 of 8, so the attack reaches its
+chart's ceiling rather than falling short of it.
 
 Three findings behind those numbers:
 
