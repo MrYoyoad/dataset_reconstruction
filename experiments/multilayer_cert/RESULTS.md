@@ -722,6 +722,36 @@ nothing at all survives above 1e-4 (against a long tail at target 2), and even b
 the deeper the adapted layer, the less drift-induced error it tolerates — consistent with the conditioning falling
 with depth measured independently in §P4-MLP, and the reason the single-number error threshold is release-specific.
 
+
+**Shallow 3-layer net (`mnist_mlp_strong`), 135 cells — two results that change the reading.**
+
+**(a) The softmax head is "contaminated" by construction and recovers anyway. The pre-registered expectation is
+REFUTED.** At a head, `rank B_T ≤ m − 1 = 10`, so the excitation hypothesis fails as soon as the training span
+exceeds ten directions: 37 of 49 head cells carry the `contaminated` flag. The theory's contamination clause (T4-C2)
+says the failure then has no small parameter — median 2.3e-4 and max 0.27 on the synthetic net. **Measured here it is
+mild and recovery is unaffected:**
+
+| head cells | `rho_full` median / max | images found median / min |
+|---|---|---|
+| contaminated (37) | 1.8e-5 / 6.0e-5 | **7 / 5** |
+| not contaminated (12) | 1.4e-13 / 1.3e-12 | 8 / 6 |
+
+Contamination costs eight orders of residual and **not one cell of recovery: all 49 head cells recover 5–8 images.**
+The reason it survives is rank, not exactness — the head's certificate keeps `rank C = r − rank B_T ≥ 54 ≫ k`
+because `rank B_T` is capped at ten. So `rank B_T < N'` is a **poor predictor of failure at a head**, which is where
+adapters actually go. *(Speculation, not measured: the unexcited directions may be the ones the loss moved along
+least, making the contamination weighted by relevance. Untested.)*
+
+**(b) Above the wall is necessary but not sufficient when the margin is thin.** At the hidden layer, 43 of 45 cells
+with `rank C ≥ k` recover — and the two that do not sit at `rank C = 33` against `k = 32`, one spare equation, both
+contaminated at `rho_full ≈ 1e-7`. In both the solver finds points **below the truth's own residual**
+(`objective_min` 1.3e-9 against `res_truth` 3.2e-6): the contamination has moved the objective's minimiser off the
+truth, exactly the truncated arm's failure mode, and one spare equation is not enough to absorb it. The truncated
+certificate recovers 6 and 8 images in those same two cells. **So the rule is `rank C ≥ k` with margin, and the
+margin needed grows with contamination** — at `rank C − k` of 20+ no cell fails, at 1 both did.
+
+Pooled necessary direction across all three targets and both networks: **no cell with `rank C ≤ k − 2` has ever
+recovered anything** (161 cells).
 **What survives, stated carefully.** The full certificate's failure is predictable from the release alone, because
 `rank C = r − rank B_T` is computable and the wall is at `k`. The truncated certificate's failure is governed by the
 drift-induced error, monotonically, but its threshold is release-specific and cannot yet be predicted from a
