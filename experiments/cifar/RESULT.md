@@ -384,70 +384,168 @@ old schema, no lora form) and 304349 (one row, dW form only) do NOT match and ar
 median as `np.median` (mean of the two middle values); the earlier rows used `torch.median` (lower middle value) — the
 per-image values are identical, e.g. mixed pca k = 16: 0.423 (old) vs 0.439 (new) from the same eight numbers.
 
-### 7.1 INTERIM table (completed cells at 2026-09-18 02:00; NTK = lora:varpro free coefficients; ctrl = median control error)
+### 7.1 INTERIM table (regenerated 2026-09-18; NTK = lora:varpro free coefficients; ctrl = median control error)
 
-| cell | base | chart | k | T | cert found | cert landed | NTK found | NTK best resid | floor | raw proj. err (median) | ctrl | source |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| mnist_a | strong | pca | 16 | 1 | 8/8 | 169/200 | 0/8 | 2.40e-2 | 2.7e-16 | 0.316† | — | 308862 |
-| mnist_a | strong | pca | 16 | 5 | 8/8 | 170/200 | 0/8 | 2.29e-2 | 3.7e-16 | 0.320 | 0.245 | 355926 |
-| mnist_a | strong | pca | 16 | 20 | 8/8 | 175/200 | 1/8 | 1.47e-2 | 3.2e-16 | 0.320 | 0.245 | 355926 |
-| mnist_a | strong | pca | 16 | 100 | 8/8 | 174/200 | 8/8 | 1.58e-3 | 4.5e-16 | 0.320 | 0.245 | 355926 |
-| mnist_a | strong | pca | 16 | 400 | 8/8 | 173/200 | 1/8 | 1.03e-2 | 7.6e-16 | 0.316† | — | 308862 |
-| mnist_a | strong | pca | 32 | 1 | 7/8 | 84/200 | 0/8 | 6.78e-3 | 2.9e-16 | 0.235† | — | 308862 |
-| mnist_a | strong | pca | 32 | 5 | 7/8 | 82/200 | 0/8 | 5.71e-3 | 3.5e-16 | 0.245 | 0.313 | 355926 |
-| mnist_a | strong | pca | 32 | 20 | 8/8 | 69/200 | 0/8 | 3.15e-3 | 4.0e-16 | 0.245 | 0.313 | 355926 |
-| mnist_a | strong | pca | 32 | 100 | 8/8 | 73/200 | 0/8 | 2.71e-3 | 3.9e-16 | 0.245 | 0.313 | 355926 |
-| mnist_a | strong | pca | 32 | 400 | 8/8 | 80/200 | 0/8 | 3.24e-3 | 8.0e-16 | 0.235† | — | 308862 |
-| mnist_a | strong | pca | 48 | 1 | 3/8 | 7/200 | 0/8 | 3.81e-3 | 2.7e-16 | 0.192† | — | 308862 |
-| mnist_a | strong | pca | 48 | 400 | 2/8 | 4/200 | 0/8 | 1.74e-3 | 9.6e-16 | 0.192† | — | 308862 |
-| mnist_a | strong | ae | 16 | 1 | 5/8 | 9/200 | 0/8 | 4.21e-2 | 3.8e-16 | 0.235† | — | 308862 |
-| mnist_t | strong | pca | 16 | 1 | 8/8 | 187/200 | 8/8 | 3.33e-3 | 2.1e-16 | 0.444 | 0.239 | 355927 |
-| mnist_t | strong | pca | 16 | 5 | 8/8 | 189/200 | 8/8 | 2.48e-3 | 3.9e-16 | 0.444 | 0.239 | 355927 |
-| mnist_t | strong | pca | 16 | 20 | 8/8 | 187/200 | 2/8 | 8.63e-3 | 3.9e-16 | 0.444 | 0.239 | 355927 |
-| mnist_mixed (2 rows) | strong | pca | 16 | 1 | 8/8 | 157/200 | 8/8 | 3.93e-3 | 3.2e-16 | 0.423† | — | 308863 |
-| mnist_mixed (2 rows) | strong | pca | 16 | 5 | 8/8 | 160/200 | 0/8 | 2.79e-2 | 3.8e-16 | 0.439 | 0.204 | 355928 |
-| mnist_mixed (2 rows) | strong | pca | 16 | 400 | 8/8 | 173/200 | 8/8 | 1.91e-3 | 9.1e-16 | 0.423† | — | 308863 |
-| mnist_mixed (2 rows) | strong | pca | 32 | 1 | 8/8 | 48/200 | 1/8 | 1.69e-2 | 2.8e-16 | 0.294† | — | 308863 |
-| mnist_mixed (2 rows) | strong | pca | 32 | 400 | 8/8 | 67/200 | 2/8 | 7.77e-3 | 9.6e-16 | 0.294† | — | 308863 |
-| mnist_mixed (2 rows) | strong | pca | 48 | 1 | 1/8 | 1/200 | 0/8 | 2.01e-2 | 2.7e-16 | 0.234† | — | 308863 |
-| mnist_mixed (2 rows) | strong | pca | 48 | 400 | 2/8 | 2/200 | 0/8 | 6.20e-3 | 8.7e-16 | 0.234† | — | 308863 |
-| mnist_mixed (2 rows) | strong | ae | 16 | 1 | 5/8 | 9/200 | 0/8 | 1.76e-1 | 2.5e-16 | 0.237† | — | 308863 |
-| mnist_mixed (2 rows) | strong | ae | 16 | 400 | 5/8 | 10/200 | 0/8 | 5.90e-2 | 8.5e-16 | 0.237† | — | 308863 |
-| mnist_mixed (2 rows) | strong | ae | 32 | 1 | 0/8 | 0/200 | 0/8 | 8.54e-2 | 2.6e-16 | 0.189† | — | 308863 |
-| mnist_mixed (2 rows) | strong | ae | 32 | 400 | 2/8 | 2/200 | 0/8 | 3.13e-2 | 7.7e-16 | 0.189† | — | 308863 |
-| mnist_mixed_samerow (1 row) | strong | pca | 16 | 1 | 8/8 | 157/200 | 0/8 | 2.66e-2 | 2.6e-16 | 0.439 | 0.204 | 355929 |
-| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 1 | 8/8 | 191/200 | 5/8 | 1.19e-2 | 3.6e-16 | 0.338 | 0.176 | 355952 |
-| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 5 | 8/8 | 191/200 | 5/8 | 1.21e-2 | 3.8e-16 | 0.338 | 0.176 | 355952 |
-| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 20 | 8/8 | 191/200 | 8/8 | 5.94e-4 | 3.0e-16 | 0.338 | 0.176 | 355952 |
-| cifar_mixed_mb_samerow (1 row) | mlp_overtrained | pca | 16 | 1 | 8/8 | 191/200 | 2/8 | 9.50e-3 | 4.1e-16 | 0.338 | 0.176 | 355968 |
+| cell | base | chart | k | T | cert found | cert landed | NTK found | NTK best resid | floor | NTK verdict | raw proj. err median (range) | ctrl | source |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| mnist_a | strong | pca | 16 | 1 | 8/8 | 169/200 | 0/8 | 2.40e-02 | 2.7e-16 | search failure | 0.316† (0.265–0.790) | — | 308862 |
+| mnist_a | strong | pca | 16 | 5 | 8/8 | 170/200 | 0/8 | 2.29e-02 | 3.7e-16 | search failure | 0.320 (0.265–0.790) | 0.245 | 355926 |
+| mnist_a | strong | pca | 16 | 20 | 8/8 | 175/200 | 1/8 | 1.47e-02 | 3.2e-16 | search failure | 0.320 (0.265–0.790) | 0.245 | 355926 |
+| mnist_a | strong | pca | 16 | 100 | 8/8 | 174/200 | 8/8 | 1.58e-03 | 4.5e-16 | recovered | 0.320 (0.265–0.790) | 0.245 | 355926 |
+| mnist_a | strong | pca | 16 | 400 | 8/8 | 173/200 | 1/8 | 1.03e-02 | 7.6e-16 | search failure | 0.316† (0.265–0.790) | — | 308862 |
+| mnist_a | strong | pca | 32 | 1 | 7/8 | 84/200 | 0/8 | 6.78e-03 | 2.9e-16 | search failure | 0.235† (0.187–0.691) | — | 308862 |
+| mnist_a | strong | pca | 32 | 5 | 7/8 | 82/200 | 0/8 | 5.71e-03 | 3.5e-16 | search failure | 0.245 (0.187–0.691) | 0.313 | 355926 |
+| mnist_a | strong | pca | 32 | 20 | 8/8 | 69/200 | 0/8 | 3.15e-03 | 4.0e-16 | search failure | 0.245 (0.187–0.691) | 0.313 | 355926 |
+| mnist_a | strong | pca | 32 | 100 | 8/8 | 73/200 | 0/8 | 2.71e-03 | 3.9e-16 | search failure | 0.245 (0.187–0.691) | 0.313 | 355926 |
+| mnist_a | strong | pca | 32 | 400 | 8/8 | 80/200 | 0/8 | 3.24e-03 | 8.0e-16 | search failure | 0.235† (0.187–0.691) | — | 308862 |
+| mnist_a | strong | pca | 48 | 1 | 3/8 | 7/200 | 0/8 | 3.81e-03 | 2.7e-16 | search failure | 0.192† (0.150–0.631) | — | 308862 |
+| mnist_a | strong | pca | 48 | 5 | 1/8 | 1/200 | 0/8 | 3.34e-03 | 3.2e-16 | search failure | 0.196 (0.150–0.631) | 0.346 | 355926 |
+| mnist_a | strong | pca | 48 | 20 | 2/8 | 4/200 | 0/8 | 1.92e-03 | 3.2e-16 | search failure | 0.196 (0.150–0.631) | 0.346 | 355926 |
+| mnist_a | strong | pca | 48 | 100 | 2/8 | 4/200 | 0/8 | 2.16e-03 | 5.2e-16 | search failure | 0.196 (0.150–0.631) | 0.346 | 355926 |
+| mnist_a | strong | pca | 48 | 400 | 2/8 | 4/200 | 0/8 | 1.74e-03 | 9.6e-16 | search failure | 0.192† (0.150–0.631) | — | 308862 |
+| mnist_a | strong | ae | 16 | 1 | 5/8 | 9/200 | 0/8 | 4.21e-02 | 3.8e-16 | search failure | 0.236 (0.195–0.565) | 0.409 | 356100 |
+| mnist_a | strong | ae | 16 | 1 | 5/8 | 9/200 | 0/8 | 4.21e-02 | 3.8e-16 | search failure | 0.235† (0.195–0.565) | — | 308862 |
+| mnist_a | strong | ae | 16 | 5 | 2/8 | 5/200 | 0/8 | 3.73e-02 | 3.6e-16 | search failure | 0.236 (0.195–0.565) | 0.409 | 355926 |
+| mnist_a | strong | ae | 16 | 20 | 2/8 | 9/200 | 0/8 | 2.83e-02 | 2.5e-16 | search failure | 0.236 (0.195–0.565) | 0.409 | 355926 |
+| mnist_a | strong | ae | 16 | 100 | 3/8 | 9/200 | 0/8 | 2.24e-02 | 4.8e-16 | search failure | 0.236 (0.195–0.565) | 0.409 | 355926 |
+| mnist_a | strong | ae | 16 | 400 | 3/8 | 8/200 | 0/8 | 2.78e-02 | 9.6e-16 | search failure | 0.236 (0.195–0.565) | 0.409 | 356100 |
+| mnist_a | strong | ae | 32 | 1 | 1/8 | 2/200 | 0/8 | 7.80e-03 | 3.4e-16 | search failure | 0.201 (0.167–0.623) | 0.420 | 356100 |
+| mnist_a | strong | ae | 32 | 5 | 1/8 | 3/200 | 0/8 | 6.85e-03 | 3.5e-16 | search failure | 0.201 (0.167–0.623) | 0.420 | 355926 |
+| mnist_a | strong | ae | 32 | 20 | 1/8 | 3/200 | 0/8 | 6.16e-03 | 3.8e-16 | search failure | 0.201 (0.167–0.623) | 0.420 | 355926 |
+| mnist_a | strong | ae | 32 | 100 | 2/8 | 3/200 | 0/8 | 6.37e-03 | 4.3e-16 | search failure | 0.201 (0.167–0.623) | 0.420 | 355926 |
+| mnist_a | strong | ae | 32 | 400 | 1/8 | 4/200 | 0/8 | 8.07e-03 | 8.4e-16 | search failure | 0.201 (0.167–0.623) | 0.420 | 356100 |
+| mnist_a | strong | ae | 48 | 1 | 0/8 | 0/200 | 0/8 | 1.20e-02 | 3.0e-16 | search failure | 0.225 (0.178–0.544) | 0.397 | 356100 |
+| mnist_a | strong | ae | 48 | 5 | 1/8 | 1/200 | 0/8 | 1.09e-02 | 3.0e-16 | search failure | 0.225 (0.178–0.544) | 0.397 | 355926 |
+| mnist_a | strong | ae | 48 | 20 | 0/8 | 0/200 | 0/8 | 5.67e-03 | 3.5e-16 | search failure | 0.225 (0.178–0.544) | 0.397 | 355926 |
+| mnist_a | strong | ae | 48 | 100 | 1/8 | 1/200 | 0/8 | 5.95e-03 | 5.2e-16 | search failure | 0.225 (0.178–0.544) | 0.397 | 355926 |
+| mnist_t | strong | pca | 16 | 1 | 8/8 | 187/200 | 8/8 | 3.33e-03 | 2.1e-16 | recovered | 0.444 (0.369–0.619) | 0.239 | 355927 |
+| mnist_t | strong | pca | 16 | 5 | 8/8 | 189/200 | 8/8 | 2.48e-03 | 3.9e-16 | recovered | 0.444 (0.369–0.619) | 0.239 | 355927 |
+| mnist_t | strong | pca | 16 | 20 | 8/8 | 187/200 | 2/8 | 8.63e-03 | 3.9e-16 | search failure | 0.444 (0.369–0.619) | 0.239 | 355927 |
+| mnist_t | strong | pca | 16 | 100 | 8/8 | 184/200 | 8/8 | 1.49e-03 | 6.0e-16 | recovered | 0.444 (0.369–0.619) | 0.239 | 355927 |
+| mnist_t | strong | pca | 16 | 400 | 8/8 | 179/200 | 8/8 | 1.26e-03 | 8.2e-16 | recovered | 0.444 (0.369–0.619) | 0.239 | 355927 |
+| mnist_t | strong | pca | 32 | 1 | 8/8 | 104/200 | 1/8 | 1.13e-02 | 2.9e-16 | search failure | 0.367 (0.245–0.470) | 0.329 | 355927 |
+| mnist_t | strong | pca | 32 | 5 | 7/8 | 102/200 | 1/8 | 5.20e-03 | 2.9e-16 | search failure | 0.367 (0.245–0.470) | 0.329 | 355927 |
+| mnist_t | strong | pca | 32 | 20 | 8/8 | 108/200 | 0/8 | 2.73e-03 | 4.3e-16 | search failure | 0.367 (0.245–0.470) | 0.329 | 355927 |
+| mnist_t | strong | pca | 32 | 100 | 8/8 | 101/200 | 0/8 | 3.01e-03 | 4.8e-16 | search failure | 0.367 (0.245–0.470) | 0.329 | 355927 |
+| mnist_t | strong | pca | 32 | 400 | 8/8 | 94/200 | 0/8 | 2.97e-03 | 8.7e-16 | search failure | 0.367 (0.245–0.470) | 0.329 | 355927 |
+| mnist_t | strong | pca | 48 | 1 | 5/8 | 11/200 | 0/8 | 3.52e-03 | 2.8e-16 | search failure | 0.304 (0.197–0.393) | 0.361 | 355927 |
+| mnist_t | strong | pca | 48 | 5 | 4/8 | 11/200 | 0/8 | 2.75e-03 | 3.1e-16 | search failure | 0.304 (0.197–0.393) | 0.361 | 355927 |
+| mnist_t | strong | pca | 48 | 20 | 5/8 | 18/200 | 0/8 | 1.61e-03 | 3.1e-16 | search failure | 0.304 (0.197–0.393) | 0.361 | 355927 |
+| mnist_mixed (2 rows) | strong | pca | 16 | 1 | 8/8 | 157/200 | 8/8 | 3.93e-03 | 3.2e-16 | recovered | 0.423† (0.372–0.590) | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 16 | 5 | 8/8 | 160/200 | 0/8 | 2.79e-02 | 3.8e-16 | search failure | 0.439 (0.372–0.590) | 0.204 | 355928 |
+| mnist_mixed (2 rows) | strong | pca | 16 | 20 | 8/8 | 175/200 | 8/8 | 2.35e-03 | 3.4e-16 | recovered | 0.439 (0.372–0.590) | 0.204 | 355928 |
+| mnist_mixed (2 rows) | strong | pca | 16 | 100 | 8/8 | 168/200 | 8/8 | 1.37e-03 | 4.3e-16 | recovered | 0.439 (0.372–0.590) | 0.204 | 355928 |
+| mnist_mixed (2 rows) | strong | pca | 16 | 400 | 8/8 | 173/200 | 8/8 | 1.91e-03 | 9.1e-16 | recovered | 0.423† (0.372–0.590) | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 32 | 1 | 8/8 | 48/200 | 1/8 | 1.69e-02 | 2.8e-16 | search failure | 0.294† (0.260–0.486) | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 32 | 5 | 8/8 | 45/200 | 0/8 | 3.49e-02 | 4.1e-16 | search failure | 0.329 (0.260–0.486) | 0.281 | 355928 |
+| mnist_mixed (2 rows) | strong | pca | 32 | 20 | 8/8 | 56/200 | 1/8 | 1.38e-02 | 3.3e-16 | search failure | 0.329 (0.260–0.486) | 0.281 | 355928 |
+| mnist_mixed (2 rows) | strong | pca | 32 | 400 | 8/8 | 67/200 | 2/8 | 7.77e-03 | 9.6e-16 | search failure | 0.294† (0.260–0.486) | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 48 | 1 | 1/8 | 1/200 | 0/8 | 2.01e-02 | 2.7e-16 | search failure | 0.234† (0.212–0.430) | — | 308863 |
+| mnist_mixed (2 rows) | strong | pca | 48 | 400 | 2/8 | 2/200 | 0/8 | 6.20e-03 | 8.7e-16 | search failure | 0.234† (0.212–0.430) | — | 308863 |
+| mnist_mixed (2 rows) | strong | ae | 16 | 1 | 5/8 | 9/200 | 0/8 | 1.76e-01 | 2.5e-16 | search failure | 0.237† (0.181–0.518) | — | 308863 |
+| mnist_mixed (2 rows) | strong | ae | 16 | 400 | 5/8 | 10/200 | 0/8 | 5.90e-02 | 8.5e-16 | search failure | 0.237† (0.181–0.518) | — | 308863 |
+| mnist_mixed (2 rows) | strong | ae | 32 | 1 | 0/8 | 0/200 | 0/8 | 8.54e-02 | 2.6e-16 | search failure | 0.189† (0.165–0.394) | — | 308863 |
+| mnist_mixed (2 rows) | strong | ae | 32 | 400 | 2/8 | 2/200 | 0/8 | 3.13e-02 | 7.7e-16 | search failure | 0.189† (0.165–0.394) | — | 308863 |
+| mnist_mixed_samerow (1 row) | strong | pca | 16 | 1 | 8/8 | 157/200 | 0/8 | 2.66e-02 | 2.6e-16 | search failure | 0.439 (0.372–0.590) | 0.204 | 355929 |
+| mnist_mixed_samerow (1 row) | strong | pca | 16 | 5 | 8/8 | 167/200 | 0/8 | 3.00e-02 | 3.2e-16 | search failure | 0.439 (0.372–0.590) | 0.204 | 355929 |
+| mnist_mixed_samerow (1 row) | strong | pca | 16 | 20 | 8/8 | 167/200 | 2/8 | 1.52e-02 | 3.1e-16 | search failure | 0.439 (0.372–0.590) | 0.204 | 355929 |
+| mnist_mixed_samerow (1 row) | strong | pca | 16 | 100 | 8/8 | 163/200 | 2/8 | 1.19e-02 | 4.8e-16 | search failure | 0.439 (0.372–0.590) | 0.204 | 355929 |
+| mnist_mixed_samerow (1 row) | strong | pca | 16 | 400 | 8/8 | 163/200 | 4/8 | 8.82e-03 | 7.9e-16 | search failure | 0.439 (0.372–0.590) | 0.204 | 355929 |
+| cifar_motorcycle | mlp_overtrained | pca | 16 | 1 | 8/8 | 189/200 | 8/8 | 2.45e-03 | 2.0e-16 | recovered | 0.343 (0.234–0.493) | 0.263 | 355930 |
+| cifar_motorcycle | mlp_overtrained | pca | 16 | 5 | 8/8 | 192/200 | 8/8 | 1.25e-03 | 3.9e-16 | recovered | 0.343 (0.234–0.493) | 0.263 | 355930 |
+| cifar_motorcycle | mlp_overtrained | pca | 16 | 20 | 8/8 | 181/200 | 8/8 | 4.77e-04 | 2.5e-16 | recovered | 0.343 (0.234–0.493) | 0.263 | 355930 |
+| cifar_bottle | mlp_overtrained | pca | 16 | 1 | 8/8 | 199/200 | 8/8 | 2.03e-03 | 2.1e-16 | recovered | 0.276 (0.088–0.348) | 0.194 | 355941 |
+| cifar_bottle | mlp_overtrained | pca | 16 | 5 | 8/8 | 197/200 | 8/8 | 1.49e-03 | 3.1e-16 | recovered | 0.276 (0.088–0.348) | 0.194 | 355941 |
+| cifar_bottle | mlp_overtrained | pca | 16 | 20 | 8/8 | 200/200 | 8/8 | 4.23e-04 | 2.3e-16 | recovered | 0.276 (0.088–0.348) | 0.194 | 355941 |
+| cifar_bottle | cnn | pca | 16 | 100 | 8/8 | 186/200 | 2/8 | 9.42e-04 | 6.1e-16 | search failure | 0.276 (0.088–0.348) | 0.194 | 355948 |
+| cifar_bottle | cnn | pca | 16 | 400 | 8/8 | 183/200 | 3/8 | 9.16e-04 | 8.8e-16 | search failure | 0.276 (0.088–0.348) | 0.194 | 355950 |
+| cifar_bottle | cnn | ae | 16 | 20 | 3/8 | 25/200 | 0/8 | 1.21e-02 | 2.9e-16 | search failure | 0.321 (0.118–0.544) | 0.158 | 355947 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 1 | 8/8 | 191/200 | 5/8 | 1.19e-02 | 3.6e-16 | search failure | 0.338 (0.147–0.436) | 0.176 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 5 | 8/8 | 191/200 | 5/8 | 1.21e-02 | 3.8e-16 | search failure | 0.338 (0.147–0.436) | 0.176 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 20 | 8/8 | 191/200 | 8/8 | 5.94e-04 | 3.0e-16 | recovered | 0.338 (0.147–0.436) | 0.176 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 100 | 8/8 | 189/200 | 8/8 | 4.98e-04 | 4.5e-16 | recovered | 0.338 (0.147–0.436) | 0.176 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 16 | 400 | 8/8 | 191/200 | 8/8 | 5.86e-04 | 9.7e-16 | recovered | 0.338 (0.147–0.436) | 0.176 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 32 | 1 | 8/8 | 144/200 | 1/8 | 1.88e-02 | 2.2e-16 | search failure | 0.291 (0.120–0.398) | 0.284 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 32 | 5 | 8/8 | 142/200 | 2/8 | 6.00e-03 | 4.0e-16 | search failure | 0.291 (0.120–0.398) | 0.284 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 32 | 20 | 8/8 | 140/200 | 2/8 | 1.10e-02 | 3.2e-16 | search failure | 0.291 (0.120–0.398) | 0.284 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 32 | 100 | 8/8 | 136/200 | 2/8 | 7.12e-03 | 5.8e-16 | search failure | 0.291 (0.120–0.398) | 0.284 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 32 | 400 | 8/8 | 141/200 | 1/8 | 1.17e-02 | 9.0e-16 | search failure | 0.291 (0.120–0.398) | 0.284 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 48 | 1 | 6/8 | 30/200 | 2/8 | 3.27e-03 | 2.9e-16 | search failure | 0.249 (0.107–0.359) | 0.312 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 48 | 5 | 8/8 | 32/200 | 2/8 | 3.05e-03 | 3.7e-16 | search failure | 0.249 (0.107–0.359) | 0.312 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 48 | 20 | 5/8 | 30/200 | 2/8 | 4.15e-03 | 3.2e-16 | search failure | 0.249 (0.107–0.359) | 0.312 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 48 | 100 | 6/8 | 35/200 | 1/8 | 4.17e-03 | 5.3e-16 | search failure | 0.249 (0.107–0.359) | 0.312 | 355952 |
+| cifar_mixed_mb (2 rows) | mlp_overtrained | pca | 48 | 400 | 6/8 | 33/200 | 0/8 | 3.83e-03 | 7.9e-16 | search failure | 0.249 (0.107–0.359) | 0.312 | 355952 |
+| cifar_mixed_mb (2 rows) | cnn | pca | 16 | 1 | 7/8 | 161/200 | 0/8 | 5.07e-03 | 2.8e-16 | search failure | 0.338 (0.147–0.436) | 0.176 | 355953 |
+| cifar_mixed_mb_samerow (1 row) | mlp_overtrained | pca | 16 | 1 | 8/8 | 191/200 | 2/8 | 9.50e-03 | 4.1e-16 | search failure | 0.338 (0.147–0.436) | 0.176 | 355968 |
+| cifar_mixed_mb_samerow (1 row) | mlp_overtrained | pca | 16 | 5 | 8/8 | 191/200 | 4/8 | 1.10e-02 | 3.8e-16 | search failure | 0.338 (0.147–0.436) | 0.176 | 355968 |
+| cifar_mixed_mb_samerow (1 row) | mlp_overtrained | pca | 16 | 20 | 8/8 | 189/200 | 5/8 | 5.32e-03 | 2.7e-16 | search failure | 0.338 (0.147–0.436) | 0.176 | 355968 |
+| cifar_mixed_mb_samerow (1 row) | mlp_overtrained | pca | 16 | 100 | 8/8 | 190/200 | 8/8 | 4.75e-04 | 5.0e-16 | recovered | 0.338 (0.147–0.436) | 0.176 | 355968 |
+| cifar_mixed_mb_samerow (1 row) | mlp_overtrained | pca | 16 | 400 | 8/8 | 190/200 | 8/8 | 4.22e-04 | 8.6e-16 | recovered | 0.338 (0.147–0.436) | 0.176 | 355968 |
+| cifar_mixed_mb_samerow (1 row) | cnn | pca | 16 | 100 | 7/8 | 148/200 | 1/8 | 1.62e-03 | 4.7e-16 | search failure | 0.338 (0.147–0.436) | 0.176 | 355978 |
+| cifar_mixed_mb_samerow (1 row) | cnn | pca | 16 | 400 | 7/8 | 151/200 | 1/8 | 1.69e-03 | 1.2e-15 | search failure | 0.338 (0.147–0.436) | 0.176 | 355981 |
+| cifar_mixed_mb_samerow (1 row) | cnn | pca_perclass | 16 | 20 | 7/8 | 122/200 | 0/8 | 5.00e-03 | 3.7e-16 | search failure | 0.314 (0.131–0.451) | 0.188 | 355977 |
+| cifar_mixed_mb_samerow (1 row) | cnn | pca_perclass | 16 | 100 | 7/8 | 121/200 | 0/8 | 5.13e-03 | 5.4e-16 | search failure | 0.314 (0.131–0.451) | 0.188 | 355980 |
 
-† torch.median convention of the earlier rows (see Reuse). "found" = images with a start within relative error 1e-2
-of the on-chart target; "landed" = starts within 1e-2 of any target. Every NTK cell above has its best residual ≥ 1e-3
-against a floor ≤ 1e-15, i.e. the row's verdict is "search failure: residual ABOVE the model floor" in every case,
-never "alias".
+† the earlier rows' median convention (`torch.median`, lower middle value); the new rows use `np.median`. "found" = images with a start within relative error 1e-2 of the on-chart target; "landed" = starts within 1e-2 of any target. Verdict is the row's own `ntk_verdict` for the main form, read literally: *search failure* = residual ABOVE the model floor, *alias* = residual AT the floor with wrong images, *recovered* = all N found.
 
-### 7.2 Within-chart comparisons (INTERIM, pooled `pca` only — no `ae` or `pca_perclass` cell of the new jobs has completed)
+### 7.2 Within-chart comparisons (INTERIM — 97 rows in; the CNN and `*_perclass` cells are only partly in)
 
-**(1) Composition, certificate.** At pca k = 16 the certificate found 8/8 in every completed composition and T:
-a (169–175/200 landed), t (187–189), mixed two-row (157–173), mixed same-row (157) — composition-blind so far, with
-no mixed cell below a single-class cell. At k = 32 the counts are also matched where both exist (a: 7–8/8; mixed:
-8/8 at T = 1, 400) and at k = 48 both collapse the same way (a 3/8, 2/8; mixed 1/8, 2/8: landed starts 1–7/200 — a
-basin effect at large k already recorded in §3b, present in single- and two-class cells alike). The same-row and two-row mixed cells land IDENTICAL start counts at T = 1 (157/200 at k = 16) — see §7.3.
+**(1) Composition, certificate.** Certificate images found, per (base, chart, k), across compositions:
 
-**(2) T trend per arm.** Certificate: flat in T at every k where rows exist (k = 16: 157–191/200 across T = 1…400 in
-all four compositions; k = 32: 69–84/200 for a, 48–67 for mixed). NTK lora:varpro: non-monotone in T and
-composition-dependent — mnist_a pca k = 16 goes 0, 0, 1, **8**, 1 of 8 at T = 1, 5, 20, 100, 400; mnist_t 8, 8, 2 at
-T = 1, 5, 20; mnist_mixed 8, 0, ·, ·, 8 at T = 1, 5, 400; CIFAR mixed (over-trained MLP) 5, 5, 8 at T = 1, 5, 20. In
-every one of these the best residual sits 13 orders above the floor, so the swings are the optimiser finding or
-missing the basin from the same 200 starts, not a change in what the release identifies. The mixed two-row cell is
-not consistently harder than the harder single-class cell for this arm (8/8 at T = 1 where mnist_a gives 0/8). The
-`dW` form stays at its floor (0.69–0.97) everywhere, as before.
+| base | chart | k | single-class cells | mixed, two rows | mixed, one row |
+|---|---|---|---|---|---|
+| mnist strong | pca | 16 | a 8/8 (T5–100), t 8/8 (T1–400) | 8/8 (T1–400) | 8/8 (T1–400) |
+| mnist strong | pca | 32 | a 7–8/8, t 7–8/8 | 8/8 (T1, 5, 20, 400) | — |
+| mnist strong | pca | 48 | a 1–2/8, t 4–5/8 | 1–2/8 | — |
+| mnist strong | ae | 16 / 32 / 48 | a 2–5/8 / 1–2/8 / 0–1/8 | 5/8 / 0–2/8 (T1, 400) | — |
+| cifar over-trained MLP | pca | 16 | motorcycle 8/8, bottle 8/8 | 8/8 (T1–400) | 8/8 (T1–400) |
+| cifar over-trained MLP | pca | 32 / 48 | — | 8/8 / 5–8/8 | — |
+| cifar CNN | pca | 16 | bottle 8/8 (T100, 400) | 7/8 (T1) | 7/8 (T100, 400) |
+| cifar CNN | pca_perclass | 16 | — | — | 7/8 (T20, 100) |
 
-**Not shown yet.** `ae` and `pca_perclass` cells (the chart comparison), k = 32/48 for t and the same-row cells, the
-CNN base (50 jobs, one per T × chart, lora:varpro only), T = 100/400 for CIFAR. mnist_a `ae` at T ∈ {1, 400} was never
-run (308862 stopped after ae k = 16 T = 1); fill-in job **356100** (`CHARTS=ae TS="1 400" bash
-experiments/cifar/submit_ntk_vs_cert.sh mnist_a`, k 16/32/48, 200 starts, otherwise identical) is queued. 308863 has
-no mnist_mixed `ae` k = 48 row; the new mnist_mixed job (355928) runs `ae` only at T = 5/20/100.
+No mixed cell is below its single-class cells at the same (base, chart, k) — the certificate is **composition-blind**
+in every completed comparison, and one row of head or two makes no difference to it. Where it does fall below 8/8 the
+cause tracks the chart, not the composition: at pca k = 48 on MNIST the collapse hits single-class and mixed alike
+(1–5 of 8; 1–18 landed starts of 200), and the spread between the two SINGLE-class cells there (a 1–2/8 vs t 4–5/8)
+is larger than any single-vs-mixed gap anywhere in the table. The CNN's 7/8 at k = 16 is likewise a base effect, not
+composition (bottle alone also loses images on the `ae` chart: 3/8).
+
+**(2) T trend per arm.** Certificate: flat in T wherever a cell has several T's — mnist_t pca k = 16 landed
+187, 189, 187, 184, 179 of 200 at T = 1, 5, 20, 100, 400; mnist_mixed_samerow 157, 167, 167, 163, 163; CIFAR
+mixed over-trained MLP 191, 191, 191, 189, 191; mnist_a pca k = 32 82, 69, 73. The images found do not move with T in
+any completed cell (the one exception is a single image at pca k = 32 T = 5, a 7/8 that is 8/8 at T = 20 and 100).
+NTK lora:varpro: strongly T-dependent and non-monotone, and its residual is 13 orders above the model floor except
+where it recovers. Examples (images found at T = 1, 5, 20, 100, 400): mnist_t pca k16 8, 8, 2, 8, 8; mnist_a pca k16
+·, 0, 1, 8, ·; mnist_mixed_samerow pca k16 0, 0, 2, 2, 4; CIFAR mixed two-row over-trained pca k16 5, 5, 8, 8, 8;
+CIFAR mixed same-row 2, 4, 5, 8, 8. Two regularities hold across cells: the free-coefficient arm improves with T on
+CIFAR (both mixed compositions reach 8/8 by T = 100), and at fixed T the same-row cell is never better than the
+two-row cell (2 vs 5 at T = 1, 4 vs 5 at T = 5, 5 vs 8 at T = 20) — the one place where composition does show, and
+it shows in the COUPLED arm, as pre-registered. The `dW` form remains at its floor (0.69–0.97) in every row.
+
+**(3) Charts (fidelity only — never recovery across charts).** Raw projection error of the true test images, median
+(range), with the release-free control beside it:
+
+| cell | base | chart | k | raw proj. err median (range) | control (median) |
+|---|---|---|---|---|---|
+| mnist_a | strong | pca | 16 / 32 / 48 | 0.320 (0.265–0.790) / 0.245 (0.187–0.691) / 0.196 (0.150–0.631) | 0.245 / 0.313 / 0.346 |
+| mnist_a | strong | ae | 16 / 32 / 48 | 0.236 (0.195–0.565) / 0.201 (0.167–0.623) / 0.225 (0.178–0.544) | 0.409 / 0.420 / 0.397 |
+| mnist_t | strong | pca | 16 / 32 / 48 | 0.444 (0.369–0.619) / 0.367 (0.245–0.470) / 0.304 (0.197–0.393) | 0.239 / 0.329 / 0.361 |
+| mnist_mixed | strong | pca | 16 / 32 | 0.439 (0.372–0.590) / 0.329 (0.260–0.486) | 0.204 / 0.281 |
+| cifar_motorcycle | mlp_overtrained | pca | 16 | 0.343 (0.234–0.493) | 0.263 |
+| cifar_bottle | mlp_overtrained / cnn | pca | 16 | 0.276 (0.088–0.348) | 0.194 |
+| cifar_bottle | cnn | ae | 16 | 0.321 (0.118–0.544) | 0.158 |
+| cifar_mixed_mb | mlp_overtrained | pca | 16 / 32 / 48 | 0.338 (0.147–0.436) / 0.291 (0.120–0.398) / 0.249 (0.107–0.359) | 0.176 / 0.284 / 0.312 |
+| cifar_mixed_mb_samerow | cnn | pca vs **pca_perclass** | 16 | 0.338 (0.147–0.436) vs **0.314 (0.131–0.451)** | 0.176 vs 0.188 |
+
+The one completed per-class/pooled pair (cifar_mixed_mb_samerow, CNN, k = 16) goes the pre-registered way on **7 of 8
+images** (motorcycle 0.358→0.345, 0.295→0.290, 0.325→0.309; bottle 0.147→0.131, 0.350→0.318, 0.168→0.147,
+0.370→0.353) and against it on one (motorcycle[56] 0.436→0.451), median 0.338 → 0.314. Two cautions on reading the
+fidelity column at all: the AE chart is better than PCA on MNIST at every k (0.20–0.24 vs 0.20–0.32) yet recovers far
+FEWER images (0–5 of 8 vs 7–8 of 8 at k ≤ 32) — fidelity and recoverability are not the same axis; and PCA fidelity
+improves with k while the certificate's recovery collapses with k (k = 48), so neither column predicts the other.
+Where the control error is BELOW the chart error (CIFAR at k = 16: 0.176–0.194 control vs 0.276–0.343 chart), a
+projection of the truth is further from the truth than some public image is — the chart, not the attack, is the
+binding limit in those cells.
 
 ### 7.3 Observation: at T = 1 the certificate does not depend on the labels (matched 157/200)
 
