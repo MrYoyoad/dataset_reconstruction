@@ -48,7 +48,14 @@ a plan audit; everything below is read from rows, the rest is still running (WP1
   interim (356034–356098):** the ceiling decides all three sets — motorcycle 0.055, keyboard 0.024, letters-a 0.021
   at 8×, i.e. 1.5–5× above the high end of each gate bracket → **CEILING-BOUND everywhere**; global latent PCA loses
   to pixel PCA at every k on every set. One new fact: on letters the attacker-available local latent chart is the
-  **first chart in this repo to beat pixel PCA at the same width** (0.170 vs 0.235 at k=32) — and still 12× the gate.
+  **first chart in this repo to beat pixel PCA at the same width** (0.102 vs 0.166 at k=66) — and still 7–15× the gate.
+  **Complete (18 cells, 72 fitted rows, 0 solver failures):** best attacker-available arm at `k ≤ 66` is 0.2550 /
+  0.2101 / 0.1022 (motorcycle / keyboard / letters). Two findings beyond the verdict. **On letters the decoder's
+  latent family DOES contain the private images to landing precision** — the oracle-anchor fit reaches 0.0092,
+  inside the 0.0069–0.0139 bracket — so there the obstruction is the attacker's anchor and the width cap, not the
+  decoder; on both CIFAR sets the decoder itself is the wall (oracle floors 0.0371 / 0.0207, above the high ends).
+  And **the attacker's anchor costs nothing**: neighbours of the truth match neighbours of the attacker's own
+  recovery everywhere (0.2941 vs 0.2916 motorcycle), so only the oracle *latent* helps, never oracle *locality*.
 - **For raw privates the truth's pixel projection is NOT the chart's argmin** (WP4 smoke 355880/355915): the
   certificate objective at the recovery is 0.003–0.57× its value at the projection on 8/8 letters, and an oracle
   start converges to a chart point 10–80× below the projection's objective. Every bootstrap round therefore uses
