@@ -181,3 +181,23 @@ P4 → P1 → P8/P7 → P3 harness → P6 on it → P2(i) → P5 → P2(ii)/(iii
     number is a measurement, not a theorem test. CIFAR 355988 still running at audit time.
 11. **Feasibility.** Memory fine (0.4 GB MLP, 0.57 GB CNN per tangent set). Time ≈ 14 s/row on the MLP: P1 MLP ≈
     576 rows ≈ 2.5 h; CNN 654 rows ≈ 1 h. Make r innermost and reuse `M_l`. `--r`/`--seed` are single ints today.
+
+---
+
+## Live state (coordinator, 2026-09-18 16:20)
+
+| package | state | job ids / owner |
+|---|---|---|
+| P4 layer subsets | **RUNNING** | 366146 (d15 twin, r 108) · 366147 (bottleneck CNN, r 256); 3 seeds, 12 patterns |
+| P1 r sweep | **RUNNING / PEND** | 366148 (twin, r 8–256 + bridge 108) · 366149 (CNN, r 8–256) |
+| P2(i) plain deep conv | PEND | 366150 (`mnist_conv_deep_full`, r 256, prefix + alternate) |
+| P3/P6 drift + momentum/wd harness | builder, new files `experiments/multilayer_cert/drift_cert.py`, `scripts/run_drift_cert_wexac.sh` | smoke pending |
+| P7/P8 charts + hand-over | builder, new files `experiments/bootstrap_chart/handover_jacobian.py`, `experiments/cifar/chart_conditioning.py`, `scripts/run_chart_program_wexac.sh` | p7/p8 submitted by the builder |
+| P5 activation | builder, TRAINER side only (`--act` on `train_strong_backbone.py`, `train_deep_backbone.py`; four checkpoints to the gate); loader/harness `act` support deferred until 366146–366150 finish | training jobs pending |
+| P2(ii) ResNet-18 | builder, new files `experiments/multilayer_cert/resnet_ranklaw.py`, `experiments/exact_inversion/train_resnet_backbone.py` | train job pending |
+| P2(iii) ViT | NOT started — pre-registered VACUOUS at N = 8 (audit item 7) | — |
+
+Infrastructure committed in 12c5927 (smokes 366139/366143 identical to 365681 on every integer field). Rows land in
+`results/multilayer_cert/ranklaw_{p4,p1,p2i}_*_<job>.jsonl`. Builders do not commit; the coordinator commits per
+package and writes RESULTS.md / STATUS / LESSONS / ledger. Verdicts: `rank_test_outcome` ∈ {compare, no_gap_vacuous,
+dead}, `rank_verdict` at the 1e-10 rung.
