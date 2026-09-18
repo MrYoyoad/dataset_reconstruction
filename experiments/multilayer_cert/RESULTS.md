@@ -737,12 +737,17 @@ exceeds ten directions: 37 of 49 head cells carry the `contaminated` flag. The t
 says the failure then has no small parameter — median 2.3e-4 and max 0.27 on the synthetic net. **Measured here it is
 mild and recovery is unaffected:**
 
-| head cells | `rho_full` median / max | images found median / min |
-|---|---|---|
-| contaminated (37) | 1.8e-5 / 6.0e-5 | **7 / 5** |
-| not contaminated (12) | 1.4e-13 / 1.3e-12 | 8 / 6 |
+| head cells | `rho_full` median / max | images found median / min | cells recovering nothing |
+|---|---|---|---|
+| contaminated (81) | 3.5e-5 / 4.9e-4 | **7 / 1** | **0** |
+| not contaminated (24) | 1.8e-13 / 1.5e-12 | 8 / 6 | **0** |
 
-Contamination costs eight orders of residual and **not one cell of recovery: all 49 head cells recover 5–8 images.**
+*(Updated as the remaining cells landed: 105 head cells now, from 49. The contaminated residual reaches 4.9e-4, and
+the weakest contaminated cell drops to 1 image of 8, so contamination does cost recovery at the margin — but
+**not one head cell in 105 recovers nothing**, and `rank C` never leaves 54–56 against `k = 32`.)*
+
+Contamination costs eight orders of residual and **no cell of recovery at all: 105 of 105 head cells recover between
+1 and 8 images.**
 The reason it survives is rank, not exactness — the head's certificate keeps `rank C = r − rank B_T ≥ 54 ≫ k`
 because `rank B_T` is capped at ten. So `rank B_T < N'` is a **poor predictor of failure at a head**, which is where
 adapters actually go. *(Speculation, not measured: the unexcited directions may be the ones the loss moved along
