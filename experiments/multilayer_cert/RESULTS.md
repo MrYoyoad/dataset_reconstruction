@@ -452,3 +452,58 @@ training the picture inverts: `rank B_{l,T}` is capped by the layer's output wid
 128 of its 232 patch directions and the 8-channel bottleneck records 8 of 117 — its drifted "certificate" has
 residual ~0.87 at the truth and is dead — while the dense modules record 7→26 images-worth of directions over
 T = 1→400 (far below `N·T`) and the first adapted layer's count never moves.
+
+## P1-CNN. Rank r for the whole network — the two depth laws discriminated on a real CNN (job 366149) — 2026-09-18
+
+*Plan: `notes/plan_2026-09-18_multilayer_parameter_program.md` P1 (audit items 5, 6, 9). Harness
+`conv_encoder_ranklaw.py` with the program flags (commit 12c5927), bottleneck CNN `mnist_conv_bottleneck.pth` (gate PASS),
+`r ∈ {8, 16, 32, 64, 128, 256}` at every module, `first ∈ {1, 3, 5}`, prefix stacks, `k ∈ {32, 128, 384, 784}`, **three
+seeds** (different eight truths per seed), zero drift, no T arm. 864 RANKLAW rows, 314 s wall (short-gpu, A40). Rows
+`results/multilayer_cert/ranklaw_p1_cnn_366149.jsonl`. Single read; provisional until a second session reads the rows.*
+
+**Live-module set per r (pre-registered from `N'_l = [9, 232, 117, 32, 8, 8]`, confirmed by the CONVLAYER rows).**
+Certificate rank per module `min(r, p_l) − N'_l`, seed 1:
+
+| r | conv 1 | conv 2 | conv 3 | conv 4 | dense | head |
+|---|---|---|---|---|---|---|
+| 8 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 16 | 0 | 0 | 0 | 0 | 8 | 8 |
+| 32 | 0 | 0 | 0 | 0 | 24 | 24 |
+| 64 | 0 | 0 | 0 | 32 | 56 | 56 |
+| 128 | 0 | 0 | 11–15 (seed) | 40 | 120 | 120 |
+| 256 | 0 | 24 | 139 | 40 | 248 | 248 |
+
+r = 8 tests nothing (control, every stack `no_gap_vacuous` at rank 0). r ≤ 32 is dense + head only.
+
+**Stacked rank at k = 784, `first = 1`, L = 6, three seeds** (`rank@1e-10` · gap at the corrected index · `cond_at_1e10`):
+
+| r | corrected law | T5.2 | measured (s1 / s2 / s3) | gap | cond@1e-10 | outcome |
+|---|---|---|---|---|---|---|
+| 16 | 16 | 16 | 16 / 16 / 16 | real | 8–10 | coincide |
+| 32 | 48 | 48 | 48 / 48 / 48 | real | 50 | coincide |
+| **64** | **128 / 127 / 128** | 208 | **128 / 127 / 128** | 8.5e7 / 2.3e4 / 4.6e9 | 2.7e7 / 4.5e4 / 5.2e5 | **compare → corrected, 3/3** |
+| **128** | **304 / 335 / 368** | 512 / 544 / 576 | **304 / 335 / 368** | 1.2e8 / 2.0e4 / 5.3e9 | 3.8e7 / 7.6e4 / 9.2e5 | **compare → corrected, 3/3** |
+| 256 | 784 | 784 | 784 / 784 / 784 | n/a (= k) | 4e2–6e2 | coincide (conv 2 pins, §6-CNN) |
+
+`first = 3` (L = 4) gives the same numbers at every r; `first = 5` (dense + head) saturates at the bottleneck width
+128 from r = 128 on, with a real gap (its r = 64 cell reads 112 = 2·56, both laws, gap real, cond 3e3–7e4).
+
+**Reading.** (1) At r = 64 and r = 128 the first non-vacuous module is conv 4 (r = 64) or conv 3 (r = 128), whose few
+certificate rows (32; 11–15) times few positions (4; 16) do NOT pin the chart, so the nesting ceiling binds and the two
+laws separate by 80–210 ranks. **The measured rank equals the corrected law's integer in 6 of 6 cells, with a real gap
+in every cell (2e4 to 5e9), and T5.2 over-predicts in 6 of 6.** The per-seed spread of the prediction (304 / 335 / 368)
+comes from conv 3's patch-span rank at each seed's eight images (rank C_3 = 11 / 13 / 15 → q_3 = 176 / 208 / 240),
+and the measurement follows it seed by seed — this is the discriminating regime the r = 256 run (§6-CNN, VACUOUS)
+did not have. It is the first exact-integer confirmation of the corrected law on a real network with a gap; the d15
+MLP confirmation (§5b/5c) was an effective-rank statement without one. (2) **Conditioning is non-monotone in r:**
+10 → 50 (dense-only pinning) → 3e7–5e5 (bottleneck-side conv pinning at r = 64/128) → 5e2 (conv 2 pinning at
+r = 256). The badly conditioned regime is exactly the discriminating one: a chart pinned by a few certificate rows
+through the 8-channel bottleneck. Seed-to-seed the condition number moves by three orders at fixed r
+(2.7e7 / 4.5e4 / 5.2e5), so a single-seed conditioning number is not a property of the architecture.
+(3) `cond_at_1e10` at r = 64, k = 128 reads 2e8 with `no_gap_vacuous` because corrected = k there (nothing to gap
+against) — the same "= k" caveat as §6-CNN.
+
+**NOT shown.** Zero drift only (the T arm was not run at these r; §6-CNN's T arm is r = 256). One trained net, one
+class composition (three classes repeated). k = 32/128/384 cells coincide by construction (`q ≥ k` from the first
+live module) and are not listed. No solve, no attack. The corrected law's *value* is confirmed here as an integer;
+its under-prediction on the d15 MLP (§5b, ~6%) is a different net and a no-gap regime, not contradicted.
