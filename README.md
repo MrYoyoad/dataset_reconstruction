@@ -47,11 +47,10 @@ the released weights and a public image family. No training recipe, no labels, n
 
 Recovery is to machine precision, and the control at zero is what rules out the search finding images by chance.
 
-The images are recovered **in the chart** — the low-dimensional public family the search runs in. Push to a
-coarser chart, one an attacker builds with no access to the private set at all, and the reconstructions stop being
-pixel-exact but stay **identifiable**: the true letter ranks top-1 against 99 public decoys on **7 of 8**, where
-the wrong-release control scores 1 of 8. The chart's own projection is also 7 of 8, so the attack reaches its
-chart's ceiling rather than falling short of it.
+The recoveries survive a much weaker attacker. Give up the good chart and rebuild one from public data only, with
+no access to the private set at all: the reconstructions are no longer pixel-exact, but they are still **the right
+images** — the true letter ranks top-1 against 99 public decoys on **7 of 8**, against 1 of 8 for a wrong-release
+control. That matches the chart's own ceiling, so what limits the attack there is the chart, not the method.
 
 Three findings behind those numbers:
 
