@@ -573,3 +573,50 @@ a coarser stage (`layer4`: 4×4 = 16 positions → `N·P = 128` at N = 8, live f
 **Full stage (job submitted 2026-09-18, A100):** r ∈ {64, 256, 1024} at N = 8 (64/256 as vacuous controls) and
 r ∈ {256, 512, 1024} at N = 4 (`N' = 256`, live from r = 257), k up to 3072, L ≤ 4. **NOT shown:** ReLU is the
 activation here (P5 axis, not a confound for exactness); single seed; no T arm; no solve; `layer4` not run.
+
+## P1-MLP. Rank r for the whole network on the 15-layer MNIST MLP twin (job 366148) — additivity exact with a gap up to the FP64 wall; wherever the laws separate there is no gap and the effective rank sits 1–6% under the corrected law — 2026-09-18
+
+*Plan P1 (audit items 5, 6, 10). `real_encoder_ranklaw.py` (commit 12c5927) on **`mnist_mlp_d15w1000_full`** (the
+gate-PASS twin; 365681/355531 used the failing original), `r ∈ {8, 16, 32, 64, 108, 256}` at every adapted layer,
+`first ∈ {1, 3}`, prefix stacks L = 1…8, `k ∈ {32, 128, 384, 784}`, three seeds, zero drift. 1152 RANKLAW rows,
+56 min wall (long-gpu A40). Rows `results/multilayer_cert/ranklaw_p1_mlp_366148.jsonl`. Single read, provisional.*
+
+**r = 8 rows are DEAD and must not be read.** With N = 8 the certificate rank is r − N' = 0, but the harness reports
+`cert_rank = 8` and a flat ladder at 8·L: `sigma_max_median` = 1.4e-15 (vs 1.07 at r = 16) — an annihilated
+certificate called full rank by the relative-only `matrix_rank(rtol=1e-10)` at `real_encoder_ranklaw.py:307` and by
+the stacked ladder's `numrank` without `ref`, exactly LESSONS 2026-09-07 ground rule 3; the 1e-25 absolute
+dead-Jacobian guard is 10 orders too low to catch it. Fix (absolute floor tied to ‖A_0‖, guard relative to
+σ₁(A_0 J_φ V)) is queued behind the jobs still running against the file; the rows stay in the file with this note.
+No other cell is affected (r − N' ≥ 8 everywhere else, σ_max ≈ 1).
+
+**Additivity, k = 784, `first = 1` (`first = 3` identical in rank, 1–2 orders worse in cond):** stacked rank =
+`L·(r − 8)`, capped at k and at the nesting ceiling, three seeds identical, gaps 1e10–1e15:
+
+| r | L = 1 | L = 2 | L = 4 | L = 8 | notes |
+|---|---|---|---|---|---|
+| 16 | 8 · cond 1 | 16 · 2–3 | 32 · 40 | 64 · 4e4 | gap 1e15 → 5e10; `compare/both` at every L |
+| 32 | 24 · 1 | 48 · 3 | 96 · 2e2 | 192 · 2e6 | gap 1e15 → 3e9; both laws |
+| 64 | 56 · 2 | 112 · 7 | 224 · 1e3 | **435 / 418 / 435 vs corrected 448 / 441 / 444** · 7e9 | L = 8: gap 3e3 / 1 / 1 — the wall |
+| 108 | 100 · 2 | 200 · 10 | 400 · 6e3 | **613 / 613 / 615 vs corrected 624 / 617 / 620** (T5.2 779) · 6e9 | no gap (1–2) |
+| 256 | 248 · 4 | 496 · 1e2 | 784 · 4e4 | 784 · 3e5 | pinned at k from L = 4 |
+
+`first = 3`, k = 784, L = 8: r = 64 → 324 / 306 / 326 vs corrected 336 / 329 / 332 (T5.2 448), no gap; **r = 108 →
+414 / 414 / 416 vs corrected 424 / 417 / 420 (T5.2 713), gap 1–2** — the k* = 417 cell of 365681 reproduced on the
+gate-PASS twin (original: 402 at 1e-10, gap 1.6); r = 256, L ≥ 4 → 688 / 678 / 672 vs corrected 720 / 713 / 716 (T5.2
+784), no gap, cond 9e9.
+
+**Readings.** (1) **Depth adds `r − N` per layer exactly, with a real gap, for as long as the conditioning stays
+below ≈ 1e9–1e10**; every `compare` cell reads `both` (laws coincide) with the measured integer equal to the
+prediction, 3/3 seeds. (2) **The conditioning grows geometrically in L** (≈ ×3 per layer at small r, ×10 at r ≥ 64)
+and with r at fixed L, and it is the conditioning, not the rank prediction, that ends the measurable regime: every
+cell at cond ≥ 6e9 is `no_gap_vacuous`, and those are precisely the cells where the two laws separate. (3) In that
+no-gap regime the effective rank at 1e-10 sits **1–6% below the corrected law and far below T5.2** in every cell
+(twin and original alike), never above the corrected law — consistent with §5b/5c and with the CNN's exact
+confirmation (P1-CNN) where the bottleneck supplies a clean `d_j` and a gap. **The MLP never delivers a gapped cell
+that separates the laws**: at r = 64, L = 8, `first = 1`, seed 1 the gap is 3e3 (barely `compare`) and the verdict
+is `neither` (435 vs 448 vs 448) — one marginal cell, not a refutation. (4) The gate-PASS twin changes nothing about
+the original d15's picture (bridge cell above), so the earlier no-gap verdict was not a training artefact.
+
+**NOT shown.** Zero drift; k = 32/128 cells (pinned by the first layer at r ≥ 108, or coinciding); a solve; the
+truncated certificate; r = 8 (dead, above). The `first = 1` arm adapts the raw input layer, which nobody deploys
+(§5c) — the deployable arm is `first = 3`.

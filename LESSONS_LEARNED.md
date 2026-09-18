@@ -4216,3 +4216,14 @@ P1-CNN: three seeds gave stacked ranks 304 / 335 / 368 at one (r, k). Printing o
 like two seeds overshot the corrected law. The corrected law depends on each seed's eight images through the conv-3
 patch-span rank (rank C_3 = 11 / 13 / 15), and the prediction was 304 / 335 / 368 — exact in all three. Always join
 the measured rank to the SAME row's prediction, never to another seed's.
+
+## 2026-09-18 — the relative-only rank floor came back at the r = N boundary (P1-MLP, job 366148)
+
+`real_encoder_ranklaw.py:307` computes the certificate rank with `torch.linalg.matrix_rank(C, rtol=1e-10)` and the
+stacked ladder's `numrank` without a `ref`. At r = 8 with N = 8 the certificate is annihilated (σ_max 1.4e-15 vs 1.07 at
+r = 16) and both calls reported FULL rank (8 per layer, flat ladder at 8·L, cond 5–10) — the 2026-09-07 pitfall in a new
+place, and the 1e-25 absolute dead-Jacobian guard is ten orders too low to catch a 1e-15 matrix. The r ≥ 16 cells are
+unaffected. Rules: (a) every rank of a certificate-derived matrix takes `ref = ‖A_0‖` (or σ₁(A_0 J_φ V) for the stacked
+J); (b) the dead guard is RELATIVE to that natural scale (say 1e-12·ref), never an absolute 1e-25; (c) pre-register
+the r = N cell as "rank 0 by arithmetic" and treat any other reading as a harness failure, not a result. Fix queued
+behind the jobs running against the file.
