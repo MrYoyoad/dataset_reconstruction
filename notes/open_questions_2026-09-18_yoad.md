@@ -15,6 +15,25 @@ is a new measurement except §3, which is derived from saved spectra.
 | Different initial guesses | Certificate route: random starts only (200–2000). Replay route: near (oracle) / random / span / cert / spananchor, 1 of 20 seeds. Job 351007: a start needs cosine ≈ 0.5 with the private representation | `experiments/exact_inversion/RESULTS.md` Step 2b, STATUS 351007 |
 | Which layers: beginning / middle / end / all | Only CONTIGUOUS prefixes from `first_adapted` (first ∈ {1,3,4,8,12} MLP, {1,3,5} CNN). Alternating, skip, mixed, sampled fraction: **NOT RUN** | `real_encoder_ranklaw.py:155` |
 
+## 1b. Multilayer track — every parameter, varied vs fixed (from the harness CLIs and the row values)
+
+| harness / jobs | net | varied in the rows | fixed (never varied in that harness) |
+|---|---|---|---|
+| `survival.py` 353865 / 692603 (216 rows) | random GELU MLP, L = 4, width 30, d_in 40, 8 classes | T ∈ {2,4,8}, lr ∈ {0.01…3.0}, seeds 0–2 (drift is reached through lr×T; 11/54 configs diverge) | N = 3, r = 16 at every layer, k = 20, all 4 layers adapted, full-batch SGD on cross-entropy, A_0 Gaussian/√n, B_0 = 0, FP64 CPU; both full and truncated certificate measured |
+| `theory_checks.py` 688036 (+5 earlier) | random GELU MLP per check | nothing (pre-stated tolerances) | seed 0 only; the T-ladder check uses r = 6 |
+| `real_encoder_ranklaw.py` 354535 / 355531 / 355781 / 365681 | `mnist_mlp_d15w1000` (depth 15, width 1000, GELU; FAILS the base gate) | k ∈ {16,32,66,96,128,192,256,384,512,692,784}, first ∈ {1,3}, L = 1…8 | r = 108 (margin 100 over N), N = 8, seed 1, σ_0 = 1/√n_in, PCA charts fit on 50 000 public digits, **zero drift only** (no T, no lr, no training), full certificate only |
+| same-net control 355835 | same | first ∈ {1,4,8,12}, L = 1…4 | k = 784 only, otherwise as above |
+| `conv_encoder_ranklaw.py` 355907 (654 rows) | bottleneck CNN 1→64→128→8→256 + dense 1000 + head (PASSES gate) | k ∈ {16,32,66,128,256,384,512,784}, first ∈ {1,3,5}, L = 1…6, T ∈ {0,1,5,20,100,400} (T arm) | r = 256 at every module, N = 8, seed 1, lr 0.01, full batch, B_0 = 0, σ_0 = 1/√p_l per layer, one batch of 8 (3 classes repeated); the deep conv net only in a smoke (355881, k ≤ 32, T ≤ 5) |
+
+**Never varied anywhere in the multilayer track:** N beyond {3, 8}; r per layer (always the same r at every adapted
+layer, never heterogeneous, never the deployed 8–64 on a real net); seed on any real-net run (one seed); optimiser
+(SGD only, Adam never, no momentum, no weight decay); batch (full batch only, no minibatch); activation (GELU
+everywhere, no ReLU); drift on the real MLP (zero-drift certificates only, the trained-release drift regime T5.4 is
+explicitly out of scope there); the truncated certificate on any real net (synthetic only); base-gate status of d15
+(the failing original everywhere; the `_full` twin exists); label composition (one batch per net); width of the
+synthetic net (30); chart family (PCA and pixel only, no AE / decoder chart in this track). Layer selection is a
+contiguous prefix in every row (§1).
+
 ## 2. Rank and stability of the stacked J
 
 - Rank: no spectral gap at any deployed adaptation depth on the d15 MLP; only raw-input adaptation has a clean rank
