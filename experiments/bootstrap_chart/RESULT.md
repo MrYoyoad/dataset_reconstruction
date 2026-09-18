@@ -179,3 +179,37 @@ CIFAR: pending.
 * A0 is drawn as in the ladder / `ntk_vs_certificate.py` (`randn(r, n, seed+7)/√n`), not from `new_class.py`'s shared
   generator stream (which depends on that script's loop order); the privates are the same eight in both.
 * The recogniser's chart-projected augmentation and per-class calibration follow the 2026-09-18 audit, not the original WP4 text.
+
+## P8 — Moving between two charts: the Jacobian at the hand-over (jobs 366170 MNIST, 366171 CIFAR; 2026-09-18)
+
+*Plan `notes/plan_2026-09-18_multilayer_parameter_program.md` P8 + audit item 10. Code
+`experiments/bootstrap_chart/handover_jacobian.py`, runner `scripts/run_chart_program_wexac.sh p8`, rows
+`results/bootstrap_chart/handover_{366170,366171}.jsonl`, builder read-out `HANDOVER_NOTES.md`. Analysis on the saved
+355987 / 355988 releases and charts (fwd_check exact; variant-B local charts rebuilt from the saved anchors reproduce the
+saved rows). Reference is `x*_chart`, never the truth's projection. Single read, provisional.*
+
+For each round pair (t → t+1), each of the eight truths, `J = C · J_φ · V` at `x*_chart` under `V_t`, `V_{t+1}` and the
+orthonormalised union `[V_t V_{t+1}]` (rank at 1e-10 with the absolute floor; medians over 8):
+
+| release | chain | rank `V_t` / `V_{t+1}` / union | cond `V_t` / `V_{t+1}` / union | gap (union) | min principal angle | alias flags /8 |
+|---|---|---|---|---|---|---|
+| CIFAR 355988 | round0 → A1 recognised / wrong / oracle | 32 / 32 / **56** | 36 / 37 / 183–226 | 2e13 | 1.6–2.7° | **7–8** |
+| CIFAR | A1 → A2 recognised | 32 / 32 / 56 | 33 / 33 / 199 | 1e13 | 3.6° | 7 |
+| MNIST 355987 | round0 → A1 (three arms) | 32 / 32 / 56 | 65 / 49–54 / 365–376 | 1e13 | 1.6–2.0° | 5–7 |
+| MNIST | B recovery-anchored, rounds 0→1→2→3→4 | 32 / 32 / 56 | 56–63 / 54–59 / 412–558 | 8e12 | 7.6° → 3.0° → 1.1° → 1.1° | **0, 1, 2, 2** |
+| MNIST | B random-anchor | 32 / 32 / 56 | 55–76 / 48–70 / 344–593 | 1e13 | 6–11° | 4, 0, 3, 1 |
+| MNIST | B oracle-anchor, rounds 1→2→3→4 | 32 / 32 / **32** (chart stationary) | 62 / 62 / 62 | ∞ | 0° | 0 |
+
+**Readings.** (1) **Two different 32-charts span 64 > 56 = rank C, and the union Jacobian has rank exactly 56 with a
+gap of 1e13**: the hand-over opens an 8-dimensional exact null space by construction — every cell, both releases. The
+union is also ×5–8 worse conditioned than either chart. This is a measurement (the round-1 chart is built after seeing
+`C`; audit 10c), not an identifiability theorem. (2) **On CIFAR global charts the coverage reading does not hold**: 7–8
+of 8 recoveries carry the alias flag (objective at the floor, recovery ≠ `x*_chart`), so there the recoveries are
+equal-scoring different chart points. On MNIST the recovery-anchored chain has **0 alias flags in round 1** (coverage
+reading survives there) and 1–2 in later rounds (weakened, not falsified). (3) The recovery-anchored chart chain
+converges: the smallest principal angle between successive charts falls 7.6° → 1.1° with up to four shared directions
+by round 3; the oracle-anchored chain is exactly stationary from round 2. (4) Carrying `x*(t)` into chart t+1 costs
+×1–3 in objective on the recovery chain vs ×2–10 on class charts; `err(x*_t, x*_{t+1}) ≈ 0.8` on CIFAR.
+
+**NOT shown.** CIFAR variant-B pairs (bootstrap had not reached them); no test of identifiability on the union;
+single seed; the alias flag is the pre-registered falsifier of the coverage reading only (audit 10b).
