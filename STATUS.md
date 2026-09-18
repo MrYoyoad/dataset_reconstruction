@@ -46,7 +46,12 @@ PCA/local/AE alike while projection error improves — the two landing predictor
 for every r ≤ 512 (deployed ranks), live only at r = 1024. **R7** (366148, MLP twin r-sweep): depth adds exactly `r − N` per layer with a gap up to a conditioning wall
 ≈ 1e10, three seeds identical; beyond the wall (= where the laws separate) no gap, effective rank 1–6% under the
 corrected law; the k* = 417 cell reproduces on the gate-PASS twin; r = 8 rows DEAD (relative floor at r − N = 0,
-LESSONS 2026-09-18, harness fix queued). Running: P4 layer subsets (366146/366147), P3 drift solve (366211–366225), ResNet full (366259, A100), P5 step 2 in a worktree. Next: read P4/P1-MLP,
+LESSONS 2026-09-18, harness fix queued). **T5.2 REFUTED ON A REAL DEEP NETWORK WITH A CLEAN GAP (366146 + replication 366737).** Contiguous layer blocks
+never separate the two depth laws on the d15 MLP — their predictions coincide until the conditioning wall — but
+NON-CONTIGUOUS sets do. Replication: 6 layer sets × 3 seeds × 2 widths, formulas differ in all 36 rows, 19 carry a
+real gap (1e3–1e6), and the measured rank equals the corrected law in **19 of 19** and T5.2 in **0 of 19**, T5.2
+over-predicting by 26–30. Together with the CNN's exact confirmation (R1) the corrected law is now confirmed on two
+real architectures and T5.2 refuted on both. Running: P3 drift solve (366211–366225), ResNet full (366259, A100), P5 step 2 in a worktree. Next: read P4/P1-MLP,
 then P3 → fill P6 placeholders and submit; merge P5 step 2.
 
 ---

@@ -569,9 +569,15 @@ because their predictions coincide until the wall, but a **non-contiguous** set 
 differ while the Jacobian is still readable. The pattern breakdown shows why nobody had seen it: prefix disagrees in
 18 rows of 144, every contiguous suffix/middle/single pattern in **zero**, and the random 4-layer draws in 32 of 54.
 
-**One seed carries the two gapped cells** (they are the same layer set at two chart widths), so this is a single
-draw, not a replicated result. The obvious follow-up is to re-run that layer set at all three seeds and a few
-neighbouring sets, which is cheap.
+**REPLICATED (job 366737, 36 rows).** The same layer set plus five neighbours, all three seeds, both widths. The two
+formulas differ in all 36 rows; **19 of them have a real gap, and in 19 of 19 the measured rank equals the corrected
+law within one, and T5.2 in none** — over-predicting by 26 to 30 every time, with gaps from 1e3 to 1e6. The gapped
+discriminating cells span **six distinct layer sets and all three seeds**, so neither the set nor the draw was
+special. Seed 3 loses the gap on most sets (its prediction is 249 rather than 260, and the ladder reads 249 with no
+gap), which is the usual conditioning wall rather than a disagreement.
+
+**This is the deep MLP's first clean refutation of T5.2**, and it needed non-contiguous layer sets to exist: the
+earlier §P1-MLP statement stands only for contiguous prefixes, whose two predictions coincide until the wall.
 
 **NOT shown.** Zero drift; no solve; r = 108 only; the `first = 1` arm adapts the raw input layer, which nobody
 deploys.
