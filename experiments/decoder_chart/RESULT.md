@@ -264,6 +264,15 @@ sets the decoder itself is the wall (oracle floors 0.0371 and 0.0207, both above
   restarts at 256^2 on a shared A40), so 2000 steps x 24 combinations = ~56 h per image set against a 6 h queue limit.
   The smoke trace is flat from step ~80 (0.3585 at steps 80..200) under the same cosine schedule shape; `err_trajmin`
   is recorded beside the final value so a non-monotone trajectory is visible. 3 restarts, FP32, lr 0.1 as planned.
+  **BEING CLOSED, 2026-09-18 (jobs 365890-365907).** Re-run at the plan's 2000 steps, same 18-way
+  (image set, anchor, K) split so each job carries 4 k-combinations, moved to `long-gpu` because 5x the Adam steps
+  puts the slowest of the 400-step jobs (measured 2052-5840 s, not the smoke's extrapolated rate) near 7 h against
+  short-gpu's 360 min cap. Rows land under the `s2000_` tag, in separate files, so the two step counts are never
+  pooled. **Pre-registration, fixed before the first row:** the 400-step traces are converged by step ~80 — the last
+  80% of each run moves the error by 0.01-0.61% across the sampled cells — so the 2000-step run is expected to
+  REPRODUCE the 400-step medians and retire this deviation. **A change larger than ~1% would instead mean the
+  400-step rows were under-converged**, and every local-chart number in this file would need re-reading. Either way
+  the outcome is informative; the expensive case is the one that changes nothing, and that is the expected one.
 - **Decoder input scale is a multiple of the native side, not 256 for all sets:** 64/128/256 for CIFAR (32 x 2/4/8),
   56/112/224 for EMNIST (28 x 2/4/8). Reason: an exact resize round trip (replication up, block mean down) needs an
   integer factor; bilinear-to-256 had a floor of 0.061 on its own (job 355876), 5x the gate, which would have been read
