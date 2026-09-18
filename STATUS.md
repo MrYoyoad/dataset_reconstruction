@@ -43,8 +43,10 @@ Closed later the same day (ledger §R): **R4** a chart hand-over opens an exact 
 7–8/8, the MNIST recovery-anchored chain is not in round 1); **R5** chart conditioning grows ×4 per +16 in k for
 PCA/local/AE alike while projection error improves — the two landing predictors oppose, undecided on this release;
 **R6** ResNet-18 stage-3 convs: 8 images × 64 positions = 512 independent base patches, so the certificate is EMPTY
-for every r ≤ 512 (deployed ranks), live only at r = 1024. Running: P4 layer subsets (366146/366147), P1 MLP r-sweep
-(366148), P3 drift solve (366211–366225), ResNet full (366259, A100), P5 step 2 in a worktree. Next: read P4/P1-MLP,
+for every r ≤ 512 (deployed ranks), live only at r = 1024. **R7** (366148, MLP twin r-sweep): depth adds exactly `r − N` per layer with a gap up to a conditioning wall
+≈ 1e10, three seeds identical; beyond the wall (= where the laws separate) no gap, effective rank 1–6% under the
+corrected law; the k* = 417 cell reproduces on the gate-PASS twin; r = 8 rows DEAD (relative floor at r − N = 0,
+LESSONS 2026-09-18, harness fix queued). Running: P4 layer subsets (366146/366147), P3 drift solve (366211–366225), ResNet full (366259, A100), P5 step 2 in a worktree. Next: read P4/P1-MLP,
 then P3 → fill P6 placeholders and submit; merge P5 step 2.
 
 ---
