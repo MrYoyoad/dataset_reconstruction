@@ -1,5 +1,27 @@
 # Project Status
 
+## How to read this file
+
+**Reverse-chronological — newest result first.** 71 entries; this file is the running record, so a
+section further down is older, not superseded, unless it says so. Audited claims with their conditions live in
+[results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md); the current research position is
+[notes/research_overview_2026-09-17.md](notes/research_overview_2026-09-17.md).
+
+**Most recent:**
+
+- [The recovery criterion decides the headline: exact landing dies at chart error 0.014, IDENTIFICATION surv…](#the-recovery-criterion-decides-the-headline-exact-landing-dies-at-chart-error-0014-identification-survives-to-026-2026-09-18-job-356492)
+- [18 Sept package (WP0–WP5): what is already settled while the sweeps run](#18-sept-package-wp0wp5-what-is-already-settled-while-the-sweeps-run-2026-09-18-jobs-355833356051)
+- [Depth destroys the MEASUREMENT, not the law: identifiability stops being evaluable between depth 8 and 12](#depth-destroys-the-measurement-not-the-law-identifiability-stops-being-evaluable-between-depth-8-and-12-2026-09-18-jobs-355792-355795)
+- [The 2026-09-17 archive is reconciled with the repository, and three of its numbers do not survive contact…](#the-2026-09-17-archive-is-reconciled-with-the-repository-and-three-of-its-numbers-do-not-survive-contact-with-the-rows-2026-09-17-no-compute)
+- [What is missing is an INITIALISER: identifiability, conditioning and basin separated on one release](#what-is-missing-is-an-initialiser-identifiability-conditioning-and-basin-separated-on-one-release-2026-09-17-job-351007)
+- [The certificate's clean rank exists ONLY where nobody adapts](#the-certificates-clean-rank-exists-only-where-nobody-adapts-2026-09-18-job-355835-same-net-control)
+- [NO SPECTRAL GAP on a real encoder: what survives the cut and what does not](#no-spectral-gap-on-a-real-encoder-what-survives-the-cut-and-what-does-not-2026-09-18-job-355531-ladder-gap-check-355778-pending)
+- [WITHDRAWN and REPLACED: depth DOES raise the identifiability cap — cap(L) = min(L·(r−N)+m, nesting ceiling)](#withdrawn-and-replaced-depth-does-raise-the-identifiability-cap--capl--minl·r−nm-nesting-ceiling-2026-09-17-job-355531)
+- [M6: T5.2 refuted on a REAL encoder — and at every chart width an attacker can build, the two laws agree](#m6-t52-refuted-on-a-real-encoder--and-at-every-chart-width-an-attacker-can-build-the-two-laws-agree-2026-09-17-job-354535-attested-59cbe42-dirty--script_sha-dd81201f5399)
+- [Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing](#depths-additivity-law-is-false-as-stated-and-the-depth-route-needs-re-costing-not-re-testing-2026-09-17-jobs-350996-218345218346-theory_checks-688036)
+
+---
+
 ## The recovery criterion decides the headline: exact landing dies at chart error 0.014, IDENTIFICATION survives to 0.26 (2026-09-18; job 356492)
 
 Yoad, 2026-09-18: the bar should not be pixel-exactness but whether a human can tell it is the same object. Adopted
