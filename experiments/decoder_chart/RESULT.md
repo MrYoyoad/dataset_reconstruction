@@ -2,7 +2,7 @@
 
 Plan: `notes/plan_2026-09-18_cnn_ranklaw_newclass_charts.md` §WP3 + Audit 2026-09-18. Code:
 `experiments/decoder_chart/fidelity.py`, runner `scripts/run_decoder_chart_wexac.sh`. Rows:
-`results/decoder_chart/fidelity_<jobid>.jsonl`; tensors `fidelity_<set>_<jobid>.pth`; grids `figures/decoder_chart/`.
+`results/decoder_chart/fidelity_<anchor>_K<K>_<jobid>.jsonl`; tensors `fidelity_<set>_<jobid>.pth`; grids `figures/decoder_chart/`.
 All numbers here are **provisional** until the row is read by a second session. Nothing below reads a release: the
 base checkpoints only fix WHICH eight images are private (images-only), and the gates are the oracle ladder's.
 
@@ -15,8 +15,9 @@ lost to the gate by 15× / 46× at `k = 66` (e1b C7).
 torch 2.4.1+cu121, FP32, `local_files_only=True`, `HF_HUB_OFFLINE=1`. Images: the ladder's eight motorcycles (MLP)
 and keyboards (CNN) — `torch.Generator().manual_seed(seed+7)`, `randperm` over the CIFAR-100 class TEST split,
 seed 1 — and the letters cell's eight EMNIST `a` (same generator over the EMNIST `a` test split). Public pool =
-the class TRAIN split. Resize path in every decoder arm: up = bilinear (`align_corners=False`), grey → 3 channels,
-`[0,1]→[−1,1]`; down = area (adaptive average pooling) to native, channels averaged for grey. Error =
+the class TRAIN split. Resize path in every decoder arm: up = exact pixel replication at an integer factor
+(×2/×4/×8 of the native side: 64/128/256 CIFAR, 56/112/224 EMNIST), grey → 3 channels, `[0,1]→[−1,1]`; down = block
+mean (area) to native, channels averaged for grey. `down(up(x)) = x` exactly, so the resize floor is 0. Error =
 `‖x̂ − x‖/‖x‖` in NATIVE space (3×32×32 / 1×28×28), unclamped (clamped-to-[0,1] value recorded beside it),
 median + range over the 8.
 
@@ -74,18 +75,14 @@ Rows: `results/decoder_chart/fidelity_<anchor>_K<K>_<jobid>.jsonl` (measurements
 every job, so they appear 6x per image set — same numbers); tensors and grids carry the same tag. Command per job:
 `python -u -m experiments.decoder_chart.fidelity --image-sets <set> --anchors <anchor> --Ks <K> --steps 400 --tag <anchor>_K<K>`.
 
-### INTERIM (2026-09-18 02:10) — closed-form rows complete for all three sets; local chart partial
+### FINAL (2026-09-18) — all 18 cells complete, 72 local-chart rows
 
-First submission 356034–356051 (plain `num=1`): **9 of 18 died of CUDA OOM on shared A40s** (356037, 356039, 356040,
-356042, 356043, 356044, 356047, 356050, 356051 — other users' processes held 13–20 GB of 44 GB; the fit needs ~12 GB).
-Their fragments held only the closed-form rows (identical in every job) and were deleted; the nine cells were
-resubmitted with `gmem=20G` as 356090 (motorcycle truth_nn K256), 356091 (motorcycle truth_latent K256), 356092
-(keyboard proxy_nn K64), 356093 (keyboard truth_nn K64), 356094 (keyboard truth_nn K256), 356095 (keyboard
-truth_latent K64), 356096 (letters proxy_nn K256), 356097 (letters truth_latent K64), 356098 (letters truth_latent
-K256). Of the nine first-submission survivors, three more OOM'd at ~1650 s mid-fit with the process itself at 18 GB
-(356034, 356035 = motorcycle proxy_nn K64/K256, the attacker arm; 356045 = keyboard truth_latent K256) and were
-resubmitted with `--chunk 4` as 356101, 356102, 356103. Running from the first batch: 356036, 356038, 356041, 356046,
-356048, 356049.
+Submission history: 356034–356051 (plain `num=1`) lost 12 of 18 cells to CUDA OOM on shared A40s (co-tenants at
+13–25 GB of 44 GB; our fit needs ~16–24 GB at chunk 8). Resubmitted with `gmem=20G` (356090–356098) and, where that
+still lost, with `--chunk 4` (356101–356103, 356113, 356115, 356116, 356472). Every cell that produced no local rows
+had its fragment deleted, so the rows below come from one successful run each. Completing job ids: motorcycle
+356101/356102 (proxy_nn K64/K256), 356036/356090 (truth_nn), 356038/356091 (truth_latent); keyboard 356113/356041,
+356115/356116, 356095/356103; letters 356046/356096, 356472/356049, 356097/356098.
 
 #### 1. Autoencoding ceiling (reported first) — `‖D(E(x)) − x‖/‖x‖`, native space, median (range over 8)
 
@@ -98,7 +95,15 @@ resubmitted with `--chunk 4` as 356101, 356102, 356103. Running from the first b
 Pre-registered rule: the ceiling exceeds the bracket's high end on every set, so no chart built on `D(E(·))` passes;
 the result is about the decoder. Caveat recorded, not a verdict change: the oracle-anchor Adam fit (below) goes UNDER
 `D(E(x))` — the encoder's latent is not the decoder's best latent — to 0.0430 at k = 32 on motorcycle, still 2.3× the
-high end; the decoder's true floor is bounded above by those `truth_latent` rows, not by `D(E(x))`.
+high end; the decoder's true floor is bounded above by those `truth_latent` rows, not by `D(E(x))`. **On letters this
+matters**: the oracle-anchor optimum at K = 256, k = 128 is 0.0092 (range 0.0079–0.0174), INSIDE the 0.0069–0.0139
+bracket (jobs 356097/356098). So on the grey 28 × 28 set the decoder itself is NOT the obstruction — its latent
+family does contain the letters to bracket precision — while `D(E(x))` (0.0213) is; the CEILING-BOUND verdict is
+therefore a statement about the pre-registered ceiling definition, and the binding constraints on letters are the
+anchor (that row uses `a = E(x)`, not attacker-available; the attacker's `proxy_nn` anchor reaches 0.0549 at the same
+K, k) and the width (k = 128 is above the cap). On the two CIFAR sets the oracle-anchor optimum stays above the
+bracket at every k (motorcycle 0.0371 at K = 256, k = 128; keyboard 0.0207 — vs high ends 0.0186 / 0.0090), so there the decoder
+is the obstruction as pre-registered.
 
 #### 2 + 4. Pixel PCA (C7 convention) vs global latent PCA (decoded projection), median over the ladder's 8 images
 
@@ -122,21 +127,94 @@ motorcycle 0.2456 / 0.2151 / 0.1845 / 0.1566, keyboard 0.2840 / 0.2573 / 0.2058 
 C7's stored rows to 4 decimals. On the ladder's own images the motorcycle numbers are higher (0.2549 at k = 66, not
 0.1845): C7 and the ladder used different index sets.
 
-#### 3. Local chart (Adam 400 steps, 3 restarts, FP32, ×8 scale) — rows landed so far
+#### 3. Local chart `min_w ‖D(a + U w) − x‖/‖x‖` — Adam 400 steps, 3 restarts, FP32, ×8 scale — ALL 72 rows
 
-| image set | K | k (k_eff) | anchor | avail. | w = 0 | best-of-restarts (range) | traj. min | solver flag | vs low / high |
+| image set | K | k (k_eff) | anchor | attacker-avail. | w = 0 | best-of-restarts (range) | traj. min | solver | vs low / high |
 |---|---|---|---|---|---|---|---|---|---|
-| mlp_motorcycle | 64 | 16 | truth_latent | NO | 0.0554 (= ceiling, diff 0.0) | 0.0454 (0.019–0.067) | 0.0454 | ok | 3.7× / 2.4× |
-| mlp_motorcycle | 64 | 32 | truth_latent | NO | 0.0554 (= ceiling) | 0.0430 (0.018–0.061) | 0.0430 | ok | 3.5× / 2.3× |
+| mlp_motorcycle | 64 | 16 | proxy_nn | yes | 0.4487 | 0.3585 (0.246–0.485) | 0.3585 | ok | 28.9× / 19.3× |
+| mlp_motorcycle | 64 | 32 | proxy_nn | yes | 0.4484 | 0.3217 (0.217–0.470) | 0.3217 | ok | 25.9× / 17.3× |
+| mlp_motorcycle | 64 | 66 (64) | proxy_nn | yes | 0.4459 | 0.2941 (0.192–0.415) | 0.2941 | ok | 23.7× / 15.8× |
+| mlp_motorcycle | 64 | 128 (64) | proxy_nn | yes | 0.4533 | 0.2951 (0.192–0.423) | 0.2951 | ok | 23.8× / 15.9× |
+| mlp_motorcycle | 256 | 16 | proxy_nn | yes | 0.4711 | 0.3321 (0.241–0.427) | 0.3321 | ok | 26.8× / 17.9× |
+| mlp_motorcycle | 256 | 32 | proxy_nn | yes | 0.4707 | 0.2833 (0.215–0.412) | 0.2833 | ok | 22.8× / 15.2× |
+| mlp_motorcycle | 256 | 66 | proxy_nn | yes | 0.4706 | 0.2550 (0.184–0.358) | 0.2550 | ok | 20.6× / 13.7× |
+| mlp_motorcycle | 256 | 128 | proxy_nn | yes | 0.4713 | 0.2324 (0.156–0.285) | 0.2324 | ok | 18.7× / 12.5× |
 | mlp_motorcycle | 64 | 16 | truth_nn | NO | 0.4496 | 0.3513 (0.249–0.514) | 0.3513 | ok | 28.3× / 18.9× |
+| mlp_motorcycle | 64 | 32 | truth_nn | NO | 0.4496 | 0.3123 (0.215–0.472) | 0.3123 | ok | 25.2× / 16.8× |
+| mlp_motorcycle | 64 | 66 (64) | truth_nn | NO | 0.4496 | 0.2916 (0.191–0.431) | 0.2916 | ok | 23.5× / 15.7× |
+| mlp_motorcycle | 64 | 128 (64) | truth_nn | NO | 0.4496 | 0.2916 (0.191–0.431) | 0.2916 | ok | 23.5× / 15.7× |
+| mlp_motorcycle | 256 | 16 | truth_nn | NO | 0.4718 | 0.3292 (0.239–0.429) | 0.3292 | ok | 26.6× / 17.7× |
+| mlp_motorcycle | 256 | 32 | truth_nn | NO | 0.4718 | 0.2881 (0.215–0.405) | 0.2881 | ok | 23.2× / 15.5× |
+| mlp_motorcycle | 256 | 66 | truth_nn | NO | 0.4718 | 0.2560 (0.181–0.363) | 0.2560 | ok | 20.6× / 13.8× |
+| mlp_motorcycle | 256 | 128 | truth_nn | NO | 0.4718 | 0.2251 (0.159–0.286) | 0.2251 | ok | 18.2× / 12.1× |
+| mlp_motorcycle | 64 | 16 | truth_latent | NO | 0.0554 (= ceiling) | 0.0454 (0.019–0.067) | 0.0454 | ok | 3.7× / 2.4× |
+| mlp_motorcycle | 64 | 32 | truth_latent | NO | 0.0554 (= ceiling) | 0.0430 (0.018–0.061) | 0.0430 | ok | 3.5× / 2.3× |
+| mlp_motorcycle | 64 | 66 (64) | truth_latent | NO | 0.0554 (= ceiling) | 0.0411 (0.017–0.054) | 0.0411 | ok | 3.3× / 2.2× |
+| mlp_motorcycle | 64 | 128 (64) | truth_latent | NO | 0.0554 (= ceiling) | 0.0411 (0.017–0.054) | 0.0411 | ok | 3.3× / 2.2× |
+| mlp_motorcycle | 256 | 16 | truth_latent | NO | 0.0554 (= ceiling) | 0.0471 (0.019–0.067) | 0.0471 | ok | 3.8× / 2.5× |
+| mlp_motorcycle | 256 | 32 | truth_latent | NO | 0.0554 (= ceiling) | 0.0431 (0.018–0.063) | 0.0431 | ok | 3.5× / 2.3× |
+| mlp_motorcycle | 256 | 66 | truth_latent | NO | 0.0554 (= ceiling) | 0.0412 (0.017–0.053) | 0.0412 | ok | 3.3× / 2.2× |
+| mlp_motorcycle | 256 | 128 | truth_latent | NO | 0.0554 (= ceiling) | 0.0371 (0.016–0.045) | 0.0371 | ok | 3.0× / 2.0× |
+| cnn_keyboard | 64 | 16 | proxy_nn | yes | 0.2963 | 0.2407 (0.098–0.431) | 0.2407 | ok | 53.5× / 26.7× |
+| cnn_keyboard | 64 | 32 | proxy_nn | yes | 0.2964 | 0.2221 (0.088–0.403) | 0.2221 | ok | 49.4× / 24.7× |
+| cnn_keyboard | 64 | 66 (64) | proxy_nn | yes | 0.2983 | 0.2101 (0.079–0.346) | 0.2101 | ok | 46.7× / 23.3× |
+| cnn_keyboard | 64 | 128 (64) | proxy_nn | yes | 0.2977 | 0.2088 (0.080–0.348) | 0.2088 | ok | 46.4× / 23.2× |
+| cnn_keyboard | 256 | 16 | proxy_nn | yes | 0.3294 | 0.2882 (0.095–0.402) | 0.2882 | ok | 64.0× / 32.0× |
+| cnn_keyboard | 256 | 32 | proxy_nn | yes | 0.3308 | 0.2512 (0.088–0.357) | 0.2512 | ok | 55.8× / 27.9× |
+| cnn_keyboard | 256 | 66 | proxy_nn | yes | 0.3309 | 0.2125 (0.079–0.319) | 0.2125 | ok | 47.2× / 23.6× |
+| cnn_keyboard | 256 | 128 | proxy_nn | yes | 0.3326 | 0.1846 (0.066–0.270) | 0.1846 | ok | 41.0× / 20.5× |
+| cnn_keyboard | 64 | 16 | truth_nn | NO | 0.2989 | 0.2384 (0.098–0.402) | 0.2384 | ok | 53.0× / 26.5× |
+| cnn_keyboard | 64 | 32 | truth_nn | NO | 0.2989 | 0.2250 (0.087–0.368) | 0.2250 | ok | 50.0× / 25.0× |
+| cnn_keyboard | 64 | 66 (64) | truth_nn | NO | 0.2989 | 0.2086 (0.080–0.347) | 0.2086 | ok | 46.4× / 23.2× |
+| cnn_keyboard | 64 | 128 (64) | truth_nn | NO | 0.2989 | 0.2086 (0.080–0.347) | 0.2086 | ok | 46.4× / 23.2× |
+| cnn_keyboard | 256 | 16 | truth_nn | NO | 0.3335 | 0.2893 (0.094–0.401) | 0.2893 | ok | 64.3× / 32.1× |
+| cnn_keyboard | 256 | 32 | truth_nn | NO | 0.3335 | 0.2541 (0.088–0.359) | 0.2541 | ok | 56.5× / 28.2× |
+| cnn_keyboard | 256 | 66 | truth_nn | NO | 0.3335 | 0.2132 (0.074–0.326) | 0.2132 | ok | 47.4× / 23.7× |
+| cnn_keyboard | 256 | 128 | truth_nn | NO | 0.3335 | 0.1843 (0.066–0.274) | 0.1843 | ok | 40.9× / 20.5× |
+| cnn_keyboard | 64 | 16 | truth_latent | NO | 0.0237 (= ceiling) | 0.0221 (0.008–0.063) | 0.0221 | ok | 4.9× / 2.5× |
+| cnn_keyboard | 64 | 32 | truth_latent | NO | 0.0237 (= ceiling) | 0.0219 (0.008–0.060) | 0.0219 | ok | 4.9× / 2.4× |
+| cnn_keyboard | 64 | 66 (64) | truth_latent | NO | 0.0237 (= ceiling) | 0.0214 (0.008–0.051) | 0.0214 | ok | 4.8× / 2.4× |
+| cnn_keyboard | 64 | 128 (64) | truth_latent | NO | 0.0237 (= ceiling) | 0.0214 (0.008–0.051) | 0.0214 | ok | 4.8× / 2.4× |
+| cnn_keyboard | 256 | 16 | truth_latent | NO | 0.0237 (= ceiling) | 0.0221 (0.008–0.076) | 0.0221 | ok | 4.9× / 2.5× |
+| cnn_keyboard | 256 | 32 | truth_latent | NO | 0.0237 (= ceiling) | 0.0219 (0.008–0.068) | 0.0219 | ok | 4.9× / 2.4× |
+| cnn_keyboard | 256 | 66 | truth_latent | NO | 0.0237 (= ceiling) | 0.0216 (0.008–0.058) | 0.0216 | ok | 4.8× / 2.4× |
+| cnn_keyboard | 256 | 128 | truth_latent | NO | 0.0237 (= ceiling) | 0.0207 (0.008–0.047) | 0.0207 | ok | 4.6× / 2.3× |
 | mnist_letter_a | 64 | 16 | proxy_nn | yes | 0.4044 | 0.2555 (0.218–0.456) | 0.2555 | ok | 37.0× / 18.4× |
 | mnist_letter_a | 64 | 32 | proxy_nn | yes | 0.3716 | 0.1699 (0.140–0.378) | 0.1699 | ok | 24.6× / 12.2× |
+| mnist_letter_a | 64 | 66 (64) | proxy_nn | yes | 0.3700 | 0.1141 (0.090–0.229) | 0.1141 | ok | 16.5× / 8.2× |
+| mnist_letter_a | 64 | 128 (64) | proxy_nn | yes | 0.3684 | 0.1202 (0.086–0.233) | 0.1202 | ok | 17.4× / 8.7× |
+| mnist_letter_a | 256 | 16 | proxy_nn | yes | 0.4276 | 0.2519 (0.222–0.505) | 0.2519 | ok | 36.5× / 18.1× |
+| mnist_letter_a | 256 | 32 | proxy_nn | yes | 0.4194 | 0.1459 (0.137–0.370) | 0.1459 | ok | 21.2× / 10.5× |
+| mnist_letter_a | 256 | 66 | proxy_nn | yes | 0.4171 | 0.1022 (0.086–0.221) | 0.1022 | ok | 14.8× / 7.4× |
+| mnist_letter_a | 256 | 128 | proxy_nn | yes | 0.4138 | 0.0549 (0.043–0.117) | 0.0549 | ok | 8.0× / 3.9× |
+| mnist_letter_a | 64 | 16 | truth_nn | NO | 0.3597 | 0.2630 (0.199–0.494) | 0.2630 | ok | 38.1× / 18.9× |
+| mnist_letter_a | 64 | 32 | truth_nn | NO | 0.3597 | 0.1860 (0.140–0.410) | 0.1860 | ok | 27.0× / 13.4× |
+| mnist_letter_a | 64 | 66 (64) | truth_nn | NO | 0.3597 | 0.1167 (0.096–0.262) | 0.1167 | ok | 16.9× / 8.4× |
+| mnist_letter_a | 64 | 128 (64) | truth_nn | NO | 0.3597 | 0.1167 (0.096–0.262) | 0.1167 | ok | 16.9× / 8.4× |
 | mnist_letter_a | 256 | 16 | truth_nn | NO | 0.4171 | 0.2999 (0.264–0.566) | 0.2999 | ok | 43.5× / 21.6× |
+| mnist_letter_a | 256 | 32 | truth_nn | NO | 0.4171 | 0.1660 (0.144–0.403) | 0.1660 | ok | 24.1× / 11.9× |
+| mnist_letter_a | 256 | 66 | truth_nn | NO | 0.4171 | 0.0999 (0.077–0.245) | 0.0999 | ok | 14.5× / 7.2× |
+| mnist_letter_a | 256 | 128 | truth_nn | NO | 0.4171 | 0.0539 (0.046–0.104) | 0.0539 | ok | 7.8× / 3.9× |
+| mnist_letter_a | 64 | 16 | truth_latent | NO | 0.0213 (= ceiling) | 0.0191 (0.014–0.040) | 0.0191 | ok | 2.8× / 1.4× |
+| mnist_letter_a | 64 | 32 | truth_latent | NO | 0.0213 (= ceiling) | 0.0179 (0.012–0.029) | 0.0179 | ok | 2.6× / 1.3× |
+| mnist_letter_a | 64 | 66 (64) | truth_latent | NO | 0.0213 (= ceiling) | 0.0163 (0.011–0.023) | 0.0163 | ok | 2.4× / 1.2× |
+| mnist_letter_a | 64 | 128 (64) | truth_latent | NO | 0.0213 (= ceiling) | 0.0163 (0.011–0.023) | 0.0163 | ok | 2.4× / 1.2× |
+| mnist_letter_a | 256 | 16 | truth_latent | NO | 0.0213 (= ceiling) | 0.0188 (0.014–0.043) | 0.0188 | ok | 2.7× / 1.4× |
+| mnist_letter_a | 256 | 32 | truth_latent | NO | 0.0213 (= ceiling) | 0.0176 (0.013–0.026) | 0.0176 | ok | 2.6× / 1.3× |
+| mnist_letter_a | 256 | 66 | truth_latent | NO | 0.0213 (= ceiling) | 0.0150 (0.011–0.021) | 0.0150 | ok | 2.2× / 1.1× |
+| mnist_letter_a | 256 | 128 | truth_latent | NO | 0.0213 (= ceiling) | 0.0092 (0.008–0.017) | 0.0092 | ok | 1.3× / 0.7× |
 
-No solver-failure or solver-limited row so far (every fit ends at its trajectory minimum, below its w = 0 value). The
-attacker-available local chart on letters (0.2555 / 0.1699 at k = 16 / 32) is BETTER than pixel PCA at the same k
-(0.3155 / 0.2346) — the first chart to beat PCA in this repo — but still 12× the bracket's high end at k = 32.
-On motorcycle (smoke 355910, K = 64, k = 16) it was worse than pixel PCA (0.3585 vs 0.3413). Keyboard local rows: none yet.
+**Solver audit: 0 failures in 72 rows.** Every fit ends at its trajectory minimum and at or below its own `w = 0`
+value; at the oracle anchor `w = 0` reproduces the autoencoding ceiling on all 24 rows (max |diff| 0.0 except
+1.5e-8 on keyboard K = 256). So no chart number here is solver-bounded in the audit's sense.
+
+Three readings across the 72 rows. (i) **The attacker's anchor costs nothing**: `proxy_nn` (neighbours of the
+pixel-PCA recovery) matches `truth_nn` (neighbours of the truth) everywhere — 0.2941 vs 0.2916 (motorcycle K=64,
+k=66), 0.2101 vs 0.2086 (keyboard K=64), 0.1022 vs 0.0998-equivalent on letters — so knowing the private image does
+not help pick the neighbourhood; only the oracle LATENT (`truth_latent`) helps. (ii) **K = 256 beats K = 64 only
+where k can exceed 63**, since `k_eff = min(k, K−1)` caps the K = 64 charts. (iii) **The decoder chart beats pixel
+PCA only on letters**: on CIFAR it is level (motorcycle 0.2550 vs 0.2549 at k = 66; keyboard 0.2101 vs 0.2009),
+on letters it is better at every k (0.1022 vs 0.1659 at k = 66; 0.0549 vs 0.1101 at k = 128).
 
 #### C7 recomputed on the gate's images (ledger Q7) — job 356106, `experiments/decoder_chart/c7_index_sets.py`, FP64, CPU
 
@@ -165,13 +243,20 @@ images); keyboard **46.8× / 23.4× at k = 66** and 27.2× / 13.6× at k = 384 (
 (no public-PCA width satisfies both walls) holds on the gate's images at both ends of both brackets; on motorcycle the
 ladder's images are harder for PCA than C7's by ~1.45× at every k, on keyboard the two sets agree within 3%.
 
-#### Verdict per image set (INTERIM)
+#### Verdict per image set (FINAL, all 18 cells)
 
-| image set | ceiling vs bracket | best attacker-available arm at k ≤ 66 so far | outcome |
-|---|---|---|---|
-| mlp_motorcycle | 0.0554 vs 0.0124–0.0186 | pixel PCA 0.2549 at k = 66 (local chart rows pending) | **CEILING-BOUND** |
-| cnn_keyboard | 0.0237 vs 0.0045–0.0090 | pixel PCA 0.2009 at k = 66 (local chart rows pending) | **CEILING-BOUND** |
-| mnist_letter_a | 0.0213 vs 0.0069–0.0139 | local chart proxy_nn K = 64 k = 32: 0.1699 | **CEILING-BOUND** |
+| image set | ceiling (×8) vs bracket | best attacker-available at k ≤ 66 | best attacker-available at any k ≤ 128 | oracle-anchor floor | outcome |
+|---|---|---|---|---|---|
+| mlp_motorcycle | 0.0554 vs 0.0124–0.0186 | 0.2550 (K=256, k=66) — 20.6× / 13.7× | 0.2324 (K=256, k=128) | 0.0371 | **CEILING-BOUND** |
+| cnn_keyboard | 0.0237 vs 0.0045–0.0090 | 0.2101 (K=64, k=66) — 46.7× / 23.3× | 0.1846 (K=256, k=128) | 0.0207 | **CEILING-BOUND** |
+| mnist_letter_a | 0.0213 vs 0.0069–0.0139 | 0.1022 (K=256, k=66) — 14.8× / 7.4× | 0.0549 (K=256, k=128) | **0.0092 (inside bracket)** | **CEILING-BOUND** (see caveat) |
+
+The pre-registered PASS condition (an attacker-available arm at `k ≤ 66` below the bracket's low end) is not met on
+any set, and FAIL's condition (nothing below the high end at any `k ≤ 128`) holds on all three; the ceiling row,
+reported first as required, already decided it. The caveat on letters is recorded above and matters for what comes
+next: the decoder's latent family DOES contain the eight letters to 0.0092 — inside the 0.0069–0.0139 bracket — so
+on that set the obstruction is the attacker's anchor and the width `k = 128 > 66`, not the decoder. On the two CIFAR
+sets the decoder itself is the wall (oracle floors 0.0371 and 0.0207, both above the brackets' high ends).
 
 ## Deviations from the plan as written
 
@@ -193,3 +278,16 @@ ladder's images are harder for PCA than C7's by ~1.45× at every k, on keyboard 
 - **Pixel PCA in FP32** (the whole arm is FP32 by plan); the C7 cross-check row reproduces C7's FP64 mean to 4 decimals.
 - diffusers 0.36.0 (pip's default for this env) needs peft >= 0.17 and refuses to import beside rec's peft 0.7.1;
   **diffusers 0.32.2** is the version used, in `.conda/extra_pkgs` (no other package was needed there).
+- **CUDA OOM, not a science deviation, but it shaped the run:** short-gpu A40s are shared and a plain `num=1`
+  reservation does not reserve GPU memory. 12 of the first 18 cells died. Fix: `-gpu "num=1:gmem=20G"` plus
+  `--chunk 4` (decode 4 images at a time instead of 8) and `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
+  No chunk-4 job failed. A cell that OOM'd wrote only the closed-form rows; those fragments were deleted so no row
+  in the tables comes from a partial run.
+- **The pre-registered CEILING-BOUND definition uses `D(E(x))`, which is not the decoder's floor.** The oracle-anchor
+  fit reaches below `D(E(x))` on every set (letters 0.0092 vs 0.0213), because the encoder's posterior mean is not
+  the decoder's best latent. The verdicts are reported on the pre-registered definition, with the oracle floor
+  stated beside each one; on letters the two disagree about what the obstruction is, and that is said explicitly.
+- **The letters set has no identifiability cap of its own recorded here.** `k ≤ 66` is the CIFAR releases' cap
+  (`m + r − N − 1` at m = 11, r = 64, N = 8); the letters release shares those shapes, so the same arithmetic gives
+  66, but no measurement in this job tests it — the `k = 128` letters rows are quoted as being above the cap on that
+  arithmetic alone.

@@ -7,11 +7,16 @@
 # step ~80 under the same cosine schedule) and the (anchor, K) split, 4 k-values per job -> ~1.9 h per job at that rate.
 # diffusers lives OUTSIDE the shared rec env (audit 2026-09-18): .conda/extra_pkgs, added to PYTHONPATH here only.
 # HF_HUB_OFFLINE=1 + local_files_only=True: the job fails loudly if the cached weights are missing; it never downloads.
+# gmem=20G: the first full submission (356034-356051, plain num=1) lost 9 of 18 jobs to CUDA OOM on SHARED A40s (other
+# users' processes at 13-20 GB of 44 GB); the fit needs ~12 GB at 256^2 with chunk 8. Resubmit a single cell with
+#   bash scripts/run_decoder_chart_wexac.sh one <image_set> <anchor> <K> [--chunk 4]
+# Three survivors of the first batch (356034, 356035, 356045) also OOM'd at ~1650 s with the process itself at 18 GB
+# (chunk 8, fragmentation); their resubmissions use --chunk 4.
 cd /home/projects/galvardi/yoado; mkdir -p results/decoder_chart figures/decoder_chart scripts/wexac_logs
 MODE=${1:-smoke}
 submit() {   # $1 = job name, rest = python args
   NAME=$1; shift
-  bsub -q short-gpu -gpu "num=1" -R "rusage[mem=24576] select[ngpus>0]" -J "$NAME" \
+  bsub -q short-gpu -gpu "num=1:gmem=20G" -R "rusage[mem=24576] select[ngpus>0]" -J "$NAME" \
        -o scripts/wexac_logs/${NAME}_%J.out -e scripts/wexac_logs/${NAME}_%J.err <<JOB | grep -o "Job <[0-9]*>"
 set +u
 source /apps/easybd/programs/miniconda/24.11_environmentally/etc/profile.d/conda.sh
@@ -19,6 +24,7 @@ conda activate /home/projects/galvardi/yoado/.conda/envs/rec
 cd /home/projects/galvardi/yoado
 export PYTHONPATH=/home/projects/galvardi/yoado/.conda/extra_pkgs:\$PYTHONPATH
 export HF_HUB_OFFLINE=1 HF_HOME=/home/projects/galvardi/yoado/.cache/huggingface
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 python -u -m experiments.decoder_chart.fidelity $@
 JOB
 }
@@ -27,5 +33,6 @@ case "$MODE" in
   full)  for S in ${2:-mlp_motorcycle cnn_keyboard mnist_letter_a}; do for A in proxy_nn truth_nn truth_latent; do for K in 64 256; do
            submit dc_full_${S}_${A}_K${K} --image-sets $S --anchors $A --Ks $K --steps 400 --tag ${A}_K${K}
          done; done; done ;;
-  *) echo "usage: $0 smoke|full [image_set]"; exit 1 ;;
+  one)   submit dc_full_${2}_${3}_K${4} --image-sets $2 --anchors $3 --Ks $4 --steps 400 --tag ${3}_K${4} "${@:5}" ;;   # extras, e.g. --chunk 4
+  *) echo "usage: $0 smoke|full [image_set]|one <image_set> <anchor> <K>"; exit 1 ;;
 esac
