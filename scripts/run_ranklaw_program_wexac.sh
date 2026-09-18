@@ -157,6 +157,14 @@ PY
         python -u -m experiments.multilayer_cert.conv_encoder_ranklaw --spec deep --ckpt $CK_CNN_DEEP --N 8 --seed 1 --label p2i \
              --r 256 --ks 16 32 66 128 256 384 512 784 --first 1 3 --maxL 5 --layers prefix alternate \
              --out "$OUT/ranklaw_p2i_cnn_${JOB}.jsonl" ;;
+    p4repl)
+        # Replication of the ONE law-separating GAPPED cell from p4_mlp (job 366146): the random non-contiguous set
+        # [3,4,10,15] predicts 260 (corrected) vs 287 (T5.2), had a real gap (6e5/8e5) and measured 260 at k=384 and
+        # 784 -- but on a SINGLE seed, and it is the only such cell in 522 rows.  Here: that set plus five neighbours,
+        # all three seeds, both widths.  If it replicates, it is the MLP's first gapped refutation of T5.2.
+        $MLP $SEEDS3 --model $CK_MLP_TWIN --r 108 --ks 384 784 --first 1 --maxL 8 \
+             --layers explicit:3,4,10,15 explicit:3,4,10,14 explicit:3,4,9,15 explicit:3,5,10,15 explicit:2,4,10,15 explicit:3,4,11,15 \
+             --out "$OUT/ranklaw_p4repl_${JOB}.jsonl" ;;
     *) echo "unknown stage $STAGE"; exit 2 ;;
 esac
 echo "=== DONE $(date) wall=$(( $(date +%s) - T0 ))s ==="

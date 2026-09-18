@@ -4245,3 +4245,13 @@ what identifiability needs. Measured on a real net: at `rank C ≈ k` the full c
 images (aliases) while the truncated certificate, carrying a small first-order error, recovers 7 of 8. **When reading
 any drift cell, check `rank C` against `k` BEFORE reading the residual** — a tiny residual on a rank-starved
 certificate means nothing.
+
+## 2026-09-18 — the session scratchpad is NOT visible to compute nodes (job died in 14 s)
+
+A replication job was submitted with its script written to the session scratchpad
+(`/tmp/claude-.../scratchpad/p4repl.sh`). LSF dispatched it to a compute node and bash reported
+`No such file or directory`: the scratchpad is local to the login session, not on the shared filesystem, so nothing
+under it can be the body of a `bsub`. Same for anything in a node-local `/tmp`. **Everything a job executes or reads
+must live in the repo (or another shared path): put the stage in the existing runner under `scripts/` rather than
+writing a throwaway script.** That is also the reproducible home for it — the ad-hoc script would have vanished with
+the session even if it had worked.
