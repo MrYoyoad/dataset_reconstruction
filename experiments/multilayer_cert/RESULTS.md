@@ -691,5 +691,24 @@ C = 24 < k) and 3/8 with the truncated one: **exactness without rank is useless.
 `recovered`/`alias`. The counts (`landed`, `images_found`, `err`) are correct; only the label is wrong. This merges
 outcomes the ground rules require kept apart — fix before the remaining cells are read as verdicts.
 
+**Repaired verdicts (read-side, `experiments/multilayer_cert/relabel_drift_verdicts.py`; the harness is locked by the
+running cells, and every field the verdict is computed from is on the row).** Recomputing the per-image outcome with
+the harness's own rule minus the override changes 35 of 60 rows and makes the two failure modes categorically
+distinct. Totals over this cell: **recovered 540 · alias (residual zero, wrong image) 229 · optimum-not-the-truth 187
+· genuine optimisation failure 4.**
+
+- **Every full-certificate failure under drift is an ALIAS**, never a stalled search: at `T ≥ 20, lr ≥ 0.01` the full
+  arm is 8/8 `alias` in every cell. It reaches a true zero and cannot tell the private image from its companions —
+  the rank shortfall, visible in the verdict.
+- **Every truncated-certificate failure is the OPPOSITE**: 8/8 `chart-limited`, i.e. the solver reaches the
+  objective's minimiser and that minimiser is no longer the truth. With on-chart privates the chart is NOT the limit
+  here, so this label (inherited from the ladder harness) means the drifted objective's minimum has MOVED off the
+  truth — a bias, not a tie. Only 4 rows in the whole cell are genuine optimisation failures.
+
+So the two certificates do not merely differ in how far they get; they fail for different reasons. The exact one
+loses the ability to distinguish; the approximate one keeps distinguishing but points slightly off, and how far off
+is what `K_l · eps_perp` measures.
+
 **NOT shown.** One target layer, one seed, one chart width, one model; the other 14 cells are running. Privates are
-on-chart (so the chart is not the limit here). No momentum/weight decay yet.
+on-chart (so the chart is not the limit here). No momentum/weight decay yet. The repaired labels live in the
+relabeller's output, not in the harness rows, which are left exactly as written.
