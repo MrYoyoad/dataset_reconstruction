@@ -611,9 +611,25 @@ result is therefore a large-r statement; at deployed r the conv certificate is e
 (or a dense layer, `P_l = 1`) is where the certificate lives. Whether `N·P_l < r` can be restored by fewer images or
 a coarser stage (`layer4`: 4×4 = 16 positions → `N·P = 128` at N = 8, live from r = 129) is the next cell.
 
-**Full stage (job submitted 2026-09-18, A100):** r ∈ {64, 256, 1024} at N = 8 (64/256 as vacuous controls) and
-r ∈ {256, 512, 1024} at N = 4 (`N' = 256`, live from r = 257), k up to 3072, L ≤ 4. **NOT shown:** ReLU is the
-activation here (P5 axis, not a confound for exactness); single seed; no T arm; no solve; `layer4` not run.
+**Full stage, N = 8 arm complete (job 366259, 60 RANKLAW rows; the run was re-pointed at live cells and requeued off
+the saturated A100 reservation).** Confirms the smoke at every chart width up to the full pixel space:
+
+| adapter rank | certificate rank per conv | stacked rank at k = 32 / 128 / 384 / 1024 / 3072 | cond at 1e-10 |
+|---|---|---|---|
+| 64 | **0 at all four convs** | 0 / 0 / 0 / 0 / 0 | — |
+| 256 | **0 at all four convs** | 0 / 0 / 0 / 0 / 0 | — |
+| 1024 | 512 at all four convs | **32 / 128 / 384 / 1024 / 3072** (= k, one conv suffices) | 10 / 20 / 50 / 1e2 / 1e4 |
+
+`N'_l = N·P_l = 512` exactly at every conv and every seed, so the certificate rank is `min(r, p_l) − 512`: **zero at
+every deployed rank, at every chart width, with depth making no difference** — stacking four convs multiplies zero by
+four. At r = 1024 a single conv pins the entire chart up to raw pixel space (3072 coordinates), conditioned in the
+tens to 1e4, and adding layers changes nothing because the first live conv already saturates. The per-image
+`d_j` shows the stage's own contraction: the fourth conv sees only ~2200–2500 of 3072 pixel directions, and its
+`q_l` tracks that (2174, 2463, 2475 …), one below `d_j` in each case.
+
+**NOT shown:** ReLU is the activation here (P5 axis, not a confound for exactness); single seed; no T arm; no solve;
+`layer4` (16 positions, live from r = 129 at N = 8) not run. The N = 4 arm (`N' = 256`, live from r = 257) is still
+running and is the one that tests the `N·P_l` law by varying `N` rather than `r`.
 
 ## P1-MLP. Rank r for the whole network on the 15-layer MNIST MLP twin (job 366148) — additivity exact with a gap up to the FP64 wall; wherever the laws separate there is no gap and the effective rank sits 1–6% under the corrected law — 2026-09-18
 
