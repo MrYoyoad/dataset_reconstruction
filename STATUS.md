@@ -38,8 +38,14 @@ seed-to-seed. Write-up: `experiments/multilayer_cert/RESULTS.md` §P1-CNN. Compa
 `condition_number` gap is closed (`cond_at_1e10` on every rank-law row), layer-subset patterns (`--layers`), the
 drift/momentum/weight-decay harness (`drift_cert.py`, smoke: N' ≈ 8(T−1) when the layer below is adapted, so the
 full certificate is contaminated at r = 64 after ~7 steps), and four activation twins at the gate (4/4 PASS).
-Running: P4 layer subsets (366146/366147), P1 MLP r-sweep (366148), P3 drift solve (366211–366225), P7/P8 charts,
-ResNet-18 (366181), P5 step 2 in a worktree. Next: read P4/P1-MLP, then P3 → fill P6 placeholders and submit.
+Closed later the same day (ledger §R): **R4** a chart hand-over opens an exact 8-dim null space (union of two
+32-charts has rank exactly 56 = rank C, gap 1e13, ×5–8 worse conditioned; CIFAR global-chart recoveries are aliases
+7–8/8, the MNIST recovery-anchored chain is not in round 1); **R5** chart conditioning grows ×4 per +16 in k for
+PCA/local/AE alike while projection error improves — the two landing predictors oppose, undecided on this release;
+**R6** ResNet-18 stage-3 convs: 8 images × 64 positions = 512 independent base patches, so the certificate is EMPTY
+for every r ≤ 512 (deployed ranks), live only at r = 1024. Running: P4 layer subsets (366146/366147), P1 MLP r-sweep
+(366148), P3 drift solve (366211–366225), ResNet full (366259, A100), P5 step 2 in a worktree. Next: read P4/P1-MLP,
+then P3 → fill P6 placeholders and submit; merge P5 step 2.
 
 ---
 

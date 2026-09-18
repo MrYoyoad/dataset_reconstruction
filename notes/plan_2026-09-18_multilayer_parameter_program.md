@@ -189,12 +189,12 @@ P4 → P1 → P8/P7 → P3 harness → P6 on it → P2(i) → P5 → P2(ii)/(iii
 | package | state | job ids / owner |
 |---|---|---|
 | P4 layer subsets | **RUNNING** | 366146 (d15 twin, r 108) · 366147 (bottleneck CNN, r 256); 3 seeds, 12 patterns |
-| P1 r sweep | **RUNNING / PEND** | 366148 (twin, r 8–256 + bridge 108) · 366149 (CNN, r 8–256) |
-| P2(i) plain deep conv | PEND | 366150 (`mnist_conv_deep_full`, r 256, prefix + alternate) |
-| P3/P6 drift + momentum/wd harness | builder, new files `experiments/multilayer_cert/drift_cert.py`, `scripts/run_drift_cert_wexac.sh` | smoke pending |
-| P7/P8 charts + hand-over | builder, new files `experiments/bootstrap_chart/handover_jacobian.py`, `experiments/cifar/chart_conditioning.py`, `scripts/run_chart_program_wexac.sh` | p7/p8 submitted by the builder |
-| P5 activation | builder, TRAINER side only (`--act` on `train_strong_backbone.py`, `train_deep_backbone.py`; four checkpoints to the gate); loader/harness `act` support deferred until 366146–366150 finish | training jobs pending |
-| P2(ii) ResNet-18 | builder, new files `experiments/multilayer_cert/resnet_ranklaw.py`, `experiments/exact_inversion/train_resnet_backbone.py` | train job pending |
+| P1 r sweep | CNN **DONE** 366149 (corrected law exact with gap 6/6, ledger R1–R2); MLP running | 366148 (twin, r 8–256 + bridge 108) |
+| P2(i) plain deep conv | **DONE** 366150 — vacuous as pre-registered, cond 10–6e2 (RESULTS §P2(i)) | — |
+| P3/P6 drift + momentum/wd harness | smokes 366163/366203 (ledger R3); **P3 RUNNING**: 12 cells short-gpu + 3 deep-target long-gpu, `CERT=both PRIVATE=onchart STARTS=200` | 366211–366225 |
+| P7/P8 charts + hand-over | **DONE** 366170/366171 (P8), 366191–366193 (P7) — ledger R4, R5 | — |
+| P5 activation | step 1 **DONE** (4/4 twins PASS the gate, 366155–366158 / 366207); step 2 (loader + harness `act`) building in a git worktree | — |
+| P2(ii) ResNet-18 | smoke **DONE** 366250 (certificate empty for r ≤ 512 at N = 8, ledger R6); full re-pointed at live cells (r 1024 N 8; N 4 r ≥ 512) | 366259 (A100, long-gpu) |
 | P2(iii) ViT | NOT started — pre-registered VACUOUS at N = 8 (audit item 7) | — |
 
 Infrastructure committed in 12c5927 (smokes 366139/366143 identical to 365681 on every integer field). Rows land in
