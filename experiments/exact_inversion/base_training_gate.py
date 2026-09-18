@@ -15,6 +15,7 @@ Families (loader -> checkpoint keys):
   hard-codes GELU, so a relu/tanh deep checkpoint is evaluated with a gate-local copy of forward_deep.
   mnist_conv    conv_certificate (spec shallow/deep)  {"Wms", "bs", "Whead", "bhead", test_acc, git}
   cifar_newclass cifar_newclass.MLP / CNN              {"state_dict", test_acc, train_acc, train_loss, margin_*, overtrain, epochs}
+  cifar_resnet  train_resnet_backbone.build_resnet18_cifar {"state_dict", train_acc, train_loss, test_acc, epochs_run, rule_met, git}
 
   python -u -m experiments.exact_inversion.base_training_gate --out results/base_training_gate.jsonl
   python -u -m experiments.exact_inversion.base_training_gate --ckpts models/exact_inversion/mnist_mlp_strong_full.pth
@@ -53,6 +54,7 @@ FAMILY = {
     "cifar10_mlp_overtrained_newclass":  ("cifar_newclass", {"arch": "mlp"}),
     "cifar10_mlp_newclass":              ("cifar_newclass", {"arch": "mlp"}),
     "cifar10_mlp":                       ("cifar_mlp", {}),
+    "cifar10_resnet18":                  ("cifar_resnet", {}),     # P2(ii): train_resnet_backbone (state_dict, BN eval)
 }
 WP0_ORDER = ["mnist_mlp_strong", "mnist_mlp_m26_strong", "mnist_mlp_d15w1000", "mnist_conv_deep", "mnist_conv",
              "cifar10_cnn_newclass", "cifar10_mlp_overtrained_newclass", "cifar10_mlp"]
@@ -110,6 +112,12 @@ def build_forward(family, extra, ck, dev):
         for p in net.parameters(): p.requires_grad_(False)
         def f(x): return net(x)
         return f, f"cifar_newclass.{Net.__name__} (state_dict, eval mode)", "cifar"
+    if family == "cifar_resnet":
+        from experiments.exact_inversion.train_resnet_backbone import build_resnet18_cifar
+        net = build_resnet18_cifar(ck.get("num_classes", 10)).to(dev); net.load_state_dict(ck["state_dict"]); net.eval(); net.double()
+        for p in net.parameters(): p.requires_grad_(False)
+        def f(x): return net(x.reshape(-1, 3, 32, 32))
+        return f, "train_resnet_backbone.build_resnet18_cifar: torchvision resnet18, 3x3 s1 stem, no maxpool (state_dict, BN eval)", "cifar"
     raise ValueError(family)
 
 

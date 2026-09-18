@@ -540,3 +540,36 @@ at eight stacked layers), **conv stacks are the best-conditioned certificate Jac
 **NOT shown.** Single seed; r = 256 only (the r-ladder that made P1-CNN discriminating was not run on this net — at
 r ∈ {64, 128} conv 2 and conv 3 are vacuous (N' = 232, 117) and conv 4 (N' = 32) would be the first live module: that
 is the cell to run if a discriminating regime on this net is wanted); no T arm; no solve.
+
+## P2(ii). ResNet-18 on CIFAR-10, LoRA on the stage-3 convs (jobs 366181 train, 366250 smoke) — every conv is r-side VACUOUS at N = 8 for r ≤ 512 — 2026-09-18
+
+*Plan P2 + audit item 7. `experiments/exact_inversion/train_resnet_backbone.py` (torchvision resnet18, 3×3 stem, no
+maxpool, BN eval = affine fold checked to 5e-15), gate **PASS** (train 99.806% / CE 8.04e-3 / test 93.81%, epoch 98,
+FP64 re-measure in `results/base_training_gate.jsonl`). `experiments/multilayer_cert/resnet_ranklaw.py` (port of the
+conv harness, imports only), rows `results/multilayer_cert/resnet_ranklaw_smoke_366250.jsonl`, design in
+`RESNET_NOTES.md`. Stage = torchvision `layer3` (input 128 ch at 8×8: `P_l = 64` positions; `p_l` = 1152 for the
+stride-2 conv, 2304 for the other three). Smoke: r ∈ {64, 512, 1024}, k ∈ {32, 128}, L ≤ 2, seed 1. Single read.*
+
+| conv | `p_l` | `P_l` | `N·P_l` | `N'_l` (measured) | rank C at r = 64 / 512 / 1024 | residual at truth |
+|---|---|---|---|---|---|---|
+| layer3.0.conv1 (s2) | 1152 | 64 | 512 | **512** | 0 / 0 / 512 | 1e-15 … 2e-15 |
+| layer3.0.conv2 | 2304 | 64 | 512 | **512** | 0 / 0 / 512 | same |
+| layer3.1.conv1 | 2304 | 64 | 512 | **512** | 0 / 0 / 512 | same |
+| layer3.1.conv2 | 2304 | 64 | 512 | **512** | 0 / 0 / 512 | same |
+
+**The 512 base patch vectors (8 images × 64 positions) are linearly independent at every conv**, so `N'_l = N·P_l`
+exactly and the certificate rank is `min(r, p_l) − 512`: **zero for every r ≤ 512**, i.e. at every deployed rank.
+This is the vacuity the audit predicted for ViT tokens (item 7), arriving on the ResNet from the r side rather than
+the `p_l` side (the bottleneck CNN's conv 1 died by `N' = p_l = 9`). Live only at r = 1024 (rank C = 512 per conv,
+32 768 conditions per image), where one conv pins any chart: stacked rank = k at every rung for k ∈ {32, 128},
+`cond_at_1e10` = 10 (k = 32) / 21–23 (k = 128), `no_gap_vacuous` (= k, the CNN picture).
+
+**Reading for deployment.** On a conv stage with `P_l` positions per image, the certificate exists only while
+`r > N·P_l`: 512 here at N = 8, i.e. above every LoRA rank anyone ships. The conv harness's "one conv pins the chart"
+result is therefore a large-r statement; at deployed r the conv certificate is empty on a ResNet stage, and the head
+(or a dense layer, `P_l = 1`) is where the certificate lives. Whether `N·P_l < r` can be restored by fewer images or
+a coarser stage (`layer4`: 4×4 = 16 positions → `N·P = 128` at N = 8, live from r = 129) is the next cell.
+
+**Full stage (job submitted 2026-09-18, A100):** r ∈ {64, 256, 1024} at N = 8 (64/256 as vacuous controls) and
+r ∈ {256, 512, 1024} at N = 4 (`N' = 256`, live from r = 257), k up to 3072, L ≤ 4. **NOT shown:** ReLU is the
+activation here (P5 axis, not a confound for exactness); single seed; no T arm; no solve; `layer4` not run.
