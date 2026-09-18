@@ -704,7 +704,20 @@ still arriving).** Same accounting one layer deeper:
 | trunc arm, `rho_trunc < 1e-4` | 44 cells, 8 / 8 / 8 | 30 cells, **2 / 8 / 8** |
 | trunc arm, `rho_trunc > 1e-4` | 90 cells, 0 / 0 / 8 | 15 cells, **0 / 0 / 0** |
 
-**The wall holds exactly, at both depths, with no exception in 179 cells.** The error side moves: one layer deeper
+**The wall holds at both depths across 265 cells, with exactly one boundary exception** (pooled, targets 2 and 4):
+
+| `rank C_full` | cells | images found (min / median / max) | cells recovering anything |
+|---|---|---|---|
+| `≥ k` | 141 | 5 / 8 / 8 | **141 of 141** |
+| `= k − 1` | 4 | 0 / 0 / **1** | 1 of 4 |
+| `< k − 1` | 120 | 0 / 0 / 0 | **0 of 120** |
+
+Every cell with enough equations recovers, every cell two or more short recovers nothing, and the single crossing sits
+exactly at one equation short. That cell (`target 4, r_lower = 64, T = 100, lr = 0.003`, seed 2) has a
+one-dimensional solution family, and one image of eight has a family member 9.1e-3 from the truth — inside the 1e-2
+bar by a hair, with 55 of its starts flagged as aliases. It is the boundary behaving like a boundary, not a
+counterexample: at one equation short the family is a line, and a line can pass close to the truth by chance.
+**Stated safely: recovery requires `rank C ≥ k`, and at `rank C = k − 1` a lucky near-miss is possible.** The error side moves: one layer deeper
 nothing at all survives above 1e-4 (against a long tail at target 2), and even below it a cell drops to 2 of 8. So
 the deeper the adapted layer, the less drift-induced error it tolerates — consistent with the conditioning falling
 with depth measured independently in §P4-MLP, and the reason the single-number error threshold is release-specific.
