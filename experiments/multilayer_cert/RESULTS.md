@@ -624,14 +624,14 @@ truncated certificate; r = 8 (dead, above). The `first = 1` arm adapts the raw i
 
 ### P3 pooled over three seeds (366211 + 366216 + 366221, same target layer) — the RANK rule is exceptionless, the ERROR rule is NOT a sharp threshold. **This CORRECTS the single-cell read above.**
 
-130 drift cells (seed 2 still running, 40 of 45 rows in). Same target, same everything but the eight private images.
+**135 drift cells, all three seeds complete (45 rows each).** Same target, same everything but the eight private images. (An interim version of this section read 130 cells with seed 2 partial; every figure below is the complete pooling and the conclusions are unchanged.)
 
 **Rank rule — exceptionless, and sharp exactly at `rank C = k`:**
 
 | full-certificate arm | cells | images found (min / median / max) |
 |---|---|---|
 | `rank C_full ≥ k` (= 32) | 49 | **5 / 8 / 8** |
-| `rank C_full < k` | 80 | **0 / 0 / 0** |
+| `rank C_full < k` | 85 | **0 / 0 / 0** |
 
 No cell on either side crosses. The identifiability condition is not a tendency here, it is a wall, and it sits at
 the predicted place. This is the rule to quote.
@@ -643,7 +643,7 @@ the predicted place. This is the rule to quote.
 | < 1e-4 | 44 | 8 / 8 / 8 |
 | 1e-4 … 7e-4 | 19 | 1 / 5 / 8 |
 | 7e-4 … 2e-3 | 16 | 0 / 1 / 4 |
-| > 2e-3 | 50 | 0 / 0 / **7** |
+| > 2e-3 | 55 | 0 / 0 / **7** |
 
 The median falls monotonically, and everything below 1e-4 recovers all eight. But **eleven cells above 2e-3 still
 recover at least one image, and one recovers seven** — so "nothing beyond ~1.5e-3", written above from a single
@@ -652,7 +652,7 @@ not by itself enough to predict recovery; how the error compares with the object
 not captured by it, and that is the missing quantity.
 
 **`K_l` is stable in the MEDIAN only.** Median 0.0152–0.0174 across four decades of orthogonal drift (genuinely
-flat, the pre-registered single-curve form holds there), but the full spread is 0.0035 to 0.534, a factor of 150,
+flat, the pre-registered single-curve form holds there), but the full spread is 0.0035 to 0.534 over 107 cells, a factor of 150,
 and every cell above 0.1 belongs to one seed. So `rho_trunc ≈ K_l · eps_perp` is a good description of the typical
 cell and cannot be used to convert a drift measurement into a recovery prediction for a particular release. The
 tail reaches the value the slow-drift theory predicts, which the earlier synthetic estimate did not.
