@@ -43,6 +43,12 @@ contiguous prefix in every row (§1).
 - **Job 355778 (A100 clean-FP64 gap check) EXITED 2026-09-18 14:20 with no rows and no log.** STATUS.md and
   CLAIMS_LEDGER.md still say "pending / settles it". Rerun 365681 on a shared A40, k = 784 cells not yet written at
   the time of this note. Anything conditioned on 355778 is unverified.
+- **UPDATE 2026-09-18 evening: 365681 is DONE (176 rows, 40 min, hgn55 A40, original d15 model, r = 108).** At every
+  discriminating cell (k ∈ {512, 692, 784}, first ∈ {1, 3}, L = 8) `gap_at_corrected` = 1.42–1.66, `real_rank = False`,
+  rank@1e-16 climbing toward ambient (639/645 at k = 692/784, first = 1; 464/482 at first = 3). At L = 4 (corrected =
+  400) the gap is real: 1.4e12 (first = 1) and 6e7–9e7 (first = 3). This is the same verdict as the plain-GPU look
+  355781: **NO GAP at the nesting ceiling, k* = 417 is a crossing.** STATUS.md / CLAIMS_LEDGER.md rows citing
+  355778 as pending should cite 365681 instead (not edited here; other lanes own those files).
 
 ## 3. Derived: effective condition number σ₁/σ_c of the stacked certificate Jacobian (c = rank at the 1e-10 rung)
 
