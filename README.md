@@ -36,21 +36,28 @@ Two properties of the certificate:
 ## Results
 
 Private images are recovered from a published adapter using **only the released weights and a public image
-family** — no training recipe, no labels, no random seed, no shadow models:
+family** — no training recipe, no labels, no random seed, no shadow models.
 
-| Setting | Recovered |
-|---|---|
-| EMNIST — a new letter class added to a digit model, `r=64`, `k=32` | **8 of 8** images · 38% of 500 random starts |
-| CIFAR-10 colour images — adapter on a hidden layer, public PCA chart | **8 of 8** · 253 of 400 starts |
-| CIFAR-10 — adapter on the classifier head | **8 of 8** · 171 of 400 starts |
-| Control: same certificate from a release trained on 8 *other* images | **0 of 400** |
-| Same solve with no chart | **0** |
-| Telling a true recovery from a false one, blind | precision **1.000** against a 0.000 null |
+Recovery is scored at two bars: **exact** (relative pixel error < 1e-2) and **identified** (the true image ranks
+top-1 against 99 public decoys of the same class, by SSIM and independently by the base model's features).
 
-*Recovered* means recovered **on the chart**: the search returns the private image's coordinates in the public
-family to machine precision, and a release trained on different images returns nothing. The public PCA charts
-measured so far are too coarse to hold a raw photograph, so the front the project is on now is a chart that can —
-a learned nonlinear chart is the agreed next attempt.
+| Setting | Exact | Identified |
+|---|---|---|
+| EMNIST — a new letter class added to a digit model, `r=64`, `k=32` | **8 of 8** · 38% of 500 starts | — |
+| CIFAR-10 colour — adapter on a hidden layer, public PCA chart | **8 of 8** · 253 of 400 starts | — |
+| CIFAR-10 — adapter on the classifier head | **8 of 8** · 171 of 400 starts | — |
+| EMNIST letters through an **attacker-buildable** public PCA chart | 0 of 8 | **7 of 8** |
+| Control: certificate from a release trained on 8 *other* images | 0 of 400 | **1 of 8** |
+| Same solve with no chart | 0 | — |
+
+The last two rows are the ones to read together. A chart an attacker can actually build recovers nothing
+pixel-exact, yet still **identifies 7 of the 8 private letters** out of a hundred-way line-up — and the chart's own
+projection is also 7 of 8, so the attack reaches its chart's ceiling rather than falling short of it. The control
+separates cleanly on the feature ranking (1 of 8 against 8 of 8), which is what makes the number attacker skill
+rather than an artefact of the line-up.
+
+This is dataset-dependent and is stated as measured: letters 7 of 8, motorcycles 2 of 8, keyboards 0 of 8 at the
+same public chart.
 
 Three findings behind those numbers:
 
@@ -69,7 +76,7 @@ The theory is exact at every depth it can be evaluated at (nullity 80 against a 
 Full numbers, conditions and job ids: **[results/CLAIMS_LEDGER.md](results/CLAIMS_LEDGER.md)**.
 Current position and open problems: **[notes/research_overview_2026-09-17.md](notes/research_overview_2026-09-17.md)**.
 
-**Next:** multilayer adapters · a chart that holds real photographs · a first attempt at text.
+**Next:** multilayer adapters · charts that carry identity further · a first attempt at text.
 
 ---
 
@@ -134,6 +141,11 @@ A claim needs two independent checks before it leaves the repository, a number r
 counts as one of them, and withdrawn claims stay in the file with the reason instead of being deleted. Failures
 are reported as failures — an optimizer that did not converge and an answer that converged to the wrong image are
 recorded as different outcomes, because they are.
+
+Recovery is reported at both bars, never one. Pixel-exactness is what the certificate's floor certifies, but it is
+the wrong question to stop at — a reconstruction a person would recognise as the private photograph has leaked it
+whether or not the pixels match. So every cell is also scored as identification against public decoys, and
+resemblance alone ("it looks like an A") is never counted as recovery.
 
 ## Documentation
 
