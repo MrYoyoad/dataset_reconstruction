@@ -763,6 +763,31 @@ margin needed grows with contamination** — at `rank C − k` of 20+ no cell fa
 
 Pooled necessary direction across all three targets and both networks: **no cell with `rank C ≤ k − 2` has ever
 recovered anything** (161 cells).
+
+### The drift study's headline, pooled over every network, target and seed (516 cells)
+
+One table replaces the per-cell readings above. The axis is the **margin** `rank C_full − k`: how many equations the
+exact certificate has beyond the number of unknowns the chart presents.
+
+| margin `rank C − k` | cells | images found (min / median / max) | cells recovering **nothing** |
+|---|---|---|---|
+| ≤ −2 | 196 | 0 / 0 / 0 | **196 of 196** |
+| −1 | 4 | 0 / 0 / 1 | 3 of 4 |
+| 0 … +4 | 13 | 0 / 6 / 8 | 2 of 13 |
+| +5 … +15 | 75 | 2 / 7 / 8 | **0 of 75** |
+| > +15 | 228 | 1 / 8 / 8 | **0 of 228** |
+
+Read across the rows: **short by two or more and nothing is ever recovered, 196 cells without exception. Five or
+more spare equations and no cell ever fails, 303 cells without exception.** Everything ambiguous lives in the
+seventeen cells within one equation short to four spare — the boundary, where a one-dimensional solution family can
+pass near the truth by luck (the `−1` cell that returns one image) and where a small contamination can displace the
+minimiser (both `0…+4` failures sit at margin 1, `rho_full ≈ 1e-7`, with the truncated certificate recovering 6 and
+8 in the same cells).
+
+This covers three target depths on the deep network, the hidden layer and the head of the shallow one, three seeds,
+three lower-adapter ranks, five step counts and three learning rates. **It is the rule the plan asked for**, it is
+stated in a quantity the attacker computes from the release alone (`rank C = r − rank B_T`) against a quantity the
+attacker chooses (`k`), and it needs no knowledge of the drift itself.
 **What survives, stated carefully.** The full certificate's failure is predictable from the release alone, because
 `rank C = r − rank B_T` is computable and the wall is at `k`. The truncated certificate's failure is governed by the
 drift-induced error, monotonically, but its threshold is release-specific and cannot yet be predicted from a
