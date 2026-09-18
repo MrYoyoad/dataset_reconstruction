@@ -100,7 +100,13 @@ a plan audit; everything below is read from rows, the rest is still running (WP1
   label-independent (`row(B_1) = col(A_0 H D^T) = col(A_0 H)` when rank D = N), and the two-row and one-row mixed
   cells land the identical 157/200. The NTK free-coefficient arm is non-monotone in T and composition-dependent
   (a: 0,0,1,8,1 of 8 at T = 1,5,20,100,400; t: 8,8,2 at 1,5,20), every miss a search failure above a 1e-15 floor,
-  never an alias. Pending: per-class vs pooled charts, AE, k = 32/48 for t and same-row, all CNN cells.
+  never an alias. **Refreshed on 97 rows:** no mixed cell is below its single-class cells at the same base, chart and
+  width, on the strong MNIST MLP, the over-trained CIFAR MLP or the CNN; where recovery drops the cause is the chart
+  or the base, and the gap between the two *single-class* cells at k = 48 (a 1–2/8 against t 4–5/8) is larger than any
+  single-versus-mixed gap. The linearised arm is where composition shows: at fixed T the one-row mixed cell is never
+  better than the two-row cell (2 vs 5, 4 vs 5, 5 vs 8 at T = 1, 5, 20 on CIFAR), as pre-registered. First per-class
+  versus pooled chart pair favours per-class on 7 of 8 images (median 0.338 → 0.314). Pending: 57 of 58 cells, mostly
+  the CNN split and the AE / per-class arms.
 - **Bootstrapping the chart from the recovery STALLS on MNIST letters, in both variants** (WP4, job 355987, 200 starts,
   raw privates, generic EMNIST PCA-32 round 0). Class recognition works (7/8 top-1, calibrated 87 % on projections) and
   the recognised class's chart is more faithful than the generic one (chart optimum to truth 0.40 vs 0.43; wrong-class
