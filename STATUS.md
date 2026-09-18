@@ -23,7 +23,7 @@ a plan audit; everything below is read from rows, the rest is still running (WP1
   confident-batch corner on a fresh cell. Follow-up running: `d15_letter_a` (EMNIST a as an 11th class on the same
   encoder), the release that does record.
 - **On the 15-layer encoder the certificate is exact but unreachable: depth kills the SEARCH, not the information**
-  (WP5 arm c, `d15_letter_a`, 7 of 14 cells, jobs 356075–356088). Same encoder as the depth window, EMNIST a as an
+  (WP5 arm c, `d15_letter_a`, all 14 cells, jobs 356075–356088). Same encoder as the depth window, EMNIST a as an
   11th class, r=64, T=400, k=32. The release records (rank `B_T` = 8, `‖B_T‖_F` = 1.27, `σ₈/σ₁` = 1.6e-5, against
   0.37 and 8.7e-11 on the digits release) and the certificate annihilates the true letters to 1.7e-14 with
   rank C = 56. Yet **0 of 400 starts land even on the exactly-spanning chart (ε = 0)**, best image error 0.51; every
