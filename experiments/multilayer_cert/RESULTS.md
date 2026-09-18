@@ -210,7 +210,11 @@ rank profile; depth is how you move it.
 > (attention/MLP blocks, first_adapted ≥ 4) `d_j` contracts to a few dozen directions (19–48) with a spectrum
 > smooth over 11+ orders — **no rank, only an effective rank at a stated tolerance**. It compounds with deployment
 > precision: at fp16/bf16 roundoff the usable count is read far up that 11-order spectrum, a small fraction of an
-> already tiny `d_j` (355778 puts the number on it). **Two independent routes reach this same deployment story,
+> already tiny `d_j`. **MEASURED (job 365681, k=784, first=3, dead_jacobian=False):** T5.2 predicts **756**, the
+> corrected law 417, but the usable certificate rank is **fp16 = 142** (~5.3× below T5.2) and **bf16 = 36** (~21×
+> below) — against the fp64-tolerance count of ~402 (~1.9×). So at the precision adapters actually ship in the
+> overprediction is 5–21×, not the fp64 ~2×, and this is measured directly, not the earlier ~3× extrapolation.
+> (gap 1.58, no gap — the verdict holds on this run too.) **Two independent routes reach this same deployment story,
 > neither built to test the other:** §19b by pixel count (~7% of the image at deployed rank) and this by the
 > spectrum (no clean rank at deployed depth) — the convergence is the result.
 
