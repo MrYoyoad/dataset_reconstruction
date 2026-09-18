@@ -620,3 +620,35 @@ the original d15's picture (bridge cell above), so the earlier no-gap verdict wa
 **NOT shown.** Zero drift; k = 32/128 cells (pinned by the first layer at r ≥ 108, or coinciding); a solve; the
 truncated certificate; r = 8 (dead, above). The `first = 1` arm adapts the raw input layer, which nobody deploys
 (§5c) — the deployable arm is `first = 3`.
+
+## P4-CNN. Layer subsets on the bottleneck CNN (job 366147) — the stacked rank is set by the SHALLOWEST live conv in the set, whatever the pattern; conditioning is set by WHICH conv pins, not by shallowness — 2026-09-18
+
+*Plan P4 (audit items 6, 8). `conv_encoder_ranklaw.py --layers prefix suffix:2 suffix:4 middle:2 middle:4 alternate
+random:2:3 random:4:3 single:1 single:3 single:5 single:8` on `mnist_conv_bottleneck.pth`, r = 256, `first ∈ {1, 3, 5}`,
+k ∈ {128, 384, 784}, three seeds, zero drift. 441 RANKLAW rows, 66 min wall. Rows
+`results/multilayer_cert/ranklaw_p4_cnn_366147.jsonl`. Single read, provisional.*
+
+k = 784, stacked rank at 1e-10 (three seeds; random draws listed by the set they drew) · `cond_at_1e10`:
+
+| chosen modules (1–4 conv, 5 dense, 6 head) | rank | gap | cond | outcome |
+|---|---|---|---|---|
+| [1] (conv 1 alone; `single:1`, prefix L = 1) | 0 | – | – | conv-vacuous |
+| [1, 2] (prefix L = 2: conv 2 pins) | 784 | = k | **9e5 / 5e5 / 1e9** | no_gap_vacuous |
+| any set containing conv 3 and no conv 2: [3], [1, 3], [3, 4], [3, 5], [3, 6], [1, 3, 5], [3, 4, 5, 6], [2, 3, 4, 5] … | 784 | = k | **1e2 – 9e2** | no_gap_vacuous |
+| [2, 4, 5, 6] (conv 2 + bottleneck side) | 784 | = k | 1e4 | no_gap_vacuous |
+| sets starting at conv 4 or later: [4, 5], [4, 6], [5], [5, 6] (`suffix:2`, `middle:2` at first = 3, `single:5`, all of first = 5) | **128 / 127 / 128** | real (`compare`) | 5e4 – 4e7 | compare |
+
+**Readings.** (1) **Nesting confirmed by every pattern**: the rank is `min(k, d_j of the shallowest chosen module,
+Σq)` — 784 when conv 2 or conv 3 is in the set, 128 (the bottleneck width) when the set starts at conv 4 or later, 0
+for conv 1 alone; alternating, middle, suffix, random and prefix sets with the same shallowest live module give the
+same rank in every seed. Adding deeper modules to a set never raises the rank above the shallowest module's `d_j`.
+(2) **The pre-registered conditioning ordering is REFUTED**: a set that skips conv 2 in favour of conv 3 is *better*
+conditioned by 3–7 orders ([1, 3] at 1e2 vs [1, 2] at 5e5–1e9), and every conv-3-containing set sits in the hundreds
+regardless of what else is stacked. Conditioning is set by which module does the pinning — conv 3 (139 certificate
+rows × 16 positions = 2224 conditions on 784 unknowns) conditions far better than conv 2 (24 × 49 = 1176, barely
+covering) — not by how shallow the set starts. The bottleneck-side sets (rank 128, gap real) carry the worst
+conditioning of the live cells (5e4–4e7, three orders across seeds, as in P1-CNN). (3) At k = 128 and 384 every set
+with a live conv reads `rank = k`; the bottleneck-side sets read 128 at every k.
+
+**NOT shown.** r = 256 only (P1-CNN's discriminating r = 64/128 regime was not crossed with patterns); zero drift;
+no solve; MLP patterns are job 366146 (running at write time).
