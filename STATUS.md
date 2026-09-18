@@ -1,5 +1,38 @@
 # Project Status
 
+## The recovery criterion decides the headline: exact landing dies at chart error 0.014, IDENTIFICATION survives to 0.26 (2026-09-18; job 356492)
+
+Yoad, 2026-09-18: the bar should not be pixel-exactness but whether a human can tell it is the same object. Adopted
+as a **second tier**, computed on every saved cell of the 18 Sept package (767 arms, 0 errors): the recovery is
+*identified* when the truth is **top-1 in a line-up of the truth + 99 public decoys** of the same class (public train
+split), by SSIM and separately by the frozen base model's penultimate features. Tier 1 (relative pixel error < 1e-2)
+is unchanged and still drives every certificate-floor claim.
+
+| `mlp_letter_a`, certificate vs the RAW truth | tier 1, exact landed /8 | tier 2, SSIM top-1 /8 | tier 2, feature top-1 /8 |
+|---|---|---|---|
+| chart error 0.0069 | 7 | 8 | 8 |
+| chart error 0.0139 | **0** | **8** | 8 |
+| chart error 0.26 | 0 | **8** | 8 |
+| **public PCA, 0.312 (attacker-available)** | **0** | **7** | 7 |
+| wrong-release control | 0 | 4 | **1** |
+
+**The public PCA chart, which tier 1 calls a total failure (0/400 landings), identifies 7 of 8 private letters against
+a 100-way line-up.** The miss is the one cursive `a`, and the chart's own projection is also 7/8 there, so the attack
+reaches the chart's ceiling rather than falling short of it. Motorcycle behaves the same (8/8 to chart error 0.6,
+2/8 at public PCA); keyboard degrades with chart error (7/8 early, 0/8 at public PCA).
+
+**Two caveats that must travel with this.** On oracle cells the chart is spanned by perturbed copies of the privates,
+so the chart projection is 8/8 by construction and even the **wrong-release control scores 4/8 on SSIM** — there,
+tier 2 measures "reached the chart's identifiable point", not attacker skill. The **feature rank separates them**
+(control 1/8 against the real release's 8/8) and is the discriminating statistic. On the `d15` cells the control
+scores 6–7/8 on SSIM, so SSIM is uninformative there; only the feature rank is (control 0/8).
+
+**Why this matters for the thesis.** Every "no chart works" conclusion in this repository is a tier-1 statement. Under
+tier 2 the same releases leak identity through the very charts we called failures. The two walls result is not
+overturned — it is scoped: *exact* reconstruction needs a chart 20–47× better than public PCA; *identification* does
+not. The rerun command is `bash scripts/run_perceptual_id_wexac.sh full`, to be re-run when the pending CNN
+composition cells, the CIFAR bootstrap and the last decoder cells land.
+
 ## 18 Sept package (WP0–WP5): what is already settled while the sweeps run (2026-09-18; jobs 355833–356051)
 
 Plan and audit: `notes/plan_2026-09-18_cnn_ranklaw_newclass_charts.md`. Five packages built by sibling sessions after
