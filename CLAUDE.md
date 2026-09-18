@@ -406,6 +406,29 @@ multilayer LoRA network, and does each adapted layer add independent information
 6. Where `N' > N` the certificate constrains the training *span*, not the individual images, so per-image norms
    are not the legitimate metric there — principal angles are.
 
+### Multilayer parameter program (added 2026-09-18) — `notes/plan_2026-09-18_multilayer_parameter_program.md`
+
+Packages P1–P8 (r sweep, architectures, drift rule, layer subsets, activation, momentum/weight decay, charts, chart
+hand-over), audited 2026-09-18; live state table at the end of the plan. Runners (all `bsub`, `python -u`, job-id
+suffixed rows under `results/multilayer_cert/`, provenance on every row):
+
+- `bash scripts/run_ranklaw_program_wexac.sh submit {smoke|p4|p1|p2i}` — rank-law harnesses with `--layers`
+  patterns (`prefix|suffix:L|middle:L|alternate|random:L:n|single:l|explicit:l1,l2`), `--r`/`--seed` lists,
+  `cond_at_{1e10,corrected,fp16}` and the third outcome `rank_test_outcome ∈ {compare, no_gap_vacuous, dead}` with
+  `rank_verdict` at the 1e-10 rung.
+- `CERT=full|trunc|both PRIVATE=raw|onchart STARTS=n bash scripts/run_drift_cert_wexac.sh submit {smoke|p3|p6}` —
+  `experiments/multilayer_cert/drift_cert.py`: checkpoint-loaded MLP with adapters on a chosen layer subset
+  (`--adapt`, `--target`, `--r-per-layer`), SGD/momentum/weight decay, drift (`δ`, `δ_perp`, `N'`, `rank B_T`, both
+  certificates, `contaminated`, seed scale and two floors), stacked LM solve with the `x*_chart` reference, tier 1 + 2,
+  verdicts incl. `contaminated` and `chart-limited`. P6 refuses to submit until `P6_LR`/`P6_RL` are set.
+- `bash scripts/run_p5_activation_wexac.sh {p5_train|p5_gate}` — `--act {gelu,relu,tanh}` twins of the MNIST MLPs
+  (act stored in the checkpoint; loaders must default to gelu).
+- `scripts/run_chart_program_wexac.sh {p7|p8}` and `scripts/run_resnet_ranklaw_wexac.sh {train|smoke|full}` — see
+  the builders' notes files next to the code.
+
+Ground rules carried over: never quote a rank without its gap; join a measured rank to its OWN row's prediction (the
+prediction moves per seed); twins over failing originals; three seeds before a number enters the ledger.
+
 ### Data Freshness Rules (Critical)
 
 These rules prevent stale numbers from appearing in documents and presentations:

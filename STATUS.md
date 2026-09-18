@@ -9,6 +9,7 @@ section further down is older, not superseded, unless it says so. Audited claims
 
 **Most recent:**
 
+- [The two depth laws separate on a real CNN, and the corrected law wins as an exact integer with a gap](#the-two-depth-laws-separate-on-a-real-cnn-and-the-corrected-law-wins-as-an-exact-integer-with-a-gap-2026-09-18-job-366149)
 - [The recovery criterion decides the headline: exact landing dies at chart error 0.014, IDENTIFICATION surv…](#the-recovery-criterion-decides-the-headline-exact-landing-dies-at-chart-error-0014-identification-survives-to-026-2026-09-18-job-356492)
 - [18 Sept package (WP0–WP5): what is already settled while the sweeps run](#18-sept-package-wp0wp5-what-is-already-settled-while-the-sweeps-run-2026-09-18-jobs-355833356051)
 - [Depth destroys the MEASUREMENT, not the law: identifiability stops being evaluable between depth 8 and 12](#depth-destroys-the-measurement-not-the-law-identifiability-stops-being-evaluable-between-depth-8-and-12-2026-09-18-jobs-355792-355795)
@@ -19,6 +20,26 @@ section further down is older, not superseded, unless it says so. Audited claims
 - [WITHDRAWN and REPLACED: depth DOES raise the identifiability cap — cap(L) = min(L·(r−N)+m, nesting ceiling)](#withdrawn-and-replaced-depth-does-raise-the-identifiability-cap--capl--minl·r−nm-nesting-ceiling-2026-09-17-job-355531)
 - [M6: T5.2 refuted on a REAL encoder — and at every chart width an attacker can build, the two laws agree](#m6-t52-refuted-on-a-real-encoder--and-at-every-chart-width-an-attacker-can-build-the-two-laws-agree-2026-09-17-job-354535-attested-59cbe42-dirty--script_sha-dd81201f5399)
 - [Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing](#depths-additivity-law-is-false-as-stated-and-the-depth-route-needs-re-costing-not-re-testing-2026-09-17-jobs-350996-218345218346-theory_checks-688036)
+
+---
+
+## The two depth laws separate on a real CNN, and the corrected law wins as an exact integer with a gap (2026-09-18; job 366149)
+
+Multilayer parameter program (`notes/plan_2026-09-18_multilayer_parameter_program.md`), package P1 on the bottleneck
+CNN: the adapter rank swept `r ∈ {8, 16, 32, 64, 128, 256}` at every module, three seeds, zero drift. At **r = 64 and
+r = 128, k = 784** the first live module is conv 4 or conv 3 with few certificate rows, the nesting ceiling binds, and
+the two depth laws separate by 80–210 ranks. **Measured stacked rank = corrected law's integer in 6 of 6 cells
+(128/127/128 and 304/335/368 across seeds, the prediction moving with each seed's patch span), every cell with a real
+gap (2e4–5e9); T5.2 over-predicts in 6 of 6.** First exact-integer confirmation with a gap on a real network (the
+d15 MLP result was effective-rank only, no gap; the r = 256 CNN run was vacuous). Conditioning is non-monotone in r:
+10 → 50 → 3e7 → 4e7 → 5e2; the discriminating regime is the badly conditioned one, and it moves three orders
+seed-to-seed. Write-up: `experiments/multilayer_cert/RESULTS.md` §P1-CNN. Companion: P2(i) plain deep conv
+(366150) is vacuous as pre-registered, cond in the tens to hundreds (§P2(i)). Also new this package: the
+`condition_number` gap is closed (`cond_at_1e10` on every rank-law row), layer-subset patterns (`--layers`), the
+drift/momentum/weight-decay harness (`drift_cert.py`, smoke: N' ≈ 8(T−1) when the layer below is adapted, so the
+full certificate is contaminated at r = 64 after ~7 steps), and four activation twins at the gate (4/4 PASS).
+Running: P4 layer subsets (366146/366147), P1 MLP r-sweep (366148), P3 drift solve (366211–366225), P7/P8 charts,
+ResNet-18 (366181), P5 step 2 in a worktree. Next: read P4/P1-MLP, then P3 → fill P6 placeholders and submit.
 
 ---
 

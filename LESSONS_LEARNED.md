@@ -4190,3 +4190,29 @@ working pattern: `pip install --no-deps --target <repo>/.conda/extra_pkgs <pkg>=
 the job script only; pin to a version whose import does not demand a newer `peft` (0.32.2 works beside peft 0.7.1,
 0.36.0 refuses). Also: a "smoke" that decodes through a 335 MB VAE takes 43 minutes on a shared GPU — size the
 smoke from a per-step timing, not from the word.
+
+## 2026-09-18 — long-gpu can be saturated by your own other lanes; bmod to short-gpu unblocks in a minute
+
+**Symptom.** Five jobs sat PEND on `long-gpu` for 20+ minutes with ~2000 jobs queued ahead, while the per-user GPU
+cap (70) was fully used by other lanes' running jobs (72 running under the same LSF user — all lanes submit as
+`yoado`, see the bjobs-attribution memory). **Fix.** `bmod -q short-gpu -W 5:50 <jobid>` for anything under the
+short-gpu run limit (360 min): every requeued job started within a minute. Rank-law sweeps (5–6 min), backbone training
+to the gate (8–66 epochs), drift cells at 200 starts (≈3–4.5 h) all fit; the 9-h deep-target P3 cells do not and stay
+on long-gpu. **Rule.** Check `bjobs -u $USER | grep -c RUN` against the cap before submitting to long-gpu, and give
+short-gpu-sized jobs `-W` explicitly so they can be moved.
+
+## 2026-09-18 — a "condition number" absent from every row was recoverable from the saved spectrum
+
+The multilayer rank-law harness stored `condition_number=None` on every row (reserved for a join that never happened)
+while saving the normalised singular spectrum of image 0 per row — so σ₁/σ_c at any rung was one line of Python away
+the whole time. When a scalar is deliberately not emitted because "it presupposes a rank", still emit it AT EACH RUNG
+(`cond_at_1e10`, `cond_at_corrected`, `cond_at_fp16`) with the same dead-Jacobian guard as the gap; the reader can
+discard it, but cannot conjure it from prose. Now done (commit 12c5927). Related: a verdict defined at the finest rung
+reads "neither" wherever the finest rung sits at ambient — define ±1 verdicts at the rung the record uses (1e-10).
+
+## 2026-09-18 — the per-seed PREDICTION moves; check it before calling a seed spread a miss
+
+P1-CNN: three seeds gave stacked ranks 304 / 335 / 368 at one (r, k). Printing only seed 1's prediction made it look
+like two seeds overshot the corrected law. The corrected law depends on each seed's eight images through the conv-3
+patch-span rank (rank C_3 = 11 / 13 / 15), and the prediction was 304 / 335 / 368 — exact in all three. Always join
+the measured rank to the SAME row's prediction, never to another seed's.
