@@ -541,6 +541,41 @@ at eight stacked layers), **conv stacks are the best-conditioned certificate Jac
 r ∈ {64, 128} conv 2 and conv 3 are vacuous (N' = 232, 117) and conv 4 (N' = 32) would be the first live module: that
 is the cell to run if a discriminating regime on this net is wanted); no T arm; no solve.
 
+
+## P4-MLP. Layer subsets on the 15-layer MLP twin (job 366146) — where you START sets everything, skipping layers COSTS rank, and a random non-contiguous set finally separates the two formulas WITH a gap — 2026-09-18
+
+*`real_encoder_ranklaw.py` on `mnist_mlp_d15w1000_full`, r = 108, N = 8, twelve patterns, k ∈ {128, 384, 784}, three
+seeds, zero drift. 522 RANKLAW rows, 130 min wall. Rows `results/multilayer_cert/ranklaw_p4_mlp_366146.jsonl`.*
+
+**A single layer's worth falls with depth, and so does its conditioning** (k = 784, one layer only):
+layer 1 → rank 100, cond 2 · layer 3 → 100, cond 1e2 · layer 5 → 100, cond 2e4 · layer 8 → 77, cond 1e8, no gap ·
+layers 14+15 together → ~31, cond 5e9. The per-layer certificate rank is `r − N` = 100 while the layer still sees
+enough directions; past the encoder's contraction the layer's own visible dimension caps it, and by the last layers a
+whole pair is worth less than a third of one shallow layer, at seven orders worse conditioning.
+
+**Skipping layers costs rank here, unlike on the CNN.** Alternating saturates at 424 and never moves again
+(`[1,3,5,7,9]`, `[1,3,…,11]`, `[1,3,…,15]` all give 424 measured 409–413), while the contiguous prefix reaches 624.
+On the CNN one live conv already pinned the chart, so the pattern was irrelevant; on the MLP each layer contributes
+`r − N` and the ceiling depends on how much was accumulated **before** the contraction bites, so a sparser set hits
+the ceiling lower. Random sets obey the same accounting: `[1, 11]` → 133 = layer 11's visible dimension (33) plus
+layer 1's contribution (100); `[9, 11]` → 75; `[10, 15]` → 60.
+
+**The discriminating gapped cell the MLP had never produced.** Over 522 rows the two formulas differ in 100, and
+almost all of those sit past the conditioning wall where no gap exists. **Two do not**: the random set
+`[3, 4, 10, 15]` at k = 384 and at k = 784 predicts 260 under the corrected law and 287 under T5.2, has a **real gap
+(6.2e5 and 7.7e5)**, and **measures 260 in both** — the corrected law exactly, T5.2 wrong by 27. This supersedes the
+statement in §P1-MLP that the MLP never delivers a gapped cell separating the laws: contiguous prefixes never do,
+because their predictions coincide until the wall, but a **non-contiguous** set reaches a regime where the formulas
+differ while the Jacobian is still readable. The pattern breakdown shows why nobody had seen it: prefix disagrees in
+18 rows of 144, every contiguous suffix/middle/single pattern in **zero**, and the random 4-layer draws in 32 of 54.
+
+**One seed carries the two gapped cells** (they are the same layer set at two chart widths), so this is a single
+draw, not a replicated result. The obvious follow-up is to re-run that layer set at all three seeds and a few
+neighbouring sets, which is cheap.
+
+**NOT shown.** Zero drift; no solve; r = 108 only; the `first = 1` arm adapts the raw input layer, which nobody
+deploys.
+
 ## P2(ii). ResNet-18 on CIFAR-10, LoRA on the stage-3 convs (jobs 366181 train, 366250 smoke) — every conv is r-side VACUOUS at N = 8 for r ≤ 512 — 2026-09-18
 
 *Plan P2 + audit item 7. `experiments/exact_inversion/train_resnet_backbone.py` (torchvision resnet18, 3×3 stem, no
@@ -612,9 +647,10 @@ and with r at fixed L, and it is the conditioning, not the rank prediction, that
 cell at cond ≥ 6e9 is `no_gap_vacuous`, and those are precisely the cells where the two laws separate. (3) In that
 no-gap regime the effective rank at 1e-10 sits **1–6% below the corrected law and far below T5.2** in every cell
 (twin and original alike), never above the corrected law — consistent with §5b/5c and with the CNN's exact
-confirmation (P1-CNN) where the bottleneck supplies a clean `d_j` and a gap. **The MLP never delivers a gapped cell
+confirmation (P1-CNN) where the bottleneck supplies a clean `d_j` and a gap. **Contiguous prefixes never deliver a gapped cell
 that separates the laws**: at r = 64, L = 8, `first = 1`, seed 1 the gap is 3e3 (barely `compare`) and the verdict
-is `neither` (435 vs 448 vs 448) — one marginal cell, not a refutation. (4) The gate-PASS twin changes nothing about
+is `neither` (435 vs 448 vs 448) — one marginal cell, not a refutation. **Non-contiguous sets DO** — see §P4-MLP,
+where a random four-layer set separates them with a 1e5-6 gap and lands exactly on the corrected law. (4) The gate-PASS twin changes nothing about
 the original d15's picture (bridge cell above), so the earlier no-gap verdict was not a training artefact.
 
 **NOT shown.** Zero drift; k = 32/128 cells (pinned by the first layer at r ≥ 108, or coinciding); a solve; the
