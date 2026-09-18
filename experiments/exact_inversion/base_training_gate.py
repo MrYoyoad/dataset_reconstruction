@@ -11,6 +11,8 @@ Families (loader -> checkpoint keys):
   mnist_mlp     train_strong_backbone.save_ckpt       {"state_dict": layers.{0,1,2}.*, epoch, batch, test_acc}
   cifar_mlp     train_cifar_backbone (same keys, 3072-in)
   mnist_deep    deep_stack.save_deep                  {"Ws": [...], "b1", test_acc, depth, width, ...}
+  Both MLP families read an optional "act" field (P5 activation twins, default gelu).  deep_stack's forward
+  hard-codes GELU, so a relu/tanh deep checkpoint is evaluated with a gate-local copy of forward_deep.
   mnist_conv    conv_certificate (spec shallow/deep)  {"Wms", "bs", "Whead", "bhead", test_acc, git}
   cifar_newclass cifar_newclass.MLP / CNN              {"state_dict", test_acc, train_acc, train_loss, margin_*, overtrain, epochs}
 
@@ -24,6 +26,7 @@ import torch, torch.nn.functional as F
 from experiments.exact_inversion.lora_exact_inversion import git_hash
 from experiments.exact_inversion.trained_backbone import read_idx
 from experiments.exact_inversion import deep_stack, conv_certificate
+from experiments.exact_inversion.train_strong_backbone import ACTS
 from experiments.cifar import cifar_newclass
 
 torch.set_default_dtype(torch.float64)
@@ -42,6 +45,10 @@ FAMILY = {
     "mnist_conv":                        ("mnist_conv", {"spec": "shallow"}),
     "mnist_conv_bottleneck":             ("mnist_conv", {"spec": "bottleneck"}),
     "mnist_mlp_d15w1000_full":           ("mnist_deep", {}),
+    "mnist_mlp_strong_relu":             ("mnist_mlp", {}),      # P5 activation twins (act read from the dict)
+    "mnist_mlp_strong_tanh":             ("mnist_mlp", {}),
+    "mnist_mlp_d15w1000_relu_full":      ("mnist_deep", {}),
+    "mnist_mlp_d15w1000_tanh_full":      ("mnist_deep", {}),
     "cifar10_cnn_newclass":              ("cifar_newclass", {"arch": "cnn"}),
     "cifar10_mlp_overtrained_newclass":  ("cifar_newclass", {"arch": "mlp"}),
     "cifar10_mlp_newclass":              ("cifar_newclass", {"arch": "mlp"}),
@@ -70,13 +77,23 @@ def build_forward(family, extra, ck, dev):
         sd = ck["state_dict"]
         W1, b1 = sd["layers.0.weight"].to(dev).double(), sd["layers.0.bias"].to(dev).double()
         W2, W3 = sd["layers.1.weight"].to(dev).double(), sd["layers.2.weight"].to(dev).double()
-        def f(x): return F.gelu(F.gelu(x @ W1.T + b1) @ W2.T) @ W3.T
-        return f, f"{W1.shape[1]}-{W1.shape[0]}-{W2.shape[0]}-{W3.shape[0]} GELU (state_dict)", \
+        act = ck.get("act", "gelu"); phi = ACTS[act]
+        def f(x): return phi(phi(x @ W1.T + b1) @ W2.T) @ W3.T
+        return f, f"{W1.shape[1]}-{W1.shape[0]}-{W2.shape[0]}-{W3.shape[0]} {act.upper()} (state_dict)", \
             ("mnist" if family == "mnist_mlp" else "cifar")
     if family == "mnist_deep":
         Ws, b1, _ = deep_stack.load_deep(str(ck["__path__"]), dev)
-        def f(x): return deep_stack.forward_deep(x.T, Ws, b1).T
-        return f, f"784-{Ws[0].shape[0]}x{len(Ws)-1}-{Ws[-1].shape[0]} GELU (deep_stack, depth {len(Ws)})", "mnist"
+        act = ck.get("act", "gelu")
+        if act == "gelu":
+            def f(x): return deep_stack.forward_deep(x.T, Ws, b1).T
+            return f, f"784-{Ws[0].shape[0]}x{len(Ws)-1}-{Ws[-1].shape[0]} GELU (deep_stack, depth {len(Ws)})", "mnist"
+        phi = ACTS[act]                                       # deep_stack.forward_deep hard-codes GELU: same map, this act
+        def f(x):
+            h = x.T
+            for l in range(len(Ws) - 1):
+                h = phi(Ws[l] @ h + (b1[:, None] if l == 0 else 0))
+            return (Ws[-1] @ h).T
+        return f, f"784-{Ws[0].shape[0]}x{len(Ws)-1}-{Ws[-1].shape[0]} {act.upper()} (gate-local forward_deep, depth {len(Ws)})", "mnist"
     if family == "mnist_conv":
         conv_certificate.SPEC = conv_certificate.SPECS[extra["spec"]]
         Wms = [w.to(dev).double() for w in ck["Wms"]]; bs_ = [b.to(dev).double() for b in ck["bs"]]

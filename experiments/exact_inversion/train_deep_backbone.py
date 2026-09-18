@@ -19,6 +19,11 @@ train-loss improvement (floor 1e-5).  Train acc / loss / margin fraction are rec
 
   python -u -m experiments.exact_inversion.train_deep_backbone --init-from models/exact_inversion/mnist_mlp_d15w1000.pth \
       --out models/exact_inversion/mnist_mlp_d15w1000_full.pth --target-train-acc 0.995 --min-train-loss 1e-2 --max-epochs 300
+
+P5 (2026-09-18) activation twins:  --act {gelu,relu,tanh}  (default gelu = the original code path, byte-identical),
+recorded in the checkpoint dict as "act" (passed to deep_stack.save_deep as meta).  deep_stack.forward_deep /
+inputs_of hard-code GELU and do not read the field yet, so a relu/tanh checkpoint loaded through them is WRONG until
+the loader learns to read it.  Warm-starting from a checkpoint that records a different act is refused.
 """
 import argparse, json, os, socket, sys, time
 import torch, torch.nn as nn
@@ -26,6 +31,7 @@ import torch, torch.nn as nn
 from experiments.exact_inversion.lora_exact_inversion import git_hash
 from experiments.exact_inversion.trained_backbone import read_idx
 from experiments.exact_inversion.deep_stack import save_deep
+from experiments.exact_inversion.train_strong_backbone import ACTS
 
 
 def main():
@@ -43,12 +49,16 @@ def main():
     ap.add_argument("--target-train-acc", type=float, default=None); ap.add_argument("--min-train-loss", type=float, default=None)
     ap.add_argument("--max-epochs", type=int, default=None); ap.add_argument("--out", default=None)
     ap.add_argument("--plateau-patience", type=int, default=5)
+    ap.add_argument("--act", default="gelu", choices=sorted(ACTS), help="hidden activation; recorded in the checkpoint as 'act'")
     a = ap.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)
     if a.out and os.path.exists(a.out): raise SystemExit(f"refusing to overwrite {a.out}")
     init = torch.load(a.init_from, map_location="cpu", weights_only=False) if a.init_from else None
     if init is not None:
         a.depth, a.width, a.residual = len(init["Ws"]), init["Ws"][0].shape[0], bool(init.get("residual", False))
+        if init.get("act", "gelu") != a.act:
+            raise SystemExit(f"{a.init_from} records act={init.get('act', 'gelu')!r} but --act {a.act!r} was requested")
+    phi = ACTS[a.act]
     dev = torch.device(a.device); torch.manual_seed(a.seed)
     Xtr, ytr = read_idx(a.data_root, "train"); Xte, yte = read_idx(a.data_root, "test")
     Xtr_t = torch.tensor(Xtr, device=dev).float(); ytr_t = torch.tensor(ytr, device=dev)
@@ -66,7 +76,7 @@ def main():
         for n, lin in enumerate(lins):
             z = lin(h)
             if n and a.residual and z.shape == h.shape: z = z + h
-            h = torch.nn.functional.gelu(z) if n < len(lins) - 1 else z
+            h = phi(z) if n < len(lins) - 1 else z
         return h
 
     @torch.no_grad()
@@ -84,7 +94,7 @@ def main():
     n_epochs = (a.max_epochs or a.epochs) if rule else a.epochs
     sched = (torch.optim.lr_scheduler.ReduceLROnPlateau(opt, mode="min", factor=0.5, patience=a.plateau_patience, min_lr=1e-5)
              if rule else None)
-    print(f"# deep backbone 784-{a.width}x{a.depth-1}-10 GELU residual={a.residual} "
+    print(f"# deep backbone 784-{a.width}x{a.depth-1}-10 {a.act.upper()} residual={a.residual} "
           f"depth={a.depth} git={git_hash()} host={socket.gethostname()}" + (f"  warm-start {a.init_from}" if init else "") +
           (f"  RULE train_acc>={a.target_train_acc} & train_loss<={a.min_train_loss}, max {n_epochs} epochs, Adam lr {a.lr}, "
            f"no augmentation, no weight decay" if rule else ""), flush=True)
@@ -112,7 +122,7 @@ def main():
     path = a.out or os.path.join(a.out_dir, stem + ".pth")
     tr = stats(Xtr_t, ytr_t); te = stats(Xte_t, yte_t); acc = te["acc"]; epochs_run = stopped_at or n_epochs
     Ws = [l.weight for l in lins]                           # (out, in): deep_stack applies Ws[l] @ h with h (in, N)
-    save_deep(path, Ws, lins[0].bias, acc, dict(depth=a.depth, width=a.width, residual=a.residual,
+    save_deep(path, Ws, lins[0].bias, acc, dict(depth=a.depth, width=a.width, residual=a.residual, act=a.act,
                                                 git=git_hash(), epochs=epochs_run, seed=a.seed,
                                                 train_acc=tr["acc"], train_loss=tr["loss"],
                                                 train_margin_pos_frac=tr["margin_pos_frac"], test_loss=te["loss"],

@@ -31,6 +31,11 @@ WP0 (2026-09-18) "fully trained" mode -- a `_full` twin trained to the base-trai
 
   python -u -m experiments.exact_inversion.train_strong_backbone --init-from models/exact_inversion/mnist_mlp_strong.pth \
       --out models/exact_inversion/mnist_mlp_strong_full.pth --target-train-acc 0.995 --min-train-loss 1e-2 --max-epochs 300
+
+P5 (2026-09-18) activation twins:  --act {gelu,relu,tanh}  (default gelu = the original code path, byte-identical)
+  selects the hidden activation and is recorded in the checkpoint dict as "act".  Loaders that do not read the field
+  (trained_backbone, multilayer_lora, deep_stack) will apply GELU to a relu/tanh checkpoint and be WRONG.
+  Warm-starting from a checkpoint that records a different act is refused.
 """
 import argparse, json, os, socket, sys, time
 import numpy as np
@@ -38,6 +43,9 @@ import torch, torch.nn as nn
 
 from experiments.exact_inversion.lora_exact_inversion import git_hash
 from experiments.exact_inversion.trained_backbone import read_idx
+
+# hidden activation by name; "gelu" is the original hard-coded path (P5 activation twins read the others)
+ACTS = {"gelu": torch.nn.functional.gelu, "relu": torch.nn.functional.relu, "tanh": torch.tanh}
 
 
 def build(n_out=10):
@@ -47,9 +55,10 @@ def build(n_out=10):
                           nn.Linear(1000, n_out, bias=False)])
 
 
-def fwd(layers, x):
-    h = torch.nn.functional.gelu(layers[0](x))
-    h = torch.nn.functional.gelu(layers[1](h))
+def fwd(layers, x, act="gelu"):
+    phi = ACTS[act]
+    h = phi(layers[0](x))
+    h = phi(layers[1](h))
     return layers[2](h)
 
 
@@ -62,19 +71,22 @@ def save_ckpt(layers, path, acc, epoch, extra=None):
     print(f"    saved {path}  (test acc {acc*100:.2f}%)", flush=True)
 
 
-def load_into(layers, path):
-    sd = torch.load(path, map_location="cpu", weights_only=False)["state_dict"]
+def load_into(layers, path, act="gelu"):
+    ck = torch.load(path, map_location="cpu", weights_only=False)
+    if ck.get("act", "gelu") != act:
+        raise SystemExit(f"{path} records act={ck.get('act', 'gelu')!r} but --act {act!r} was requested")
+    sd = ck["state_dict"]
     with torch.no_grad():
         layers[0].weight.copy_(sd["layers.0.weight"]); layers[0].bias.copy_(sd["layers.0.bias"])
         layers[1].weight.copy_(sd["layers.1.weight"]); layers[2].weight.copy_(sd["layers.2.weight"])
 
 
 @torch.no_grad()
-def split_stats(layers, X, y, bs=5000):
+def split_stats(layers, X, y, bs=5000, act="gelu"):
     """Accuracy, mean cross-entropy and the fraction of positive margins over a whole split."""
     correct = 0; loss = 0.0; pos = 0
     for i in range(0, X.shape[0], bs):
-        z = fwd(layers, X[i:i + bs]); yb = y[i:i + bs]
+        z = fwd(layers, X[i:i + bs], act); yb = y[i:i + bs]
         loss += float(nn.functional.cross_entropy(z, yb, reduction="sum")); correct += int((z.argmax(1) == yb).sum())
         zy = z.gather(1, yb[:, None])[:, 0]; zo = z.clone(); zo.scatter_(1, yb[:, None], -float("inf"))
         pos += int((zy - zo.max(1).values > 0).sum())
@@ -100,6 +112,8 @@ def main():
     ap.add_argument("--init-from", default=None, help="warm-start from a checkpoint of this format")
     ap.add_argument("--out", default=None, help="write ONLY the final checkpoint here (no _mid/_strong files)")
     ap.add_argument("--plateau-patience", type=int, default=5, help="rule mode: halve lr after this many epochs without train-loss improvement")
+    # ---- P5 activation twins ----
+    ap.add_argument("--act", default="gelu", choices=sorted(ACTS), help="hidden activation; recorded in the checkpoint as 'act'")
     a = ap.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)
     dev = torch.device(a.device)
@@ -108,7 +122,7 @@ def main():
     Xtr_t = torch.tensor(Xtr, device=dev).float(); ytr_t = torch.tensor(ytr, device=dev)
     Xte_t = torch.tensor(Xte, device=dev).float(); yte_t = torch.tensor(yte, device=dev)
     layers = build(a.n_out).to(dev).float()
-    if a.init_from: load_into(layers, a.init_from)
+    if a.init_from: load_into(layers, a.init_from, a.act)
     stem = a.name or ("mnist_mlp" if a.n_out == 10 else f"mnist_mlp_m{a.n_out}")
     opt = torch.optim.Adam(layers.parameters(), lr=a.lr)
     lossf = nn.CrossEntropyLoss()
@@ -117,22 +131,22 @@ def main():
     sched = (torch.optim.lr_scheduler.ReduceLROnPlateau(opt, mode="min", factor=0.5, patience=a.plateau_patience, min_lr=1e-5)
              if rule else None)
     mid_done = False; t0 = time.time(); tr = None; stopped_at = None; lr_hist = []
-    print(f"# training 784-1000-1000-{a.n_out} GELU on the FULL train split ({Xtr_t.shape[0]} images)  "
+    print(f"# training 784-1000-1000-{a.n_out} {a.act.upper()} on the FULL train split ({Xtr_t.shape[0]} images)  "
           f"git={git_hash()} host={socket.gethostname()}" + (f"  warm-start {a.init_from}" if a.init_from else "") +
           (f"  RULE train_acc>={a.target_train_acc} & train_loss<={a.min_train_loss}, max {n_epochs} epochs, "
            f"no augmentation, no weight decay" if rule else ""), flush=True)
     if rule:
-        tr = split_stats(layers, Xtr_t, ytr_t); te0 = split_stats(layers, Xte_t, yte_t)
+        tr = split_stats(layers, Xtr_t, ytr_t, act=a.act); te0 = split_stats(layers, Xte_t, yte_t, act=a.act)
         print(f"  epoch  0  train acc {tr['acc']*100:.3f}%  train loss {tr['loss']:.3e}  test acc {te0['acc']*100:.2f}%", flush=True)
     for ep in range(n_epochs):
         perm = torch.randperm(Xtr_t.shape[0], device=dev)
         for i in range(0, Xtr_t.shape[0], a.bs):
             j = perm[i:i + a.bs]
-            opt.zero_grad(); lossf(fwd(layers, Xtr_t[j]), ytr_t[j]).backward(); opt.step()
+            opt.zero_grad(); lossf(fwd(layers, Xtr_t[j], a.act), ytr_t[j]).backward(); opt.step()
         with torch.no_grad():
-            acc = float((fwd(layers, Xte_t).argmax(1) == yte_t).float().mean())
+            acc = float((fwd(layers, Xte_t, a.act).argmax(1) == yte_t).float().mean())
         if rule:
-            tr = split_stats(layers, Xtr_t, ytr_t); sched.step(tr["loss"]); lr_hist.append(opt.param_groups[0]["lr"])
+            tr = split_stats(layers, Xtr_t, ytr_t, act=a.act); sched.step(tr["loss"]); lr_hist.append(opt.param_groups[0]["lr"])
             print(f"  epoch {ep+1:>3}  train acc {tr['acc']*100:.3f}%  train loss {tr['loss']:.3e}  "
                   f"test acc {acc*100:.2f}%  lr {opt.param_groups[0]['lr']:.1e}  {time.time()-t0:.0f}s", flush=True)
             ok_acc = a.target_train_acc is None or tr["acc"] >= a.target_train_acc
@@ -147,8 +161,8 @@ def main():
         if acc >= a.target_acc and ep >= 4:
             save_ckpt(layers, os.path.join(a.out_dir, f"{stem}_strong.pth"), acc, ep + 1)
     epochs_run = stopped_at or n_epochs
-    tr = split_stats(layers, Xtr_t, ytr_t); te = split_stats(layers, Xte_t, yte_t); acc = te["acc"]
-    extra = dict(train_acc=tr["acc"], train_loss=tr["loss"], train_margin_pos_frac=tr["margin_pos_frac"],
+    tr = split_stats(layers, Xtr_t, ytr_t, act=a.act); te = split_stats(layers, Xte_t, yte_t, act=a.act); acc = te["acc"]
+    extra = dict(act=a.act, train_acc=tr["acc"], train_loss=tr["loss"], train_margin_pos_frac=tr["margin_pos_frac"],
                  test_loss=te["loss"], epochs_run=epochs_run, init_from=a.init_from, seed=a.seed, lr=a.lr, bs=a.bs,
                  optimizer="Adam", augmentation=False, weight_decay=0.0,
                  stopping_rule=(dict(target_train_acc=a.target_train_acc, min_train_loss=a.min_train_loss,
