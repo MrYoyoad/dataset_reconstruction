@@ -693,6 +693,22 @@ and every cell above 0.1 belongs to one seed. So `rho_trunc ≈ K_l · eps_perp`
 cell and cannot be used to convert a drift measurement into a recovery prediction for a particular release. The
 tail reaches the value the slow-drift theory predicts, which the earlier synthetic estimate did not.
 
+
+**Depth check — the rank wall is depth-invariant, the error tolerance is not (target layer 4, seed 1, 45 cells; cells
+still arriving).** Same accounting one layer deeper:
+
+| | target layer 2 (3 seeds, 135 cells) | target layer 4 (seed 1, 45 cells) |
+|---|---|---|
+| full arm, `rank C ≥ k` | 49 cells, 5 / 8 / 8 images | 31 cells, **6 / 8 / 8** |
+| full arm, `rank C < k` | 85 cells, 0 / 0 / 0 | 14 cells, **0 / 0 / 0** |
+| trunc arm, `rho_trunc < 1e-4` | 44 cells, 8 / 8 / 8 | 30 cells, **2 / 8 / 8** |
+| trunc arm, `rho_trunc > 1e-4` | 90 cells, 0 / 0 / 8 | 15 cells, **0 / 0 / 0** |
+
+**The wall holds exactly, at both depths, with no exception in 179 cells.** The error side moves: one layer deeper
+nothing at all survives above 1e-4 (against a long tail at target 2), and even below it a cell drops to 2 of 8. So
+the deeper the adapted layer, the less drift-induced error it tolerates — consistent with the conditioning falling
+with depth measured independently in §P4-MLP, and the reason the single-number error threshold is release-specific.
+
 **What survives, stated carefully.** The full certificate's failure is predictable from the release alone, because
 `rank C = r − rank B_T` is computable and the wall is at `k`. The truncated certificate's failure is governed by the
 drift-induced error, monotonically, but its threshold is release-specific and cannot yet be predicted from a
