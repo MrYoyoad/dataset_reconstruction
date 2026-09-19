@@ -90,6 +90,28 @@ PRE-REGISTERED OUTCOMES (written 2026-09-18 BEFORE the smoke ran):
 
   python -u -m experiments.multilayer_cert.drift_cert --adapt 1 2 --target 2 --r-per-layer 16 64 --T 1 20 \\
          --lr 0.01 --starts 20 --seed 1 --out results/multilayer_cert/drift_cert_smoke.jsonl
+
+CIFAR PATH (added 2026-09-19, backlog E.1 "multilayer / changing-input reconstruction on a trained backbone").
+  `--dataset cifar100 --class-name motorcycle` runs the same harness on the trained CIFAR-10 MLPs of
+  experiments/cifar/cifar_newclass.py (`cifar10_mlp_newclass.pth`, `cifar10_mlp_overtrained_newclass.pth`: state_dict
+  l1.weight/l1.bias/l2.weight/head.weight, 3072-1000-1000-10, GELU, bias on layer 1 only -- the same family as the
+  strong MNIST MLP, loaded here into the deep_stack convention).  Privates = the eight TEST images of the CIFAR-100
+  class at `randperm(seed+7)[:N]` (ladder_cell.py `mlp_motorcycle` / cifar_newclass.py, same join key), chart =
+  PCA-k of the class's TRAIN split, head extended by a zero row (m = 11, label 10) exactly as cifar_newclass.py;
+  gate = CIFAR-10 test accuracy on 2000 images > 0.5 (cifar_newclass's mlp gate; a pixel MLP's ceiling is ~58%).
+  Grids and tier 2 use shape (3, 32, 32) and the ('cifar100', <class>) decoy pool.  The MNIST path is unchanged.
+  `--wrong-release` (control, both datasets): the release is trained on the NEXT N images of the same permutation
+  (`randperm(seed+7)[N:2N]`, cifar_newclass.py / ladder_cell.py verbatim; on-chart-projected under --private onchart)
+  and the certificate is applied to the search for the TRUE eight.  Drift / N' / rank are measured on the release's
+  own training trajectory; `res_truth`, `objective_at_raw_truth` and every landing are against the true eight; the
+  row adds `wrong_release_idx`, `objective_at_release_train` (the release's own floor) and the ladder's assertion
+  `certificate_nondegenerate` = min start objective > 1e4 x that floor (RAW privates only: with on-chart privates the
+  release's own eight ARE in the chart, so starts legitimately reach the floor BY LANDING ON THEM -- smoke 369540 --
+  and the field is None; `landed_on_release_train` / `images_of_release_train_found` record that instead).  The alias
+  floor uses the release's own floor there (the truth's objective is O(1) by construction).  The per-image verdict on
+  a wrong-release cell is `recovered` (a harness failure) or `control (wrong release): not recovered`; x*_chart from
+  the truth's coordinates is meaningless there (it rolls to a zero of ANOTHER release) so `chart-limited` is never
+  issued.  Expected: 0 recoveries of the true eight, tier 2 at chance.
 """
 import argparse, json, math, os, socket, sys, time
 import numpy as np
@@ -123,6 +145,12 @@ def load_model(path, dev):
         Ws, b1, ck = load_deep(path, dev)
         meta = {k: v for k, v in ck.items() if k not in ("Ws", "b1") and not torch.is_tensor(v)}
         meta["layout"] = "deep_stack"
+    elif "state_dict" in blob and "l1.weight" in blob["state_dict"]:          # cifar_newclass.MLP: 3072-1000-1000-10, l1/l2/head (bias on l1 only)
+        sd = blob["state_dict"]
+        assert set(sd) == {"l1.weight", "l1.bias", "l2.weight", "head.weight"}, f"not the cifar_newclass MLP layout: {sorted(sd)}"
+        Ws = [sd[k].to(dev).double() for k in ("l1.weight", "l2.weight", "head.weight")]; b1 = sd["l1.bias"].to(dev).double()
+        meta = dict(layout="cifar_mlp", test_acc=blob.get("test_acc"), train_acc=blob.get("train_acc"), train_loss=blob.get("train_loss"),
+                    overtrain=blob.get("overtrain"), epochs=blob.get("epochs"), margin_median=blob.get("margin_median"))
     else:                                                                  # 784-1000-1000-10 state_dict (TrainedBackbone layout)
         sd = blob["state_dict"] if "state_dict" in blob else blob
         keys = sorted([k for k in sd if k.endswith(".weight")], key=lambda s: int(s.split(".")[1]))
@@ -216,14 +244,16 @@ def layer_stats(layer1, j, H0, reps, reps_final, A, B, A0, N, r, lr, wd, T, X_ra
 def rel_err_cols(x, X): return torch.linalg.norm(X - x[:, None], dim=0) / torch.linalg.norm(X, dim=0)
 
 
-def grid_png(path, rows, N, title):
+def grid_png(path, rows, N, title, shape=(1, 28, 28)):
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
     fig, ax = plt.subplots(len(rows), N, figsize=(1.1 * N + 0.4, 1.2 * len(rows) + 0.6), squeeze=False)
     for ri, (lab, X) in enumerate(rows):
         for c in range(N):
             a_ = ax[ri, c]; a_.axis("off")
             if X is not None and c < X.shape[1]:
-                a_.imshow(X[:, c].reshape(28, 28).clamp(0, 1).cpu().numpy(), cmap="gray", vmin=0, vmax=1)
+                im = X[:, c].reshape(*shape).clamp(0, 1).cpu()
+                if shape[0] == 3: a_.imshow(im.permute(1, 2, 0).numpy())
+                else: a_.imshow(im[0].numpy(), cmap="gray", vmin=0, vmax=1)
             if c == 0: a_.set_title(lab, fontsize=6, loc="left")
     fig.suptitle(title, fontsize=6); fig.tight_layout(); os.makedirs(os.path.dirname(path), exist_ok=True)
     fig.savefig(path, dpi=110); plt.close(fig)
@@ -242,6 +272,12 @@ def main():
     ap.add_argument("--seed", nargs="+", type=int, default=[1])
     ap.add_argument("--chart", choices=["pca"], default="pca", help="PCA-k of the public pool of the added class (the ladder's attacker-available chart)")
     ap.add_argument("--images", choices=["letter_a"], default="letter_a", help="the 18 Sept package's eight: EMNIST letter a, test split, randperm(seed+7)[:N]")
+    ap.add_argument("--dataset", choices=["emnist", "cifar100"], default="emnist", help="emnist: the MNIST path above (default, unchanged). cifar100: the "
+                    "trained CIFAR-10 MLPs of cifar_newclass.py with a CIFAR-100 class as the new class (privates = test split, chart = PCA-k of the train split)")
+    ap.add_argument("--class-name", default=None, help="the added class: EMNIST letter (default a) or CIFAR-100 fine-label name (default motorcycle)")
+    ap.add_argument("--cifar-root", default="data", help="root holding cifar-10-batches-py/ and cifar-100-python/ (perceptual_id.CIFAR_ROOT)")
+    ap.add_argument("--wrong-release", action="store_true", help="CONTROL: train the release on the next N images of the same permutation "
+                    "(randperm(seed+7)[N:2N], cifar_newclass / ladder_cell verbatim) and search for the TRUE eight; expected 0 recoveries")
     ap.add_argument("--private", choices=["raw", "onchart"], default="raw", help="raw: the release is trained on the pixels (the truth is NOT in the "
                     "PCA-k chart; x*_chart is the reference). onchart: trained on the chart projections psi(coords(x)), so the truth IS in the chart, "
                     "tier 1 can land and eps_land at zero drift is a landing floor rather than the chart error (Rule B needs this)")
@@ -263,18 +299,30 @@ def main():
 
     Ws, b1, meta = load_model(a.model, dev); D = len(Ws)
     assert 1 <= a.target <= D and all(1 <= l <= D for l in a.adapt), f"layers must be in 1..{D}"
-    # ---- WP0-style gate: the loaded net must classify MNIST (catches a mis-assembled loader before any number is produced)
-    Xte, yte = read_idx(a.data_root, "test")
+    cifar = a.dataset == "cifar100"
+    cls_name = a.class_name or ("motorcycle" if cifar else "a")
+    # ---- WP0-style gate: the loaded net must classify its own test set (catches a mis-assembled loader before any number is produced)
+    if cifar:
+        from experiments.cifar.cifar_newclass import load_cifar10, load_cifar100_class
+        assert meta.get("layout") == "cifar_mlp", f"--dataset cifar100 needs a cifar_newclass MLP checkpoint, got layout {meta.get('layout')}"
+        _, _, Xte, yte = load_cifar10(a.cifar_root); gate_min = 0.5                  # cifar_newclass's mlp gate (a pixel MLP's test ceiling is ~58%)
+    else:
+        Xte, yte = read_idx(a.data_root, "test"); gate_min = 0.9
     with torch.no_grad():
-        Zt = Ws[-1] @ feats_upto(torch.tensor(Xte[:2000], device=dev).T, Ws, b1, D - 1)[-1]
+        Zt = Ws[-1] @ feats_upto(torch.tensor(Xte[:2000], device=dev).double().T, Ws, b1, D - 1)[-1]
         gate_acc = float((Zt.argmax(0).cpu() == torch.tensor(yte[:2000])).double().mean())
     ck_meta = {k_: meta.get(k_) for k_ in ("test_acc", "train_acc", "train_loss")}
     log(f"# drift_cert  model={a.model} layout={meta.get('layout')} depth={D} ckpt_meta={ck_meta}"
-        f"  gate test acc (2000) = {gate_acc*100:.2f}%  {'PASS' if gate_acc > 0.9 else 'FAIL -- loader wrong'}  git={PROV['git']} sha={PROV['script_sha']} job={job} host={socket.gethostname()}")
-    if gate_acc <= 0.9: sys.exit(3)
+        f"  gate test acc (2000) = {gate_acc*100:.2f}%  {'PASS' if gate_acc > gate_min else 'FAIL -- loader wrong'} (> {gate_min})  git={PROV['git']} sha={PROV['script_sha']} job={job} host={socket.gethostname()}")
+    if gate_acc <= gate_min: sys.exit(3)
     # ---- privates + chart (ladder_cell verbatim: letter a, extend the head by a zero row, PCA of the train split)
-    fl = load_emnist_letters(a.data_root, "a")
-    Pub = torch.tensor(fl["train"][0], device=dev); Pri = torch.tensor(fl["test"][0], device=dev)
+    if cifar:
+        pool, cls_name = load_cifar100_class(a.cifar_root, cls_name)
+        Pub = torch.tensor(pool["train"], dtype=torch.float64, device=dev); Pri = torch.tensor(pool["test"], dtype=torch.float64, device=dev)
+        log(f"# CIFAR-100 class '{cls_name}': public train pool {Pub.shape[0]}, private test pool {Pri.shape[0]} (cifar_newclass / ladder mlp_motorcycle convention)")
+    else:
+        fl = load_emnist_letters(a.data_root, cls_name)
+        Pub = torch.tensor(fl["train"][0], device=dev); Pri = torch.tensor(fl["test"][0], device=dev)
     n_head = Ws[-1].shape[1]; Ws = Ws[:-1] + [torch.cat([Ws[-1], torch.zeros(1, n_head, device=dev)], 0)]; m = Ws[-1].shape[0]
     mean = Pub.mean(0); _, S_, Vh_ = torch.linalg.svd(Pub - mean, full_matrices=False); V = Vh_[: a.k].T.contiguous()
     psi = lambda Z: mean[:, None] + V @ Z; coords = lambda X: V.T @ (X - mean[:, None])
@@ -288,29 +336,37 @@ def main():
     cells = [(seed, T, lr, mom, wd) for seed in a.seed for T in a.T for lr in a.lr for mom in a.momentum for wd in a.wd]
     log(f"# adapt={a.adapt} r={a.r_per_layer} target={a.target} control={is_control} solve_layers={solve_layers} cert={a.solve_cert} "
         f"k={a.k} chart=pca (explained {chart_explained:.3f}) starts={a.starts} cells={len(cells)} m={m} (head extended)")
-    if os.path.basename(a.model).startswith("mnist_mlp_strong") and a.target == D:
+    if (os.path.basename(a.model).startswith("mnist_mlp_strong") or meta.get("layout") == "cifar_mlp") and a.target == D and not is_control:
         log("# PRE-REGISTERED contaminated cell: the target is the softmax head (rank B_T <= m-1 < N + drift for T > 1)")
+    if a.wrong_release: log("# WRONG-RELEASE CONTROL: the release is trained on randperm(seed+7)[N:2N]; the search targets the true eight. Expected: 0 recoveries.")
 
     def emit(row):
         with open(a.out, "a") as f: f.write(json.dumps(row) + "\n")
 
     from experiments.utils.perceptual_id import score_image, feature_extractor     # CPU line-up: truth + 99 public decoys
-    feat_cpu = feature_extractor(a.model); key = ("emnist", "a"); shape = (1, 28, 28)
+    feat_cpu = feature_extractor(a.model); key = (("cifar100", cls_name) if cifar else ("emnist", cls_name)); shape = (3, 32, 32) if cifar else (1, 28, 28)
 
     for (seed, T, lr, mom, wd) in cells:
         t_cell = time.time()
         g = torch.Generator().manual_seed(seed + 7); perm = torch.randperm(Pri.shape[0], generator=g)
         X_pix = Pri[perm[: a.N]].T.contiguous(); join_idx = [int(v) for v in perm[: a.N]]
         X_raw = psi(coords(X_pix)) if a.private == "onchart" else X_pix           # the TRUTH the release is trained on and scored against
+        if a.wrong_release:                                                      # control: the release sees the NEXT N images of the same permutation
+            X_other = Pri[perm[a.N: 2 * a.N]].T.contiguous(); other_idx = [int(v) for v in perm[a.N: 2 * a.N]]
+            X_train = psi(coords(X_other)) if a.private == "onchart" else X_other
+        else:
+            X_train, other_idx = X_raw, None
         y = torch.full((a.N,), m - 1, device=dev, dtype=torch.long)
         gA = torch.Generator().manual_seed(seed + 7)
         A0s = [(torch.randn(r, Ws[i].shape[1], generator=gA) / math.sqrt(Ws[i].shape[1])).to(dev) for i, r in zip(adapt0, a.r_per_layer)]
-        H0s = feats_upto(X_raw, Ws, b1, max(adapt0))                        # base inputs to every layer up to the deepest adapted one
-        As, Bs, reps, reps_final = train_lora(X_raw, y, Ws, b1, adapt0, A0s, T, lr, mom, wd)
+        H0s = feats_upto(X_train, Ws, b1, max(adapt0))                      # base inputs (of the release's training images) to every layer up to the deepest adapted one
+        H0s_true = H0s if not a.wrong_release else feats_upto(X_raw, Ws, b1, max(adapt0))   # the TRUE eight's base inputs (residual at the truth, alias floor)
+        As, Bs, reps, reps_final = train_lora(X_train, y, Ws, b1, adapt0, A0s, T, lr, mom, wd)
         cfg = dict(part="drift_cert", label=a.label, model=a.model, model_layout=meta.get("layout"), depth=D, adapt=a.adapt, target=a.target,
                    r_per_layer=a.r_per_layer, r_target=a.r_per_layer[jt], layer_below=below1, is_control=is_control, N=a.N, k=a.k, chart="pca",
                    chart_explained=chart_explained, T=T, lr=lr, momentum=mom, wd=wd, eta_lambda=lr * wd, eta_lambda_T=lr * wd * T,
-                   seed=seed, images=a.images, private=a.private, private_join_idx=join_idx,
+                   seed=seed, images=(a.images if not cifar else cls_name), dataset=a.dataset, class_name=cls_name, image_shape=list(shape),
+                   private=a.private, private_join_idx=join_idx, wrong_release=a.wrong_release, wrong_release_idx=other_idx,
                    private_chart_err=[float(torch.linalg.norm(psi(coords(X_pix))[:, i] - X_pix[:, i]) / torch.linalg.norm(X_pix[:, i])) for i in range(a.N)], m=m, head_extended=True, label_new=m - 1, starts=a.starts, iters=a.iters,
                    solve=a.solve, stack_below=bool(a.stack_below and below1 is not None), solve_layers=solve_layers, solve_cert=a.solve_cert,
                    gate_test_acc=gate_acc, ckpt_meta={k_: meta.get(k_) for k_ in ("test_acc", "train_acc", "train_loss")},
@@ -331,7 +387,7 @@ def main():
         # ---- per-layer statistics at the truth
         layers, Cs = [], {}
         for j, i in enumerate(adapt0):
-            st, Cf, Ct = layer_stats(i + 1, j, H0s[i], reps, reps_final, As[i], Bs[i], A0s[j], a.N, a.r_per_layer[j], lr, wd, T, H0s[i])
+            st, Cf, Ct = layer_stats(i + 1, j, H0s[i], reps, reps_final, As[i], Bs[i], A0s[j], a.N, a.r_per_layer[j], lr, wd, T, H0s_true[i])
             layers.append(st); Cs[i + 1] = dict(full=Cf, trunc=Ct, A=As[i])
         tg = layers[jt]
         row = dict(cfg, diverged=False, layers=layers, target_stats={k_: tg[k_] for k_ in ("delta", "delta_perp", "drift_rank", "N_prime", "rank_B_T", "rank_C_full",
@@ -358,7 +414,8 @@ def main():
                 feat_ref = float(torch.linalg.norm(A_t @ feats_upto(Pub[:256].T, Ws, b1, tgt0)[-1], dim=0).median())
                 Wtrue = coords(X_raw); X_proj = psi(Wtrue)
                 obj_proj = [float(fun(Wtrue[:, i]) @ fun(Wtrue[:, i])) for i in range(a.N)]
-                obj_raw = [float(v) for v in (torch.linalg.norm(Cs[a.target][kind] @ H0s[tgt0], dim=0) / torch.linalg.norm(A_t @ H0s[tgt0], dim=0)) ** 2]
+                obj_raw = [float(v) for v in (torch.linalg.norm(Cs[a.target][kind] @ H0s_true[tgt0], dim=0) / torch.linalg.norm(A_t @ H0s_true[tgt0], dim=0)) ** 2]
+                obj_train = [float(v) for v in (torch.linalg.norm(Cs[a.target][kind] @ H0s[tgt0], dim=0) / torch.linalg.norm(A_t @ H0s[tgt0], dim=0)) ** 2]   # == obj_raw unless --wrong-release
                 proj_err = [float(torch.linalg.norm(X_proj[:, i] - X_raw[:, i]) / torch.linalg.norm(X_raw[:, i])) for i in range(a.N)]   # the chart's own ceiling
             # x*_chart per truth: the same LM from the ORACLE start (coords of the truth); NOT attacker-available
             opt = []
@@ -378,6 +435,9 @@ def main():
                 jr, jo = int(e_raw.argmin()), int(e_opt.argmin())
                 runs.append(dict(objective=obj, iters=it, nearest=jr, err=float(e_raw[jr]), landed=bool(e_raw[jr] < LAND),
                                  nearest_opt=jo, err_opt=float(e_opt[jo]), reached_opt=bool(e_opt[jo] < LAND), feat_ratio=fr, degenerate=bool(fr < DEGEN)))
+                if a.wrong_release:                                            # did the start land on the release's OWN (wrong) images?
+                    with torch.no_grad(): e_tr = rel_err_cols(x, X_train)
+                    runs[-1].update(nearest_train=int(e_tr.argmin()), err_train=float(e_tr.min()), landed_train=bool(e_tr.min() < LAND))
                 Wfound.append(w.detach())
                 if (s + 1) % 100 == 0 or s + 1 == a.starts:
                     log(f"     [{kind}] {s+1}/{a.starts} starts {time.time()-t_s:.0f}s  landed {sum(r['landed'] for r in runs)}  reached x*chart {sum(r['reached_opt'] for r in runs)}")
@@ -402,9 +462,10 @@ def main():
                 landed_i, reached_i = bool(e_r < LAND), bool(e_o < LAND)
                 at_opt_obj = [s for s in range(a.starts) if not runs[s]["degenerate"] and runs[s]["objective"] <= opt[i]["objective"] * (1 + 1e-6) + FLOOR]
                 below_opt = [s for s in at_opt_obj if not runs[s]["reached_opt"] and not runs[s]["landed"]]      # bootstrap's alias_in_chart
-                floor_i = max(FLOOR, 1e2 * obj_raw[i])                                                          # "residual zero" = at the truth's floor
+                floor_i = max(FLOOR, 1e2 * (max(obj_train) if a.wrong_release else obj_raw[i]))                # "residual zero" = at the truth's floor (wrong-release: the release's OWN floor)
                 alias_starts = [s for s in below_opt if runs[s]["objective"] <= floor_i]
-                if tg["contaminated"]: verdict = "contaminated"
+                if a.wrong_release: verdict = "recovered" if landed_i else "control (wrong release): not recovered"
+                elif tg["contaminated"]: verdict = "contaminated"
                 elif landed_i: verdict = "recovered"
                 elif reached_i: verdict = "recovered" if opt[i]["err_truth"] < LAND else "chart-limited"
                 elif alias_starts: verdict = "alias (residual zero, wrong image)"
@@ -423,27 +484,38 @@ def main():
             reached_any = [s for s in range(a.starts) if runs[s]["reached_opt"] and not runs[s]["degenerate"]]
             eps_land = max(math.sqrt(max(runs[s]["objective"], 0.0)) for s in reached_any) if reached_any else None
             cnt = lambda arm, k_: int(sum(bool(p[arm][k_]) for p in per))
+            obj_min_nd = float(min(runs[s]["objective"] for s in (order or range(a.starts))))
             solves[kind] = dict(kind=kind, landed=int(sum(r["landed"] for r in runs)), images_found=int(sum(p["landed"] for p in per)),
+                                objective_at_release_train=obj_train, release_floor_objective=float(max(obj_train)),
+                                certificate_nondegenerate=(bool(obj_min_nd > 1e4 * max(float(max(obj_train)), 1e-300)) if a.private == "raw" else None),   # ladder_cell's wrong-release assertion (raw privates only)
+                                landed_on_release_train=(int(sum(bool(r.get("landed_train")) for r in runs)) if a.wrong_release else None),
+                                images_of_release_train_found=(len({r["nearest_train"] for r in runs if r.get("landed_train")}) if a.wrong_release else None),
                                 reached_opt=int(sum(r["reached_opt"] for r in runs)), images_reached_opt=int(sum(p["reached_opt"] for p in per)),
                                 n_degenerate=int(sum(r["degenerate"] for r in runs)), objective_min=float(min(runs[s]["objective"] for s in (order or range(a.starts)))),
                                 objective_median=float(np.median([r["objective"] for r in runs])),
                                 eps_land=eps_land, res_opt_max=max(p["res_opt"] for p in per), res_truth_max=max(p["res_truth"] for p in per),
                                 err_opt_truth_median=float(np.median([p["err_opt_truth"] for p in per])), proj_err_median=float(np.median(proj_err)), proj_err_per_image=proj_err,
-                                verdicts={v: int(sum(p["verdict"] == v for p in per)) for v in ("recovered", "chart-limited", "alias (residual zero, wrong image)", "optimisation failure (residual not zero)", "contaminated")},
+                                verdicts={v: int(sum(p["verdict"] == v for p in per)) for v in ("recovered", "chart-limited", "alias (residual zero, wrong image)", "optimisation failure (residual not zero)", "contaminated")
+                                          + (("control (wrong release): not recovered",) if a.wrong_release else ())},
                                 tier2_found_best=dict(top1_ssim=cnt("tier2_found_best", "top1_ssim"), top5_ssim=cnt("tier2_found_best", "top5_ssim"), top1_feat=cnt("tier2_found_best", "top1_feat"), top5_feat=cnt("tier2_found_best", "top5_feat"),
                                                       ssim_truth_median=float(np.median([p["tier2_found_best"]["ssim_truth"] for p in per])), ssim_control_median=float(np.median([p["tier2_found_best"]["ssim_control"] for p in per]))),
                                 tier2_attacker=dict(top1_ssim=cnt("tier2_attacker", "top1_ssim"), top5_ssim=cnt("tier2_attacker", "top5_ssim"), top1_feat=cnt("tier2_attacker", "top1_feat"), top5_feat=cnt("tier2_attacker", "top5_feat"),
                                                     ssim_truth_median=float(np.median([p["tier2_attacker"]["ssim_truth"] for p in per])), n_candidates=len(cand), truths_covered=len(set(att_for))),
                                 per_image=per, runs=runs, seconds=time.time() - t_s)
-            tag = f"{os.path.splitext(os.path.basename(a.model))[0]}_adapt{'-'.join(map(str, a.adapt))}_tgt{a.target}_r{'-'.join(map(str, a.r_per_layer))}_T{T}_lr{lr:g}_m{mom:g}_wd{wd:g}_s{seed}{'_stack' if row['stack_below'] else ''}_{kind}_{job}"
-            torch.save(dict(x_raw=X_raw.cpu(), x_pix=X_pix.cpu(), private=a.private, x_proj=X_proj.cpu(), x_opt=X_opt.cpu(), x_found_best=X_found[:, best_raw].cpu(), x_found_best_opt=X_found[:, best_opt].cpu(),
+            tag = f"{os.path.splitext(os.path.basename(a.model))[0]}_adapt{'-'.join(map(str, a.adapt))}_tgt{a.target}_r{'-'.join(map(str, a.r_per_layer))}_T{T}_lr{lr:g}_m{mom:g}_wd{wd:g}_s{seed}{'_stack' if row['stack_below'] else ''}{'_wrong' if a.wrong_release else ''}_{kind}_{job}"
+            torch.save(dict(x_raw=X_raw.cpu(), x_pix=X_pix.cpu(), x_train=X_train.cpu(), private=a.private, dataset=a.dataset, class_name=cls_name, shape=shape,
+                            x_proj=X_proj.cpu(), x_opt=X_opt.cpu(), x_found_best=X_found[:, best_raw].cpu(), x_found_best_opt=X_found[:, best_opt].cpu(),
                             x_attacker=X_att.cpu(), x_cand=X_cand.cpu(), W=torch.stack(Wfound, 1).cpu(), runs=runs, chart_mean=mean.cpu(), chart_V=V.cpu(),
                             A_T={l: As[l - 1].cpu() for l in a.adapt}, B_T={l: Bs[l - 1].cpu() for l in a.adapt}, A0={l: A0s[j].cpu() for j, l in enumerate(a.adapt)},
                             C={l: Cs[l][kind].cpu() for l in solve_layers}, row=dict(row, solve_summary={k_: v for k_, v in solves[kind].items() if k_ not in ("runs",)})),
                        os.path.join(save_dir, tag + ".pth"))
-            grid_png(os.path.join(a.fig_dir, tag + ".png"), [("truth", X_raw), ("x*_chart (oracle start)", X_opt), ("found (nearest start)", X_found[:, best_raw]), ("attacker candidate", X_att)],
-                     a.N, f"{tag}\nlanded {solves[kind]['landed']}/{a.starts} reached x*chart {solves[kind]['reached_opt']} verdicts {solves[kind]['verdicts']}")
+            grid_png(os.path.join(a.fig_dir, tag + ".png"), [("truth", X_raw), ("x*_chart (oracle start)", X_opt), ("found (nearest start)", X_found[:, best_raw]), ("attacker candidate", X_att)]
+                     + ([("release trained on (wrong-release)", X_train)] if a.wrong_release else []),
+                     a.N, f"{tag}\nlanded {solves[kind]['landed']}/{a.starts} reached x*chart {solves[kind]['reached_opt']} verdicts {solves[kind]['verdicts']}", shape=shape)
             sv = solves[kind]; eps_str = "None" if sv["eps_land"] is None else f"{sv['eps_land']:.2e}"
+            if a.wrong_release: log(f"     [{kind}] WRONG-RELEASE: true eight landed {sv['landed']}/{a.starts} (MUST be 0); starts on the release's own images {sv['landed_on_release_train']}/{a.starts} "
+                                    f"({sv['images_of_release_train_found']}/{a.N} of them); min start objective {sv['objective_min']:.2e} vs the release's own floor {sv['release_floor_objective']:.1e}"
+                                    + (f" -> certificate {'NON-DEGENERATE' if sv['certificate_nondegenerate'] else 'DEGENERATE (starts reach the floor)'}" if a.private == "raw" else " (on-chart privates: the wrong eight are in the chart, floor reachable by design)"))
             log(f"     [{kind}] landed {sv['landed']}/{a.starts} (images {sv['images_found']}/{a.N}) reached x*chart {sv['reached_opt']} (images {sv['images_reached_opt']}/{a.N}) "
                 f"eps_land {eps_str} res_opt max {sv['res_opt_max']:.2e} res_truth max {sv['res_truth_max']:.2e} "
                 f"tier2 found top1 ssim/feat {sv['tier2_found_best']['top1_ssim']}/{sv['tier2_found_best']['top1_feat']} attacker {sv['tier2_attacker']['top1_ssim']}/{sv['tier2_attacker']['top1_feat']} "

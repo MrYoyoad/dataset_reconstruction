@@ -4255,3 +4255,20 @@ under it can be the body of a `bsub`. Same for anything in a node-local `/tmp`. 
 must live in the repo (or another shared path): put the stage in the existing runner under `scripts/` rather than
 writing a throwaway script.** That is also the reproducible home for it — the ad-hoc script would have vanished with
 the session even if it had worked.
+
+## 2026-09-19 — wrong-release control on an ON-CHART cell lands on the wrong release's own images (and that is correct)
+
+**What happened.** The first CIFAR drift smoke (369540) labelled the on-chart wrong-release control "chart-limited 8 /
+DEGENERATE". The release had been trained on eight OTHER motorcycles projected onto the same PCA-32 chart, so those
+eight are exact certificate zeros *inside the chart*, and 5/5 starts landed on three of them. The ladder's floor
+assertion (min objective ≫ floor) is meaningless there. **Fix:** verdict on wrong-release rows is `recovered` (harness
+failure) or `control (wrong release): not recovered`, judged against the TRUE eight only, and `landed_on_release_train`
+is recorded as its own field. Rule: a wrong-release control on an on-chart cell must report landings on the release's
+training set separately; only the raw arm can use the floor assertion.
+
+## 2026-09-19 — per-image landing counts are GPU-model-sensitive at a fixed seed
+
+The same smoke cell (same seed, same code) landed 19/20 starts on 7/8 images on an A40 and on 5/8 (H100). The LM
+starts are seeded, but the basin each start falls into depends on the reduction order. Unit of comparison across
+cells is therefore the cross-seed pool (images found over 3 seeds, landing rate), never a per-image count from one
+job; `long-gpu` assigns mixed hardware.

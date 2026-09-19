@@ -11,7 +11,19 @@
 #   DRY=1 bash scripts/run_drift_cert_wexac.sh submit p3           # print the bsub lines, submit nothing
 #   CERT=both bash scripts/run_drift_cert_wexac.sh submit p3       # solve with the full AND the truncated certificate (2x time)
 #   PRIVATE=onchart bash scripts/run_drift_cert_wexac.sh submit p3  # privates = their PCA-32 projections (Rule B's eps_land needs this; see DRIFT_NOTES)
-# Job bodies (what bsub runs):  smoke | p3 <twin|strong> <target> <seed> | p6 <drift|ctrl>
+#   bash scripts/run_drift_cert_wexac.sh submit cifar_smoke        # 1 job, short-gpu, ~10 min: CIFAR loader + control + drift + head + wrong-release
+#   bash scripts/run_drift_cert_wexac.sh submit cifar              # backlog E.1 (2026-09-19): 24 jobs {overtrained,newclass} x target {2,3} x seeds x
+#                                                                  #   PRIVATES {raw,onchart} + 8 wrong-release jobs; CERT=both STARTS=200 unless set
+# Job bodies (what bsub runs):  smoke | p3 <twin|strong> <target> <seed> | p6 <drift|ctrl> | cifar_smoke | cifar <overtrained|newclass> <target> <seed>
+#                               | cifar_wrong <overtrained|newclass> <target>
+#
+# CIFAR stage (backlog E.1, notes/meeting_2026-09-15_decisions_and_backlog.md): the adapter INSIDE a trained CIFAR-10 MLP
+# (cifar_newclass.py's 3072-1000-1000-10, over-trained twin passes WP0; the 60-epoch one is the ladder's mlp_motorcycle base),
+# privates = eight CIFAR-100 '$CLASS' TEST images (join key randperm(seed+7)[:N]), chart = PCA-32 of the class's train split.
+# Per (model, target, seed, private) job: zero-drift control (--adapt tgt) 15 cells + drift (--adapt tgt-1 tgt, r_lower 4/16/64)
+# 45 cells, T {1 5 20 100 400} x lr {0.003 0.01 0.03}, r = 64, k = 32.  Target 2 = last hidden layer (input drifts when
+# layer 1 is adapted); target 3 = the head (control = the cifar_newclass working cell; drift arm PRE-REGISTERED contaminated).
+# Wrong-release control per (model, target, private): control + drift r_lower 16, T grid, lr 0.01, seed 1, --wrong-release.
 #
 # P3 cells per job: the zero-drift CONTROL (--adapt = target only; eps_land is measured there) at T x lr (15 cells),
 # then the drift cells with layer target-1 also adapted at r_lower in {4,16,64} (45 cells) -- 60 cells per job.
@@ -22,6 +34,10 @@
 # =====================================================================
 TWIN=models/exact_inversion/mnist_mlp_d15w1000_full.pth
 STRONG=models/exact_inversion/mnist_mlp_strong.pth
+CIFAR_OVER=models/exact_inversion/cifar10_mlp_overtrained_newclass.pth    # 100% train / 57.3% test, WP0 PASS (base_training_gate 355833)
+CIFAR_NEW=models/exact_inversion/cifar10_mlp_newclass.pth                 # 93.6% train / 57.9% test, the ladder's mlp_motorcycle base (WP0 FAIL, used as-is)
+CLASS=${CLASS:-motorcycle}              # the CIFAR-100 class added as the 11th class (cifar stage only)
+CIFAR_CERT=${CERT:-both}; CIFAR_STARTS=${STARTS:-200}; CIFAR_PRIVATES=${PRIVATES:-"raw onchart"}   # cifar-stage defaults (the spec's), before the P3 defaults below
 CERT=${CERT:-full}                      # full | trunc | both  (which certificate the solve uses)
 PRIVATE=${PRIVATE:-raw}                 # raw | onchart  (onchart: the truth is in the PCA-k chart -> tier 1 can land, eps_land is a landing floor; Rule B)
 STARTS=${STARTS:-400}
@@ -56,6 +72,31 @@ if [ "$STAGE" = "submit" ]; then
                 bash scripts/run_drift_cert_wexac.sh p3 strong $TGT $SEED
           done
         done ;;
+      cifar_smoke)
+        run -q short-gpu -gpu "num=1:gmem=20G" -R "rusage[mem=24576] select[ngpus>0]" -W 0:40 -J driftcert_cifar_smoke \
+            -o scripts/wexac_logs/driftcert_cifar_smoke_%J.out -e scripts/wexac_logs/driftcert_cifar_smoke_%J.err \
+            bash scripts/run_drift_cert_wexac.sh cifar_smoke ;;
+      cifar)
+        export CERT=$CIFAR_CERT STARTS=$CIFAR_STARTS CLASS
+        for PV in $CIFAR_PRIVATES; do
+          export PRIVATE=$PV
+          for SEED in 1 2 3; do
+            for MODEL_TAG in overtrained newclass; do
+              for TGT in 2 3; do
+                run -q long-gpu -gpu "num=1:gmem=20G" -R "rusage[mem=24576] select[ngpus>0]" -W 24:00 -J driftcert_cifar_${MODEL_TAG}_t${TGT}_s${SEED}_${PV} \
+                    -o scripts/wexac_logs/driftcert_cifar_${MODEL_TAG}_t${TGT}_s${SEED}_${PV}_%J.out -e scripts/wexac_logs/driftcert_cifar_${MODEL_TAG}_t${TGT}_s${SEED}_${PV}_%J.err \
+                    bash scripts/run_drift_cert_wexac.sh cifar $MODEL_TAG $TGT $SEED
+              done
+            done
+          done
+          for MODEL_TAG in overtrained newclass; do
+            for TGT in 2 3; do
+              run -q long-gpu -gpu "num=1:gmem=20G" -R "rusage[mem=24576] select[ngpus>0]" -W 8:00 -J driftcert_cifar_wrong_${MODEL_TAG}_t${TGT}_${PV} \
+                  -o scripts/wexac_logs/driftcert_cifar_wrong_${MODEL_TAG}_t${TGT}_${PV}_%J.out -e scripts/wexac_logs/driftcert_cifar_wrong_${MODEL_TAG}_t${TGT}_${PV}_%J.err \
+                  bash scripts/run_drift_cert_wexac.sh cifar_wrong $MODEL_TAG $TGT
+            done
+          done
+        done ;;
       p6)
         if [ "$P6_LR" = "FILL_ME" ] || [ "$P6_RL" = "FILL_ME" ]; then echo "P6_LR / P6_RL are placeholders: fill them from the P3 read-out first"; exit 2; fi
         for ARM in drift ctrl; do
@@ -74,7 +115,7 @@ conda activate /home/projects/galvardi/yoado/.conda/envs/rec
 cd /home/projects/galvardi/yoado
 OUTDIR=results/multilayer_cert; mkdir -p $OUTDIR figures/multilayer_cert/drift_cert
 JOB=${LSB_JOBID:-manual}
-echo "=== START drift_cert stage=$STAGE args=$* $(date) on $(hostname) git=$(git rev-parse --short HEAD) job=$JOB cert=$CERT private=$PRIVATE ==="
+echo "=== START drift_cert stage=$STAGE args=$* $(date) on $(hostname) git=$(git rev-parse --short HEAD) job=$JOB cert=$CERT private=$PRIVATE starts=$STARTS class=$CLASS ==="
 python -c "import torch; print(f'CUDA={torch.cuda.is_available()} torch={torch.__version__} gpu={torch.cuda.get_device_name(0) if torch.cuda.is_available() else None}')"
 python -m py_compile experiments/multilayer_cert/drift_cert.py || exit 3
 RUN="python -u -m experiments.multilayer_cert.drift_cert"
@@ -104,6 +145,41 @@ case "$STAGE" in
       $RUN --model $MODEL --adapt $LOWER $TGT --target $TGT --r-per-layer $RL 64 --T $TS --lr $LRS --momentum 0 --wd 0 --starts $STARTS --seed $SEED \
            --solve-cert $CERT --private $PRIVATE --label p3-drift-$PRIVATE --out $OUT
     done
+    ;;
+  cifar_smoke)
+    OUT=$OUTDIR/drift_cert_cifar_smoke_${JOB}.jsonl; CIF="--dataset cifar100 --class-name $CLASS"
+    # (1) zero-drift control on the over-trained MLP: layer 2 alone -- rho_full MUST be at the FP64 floor, rank C = 56, the grid in colour
+    $RUN --model $CIFAR_OVER $CIF --adapt 2 --target 2 --r-per-layer 64 --T 1 20 --lr 0.01 --momentum 0 --wd 0 --starts 20 --seed 1 --solve-cert both --private $PRIVATE --label cifar-smoke-control --out $OUT
+    # (2) the drift cell: layer 1 adapted below the target layer 2 -- rank_C_full = r - N' on the T = 20 cell
+    $RUN --model $CIFAR_OVER $CIF --adapt 1 2 --target 2 --r-per-layer 16 64 --T 1 20 --lr 0.01 --momentum 0 --wd 0 --starts 20 --seed 1 --solve-cert both --private $PRIVATE --label cifar-smoke-drift --out $OUT
+    # (3) the head target (pre-registered contaminated for T > 1), no solve; and the 60-epoch checkpoint through the loader gate
+    $RUN --model $CIFAR_OVER $CIF --adapt 2 3 --target 3 --r-per-layer 16 64 --T 20 --lr 0.01 --starts 5 --seed 1 --no-solve --label cifar-smoke-head --out $OUT
+    $RUN --model $CIFAR_NEW $CIF --adapt 2 --target 2 --r-per-layer 64 --T 1 --lr 0.01 --starts 5 --seed 1 --no-solve --label cifar-smoke-newclass-loader --out $OUT
+    # (4) the wrong-release control path (5 starts): 0 landings expected, certificate NON-DEGENERATE against the release's own floor
+    $RUN --model $CIFAR_OVER $CIF --adapt 2 --target 2 --r-per-layer 64 --T 20 --lr 0.01 --starts 5 --seed 1 --solve-cert full --private onchart --wrong-release --label cifar-smoke-wrong-onchart --out $OUT
+    $RUN --model $CIFAR_OVER $CIF --adapt 2 --target 2 --r-per-layer 64 --T 20 --lr 0.01 --starts 5 --seed 1 --solve-cert full --private raw --wrong-release --label cifar-smoke-wrong-raw --out $OUT
+    ;;
+  cifar)
+    MODEL_TAG=$2; TGT=$3; SEED=$4
+    case "$MODEL_TAG" in overtrained) MODEL=$CIFAR_OVER ;; newclass) MODEL=$CIFAR_NEW ;; *) echo "model overtrained|newclass"; exit 2 ;; esac
+    LOWER=$((TGT - 1)); CIF="--dataset cifar100 --class-name $CLASS"
+    OUT=$OUTDIR/drift_cert_cifar_${MODEL_TAG}_tgt${TGT}_s${SEED}_${PRIVATE}_${JOB}.jsonl
+    $RUN --model $MODEL $CIF --adapt $TGT --target $TGT --r-per-layer 64 --T $TS --lr $LRS --momentum 0 --wd 0 --starts $STARTS --seed $SEED \
+         --solve-cert $CERT --private $PRIVATE --label cifar-control-$PRIVATE --out $OUT
+    for RL in 4 16 64; do
+      $RUN --model $MODEL $CIF --adapt $LOWER $TGT --target $TGT --r-per-layer $RL 64 --T $TS --lr $LRS --momentum 0 --wd 0 --starts $STARTS --seed $SEED \
+           --solve-cert $CERT --private $PRIVATE --label cifar-drift-$PRIVATE --out $OUT
+    done
+    ;;
+  cifar_wrong)
+    MODEL_TAG=$2; TGT=$3
+    case "$MODEL_TAG" in overtrained) MODEL=$CIFAR_OVER ;; newclass) MODEL=$CIFAR_NEW ;; *) echo "model overtrained|newclass"; exit 2 ;; esac
+    LOWER=$((TGT - 1)); CIF="--dataset cifar100 --class-name $CLASS"
+    OUT=$OUTDIR/drift_cert_cifar_wrong_${MODEL_TAG}_tgt${TGT}_${PRIVATE}_${JOB}.jsonl
+    $RUN --model $MODEL $CIF --adapt $TGT --target $TGT --r-per-layer 64 --T $TS --lr 0.01 --momentum 0 --wd 0 --starts $STARTS --seed 1 \
+         --solve-cert $CERT --private $PRIVATE --wrong-release --label cifar-wrong-control-$PRIVATE --out $OUT
+    $RUN --model $MODEL $CIF --adapt $LOWER $TGT --target $TGT --r-per-layer 16 64 --T $TS --lr 0.01 --momentum 0 --wd 0 --starts $STARTS --seed 1 \
+         --solve-cert $CERT --private $PRIVATE --wrong-release --label cifar-wrong-drift-$PRIVATE --out $OUT
     ;;
   p6)
     ARM=$2

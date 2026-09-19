@@ -9,6 +9,7 @@ section further down is older, not superseded, unless it says so. Audited claims
 
 **Most recent:**
 
+- [Backlog E.1 SUBMITTED: the certificate search with the adapter INSIDE the trained CIFAR backbone under drift](#backlog-e1-submitted-the-certificate-search-with-the-adapter-inside-the-trained-cifar-backbone-under-drift-2026-09-19-smoke-369540369553-full-369565369596)
 - [The two depth laws separate on a real CNN, and the corrected law wins as an exact integer with a gap](#the-two-depth-laws-separate-on-a-real-cnn-and-the-corrected-law-wins-as-an-exact-integer-with-a-gap-2026-09-18-job-366149)
 - [The recovery criterion decides the headline: exact landing dies at chart error 0.014, IDENTIFICATION surv…](#the-recovery-criterion-decides-the-headline-exact-landing-dies-at-chart-error-0014-identification-survives-to-026-2026-09-18-job-356492)
 - [18 Sept package (WP0–WP5): what is already settled while the sweeps run](#18-sept-package-wp0wp5-what-is-already-settled-while-the-sweeps-run-2026-09-18-jobs-355833356051)
@@ -20,6 +21,28 @@ section further down is older, not superseded, unless it says so. Audited claims
 - [WITHDRAWN and REPLACED: depth DOES raise the identifiability cap — cap(L) = min(L·(r−N)+m, nesting ceiling)](#withdrawn-and-replaced-depth-does-raise-the-identifiability-cap--capl--minl·r−nm-nesting-ceiling-2026-09-17-job-355531)
 - [M6: T5.2 refuted on a REAL encoder — and at every chart width an attacker can build, the two laws agree](#m6-t52-refuted-on-a-real-encoder--and-at-every-chart-width-an-attacker-can-build-the-two-laws-agree-2026-09-17-job-354535-attested-59cbe42-dirty--script_sha-dd81201f5399)
 - [Depth's additivity law is FALSE as stated, and the depth route needs re-costing not re-testing](#depths-additivity-law-is-false-as-stated-and-the-depth-route-needs-re-costing-not-re-testing-2026-09-17-jobs-350996-218345218346-theory_checks-688036)
+
+---
+
+## Backlog E.1 SUBMITTED: the certificate search with the adapter INSIDE the trained CIFAR backbone under drift (2026-09-19; smoke 369540/369553, full 369565–369596)
+
+The highest-priority item of `notes/meeting_2026-09-15_decisions_and_backlog.md` §E.1 (Gal's changing-input question on a
+real image backbone) is now on the cluster. `experiments/multilayer_cert/drift_cert.py` gained a loader for the trained
+CIFAR-10 MLPs (`cifar10_mlp_overtrained_newclass.pth`, gate PASS; `cifar10_mlp_newclass.pth`, the ladder's base, fails
+WP0 and is used as-is), CIFAR-100 motorcycle privates with the ladder's join key, the PCA-32 public chart, RGB grids,
+tier 2 on the `('cifar100','motorcycle')` pool, and a `--wrong-release` control. Runner stages `cifar_smoke` / `cifar`
+(`scripts/run_drift_cert_wexac.sh`). Grid: target = last hidden layer (2) or head (3), layer below adapted at
+r_lower ∈ {4,16,64}, T ∈ {1,5,20,100,400}, lr ∈ {0.003,0.01,0.03}, r = 64, k = 32, 3 seeds, both certificates, raw and
+on-chart privates, 200 starts; 32 jobs. Pre-registration and smoke table: `experiments/multilayer_cert/DRIFT_CIFAR_NOTES.md`.
+
+Smoke (369553, H100): zero-drift control at the FP64 floor (rho_full 4e-16, rank C = 56 = r − N, 19–20/20 starts land
+on 5–7 of 8 on-chart motorcycles, tier 2 7/7). Drift cell at T = 20: N' = 160 = 8T saturates rank B_T at 64, so the FULL
+certificate is empty (rank 0, contaminated as pre-registered) and lands 0/20, while the TRUNCATED certificate reaches
+x*_chart 19/20 on 8/8 images with tier 2 8/8. Wrong-release control 0/5 on the true eight in both raw and on-chart
+arms. Same shape as the MNIST P3 result, now on colour images. Read the full rows when they land (4–6 h per job).
+
+**Text front opened the same night**: GPT-2 token-span check building (`experiments/exact_inversion/text_token_span.py`),
+pre-registered against the ViT saturation result (job 273322); not yet submitted at the time of this entry.
 
 ---
 
